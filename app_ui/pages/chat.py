@@ -3001,7 +3001,7 @@ window.__openVaultNote = function(noteId) {{
                             _kb_model = ui.select(
                                 _wb_models,
                                 label=_("Model"),
-                                value=_wb_models[0] if _wb_models else "",
+                                value=_wb_models[0] if _wb_models else None,
                             ).props("outlined dark dense").classes("w-full mt-2")
 
                             _kb_status = ui.label("").classes("text-xs mt-2")

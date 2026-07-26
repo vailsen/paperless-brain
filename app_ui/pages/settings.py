@@ -18,6 +18,8 @@ from services.session_auth import get_session_token
 def language_setting() -> None:
     """Render the language selector. Switching = write storage + reload."""
     current = ng_app.storage.user.get("language", DEFAULT_LANG)
+    if current not in SUPPORTED_LANGUAGES:
+        current = DEFAULT_LANG
 
     def on_change(e) -> None:
         ng_app.storage.user["language"] = e.value
@@ -533,7 +535,7 @@ async def settings_page() -> None:
             _dream_sel = ui.select(
                 _dream_model_opts,
                 label=_("Model for memory cleanup"),
-                value=_cur_dream_model if _cur_dream_model in _dream_model_opts else (next(iter(_dream_model_opts), "") ),
+                value=_cur_dream_model if _cur_dream_model in _dream_model_opts else next(iter(_dream_model_opts), None),
             ).props("outlined dark dense").classes("w-full mt-2")
 
             def _save_dream_cfg():
