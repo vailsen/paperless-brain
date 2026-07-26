@@ -913,6 +913,142 @@ async def settings_page() -> None:
                     "unelevated dark dense"
                 ).classes("bg-purple-700 text-white")
 
+        # ── Import / Export ───────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            from services import settings_transfer as _st
+
+            _section_header(
+                "import_export",
+                _("Import / export settings"),
+                _("Move your personal settings to another installation"),
+            )
+
+            _ta_style = (
+                "min-height:150px; font-family:monospace; font-size:11px;"
+                " background:var(--c-bg); color:var(--c-text-2);"
+            )
+
+            # ── Export ────────────────────────────────────────────────────────
+            _export_secrets_cb = ui.checkbox(
+                _("Include passwords and API keys"), value=False
+            ).classes("text-sm text-gray-300")
+            _hint(
+                _(
+                    "Without this option the export contains no secrets; on import the "
+                    "existing passwords and keys are kept. <b style='color:#f87171'>With it, the "
+                    "string contains your API keys, IMAP/CalDAV passwords and iCal URLs in "
+                    "plain text</b> — treat it like a password."
+                )
+            )
+
+            _export_out = (
+                ui.textarea(label=_("Export string"))
+                .props("dark outlined readonly")
+                .classes("w-full")
+                .style(_ta_style)
+            )
+            _export_out.set_visibility(False)
+
+            def _do_export() -> None:
+                text = _st.build_export(
+                    username,
+                    token,
+                    language=ng_app.storage.user.get("language", DEFAULT_LANG),
+                    theme=ng_app.storage.user.get("theme", "dark"),
+                    include_secrets=bool(_export_secrets_cb.value),
+                )
+                _export_out.set_value(text)
+                _export_out.set_visibility(True)
+
+            def _copy_export() -> None:
+                if not _export_out.value:
+                    return
+                ui.clipboard.write(_export_out.value)
+                ui.notify(_("Copied to clipboard."), type="positive")
+
+            with ui.row().classes("gap-3 mt-2"):
+                ui.button(_("Create export"), icon="download", on_click=_do_export).props(
+                    "unelevated dark dense"
+                ).classes("bg-purple-700 text-white")
+                ui.button(_("Copy"), icon="content_copy", on_click=_copy_export).props(
+                    "flat dark dense"
+                ).classes("text-gray-300 border border-gray-600")
+
+            _hint(
+                _(
+                    "The copy button needs HTTPS or localhost. Otherwise select the text in the field and copy it manually."
+                )
+            )
+
+            ui.separator().classes("my-4")
+
+            # ── Import ────────────────────────────────────────────────────────
+            _import_in = (
+                ui.textarea(label=_("Paste export string here"))
+                .props("dark outlined")
+                .classes("w-full")
+                .style(_ta_style)
+            )
+
+            async def _do_import() -> None:
+                try:
+                    payload = _st.parse_export(_import_in.value)
+                except _st.SettingsImportError as e:
+                    ui.notify(_("Import failed: {err}").format(err=e), type="negative")
+                    return
+
+                items = _st.describe(payload, list(SUPPORTED_LANGUAGES))
+                if not items:
+                    ui.notify(_("The string contains no importable settings."), type="warning")
+                    return
+
+                with ui.dialog() as _dlg, ui.card().classes("bg-gray-800 border border-gray-700"):
+                    ui.label(_("Apply these settings?")).classes(
+                        "text-base font-semibold text-gray-100"
+                    )
+                    with ui.column().classes("gap-0 my-2"):
+                        for _it in items:
+                            ui.label(f"• {_it}").classes("text-sm text-gray-300")
+                    if not payload.get("_secrets"):
+                        ui.label(
+                            _("The export contains no secrets — existing passwords and API keys are kept.")
+                        ).classes("text-xs text-gray-500 mt-1")
+                    with ui.row().classes("gap-2 mt-3 justify-end w-full"):
+                        ui.button(_("Cancel"), on_click=lambda: _dlg.submit(False)).props(
+                            "flat dark dense"
+                        ).classes("text-gray-400")
+                        ui.button(_("Apply"), icon="check", on_click=lambda: _dlg.submit(True)).props(
+                            "unelevated dark dense"
+                        ).classes("bg-purple-700 text-white")
+
+                if not await _dlg:
+                    return
+
+                try:
+                    prefs = await asyncio.to_thread(
+                        _st.apply_import, username, token, payload, list(SUPPORTED_LANGUAGES)
+                    )
+                except Exception as e:  # noqa: BLE001 — surfaced to the user
+                    ui.notify(_("Import failed: {err}").format(err=e), type="negative")
+                    return
+
+                for k, v in prefs.items():
+                    ng_app.storage.user[k] = v
+                ui.notify(_("Settings imported."), type="positive")
+                ui.navigate.reload()
+
+            ui.button(_("Import"), icon="upload", on_click=_do_import).props(
+                "unelevated dark dense"
+            ).classes("bg-purple-700 text-white mt-2")
+
+            _hint(
+                _(
+                    "Import overwrites the sections contained in the string. Global settings "
+                    "(processing, tags, search, deep research) are <b>not</b> part of the export — "
+                    "they apply to all users."
+                )
+            )
+
         # ── Vault / Obsidian ──────────────────────────────────────────────────
         with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
             from vault.paths import vault_path as _vault_path, brain_path as _brain_path
