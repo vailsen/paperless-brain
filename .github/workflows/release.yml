@@ -1,0 +1,94 @@
+# Publishes the app image to the GitHub Container Registry (GHCR) so users can
+# `docker compose pull` instead of building locally.
+#
+# Triggers on a semver tag (v1.2.3) and on manual dispatch. Two variants are
+# built from the one Dockerfile via the LEAN build-arg:
+#   full  -> ghcr.io/<owner>/paperless-brain:{latest, 1.2.3, 1.2, ...}
+#   lean  -> ghcr.io/<owner>/paperless-brain:{lean, 1.2.3-lean, ...}
+#
+# Image name is pinned to `paperless-brain` (not derived from the repo name) so
+# it stays stable if the repository is renamed.
+#
+# amd64 only for now: the full image bundles headless Chromium + torch, and an
+# arm64 build under QEMU emulation takes ~an hour. To add arm64 later, set
+# `platforms: linux/amd64,linux/arm64` on the build step below.
+
+name: Release image
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/paperless-brain
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # required to push to GHCR
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: full
+            lean: "0"
+            flavor: ""        # canonical tags: latest, 1.2.3, 1.2
+          - variant: lean
+            lean: "1"
+            flavor: "-lean"   # suffixed tags: lean, 1.2.3-lean
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Derives tags/labels from the git ref. The project versions with PEP 440
+      # (e.g. 0.1.0a1), which is not SemVer — so tag off the raw git-tag name and
+      # the commit sha, which work for ANY tag format. The semver patterns still
+      # fire (and add 1.2.3 / 1.2) once tags become SemVer, but they no-op on a
+      # non-SemVer tag rather than failing the build.
+      #   full: <tagname>, latest, sha-<sha>   lean: <tagname>-lean, lean, sha-<sha>-lean
+      - name: Derive tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=${{ matrix.variant == 'full' }}
+            suffix=${{ matrix.flavor }},onlatest=true
+          tags: |
+            type=ref,event=tag
+            type=sha
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=lean,enable=${{ matrix.variant == 'lean' }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            LEAN=${{ matrix.lean }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions layer cache — keeps rebuilds fast between releases.
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,scope=${{ matrix.variant }},mode=max

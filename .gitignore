@@ -1,0 +1,18 @@
+.env
+.deploy.env
+.claude/
+.nicegui/
+__pycache__
+/data/**
+/vaults/**
+output.jpg
+/ARCHIV/**
+deploy.sh
+
+# Internal working docs — not shipped to the public repo.
+# (roadmap = open-source planning notes; CLAUDE-*-section = fragments already
+#  merged into CLAUDE.md. The architecture/*-tasks docs DO ship.)
+docs/open-source-roadmap.md
+docs/CLAUDE-localization-section.md
+docs/CLAUDE-vault-section.md
+docs/CLAUDE-werkbank-section.md

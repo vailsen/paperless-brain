@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 is the floor declared in pyproject; 3.14 is what production runs.
+        python-version: ["3.12", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # WeasyPrint dlopens Pango at render time, so a missing library shows up
+      # as a failing PDF test rather than an import error. fonts-dejavu-core
+      # backs the Helvetica/Arial CSS stack — without it text renders glyphless.
+      - name: Install system libraries for WeasyPrint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0 fonts-dejavu-core
+
+      # The CPU wheel index keeps the CUDA build (and ~2 GB of NVIDIA packages)
+      # out of the runner; +cpu outranks the default build on PyPI.
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -e ".[dev]"
+
+      - name: Run tests
+        run: pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Syntax-only gate: catches broken files without imposing a style on
+      # contributors. Deliberately not a formatter or full linter yet.
+      - name: Byte-compile all sources
+        run: python -m compileall -q app_ui config models pipelines services vault werkbank tests main.py i18n.py
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Builds the lean variant only: the full image additionally pulls
+      # crawl4ai + headless Chromium, which is slow and not worth gating PRs on.
+      - name: Build lean image
+        run: docker build --build-arg LEAN=1 -t paperless-brain:ci .

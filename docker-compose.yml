@@ -1,0 +1,46 @@
+# PaperlessBrain — app-only compose file.
+# Paperless-ngx, Ollama and SearXNG run wherever you already host them;
+# point the .env values at those instances.
+#
+# Notes:
+# - First boot downloads the embedding model (~2.2 GB) into the hf-cache
+#   volume — the container needs internet access once.
+# - Wake-on-LAN for the Ollama host requires `network_mode: host` (magic
+#   packets don't cross the Docker bridge). Uncomment below and drop `ports:`.
+# - If you sync the vault from other devices via WebDAV/Remotely Save, the
+#   WebDAV server must serve the SAME ./vaults directory mounted here.
+
+services:
+  paperless-brain:
+    # Prebuilt image from GHCR — `docker compose pull && docker compose up -d`.
+    # Pin a version (…:1.2.3) for reproducible deploys; `latest` tracks releases.
+    # Lean variant (no headless Chromium): …/paperless-brain:lean
+    image: ghcr.io/vailsen/paperless-brain:latest
+    # To build locally instead (contributors / unpublished changes), comment out
+    # `image:` above and uncomment:
+    # build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_PATH: /app/
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    # network_mode: host  # required for Wake-on-LAN; remove `ports:` if enabled
+    volumes:
+      # Everything the app owns: ChromaDB, extraction sidecars, thumbnails,
+      # the SQLite DB and the encrypted per-user credential files.
+      - ./data:/app/data
+      # One subfolder per user: agent memory + the user's own Markdown notes.
+      # Change the LEFT side to put the files elsewhere on the host. The right
+      # side must stay in sync with VAULT_ROOT in .env — that variable is the
+      # path *inside* the container, not on the host.
+      - ./vaults:/mnt/vaults
+      # NiceGUI server-side session storage (language, theme, session token).
+      # Without this every container recreate — including `docker compose pull`
+      # — logs all users out and resets their settings.
+      - ./nicegui-storage:/app/.nicegui
+      # Embedding model (~2.2 GB), so it is downloaded once, not per rebuild.
+      - hf-cache:/root/.cache/huggingface
+
+volumes:
+  hf-cache:

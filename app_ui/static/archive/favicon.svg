@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#111827"/>
+  <!-- back document, rotated slightly -->
+  <rect x="10" y="7" width="12" height="16" rx="2" fill="#1e1b4b" transform="rotate(7 16 15)"/>
+  <!-- main document -->
+  <rect x="7" y="5" width="13" height="18" rx="2.5" fill="#6d28d9"/>
+  <!-- folded corner -->
+  <path d="M16 5 L20 9 L16 9 Z" fill="#2e1065"/>
+  <!-- text lines -->
+  <rect x="9" y="12" width="7.5" height="1.5" rx=".75" fill="#ede9fe" opacity=".85"/>
+  <rect x="9" y="15.5" width="5" height="1.5" rx=".75" fill="#ede9fe" opacity=".6"/>
+  <rect x="9" y="19" width="6.5" height="1.5" rx=".75" fill="#ede9fe" opacity=".6"/>
+  <!-- 4-point sparkle -->
+  <path d="M24 20 L24.7 22 L26.7 22.7 L24.7 23.4 L24 25.4 L23.3 23.4 L21.3 22.7 L23.3 22 Z" fill="#e879f9"/>
+</svg>

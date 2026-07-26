@@ -1,0 +1,112 @@
+import asyncio
+import os
+
+# Session storage (.nicegui/) and credentials must not be group/world-readable.
+# Must run before any import that creates files or directories.
+os.umask(0o077)
+
+from fastapi.responses import FileResponse
+from nicegui import app, core, ui
+
+import app_ui.pages.brain  # noqa: F401
+import app_ui.pages.browser  # noqa: F401
+import app_ui.pages.chat  # noqa: F401
+import app_ui.pages.dashboard  # noqa: F401
+import app_ui.pages.login  # noqa: F401
+import app_ui.pages.settings  # noqa: F401
+import werkbank.ui.module_page  # noqa: F401
+from config.settings import settings
+from config.version import __version__
+from services.clients import cross_ref_index
+from services.ollama_watchdog import idle_watchdog
+from werkbank.repository import init_db as _werkbank_init_db
+from werkbank.scheduler import run_scheduler as _werkbank_scheduler
+
+core.sio.eio.max_http_buffer_size = 16 * 1024 * 1024  # 16 MB for HTTP polling fallback
+# Note: NiceGUI 3.x derives ping_interval/ping_timeout from reconnect_timeout automatically.
+# reconnect_timeout=30 → ping_interval=24s, ping_timeout=12s (safe under nginx proxy_read_timeout)
+
+
+def _check_vault_root() -> None:
+    """Warn loudly if VAULT_ROOT is unusable.
+
+    The common misconfiguration is setting VAULT_ROOT to a *host* path under
+    Docker: that directory does not exist inside the container, so vault and
+    memory features silently do nothing. Failing quietly here is the worst
+    outcome — the app looks healthy and the user loses their notes' indexing
+    without ever seeing an error.
+    """
+    root = settings.vault_root
+    if not root.exists():
+        print(
+            f"[startup] WARNING: VAULT_ROOT does not exist: {root}\n"
+            f"          Vault and memory features will not work.\n"
+            f"          In Docker, VAULT_ROOT is the path INSIDE the container "
+            f"(default /mnt/vaults); set the host location on the left-hand side "
+            f"of the volume mapping in docker-compose.yml.",
+            flush=True,
+        )
+        return
+    if not os.access(root, os.W_OK):
+        print(
+            f"[startup] WARNING: VAULT_ROOT is not writable: {root}\n"
+            f"          Memory writes will fail. Check ownership and permissions.",
+            flush=True,
+        )
+
+
+@app.on_startup
+async def _start_watchdog() -> None:
+    _check_vault_root()
+    _werkbank_init_db()
+    if settings.ollama_ssh_user:  # idle-shutdown watchdog only with remote-shutdown config
+        asyncio.create_task(idle_watchdog())
+    asyncio.create_task(_werkbank_scheduler())
+    cross_ref_index.build(str(settings.app_path / settings.extraction_sidecar_path))
+
+
+app.add_static_files("/thumbnails", str(settings.app_path / settings.thumb_path))
+app.add_static_files("/static", str(settings.app_path / "app_ui" / "static"))
+
+_manifest_path = str(settings.app_path / "app_ui" / "static" / "manifest.json")
+_sw_path = str(settings.app_path / "app_ui" / "static" / "sw.js")
+
+
+@app.get("/manifest.json")
+async def _serve_manifest() -> FileResponse:
+    return FileResponse(_manifest_path, media_type="application/manifest+json")
+
+
+# The service worker must be served from the origin root so its default control
+# scope is "/" (a worker at /static/sw.js could only control /static/*). Chrome
+# on Android needs an active SW with a fetch handler to offer the WebAPK
+# "Install app" flow — without it the app is demoted to a home-screen shortcut.
+@app.get("/sw.js")
+async def _serve_sw() -> FileResponse:
+    return FileResponse(
+        _sw_path,
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"},
+    )
+
+
+_pdf_cache = str(settings.app_path / "data" / "pdf_cache")
+os.makedirs(_pdf_cache, exist_ok=True)
+app.add_static_files("/pdftmp", _pdf_cache)
+
+print(f"PaperlessBrain v{__version__}", flush=True)
+
+ui.run(
+    host=settings.host,
+    title="PaperlessBrain",
+    # Without this NiceGUI serves its own default icon at /favicon.ico. Chrome
+    # on Android ignores SVG favicons and falls back to that path, which is why
+    # only Chrome-mobile showed the generic NiceGUI logo.
+    favicon=str(settings.app_path / "app_ui" / "static" / "icon-192.png"),
+    storage_secret=settings.storage_secret,
+    reload=False,
+    port=settings.port,
+    proxy_headers=True,
+    forwarded_allow_ips="*",
+    reconnect_timeout=30,
+)

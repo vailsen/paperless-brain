@@ -1,0 +1,947 @@
+# app_ui/pages/settings.py
+"""User settings page — LLM models, IMAP and CalDAV / iCal configuration."""
+
+import asyncio
+
+from nicegui import app as ng_app, ui
+
+from app_ui.layout import page_layout, require_auth
+from config.settings import settings
+from i18n import DEFAULT_LANG, SUPPORTED_LANGUAGES, get_translator
+from services.credential_store import load_credentials, save_credentials
+from services.session_auth import get_session_token
+
+
+# ── Language selector ───────────────────────────────────────────────────────────
+
+
+def language_setting() -> None:
+    """Render the language selector. Switching = write storage + reload."""
+    current = ng_app.storage.user.get("language", DEFAULT_LANG)
+
+    def on_change(e) -> None:
+        ng_app.storage.user["language"] = e.value
+        ui.navigate.reload()
+
+    ui.select(
+        options=SUPPORTED_LANGUAGES,
+        value=current,
+        label="Sprache / Language",
+        on_change=on_change,
+    ).props("outlined dark dense").classes("w-full")
+
+
+def theme_setting() -> None:
+    """Render the dark/light selector. Switching = write storage + reload."""
+    _ = get_translator()
+    current = ng_app.storage.user.get("theme", "dark")
+
+    def on_change(e) -> None:
+        ng_app.storage.user["theme"] = e.value
+        ui.navigate.reload()
+
+    ui.select(
+        options={"dark": _("Dark"), "light": _("Light")},
+        value=current,
+        label=_("Appearance"),
+        on_change=on_change,
+    ).props("outlined dark dense").classes("w-full")
+
+
+# ── Tiny UI helpers ───────────────────────────────────────────────────────────
+
+
+def _section_header(icon: str, title: str, subtitle: str) -> None:
+    with ui.row().classes("items-center gap-3 mb-1"):
+        ui.icon(icon, size="sm").classes("text-purple-400")
+        with ui.column().classes("gap-0"):
+            ui.label(title).classes("text-base font-semibold text-gray-100")
+            ui.label(subtitle).classes("text-xs text-gray-500")
+    ui.separator().classes("mb-4")
+
+
+def _field(label: str, placeholder: str = "", password: bool = False) -> ui.input:
+    kw: dict = dict(label=label, placeholder=placeholder)
+    if password:
+        kw["password"] = True
+        kw["password_toggle_button"] = True
+    return ui.input(**kw).props("outlined dark dense").classes("w-full")
+
+
+def _hint(html: str) -> None:
+    with ui.element("div").classes(
+        "bg-gray-900 border border-gray-700 rounded p-3 text-xs text-gray-400 mt-1 mb-3"
+    ):
+        ui.html(html, sanitize=False)
+
+
+def _status_row() -> tuple[ui.label, ui.spinner]:
+    with ui.row().classes("items-center gap-2 h-6"):
+        lbl = ui.label("").classes("text-xs")
+        spin = ui.spinner(size="xs").classes("text-purple-400")
+        spin.set_visibility(False)
+    return lbl, spin
+
+
+def _show_status(
+    lbl: ui.label, spin: ui.spinner, err: str, ok_text: str | None = None
+) -> None:
+    _ = get_translator()
+    if ok_text is None:
+        ok_text = _("Connection successful")
+    spin.set_visibility(False)
+    if err:
+        lbl.set_text(_("Error: {err}").format(err=err))
+        lbl.classes(remove="text-green-400", add="text-red-400")
+        ui.notify(err, type="negative")
+    else:
+        lbl.set_text(ok_text)
+        lbl.classes(remove="text-red-400", add="text-green-400")
+        ui.notify(ok_text, type="positive")
+
+
+# ── Page ──────────────────────────────────────────────────────────────────────
+
+
+@ui.page("/settings")
+async def settings_page() -> None:
+    if not require_auth():
+        return
+    page_layout()
+    _ = get_translator()
+
+    username: str = ng_app.storage.user.get("paperless_user", "")
+    token: str = get_session_token()
+    creds = load_credentials(username, token)
+    llm_cfg: dict = creds.get("llm", {})
+    imap_cfg: dict = creds.get("imap", {})
+    cal_cfg: dict = creds.get("calendar", {})
+    sender_cfg: dict = creds.get("sender_profile", {})
+
+    # Normalise saved iCal URLs (new list format or legacy single key)
+    _saved_ical_urls: list[str] = cal_cfg.get("ical_urls") or []
+    if not _saved_ical_urls and cal_cfg.get("ical_url"):
+        _saved_ical_urls = [cal_cfg["ical_url"]]
+    while len(_saved_ical_urls) < 3:
+        _saved_ical_urls.append("")
+
+    saved_cal_mode = "ical" if (_saved_ical_urls[0] or cal_cfg.get("ical_url")) else ("caldav" if cal_cfg.get("url") else "ical")
+
+    with ui.column().classes("w-full max-w-2xl mx-auto p-6 gap-8"):
+        ui.label(_("Settings")).classes("text-xl font-bold text-gray-100")
+
+        # ── Sprache / Language ─────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            _section_header(
+                "translate",
+                _("Language"),
+                _("Display language of the interface"),
+            )
+            language_setting()
+
+        # ── Erscheinungsbild / Theme ───────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            _section_header(
+                "dark_mode",
+                _("Appearance"),
+                _("Light or dark theme"),
+            )
+            theme_setting()
+
+        # ── KI-Modelle (dynamic registry) ─────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            from services.model_registry import get_models, save_models, new_model
+
+            _BACKEND_LABEL = {
+                "anthropic":         _("Anthropic-compatible"),
+                "openai_compatible": _("OpenAI-compatible"),
+            }
+            _BACKEND_COLOR = {
+                "anthropic":         "text-orange-400 bg-orange-950",
+                "openai_compatible": "text-blue-400 bg-blue-950",
+            }
+
+            with ui.row().classes("w-full items-center justify-between mb-1"):
+                with ui.row().classes("items-center gap-3"):
+                    ui.icon("smart_toy", size="sm").classes("text-purple-400")
+                    with ui.column().classes("gap-0"):
+                        ui.label(_("AI models")).classes("text-base font-semibold text-gray-100")
+                        ui.label(_("Providers and models — order = dropdown order")).classes("text-xs text-gray-500")
+
+                def _open_add_dialog(edit_model: dict | None = None):
+                    is_edit = edit_model is not None
+                    models  = get_models(username, token)
+
+                    with ui.dialog().props("persistent") as dlg:
+                        with ui.card().classes("bg-gray-900").style("width:min(95vw,480px)"):
+                            ui.label(_("Edit model") if is_edit else _("Add model")).classes(
+                                "text-base font-semibold text-gray-100 mb-3"
+                            )
+
+                            f_name = _field(_("Display name"), _("e.g. Qwen3 local"))
+                            f_name.set_value(edit_model.get("name", "") if is_edit else "")
+
+                            f_backend = ui.select(
+                                {"openai_compatible": _("OpenAI-compatible"), "anthropic": _("Anthropic-compatible")},
+                                label=_("Backend"),
+                                value=edit_model.get("backend", "openai_compatible") if is_edit else "openai_compatible",
+                            ).props("outlined dark dense").classes("w-full mt-2")
+
+                            f_model = _field(_("Model ID"), _("e.g. qwen3:32b or claude-sonnet-4-6"))
+                            f_model.set_value(edit_model.get("model", "") if is_edit else "")
+
+                            f_base_url = _field(_("Base URL"), "http://192.168.1.x:11434/v1")
+                            f_base_url.set_value(edit_model.get("base_url", "") if is_edit else "")
+
+                            _BASE_URL_PLACEHOLDERS = {
+                                "anthropic":         _("https://api.anthropic.com (empty = default)"),
+                                "openai_compatible": "http://192.168.1.x:11434/v1",
+                            }
+
+                            def _update_base_url_placeholder():
+                                ph = _BASE_URL_PLACEHOLDERS.get(f_backend.value, "")
+                                f_base_url.props(f'placeholder="{ph}"')
+
+                            f_api_key = _field(_("API key"), _("sk-… (leave empty if not needed)"), password=True)
+                            f_api_key.set_value(edit_model.get("api_key", "") if is_edit else "")
+
+                            f_lane = ui.select(
+                                {"api": _("API (several in parallel)"), "local": _("Local (one request at a time)")},
+                                label=_("Concurrency lane"),
+                                value=edit_model.get("lane", "api") if is_edit else "api",
+                            ).props("outlined dark dense").classes("w-full mt-2")
+
+                            f_temperature = (
+                                ui.number(
+                                    label=_("Temperature (0.0 precise – 1.5 creative)"),
+                                    value=float(edit_model.get("temperature", 0.3)) if is_edit else 0.3,
+                                    min=0.0, max=2.0, step=0.05, format="%.2f",
+                                )
+                                .props("outlined dark dense")
+                                .classes("w-full mt-2")
+                            )
+
+                            f_max_output = (
+                                ui.number(
+                                    label=_("Max. output tokens (thinking + answer, 0 = default 16384)"),
+                                    value=int(edit_model.get("max_output_tokens", 0)) if is_edit else 0,
+                                    min=0, step=1024, format="%.0f",
+                                )
+                                .props("outlined dark dense")
+                                .classes("w-full mt-2")
+                            )
+
+                            _think_val = edit_model.get("think") if is_edit else None
+                            _think_init = "true" if _think_val is True else ("false" if _think_val is False else "auto")
+                            f_think = ui.select(
+                                {"auto": _("Auto (model default)"), "true": _("Thinking ON"), "false": _("Thinking OFF")},
+                                label=_("Thinking mode (Qwen3 / DeepSeek-R)"),
+                                value=_think_init,
+                            ).props("outlined dark dense").classes("w-full mt-2")
+                            ui.label(
+                                _("⚠ Qwen3 thinking-loop risk at temp. < 0.5 — recommended: ≥ 0.6")
+                            ).classes("text-xs text-yellow-500 mt-1")
+
+                            _update_base_url_placeholder()
+                            f_backend.on_value_change(lambda _: _update_base_url_placeholder())
+
+                            def _save():
+                                name = f_name.value.strip()
+                                if not name:
+                                    ui.notify(_("Name must not be empty."), type="warning")
+                                    return
+                                cfg = {
+                                    "id":          edit_model["id"] if is_edit else new_model("", "", "")["id"],
+                                    "name":        name,
+                                    "backend":     f_backend.value,
+                                    "model":       f_model.value.strip(),
+                                    "base_url":    f_base_url.value.strip(),
+                                    "api_key":     f_api_key.value.strip(),
+                                    "lane":        f_lane.value,
+                                    "temperature": float(f_temperature.value or 0.3),
+                                    "max_output_tokens": int(f_max_output.value or 0),
+                                    "think": True if f_think.value == "true" else (False if f_think.value == "false" else None),
+                                    "enabled":          True,
+                                }
+                                fresh = get_models(username, token)
+                                if is_edit:
+                                    idx = next((i for i, m in enumerate(fresh) if m["id"] == edit_model["id"]), None)
+                                    if idx is not None:
+                                        fresh[idx] = cfg
+                                else:
+                                    fresh.append(cfg)
+                                save_models(username, token, fresh)
+                                dlg.close()
+                                model_list.refresh()
+                                ui.notify(_("Model saved."), type="positive")
+
+                            with ui.row().classes("w-full justify-end gap-2 mt-4"):
+                                ui.button(_("Cancel"), on_click=dlg.close).props("flat dark").classes("text-gray-400")
+                                ui.button(_("Save"), icon="save", on_click=_save).props(
+                                    "unelevated dark"
+                                ).classes("bg-purple-700 text-white")
+
+                    dlg.open()
+
+                ui.button(_("Add"), icon="add", on_click=lambda: _open_add_dialog()).props(
+                    "unelevated dark dense"
+                ).classes("bg-purple-700 text-white")
+
+            ui.separator().classes("mb-3")
+
+            @ui.refreshable
+            def model_list():
+                models = get_models(username, token)
+                if not models:
+                    ui.label(_("No models configured yet.")).classes("text-xs text-gray-500 py-2")
+                    return
+
+                ui.add_head_html("""<style>
+                @media(max-width:767px){
+                  .model-item{flex-wrap:wrap!important;row-gap:2px!important;}
+                  .model-item-top{width:100%;order:1;}
+                  .model-item-bottom{width:100%;order:2;padding-left:4px;}
+                }
+                @media(min-width:768px){
+                  .model-item-top{display:contents;}
+                  .model-item-bottom{display:contents;}
+                }
+                </style>""")
+                with ui.column().classes("w-full gap-1"):
+                    for i, m in enumerate(models):
+                        badge_cls = _BACKEND_COLOR.get(m.get("backend", ""), "text-gray-400 bg-gray-800")
+                        with ui.row().classes(
+                            "w-full items-center gap-2 px-2 py-2 rounded-lg bg-gray-900 hover:bg-gray-850 model-item"
+                        ):
+                            # ── Row 1 on mobile: sort + badge + lane ──────────
+                            with ui.element("div").classes("flex items-center gap-2 model-item-top"):
+                                # Sort arrows
+                                with ui.column().classes("gap-0"):
+                                    def _move(idx=i, direction=-1):
+                                        ms = get_models(username, token)
+                                        j = idx + direction
+                                        if 0 <= j < len(ms):
+                                            ms[idx], ms[j] = ms[j], ms[idx]
+                                            save_models(username, token, ms)
+                                            model_list.refresh()
+                                    ui.button(icon="keyboard_arrow_up",
+                                              on_click=lambda _, idx=i: _move(idx, -1)).props(
+                                        "flat dark dense"
+                                    ).classes("text-gray-600 p-0").set_enabled(i > 0)
+                                    ui.button(icon="keyboard_arrow_down",
+                                              on_click=lambda _, idx=i: _move(idx, 1)).props(
+                                        "flat dark dense"
+                                    ).classes("text-gray-600 p-0").set_enabled(i < len(models) - 1)
+
+                                # Backend badge
+                                ui.label(_BACKEND_LABEL.get(m.get("backend", ""), m.get("backend", ""))).classes(
+                                    f"text-xs font-mono px-2 py-0.5 rounded {badge_cls} flex-shrink-0"
+                                )
+
+                                # Lane chip
+                                lane = m.get("lane", "api")
+                                ui.label(_("local") if lane == "local" else "API").classes(
+                                    "text-xs text-gray-600 flex-shrink-0"
+                                )
+
+                            # ── Row 2 on mobile: name + model id + buttons ───
+                            with ui.element("div").classes("flex items-center gap-2 flex-1 min-w-0 model-item-bottom"):
+                                # Name + model id
+                                with ui.column().classes("flex-1 gap-0 min-w-0"):
+                                    ui.label(m.get("name", "")).classes(
+                                        "text-sm font-semibold text-gray-200"
+                                    ).style("overflow:hidden;white-space:nowrap;text-overflow:ellipsis")
+                                    ui.label(m.get("model", "")).classes(
+                                        "text-xs text-gray-500 font-mono"
+                                    ).style("overflow:hidden;white-space:nowrap;text-overflow:ellipsis")
+
+                                # Edit / delete (inside row-2 div)
+                                ui.button(icon="edit",
+                                          on_click=lambda _, mod=m: _open_add_dialog(mod)).props(
+                                    "flat dark dense"
+                                ).classes("text-gray-500")
+
+                                def _delete(mid=m["id"]):
+                                    ms = get_models(username, token)
+                                    save_models(username, token, [x for x in ms if x["id"] != mid])
+                                    model_list.refresh()
+                                    ui.notify(_("Model deleted."), type="info")
+
+                                ui.button(icon="delete", on_click=_delete).props(
+                                    "flat dark dense"
+                                ).classes("text-red-700")
+
+            model_list()
+
+            _hint(
+                _(
+                    "Models appear in dropdowns in the configured order.<br><b>OpenAI-compatible</b>: Ollama (<code>http://host:11434/v1</code>), MiniMax, Moonshot, …<br><b>Anthropic-compatible</b>: Anthropic API, MiniMax (<code>https://api.minimaxi.chat/v1</code>) and other providers with an Anthropic-compatible endpoint."
+                )
+            )
+
+        # ── Verarbeitung neuer Dokumente ──────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            from werkbank import settings_store as _ws
+            from services.model_registry import get_models as _get_models
+
+            _section_header(
+                "document_scanner",
+                _("Processing new documents"),
+                _("Vision model for OCR / page extraction (ChromaDB embeddings)"),
+            )
+
+            _ingest_models = _get_models(username, token)
+            _model_opts = {m["name"]: m["name"] for m in _ingest_models if m.get("enabled", True)}
+
+            _cur_ingest_server = _ws.get_ingest_server()
+            _cur_ingest_model  = _ws.get_ingest_model()
+
+            # Pre-select whichever registry entry matches the saved model ID
+            _cur_sel: str | None = next(
+                (m["name"] for m in _ingest_models if m.get("model") == _cur_ingest_model),
+                None,
+            )
+
+            _ingest_select = ui.select(
+                _model_opts or {"": _("— No models configured yet —")},
+                label=_("Vision model"),
+                value=_cur_sel,
+            ).props("outlined dark dense").classes("w-full")
+
+            with ui.column().classes("gap-0 mt-1 mb-3"):
+                _info_server = ui.label(_("Server: {server}").format(server=_cur_ingest_server)).classes(
+                    "text-xs text-gray-500 font-mono"
+                )
+                _info_model = ui.label(_("Model ID: {model}").format(model=_cur_ingest_model)).classes(
+                    "text-xs text-gray-500 font-mono"
+                )
+
+            def _on_ingest_model_change(e, _models=_ingest_models):
+                sel = next((m for m in _models if m["name"] == e.value), None)
+                if not sel:
+                    return
+                base = (sel.get("base_url") or "").rstrip("/")
+                server = base.removesuffix("/v1") if base else _cur_ingest_server
+                _info_server.set_text(_("Server: {server}").format(server=server))
+                _info_model.set_text(_("Model ID: {model}").format(model=sel.get('model', '')))
+
+            _ingest_select.on_value_change(_on_ingest_model_change)
+
+            _hint(
+                _(
+                    "Ollama model <b>with image processing</b> (e.g. qwen2.5-vl, qwen3.6, llava). Must be configured as an OpenAI-compatible model under <i>AI models</i>."
+                )
+            )
+
+            from werkbank.settings_store import get_no_ingest_tag as _get_no_ingest_tag
+            _no_ingest_field = _field(
+                _("No-ingest tag"), settings.ignore_inbox_tag_at_sync
+            )
+            _no_ingest_field.set_value(_get_no_ingest_tag())
+            _hint(
+                _("Documents with this Paperless tag are <b>not</b> embedded into ChromaDB during sync.")
+            )
+
+            def _save_ingest_cfg():
+                sel = next(
+                    (m for m in _get_models(username, token) if m["name"] == _ingest_select.value),
+                    None,
+                )
+                if not sel:
+                    ui.notify(_("No model selected."), type="warning")
+                    return
+                base = (sel.get("base_url") or "").rstrip("/")
+                server = base.removesuffix("/v1") if base else settings.ollama_server
+                _ws.set_value(_ws.INGEST_SERVER, server)
+                _ws.set_value(_ws.INGEST_MODEL, sel.get("model", ""))
+                _ws.set_value(_ws.TAG_NO_INGEST, _no_ingest_field.value.strip())
+                ui.notify(_("Processing settings saved."), type="positive")
+
+            ui.button(_("Save"), icon="save", on_click=_save_ingest_cfg).props(
+                "unelevated dark dense"
+            ).classes("bg-purple-700 text-white")
+
+        # ── Suche & Gedächtnis-Schwellenwerte ─────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            from werkbank import settings_store as _ws_search
+
+            _section_header(
+                "tune",
+                _("Search & memory thresholds"),
+                _("Number of search results, relevance threshold and window for memory hints"),
+            )
+
+            _max_results_field = ui.number(
+                _("Max. search results"), value=_ws_search.get_search_max_results(),
+                min=1, max=100, step=1, format="%d",
+            ).props("outlined dark dense").classes("w-full mb-2")
+
+            _hint_threshold_field = ui.number(
+                _("Memory hint similarity threshold (0–1)"),
+                value=_ws_search.get_brain_hint_threshold(),
+                min=0.0, max=1.0, step=0.05, format="%.2f",
+            ).props("outlined dark dense").classes("w-full mb-2")
+            _hint(
+                _(
+                    "Cosine similarity: higher value = stricter filter. Distances are shown in the tool log as <code>[0.XX]</code> — a hint appears only when distance ≤ <code>1 − threshold</code>."
+                )
+            )
+
+            _hint_window_field = ui.number(
+                _("Memory hint window factor (≥ 1.0)"),
+                value=_ws_search.get_brain_hint_window(),
+                min=1.0, max=3.0, step=0.1, format="%.1f",
+            ).props("outlined dark dense").classes("w-full mb-2")
+            _hint(
+                _(
+                    "Maximum distance relative to the best match. 1.0 = best match only; 1.5 = up to 50 % short of the best."
+                )
+            )
+
+            def _parse_float(val, default: float) -> float:
+                try:
+                    return float(str(val).replace(",", "."))
+                except (ValueError, TypeError):
+                    return default
+
+            def _save_search_cfg():
+                try:
+                    _ws_search.set_value(_ws_search.SEARCH_MAX_RESULTS, str(max(1, int(_parse_float(_max_results_field.value, 20)))))
+                    _ws_search.set_value(_ws_search.BRAIN_HINT_THRESHOLD, str(max(0.0, min(1.0, _parse_float(_hint_threshold_field.value, 0.70)))))
+                    _ws_search.set_value(_ws_search.BRAIN_HINT_WINDOW, str(max(1.0, _parse_float(_hint_window_field.value, 1.3))))
+                    ui.notify(_("Search settings saved."), type="positive")
+                except Exception as e:
+                    ui.notify(_("Invalid value: {err}").format(err=e), type="negative")
+
+            ui.button(_("Save"), icon="save", on_click=_save_search_cfg).props(
+                "unelevated dark dense"
+            ).classes("bg-purple-700 text-white")
+
+        # ── Gedächtnis-Pflege (Träumen) ───────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            _section_header(
+                "bedtime",
+                _("Memory maintenance (dreaming)"),
+                _("Model for automatic cleanup of memory entries"),
+            )
+            from services.model_registry import get_models as _get_models_dream
+            from services.credential_store import load_credentials as _lc_dream, save_credentials as _sc_dream
+
+            _dream_creds = _lc_dream(username, token) if username and token else {}
+            _cur_dream_model = _dream_creds.get("dream_model", "")
+            _dream_model_opts = {m["name"]: m["name"] for m in _get_models_dream(username, token) if m.get("enabled", True)}
+            _dream_sel = ui.select(
+                _dream_model_opts,
+                label=_("Model for memory cleanup"),
+                value=_cur_dream_model if _cur_dream_model in _dream_model_opts else (next(iter(_dream_model_opts), "") ),
+            ).props("outlined dark dense").classes("w-full mt-2")
+
+            def _save_dream_cfg():
+                c = _lc_dream(username, token)
+                c["dream_model"] = _dream_sel.value
+                _sc_dream(username, token, c)
+                ui.notify(_("Saved."), type="positive")
+
+            ui.button(_("Save"), icon="save", on_click=_save_dream_cfg).props(
+                "unelevated dark dense"
+            ).classes("bg-purple-700 text-white mt-3")
+
+        # ── IMAP ──────────────────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            _section_header(
+                "email",
+                _("Email (IMAP)"),
+                _("Read-only — no emails are sent or modified"),
+            )
+
+            imap_host = _field(_("IMAP server"), "imap.gmail.com")
+            imap_host.set_value(imap_cfg.get("host", "imap.gmail.com"))
+
+            with ui.row().classes("w-full gap-3"):
+                imap_port = (
+                    ui.number(
+                        label=_("Port"),
+                        value=imap_cfg.get("port", 993),
+                        min=1,
+                        max=65535,
+                        step=1,
+                    )
+                    .props("outlined dark dense")
+                    .classes("w-28")
+                )
+                imap_ssl = ui.checkbox(
+                    "SSL/TLS", value=imap_cfg.get("use_ssl", True)
+                ).classes("self-center text-sm text-gray-300")
+
+            imap_user = _field(_("Username / email address"), "vorname@gmail.com")
+            imap_user.set_value(imap_cfg.get("username", ""))
+
+            imap_pass = _field(_("Password / app password"), password=True)
+            imap_pass.set_value(imap_cfg.get("password", ""))
+
+            _hint(
+                _(
+                    "<b style='color:#a78bfa'>Gmail:</b> IMAP must be enabled (Gmail → Settings → Forwarding and POP/IMAP). Password = Google <b>app password</b> (2FA must be active): Google Account → Security → App passwords."
+                )
+            )
+
+            imap_status_lbl, imap_spin = _status_row()
+
+            with ui.row().classes("gap-3 mt-2"):
+
+                async def _test_imap() -> None:
+                    from services.imap_service import test_connection as _t
+
+                    imap_spin.set_visibility(True)
+                    imap_status_lbl.set_text("")
+                    err = await _t(
+                        host=imap_host.value.strip(),
+                        port=int(imap_port.value or 993),
+                        username=imap_user.value.strip(),
+                        password=imap_pass.value,
+                        use_ssl=bool(imap_ssl.value),
+                    )
+                    _show_status(imap_status_lbl, imap_spin, err)
+
+                ui.button(_("Test connection"), icon="wifi", on_click=_test_imap).props(
+                    "flat dark dense"
+                ).classes("text-gray-300 border border-gray-600")
+
+                async def _save_imap() -> None:
+                    nc = load_credentials(username, token)
+                    nc["imap"] = {
+                        "host": imap_host.value.strip(),
+                        "port": int(imap_port.value or 993),
+                        "username": imap_user.value.strip(),
+                        "password": imap_pass.value,
+                        "use_ssl": bool(imap_ssl.value),
+                    }
+                    await asyncio.to_thread(save_credentials, username, token, nc)
+                    ui.notify(_("IMAP settings saved"), type="positive")
+
+                ui.button(_("Save"), icon="save", on_click=_save_imap).props(
+                    "unelevated dark dense"
+                ).classes("bg-purple-700 text-white")
+
+        # ── Calendar ──────────────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            _section_header(
+                "calendar_month",
+                _("Calendar"),
+                _("Read-only — no events are created or modified"),
+            )
+
+            # Mode selector
+            cal_mode = ui.select(
+                {"ical": _("Google Calendar (iCal URL)"), "caldav": _("CalDAV (Nextcloud, iCloud, …)")},
+                value=saved_cal_mode,
+                label=_("Connection type"),
+            ).props("outlined dark dense").classes("w-full mb-4")
+
+            # ── iCal URL panel ────────────────────────────────────────────────
+            with ui.element("div") as ical_panel:
+                ical_url1 = _field(_("Calendar 1 – iCal URL"), "https://calendar.google.com/calendar/ical/…/basic.ics")
+                ical_url1.set_value(_saved_ical_urls[0])
+                ical_url2 = _field(_("Calendar 2 – iCal URL (optional)"), "https://calendar.google.com/calendar/ical/…/basic.ics")
+                ical_url2.set_value(_saved_ical_urls[1])
+                ical_url3 = _field(_("Calendar 3 – iCal URL (optional)"), "https://calendar.google.com/calendar/ical/…/basic.ics")
+                ical_url3.set_value(_saved_ical_urls[2])
+
+                _hint(
+                    _(
+                        "<b style='color:#a78bfa'>Google Calendar:</b> Calendar settings &rarr; [select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy URL.<br>The URL contains a secret token — it works without a password.<br>Up to 3 calendars are searched in parallel."
+                    )
+                )
+
+            # ── CalDAV panel ──────────────────────────────────────────────────
+            with ui.element("div") as caldav_panel:
+                caldav_url = _field(
+                    _("CalDAV URL"),
+                    "https://nextcloud.example.com/remote.php/dav/calendars/user/personal/",
+                )
+                caldav_url.set_value(cal_cfg.get("url", ""))
+
+                caldav_user = _field(_("Username"), "vorname@example.com")
+                caldav_user.set_value(cal_cfg.get("username", ""))
+
+                caldav_pass = _field(_("Password"), password=True)
+                caldav_pass.set_value(cal_cfg.get("password", ""))
+
+                _hint(
+                    _(
+                        "<b style='color:#a78bfa'>iCloud:</b> <code>https://caldav.icloud.com/</code>, app-specific password.<br><b style='color:#a78bfa'>Nextcloud:</b> copy the remote URL from the calendar app."
+                    )
+                )
+
+            def _update_cal_panels() -> None:
+                is_ical = cal_mode.value == "ical"
+                ical_panel.set_visibility(is_ical)
+                caldav_panel.set_visibility(not is_ical)
+
+            _update_cal_panels()
+            cal_mode.on_value_change(lambda _: _update_cal_panels())
+
+            cal_status_lbl, cal_spin = _status_row()
+
+            with ui.row().classes("gap-3 mt-2"):
+
+                async def _test_cal() -> None:
+                    cal_spin.set_visibility(True)
+                    cal_status_lbl.set_text("")
+                    if cal_mode.value == "ical":
+                        from services.caldav_service import test_ical_url as _t
+                        urls = [u for u in [ical_url1.value.strip(), ical_url2.value.strip(), ical_url3.value.strip()] if u]
+                        if not urls:
+                            _show_status(cal_status_lbl, cal_spin, _("No URL entered"))
+                            return
+                        errors = [e for e in await asyncio.gather(*[_t(u) for u in urls]) if e]
+                        _show_status(cal_status_lbl, cal_spin, "; ".join(errors) if errors else "",
+                                     ok_text=_("{n} calendars reachable").format(n=len(urls)))
+                    else:
+                        from services.caldav_service import test_caldav_connection as _t  # type: ignore[assignment]
+                        err = await _t(
+                            url=caldav_url.value.strip(),
+                            username=caldav_user.value.strip(),
+                            password=caldav_pass.value,
+                        )
+                        _show_status(cal_status_lbl, cal_spin, err)
+
+                ui.button(_("Test connection"), icon="wifi", on_click=_test_cal).props(
+                    "flat dark dense"
+                ).classes("text-gray-300 border border-gray-600")
+
+                async def _save_cal() -> None:
+                    nc = load_credentials(username, token)
+                    if cal_mode.value == "ical":
+                        urls = [u for u in [ical_url1.value.strip(), ical_url2.value.strip(), ical_url3.value.strip()] if u]
+                        nc["calendar"] = {"ical_urls": urls}
+                    else:
+                        nc["calendar"] = {
+                            "url": caldav_url.value.strip(),
+                            "username": caldav_user.value.strip(),
+                            "password": caldav_pass.value,
+                        }
+                    await asyncio.to_thread(save_credentials, username, token, nc)
+                    ui.notify(_("Calendar settings saved"), type="positive")
+
+                ui.button(_("Save"), icon="save", on_click=_save_cal).props(
+                    "unelevated dark dense"
+                ).classes("bg-purple-700 text-white")
+
+        # ── Absender-Profil ───────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            _section_header(
+                "person",
+                _("Sender profile"),
+                _("Used for letter generation (DOCX)"),
+            )
+
+            sp_name = _field(_("Full name"), "Max Mustermann")
+            sp_name.set_value(sender_cfg.get("name", ""))
+
+            sp_company = _field(_("Company / organization (optional)"), "Muster GmbH")
+            sp_company.set_value(sender_cfg.get("company", ""))
+
+            sp_street = _field(_("Street and number"), "Musterstraße 1")
+            sp_street.set_value(sender_cfg.get("street", ""))
+
+            with ui.row().classes("w-full gap-3"):
+                sp_plz = _field(_("Postcode"), "80331").classes("w-28")
+                sp_plz.set_value(sender_cfg.get("plz", ""))
+                sp_city = _field(_("City"), "München").classes("flex-1")
+                sp_city.set_value(sender_cfg.get("city", ""))
+
+            sp_phone = _field(_("Phone (optional)"), "+49 89 …")
+            sp_phone.set_value(sender_cfg.get("phone", ""))
+
+            sp_email = _field(_("Email (optional)"), "name@example.com")
+            sp_email.set_value(sender_cfg.get("email", ""))
+
+            sp_closing = _field(_("Default closing"), "Mit freundlichen Grüßen")
+            sp_closing.set_value(sender_cfg.get("closing", "Mit freundlichen Grüßen"))
+
+            async def _save_sender() -> None:
+                nc = load_credentials(username, token)
+                nc["sender_profile"] = {
+                    "name":    sp_name.value.strip(),
+                    "company": sp_company.value.strip(),
+                    "street":  sp_street.value.strip(),
+                    "plz":     sp_plz.value.strip(),
+                    "city":    sp_city.value.strip(),
+                    "phone":   sp_phone.value.strip(),
+                    "email":   sp_email.value.strip(),
+                    "closing": sp_closing.value.strip() or "Mit freundlichen Grüßen",
+                }
+                await asyncio.to_thread(save_credentials, username, token, nc)
+                ui.notify(_("Sender profile saved"), type="positive")
+
+            ui.button(_("Save"), icon="save", on_click=_save_sender).props(
+                "unelevated dark dense"
+            ).classes("bg-purple-700 text-white mt-2")
+
+        # ── PDF → Paperless: Standard-Tags ───────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            from werkbank.settings_store import (
+                get_tag_inbox as _get_tag_inbox,
+                get_tag_ai_generated as _get_tag_ai,
+                get_ingest_correspondent as _get_correspondent,
+                get_ingest_doc_type as _get_doc_type,
+            )
+            from werkbank import settings_store as _ws2
+
+            _section_header(
+                "label",
+                _("PDF → Paperless: default tags"),
+                _("Tags, correspondent and document type for AI-generated documents"),
+            )
+
+            with ui.row().classes("w-full gap-3"):
+                _pt_inbox = _field(_("Tag: Inbox"), "Posteingang")
+                _pt_inbox.set_value(_get_tag_inbox())
+                _pt_ai = _field(_("Tag: AI-generated"), "AI-generiert")
+                _pt_ai.set_value(_get_tag_ai())
+
+            with ui.row().classes("w-full gap-3"):
+                _pt_correspondent = _field(_("Correspondent"), "PaperSage AI")
+                _pt_correspondent.set_value(_get_correspondent())
+                _pt_doctype = _field(_("Document type"), "Information")
+                _pt_doctype.set_value(_get_doc_type())
+
+            _hint(
+                _(
+                    "Tags must exist in Paperless. Correspondent and document type are created automatically if missing."
+                )
+            )
+
+            def _save_pdf_tags():
+                _ws2.set_value(_ws2.TAG_INBOX, _pt_inbox.value.strip())
+                _ws2.set_value(_ws2.TAG_AI_GENERATED, _pt_ai.value.strip())
+                _ws2.set_value(_ws2.INGEST_CORRESPONDENT, _pt_correspondent.value.strip())
+                _ws2.set_value(_ws2.INGEST_DOC_TYPE, _pt_doctype.value.strip())
+                ui.notify(_("Tags saved."), type="positive")
+
+            ui.button(_("Save"), icon="save", on_click=_save_pdf_tags).props(
+                "unelevated dark dense"
+            ).classes("bg-purple-700 text-white")
+
+        # ── KI-Tiefenrecherche ───────────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            _section_header(
+                "auto_awesome",
+                _("AI deep research"),
+                _("System prompts for Planner, Splitter, Critic, Synthesizer"),
+            )
+
+            from werkbank import settings_store as _ws
+            from werkbank.roles import planner as _pl, splitter as _sp, critic as _cr, synthesizer as _sy
+            from werkbank import compaction as _co
+
+            # ── Token-Limits ──────────────────────────────────────────────
+            ui.label(_("Token limits per role")).classes("text-xs text-gray-500 uppercase tracking-wide mt-2 mb-1")
+            _token_defs = [
+                (_("Planner"),       _ws.TOKENS_PLANNER),
+                (_("Splitter"),      _ws.TOKENS_SPLITTER),
+                (_("Critic"),        _ws.TOKENS_CRITIC),
+                (_("Synthesizer"),   _ws.TOKENS_SYNTHESIZER),
+                (_("Compaction"), _ws.TOKENS_COMPACTION),
+                (_("Worker"),        _ws.TOKENS_WORKER),
+            ]
+            _token_inputs: dict[str, ui.number] = {}
+            with ui.grid(columns=3).classes("w-full gap-2 mb-3"):
+                for _tlabel, _tkey in _token_defs:
+                    _tval = _ws.get_tokens(_tkey)
+                    _tn = ui.number(
+                        label=_tlabel, value=_tval, min=1000, step=1000, format="%.0f"
+                    ).props("outlined dark dense").classes("w-full")
+                    _token_inputs[_tkey] = _tn
+
+            ui.separator().classes("my-2")
+
+            _prompt_defs = [
+                (_("Planner"),      _ws.PROMPT_PLANNER,     _pl.DEFAULT_SYSTEM_PROMPT),
+                (_("Splitter"),     _ws.PROMPT_SPLITTER,    _sp.DEFAULT_SYSTEM_PROMPT),
+                (_("Critic"),       _ws.PROMPT_CRITIC,      _cr.DEFAULT_SYSTEM_PROMPT),
+                (_("Synthesizer"),  _ws.PROMPT_SYNTHESIZER, _sy.DEFAULT_SYSTEM_PROMPT),
+                (_("Compaction"),_ws.PROMPT_COMPACTION,  _co.DEFAULT_SYSTEM_PROMPT),
+            ]
+
+            _prompt_inputs: dict[str, ui.textarea] = {}
+            for label, key, default in _prompt_defs:
+                with ui.expansion(label).classes("w-full text-gray-300").props("dark"):
+                    stored = _ws.get(key)
+                    ta = ui.textarea(
+                        label=_("System prompt: {role}").format(role=label),
+                        value=stored or default,
+                    ).classes("w-full").style(
+                        "min-height:140px; font-family:monospace; font-size:11px;"
+                        " background:var(--c-bg); color:var(--c-text-2);"
+                    ).props("dark outlined")
+                    _prompt_inputs[key] = ta
+
+                    def _reset(k=key, d=default, t=ta):
+                        t.set_value(d)
+                        _ws.set_value(k, "")
+                        ui.notify(_("Prompt reset."), type="info")
+
+                    ui.button(_("Reset to default"), icon="refresh", on_click=_reset).props(
+                        "flat dark dense"
+                    ).classes("text-gray-500 mt-1")
+
+            def _save_werkbank():
+                for key, tn in _token_inputs.items():
+                    _ws.set_value(key, str(int(tn.value or 16000)))
+                for key, ta in _prompt_inputs.items():
+                    val = ta.value.strip()
+                    default_val = next(d for _, k, d in _prompt_defs if k == key)
+                    _ws.set_value(key, val if val != default_val else "")
+                ui.notify(_("Deep research settings saved."), type="positive")
+
+            with ui.row().classes("gap-2 mt-3"):
+                def _reset_all_prompts():
+                    for key, ta in _prompt_inputs.items():
+                        default_val = next(d for _, k, d in _prompt_defs if k == key)
+                        ta.set_value(default_val)
+                        _ws.set_value(key, "")
+                    ui.notify(_("All prompts reset."), type="info")
+
+                ui.button(_("Reset all"), icon="refresh", on_click=_reset_all_prompts).props(
+                    "flat dark dense"
+                ).classes("text-gray-500")
+                ui.button(_("Save"), icon="save", on_click=_save_werkbank).props(
+                    "unelevated dark dense"
+                ).classes("bg-purple-700 text-white")
+
+        # ── Vault / Obsidian ──────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            from vault.paths import vault_path as _vault_path, brain_path as _brain_path
+
+            _section_header(
+                "folder_open",
+                _("Vault / Obsidian synchronization"),
+                _("Where PaperlessBrain expects memory files and your notes"),
+            )
+
+            _vp = str(_vault_path(username)) if username else str(settings.vault_root / "<username>")
+            _bp = str(_brain_path(username)) if username else str(settings.vault_root / "<username>" / settings.brain_subfolder)
+
+            with ui.column().classes("gap-1 mb-3"):
+                ui.label(_("Vault directory (Obsidian vault root)")).classes("text-xs text-gray-500 uppercase tracking-wide mt-1")
+                ui.label(_vp).classes("text-sm font-mono text-gray-300 bg-gray-900 rounded px-3 py-1.5 select-all")
+
+                ui.label(_("Memory subfolder (Brain)")).classes("text-xs text-gray-500 uppercase tracking-wide mt-2")
+                ui.label(_bp).classes("text-sm font-mono text-gray-300 bg-gray-900 rounded px-3 py-1.5 select-all")
+
+            _hint(
+                _(
+                    "<b>Obsidian / Remotely Save:</b> point synchronization at the vault directory above.<br>Exclude <code>.git/</code> client-side in Remotely Save (Settings → Remotely Save → exclude list: <code>.git</code>) so the server-side Git repo is not propagated to devices."
+                )
+            )
+
+        # ── Info footer ───────────────────────────────────────────────────────
+        with ui.row().classes("items-start gap-2"):
+            ui.icon("lock", size="xs").classes("text-gray-700 flex-shrink-0 mt-0.5")
+            ui.label(
+                _(
+                    "Credentials are stored encrypted and are accessible only to your Paperless user account. The key is your current Paperless token — if you regenerate it in Paperless, you must re-enter the settings."
+                )
+            ).classes("text-xs text-gray-600 leading-relaxed")
