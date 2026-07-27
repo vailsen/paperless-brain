@@ -12,6 +12,7 @@ Installable PWA — built for mobile and desktop.</p>
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
   <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-blue">
   <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-orange">
+  <a href="https://nicegui.io/"><img alt="Built with NiceGUI" src="https://img.shields.io/badge/built%20with-NiceGUI-4a9?logo=python&logoColor=white"></a>
 </p>
 
 <p align="center">
@@ -309,6 +310,31 @@ is the recommended way to run it as a service.
 Issues and PRs welcome — this is an early alpha extracted from a personal
 homelab project, so expect rough edges. Please open an issue before large
 changes. CI runs the test suite on every PR.
+
+## Acknowledgements
+
+**[NiceGUI](https://nicegui.io/)** ([zauberzeug/nicegui](https://github.com/zauberzeug/nicegui))
+is the entire frontend. Every page, dialog, the streaming chat view and the
+kanban board are plain Python — no JavaScript build step, no separate frontend
+service, no API layer to keep in sync. A one-person project keeps a UI this
+large maintainable only because NiceGUI removed that whole category of work.
+The reactive `@ui.refreshable` model and the async event loop shared with
+FastAPI are what make token-by-token streaming into the browser a few lines
+instead of a websocket protocol. Thank you, Zauberzeug.
+
+**[Paperless-ngx](https://docs.paperless-ngx.com/)**
+([paperless-ngx/paperless-ngx](https://github.com/paperless-ngx/paperless-ngx))
+is the archive this is built on — it stores the documents, owns the users and
+permissions, and is the reason this project can concentrate on reading and
+reasoning instead of document management. PaperlessBrain adds to it; it does
+not replace it.
+
+Also standing on: [FastAPI](https://fastapi.tiangolo.com/),
+[ChromaDB](https://www.trychroma.com/),
+[sentence-transformers](https://sbert.net/) with
+[intfloat/multilingual-e5-large-instruct](https://huggingface.co/intfloat/multilingual-e5-large-instruct),
+[Ollama](https://ollama.com/), [pypdfium2](https://github.com/pypdfium2-team/pypdfium2),
+[WeasyPrint](https://weasyprint.org/) and [SearXNG](https://searxng.org/).
 
 ## License
 
