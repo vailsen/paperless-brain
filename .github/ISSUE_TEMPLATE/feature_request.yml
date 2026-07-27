@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest something the app should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a side project with one maintainer, so be aware that a good
+        request may still sit for a long time — or get declined because it
+        conflicts with an architectural invariant in `CLAUDE.md`. That is not a
+        judgement on the idea.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: |
+        What are you trying to do that the app makes hard or impossible? Describe
+        the situation, not the solution — the underlying problem is what gets
+        this prioritized.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: How you imagine it working. Rough is fine.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: Existing features, workarounds, other tools — and why they fall short.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you want to implement it?
+      options:
+        - "No — just suggesting"
+        - "Maybe, with guidance on where it belongs"
+        - "Yes, if the approach is agreed first"
+    validations:
+      required: false

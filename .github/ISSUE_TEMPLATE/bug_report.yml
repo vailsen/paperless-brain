@@ -1,0 +1,82 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Security problems do not belong here** — see
+        [SECURITY.md](https://github.com/Vailsen/paperless-brain/blob/main/SECURITY.md)
+        for private reporting.
+
+        The single most useful thing you can add is the log. Most reports that
+        stall do so because nobody can see what actually failed.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Image tag (e.g. `v0.1.0a4`, `latest`) or the value in `config/version.py`
+      placeholder: v0.1.0a4
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - Docker (docker compose, prebuilt image)
+        - Docker (locally built image)
+        - Docker with network_mode host
+        - Bare metal / venv
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        `docker compose logs --tail=200 paperless-brain`, or the systemd/journal
+        output for a bare-metal install. **Redact your tokens and API keys.**
+        Include the full traceback if there is one — the last line alone is
+        rarely enough.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Where relevant to the bug:
+        - Paperless-ngx version
+        - Chat backend: Claude API, or Ollama (which model, which server)
+        - Ingestion vision model
+        - Host OS, and whether the Ollama server is a separate machine
+      placeholder: |
+        Paperless-ngx 2.x, Ollama on a separate box (qwen2.5vl:7b for ingestion),
+        chat via Claude API, host is Debian 13 in an LXC container
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I am on the latest release (there are no maintenance branches — this is an alpha)
+          required: true
+        - label: I removed tokens, passwords and API keys from everything I pasted
+          required: true

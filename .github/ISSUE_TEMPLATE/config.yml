@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / help with a setup
+    url: https://github.com/Vailsen/paperless-brain/discussions
+    about: Installation and configuration questions belong in Discussions, not Issues.
+  - name: Security vulnerability
+    url: https://github.com/Vailsen/paperless-brain/security/advisories/new
+    about: Report privately. Never open a public issue for a security problem.
+  - name: Paperless-ngx itself
+    url: https://github.com/paperless-ngx/paperless-ngx
+    about: Problems with the archive, OCR, users or permissions are upstream.
