@@ -30,10 +30,22 @@ services:
       # Everything the app owns: ChromaDB, extraction sidecars, thumbnails,
       # the SQLite DB and the encrypted per-user credential files.
       - ./data:/app/data
-      # One subfolder per user: agent memory + the user's own Markdown notes.
-      # Change the LEFT side to put the files elsewhere on the host. The right
-      # side must stay in sync with VAULT_ROOT in .env — that variable is the
-      # path *inside* the container, not on the host.
+      # Vault root: ONE SUBFOLDER PER USER, named exactly like the Paperless-ngx
+      # username — /mnt/vaults/<username> is that user's Obsidian vault (their
+      # own .md notes plus the agent's memory folder).
+      #
+      # >>> Point the LEFT side at the directory that CONTAINS your existing
+      # >>> vault(s), not at a vault itself. Example: your notes live in
+      # >>> /srv/obsidian/alice and your Paperless login is `alice`, so mount
+      # >>> `- /srv/obsidian:/mnt/vaults`. Leaving it at ./vaults creates an
+      # >>> empty vault inside this folder and your real notes stay unindexed.
+      #
+      # The RIGHT side must match VAULT_ROOT in .env — that variable is the path
+      # inside the container, not on the host. Keep both at /mnt/vaults.
+      #
+      # Mounting a network share (NFS/sshfs/CIFS)? Mount it on the host BEFORE
+      # `docker compose up`, and restart the container after any remount — the
+      # container will not pick up a mount that appears underneath it later.
       - ./vaults:/mnt/vaults
       # NiceGUI server-side session storage (language, theme, session token).
       # Without this every container recreate — including `docker compose pull`

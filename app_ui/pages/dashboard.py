@@ -1134,7 +1134,7 @@ window.__toggleHideAction = function(key) {{
             ui.notify(_("WoL error: {err}").format(err=exc), type="negative")
             return
 
-        on_wol()
+        on_wol(_ollama_host_ip(_username, _token))
         ui.notify(_("Magic packet → {target}").format(target=broadcast), type="positive")
         ollama_badge.set_text(_("Waking up…"))
         ollama_dot.style(
@@ -1146,7 +1146,7 @@ window.__toggleHideAction = function(key) {{
             _poll_timer[0].active = False
 
         async def _poll() -> None:
-            ver = await _check_ollama()
+            ver = await _check_ollama(_username, _token)
             if ver:
                 ollama_dot.style(
                     "width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#22c55e;"

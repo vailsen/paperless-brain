@@ -97,10 +97,17 @@ embeddings (`multilingual-e5` — multilingual retrieval). The chat backends
 
 ```bash
 git clone https://github.com/Vailsen/paperless-brain && cd paperless-brain
-cp .env.example .env      # fill in: PAPERLESS_URL, PAPERLESS_SUPERUSER_TOKEN, STORAGE_SECRET, APP_PATH=/app/
+cp .env.example .env      # fill in: PAPERLESS_URL, PAPERLESS_SUPERUSER_TOKEN, STORAGE_SECRET
 docker compose up -d      # pulls the prebuilt image from GHCR (no local build)
 ```
 
+Before the first start, edit the **vault mount** in `docker-compose.yml` so it
+points at the directory holding your existing Markdown notes — one subfolder per
+Paperless-ngx user (`/srv/obsidian/alice` for user `alice` → mount
+`- /srv/obsidian:/mnt/vaults`). Left unchanged, the app creates an empty vault
+under `./vaults` and your real notes are never indexed.
+
+`.env.example` is the short version; `.env.example.full` documents every key.
 The clone is only for the compose file and `.env.example`; the app itself comes
 as a prebuilt image. To build from source instead, edit `docker-compose.yml`
 (swap `image:` for `build: .`).
@@ -128,7 +135,9 @@ for reproducible deploys.
 
 ## Configuration (`.env` reference)
 
-Copy `.env.example` to `.env`. Keys without a default are **required**. Keys
+Copy `.env.example` to `.env` (the short list of keys most installs need);
+`.env.example.full` is the annotated reference with every key and its default.
+Keys without a default are **required**. Keys
 marked *UI* can also be changed in the app's Settings page (the app value wins;
 the env value is only the initial fallback).
 

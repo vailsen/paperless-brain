@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 
 _wol_active = False
 _last_activity: datetime | None = None
+# Host the WoL packet was sent for. Set from the dashboard, which resolves the
+# address from the user's model registry when OLLAMA_SERVER is unset.
+_wol_host = ""
 
 
 def touch() -> None:
@@ -12,10 +15,12 @@ def touch() -> None:
     _last_activity = datetime.now()
 
 
-def on_wol() -> None:
-    global _wol_active, _last_activity
+def on_wol(host: str = "") -> None:
+    global _wol_active, _last_activity, _wol_host
     _wol_active = True
     _last_activity = datetime.now()
+    if host:
+        _wol_host = host
 
 
 def on_manual_shutdown() -> None:
@@ -27,7 +32,7 @@ async def _ssh_shutdown() -> None:
     from config.settings import settings
 
     m = re.search(r"(\d+\.\d+\.\d+\.\d+)", settings.ollama_server)
-    host = m.group(1) if m else ""
+    host = m.group(1) if m else _wol_host
     user = settings.ollama_ssh_user
     if not host or not user:
         return

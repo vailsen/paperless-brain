@@ -40,7 +40,9 @@ dependencies = [
     "python-docx>=1.2",
     "pillow>=12",
     "lxml>=6",
-    "markdown2>=2.5",
+    # [latex] pulls latex2mathml — chat renders markdown with the "latex" extra
+    # (app_ui/pages/chat.py:_MD_EXTRAS); without it every message raises ImportError.
+    "markdown2[latex]>=2.5",
     "trafilatura>=2.1",
     "snowballstemmer>=2.2",
     "pyyaml>=6",
