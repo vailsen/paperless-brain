@@ -51,6 +51,12 @@ services:
       # Without this every container recreate — including `docker compose pull`
       # — logs all users out and resets their settings.
       - ./nicegui-storage:/app/.nicegui
+      # Only needed for the dashboard's "shut down server" button, which runs
+      # `ssh <OLLAMA_SSH_USER>@<ollama host> "sudo shutdown -h now"`. The
+      # container has no SSH identity of its own, so mount the key read-only —
+      # otherwise the button fails with "Permission denied (publickey)". The
+      # remote user also needs passwordless sudo for /usr/bin/shutdown.
+      # - /root/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro
       # Embedding model (~2.2 GB), so it is downloaded once, not per rebuild.
       - hf-cache:/root/.cache/huggingface
 

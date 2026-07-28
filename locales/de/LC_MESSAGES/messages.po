@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-26 20:34+0200\n"
+"POT-Creation-Date: 2026-07-28 19:17+0200\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -117,7 +117,7 @@ msgid "Actions"
 msgstr "Aktionen"
 
 #: app_ui/document_dialog.py:491 app_ui/pages/brain.py:174
-#: app_ui/pages/dashboard.py:1511
+#: app_ui/pages/dashboard.py:1529
 msgid "Description"
 msgstr "Beschreibung"
 
@@ -125,7 +125,7 @@ msgstr "Beschreibung"
 msgid "Deadline"
 msgstr "Frist"
 
-#: app_ui/document_dialog.py:505 app_ui/pages/dashboard.py:1467
+#: app_ui/document_dialog.py:505 app_ui/pages/dashboard.py:1485
 msgid "Certain"
 msgstr "Sicher"
 
@@ -243,7 +243,7 @@ msgstr "Wirklich löschen?"
 #: app_ui/pages/chat.py:1056 app_ui/pages/chat.py:2705
 #: app_ui/pages/chat.py:2956 app_ui/pages/chat.py:3039
 #: app_ui/pages/dashboard.py:869 app_ui/pages/dashboard.py:1062
-#: app_ui/pages/dashboard.py:1214 app_ui/pages/settings.py:281
+#: app_ui/pages/dashboard.py:1232 app_ui/pages/settings.py:281
 #: app_ui/pages/settings.py:1017 werkbank/ui/module_page.py:93
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -1240,7 +1240,7 @@ msgstr "#{id} entfernt"
 msgid "Sync complete"
 msgstr "Sync abgeschlossen"
 
-#: app_ui/pages/dashboard.py:839 app_ui/pages/dashboard.py:1257
+#: app_ui/pages/dashboard.py:839 app_ui/pages/dashboard.py:1275
 #, python-brace-format, python-format
 msgid "{pct} % indexed in ChromaDB"
 msgstr "{pct} % in ChromaDB indexiert"
@@ -1405,107 +1405,118 @@ msgstr "OLLAMA_SSH_USER nicht konfiguriert"
 msgid "Shutting down…"
 msgstr "Fährt herunter…"
 
-#: app_ui/pages/dashboard.py:1187
+#: app_ui/pages/dashboard.py:1195
+#, python-brace-format
+msgid "Shutdown failed: {err}"
+msgstr "Herunterfahren fehlgeschlagen: {err}"
+
+#: app_ui/pages/dashboard.py:1196
+#, python-brace-format
+msgid "ssh exited with {code}"
+msgstr "ssh endete mit Code {code}"
+
+#: app_ui/pages/dashboard.py:1201 app_ui/pages/dashboard.py:1205
+#: app_ui/pages/dashboard.py:1284
+msgid "Online"
+msgstr "Online"
+
+#: app_ui/pages/dashboard.py:1204
 #, python-brace-format
 msgid "SSH error: {err}"
 msgstr "SSH Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1197 app_ui/pages/dashboard.py:1266
-#: app_ui/pages/dashboard.py:1271
+#: app_ui/pages/dashboard.py:1215 app_ui/pages/dashboard.py:1284
+#: app_ui/pages/dashboard.py:1289
 msgid "Offline"
 msgstr "Offline"
 
-#: app_ui/pages/dashboard.py:1200
+#: app_ui/pages/dashboard.py:1218
 msgid "Server is shutting down…"
 msgstr "Server wird heruntergefahren…"
 
-#: app_ui/pages/dashboard.py:1205
+#: app_ui/pages/dashboard.py:1223
 msgid "Shut down server"
 msgstr "Server herunterfahren"
 
-#: app_ui/pages/dashboard.py:1207 app_ui/pages/login.py:72
+#: app_ui/pages/dashboard.py:1225 app_ui/pages/login.py:72
 #: app_ui/pages/settings.py:669
 msgid "Password"
 msgstr "Passwort"
 
-#: app_ui/pages/dashboard.py:1211
+#: app_ui/pages/dashboard.py:1229
 msgid "Wrong password"
 msgstr "Falsches Passwort"
 
-#: app_ui/pages/dashboard.py:1225
+#: app_ui/pages/dashboard.py:1243
 msgid "Shut down"
 msgstr "Herunterfahren"
 
-#: app_ui/pages/dashboard.py:1260
+#: app_ui/pages/dashboard.py:1278
 msgid "Paperless not reachable"
 msgstr "Paperless nicht erreichbar"
 
-#: app_ui/pages/dashboard.py:1266
-msgid "Online"
-msgstr "Online"
-
-#: app_ui/pages/dashboard.py:1269
+#: app_ui/pages/dashboard.py:1287
 #, python-brace-format
 msgid "{n} docs"
 msgstr "{n} Docs"
 
-#: app_ui/pages/dashboard.py:1269 werkbank/ui/module_page.py:135
+#: app_ui/pages/dashboard.py:1287 werkbank/ui/module_page.py:135
 msgid "Error"
 msgstr "Fehler"
 
-#: app_ui/pages/dashboard.py:1295 app_ui/pages/dashboard.py:1297
-#: app_ui/pages/dashboard.py:1310
+#: app_ui/pages/dashboard.py:1313 app_ui/pages/dashboard.py:1315
+#: app_ui/pages/dashboard.py:1328
 msgid "Not configured"
 msgstr "Nicht konfiguriert"
 
-#: app_ui/pages/dashboard.py:1306
+#: app_ui/pages/dashboard.py:1324
 #, python-brace-format
 msgid "iCal ({n} calendars)"
 msgstr "iCal ({n} Kalender)"
 
-#: app_ui/pages/dashboard.py:1352
+#: app_ui/pages/dashboard.py:1370
 msgid "upcoming"
 msgstr "bevorstehend"
 
-#: app_ui/pages/dashboard.py:1354
+#: app_ui/pages/dashboard.py:1372
 #, python-brace-format
 msgid "{n} overdue"
 msgstr "{n} überfällig"
 
-#: app_ui/pages/dashboard.py:1425
+#: app_ui/pages/dashboard.py:1443
 msgid "No deadlines found."
 msgstr "Keine Fristen gefunden."
 
-#: app_ui/pages/dashboard.py:1436
+#: app_ui/pages/dashboard.py:1454
 #, python-brace-format
 msgid "{n} hidden"
 msgstr "{n} ausgeblendet"
 
-#: app_ui/pages/dashboard.py:1439
+#: app_ui/pages/dashboard.py:1457
 msgid "Show"
 msgstr "Einblenden"
 
-#: app_ui/pages/dashboard.py:1439 app_ui/pages/dashboard.py:1484
+#: app_ui/pages/dashboard.py:1457 app_ui/pages/dashboard.py:1502
 msgid "Hide"
 msgstr "Ausblenden"
 
-#: app_ui/pages/dashboard.py:1467
+#: app_ui/pages/dashboard.py:1485
 msgid "Uncertain"
 msgstr "Unsicher"
 
-#: app_ui/pages/dashboard.py:1484
+#: app_ui/pages/dashboard.py:1502
 msgid "Show again"
 msgstr "Wieder anzeigen"
 
-#: app_ui/pages/dashboard.py:1509
+#: app_ui/pages/dashboard.py:1527
 msgid "Date"
 msgstr "Datum"
 
-#: app_ui/pages/dashboard.py:1512
+#: app_ui/pages/dashboard.py:1530
 msgid "Doc"
 msgstr "Dok"
 
-#: app_ui/pages/dashboard.py:1541
+#: app_ui/pages/dashboard.py:1559
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr "Seite {page} / {total}  ·  {count} Einträge"
@@ -2056,97 +2067,95 @@ msgstr "Alle zurücksetzen"
 msgid "Import / export settings"
 msgstr "Einstellungen importieren / exportieren"
 
-
 #: app_ui/pages/settings.py:923
 msgid "Move your personal settings to another installation"
 msgstr "Persönliche Einstellungen auf eine andere Installation übertragen"
-
 
 #: app_ui/pages/settings.py:933
 msgid "Include passwords and API keys"
 msgstr "Passwörter und API-Schlüssel einschließen"
 
-
 #: app_ui/pages/settings.py:937
-msgid "Without this option the export contains no secrets; on import the existing passwords and keys are kept. <b style='color:#f87171'>With it, the string contains your API keys, IMAP/CalDAV passwords and iCal URLs in plain text</b> — treat it like a password."
-msgstr "Ohne diese Option enthält der Export keine Geheimnisse; beim Import bleiben die vorhandenen Passwörter und Schlüssel erhalten. <b style='color:#f87171'>Mit ihr steht in der Zeichenkette deine API-Schlüssel, IMAP-/CalDAV-Passwörter und iCal-URLs im Klartext</b> — behandle sie wie ein Passwort."
-
+msgid ""
+"Without this option the export contains no secrets; on import the "
+"existing passwords and keys are kept. <b style='color:#f87171'>With it, "
+"the string contains your API keys, IMAP/CalDAV passwords and iCal URLs in"
+" plain text</b> — treat it like a password."
+msgstr ""
+"Ohne diese Option enthält der Export keine Geheimnisse; beim Import "
+"bleiben die vorhandenen Passwörter und Schlüssel erhalten. <b "
+"style='color:#f87171'>Mit ihr steht in der Zeichenkette deine API-"
+"Schlüssel, IMAP-/CalDAV-Passwörter und iCal-URLs im Klartext</b> — "
+"behandle sie wie ein Passwort."
 
 #: app_ui/pages/settings.py:945
 msgid "Export string"
 msgstr "Export-Zeichenkette"
 
-
 #: app_ui/pages/settings.py:967
 msgid "Copied to clipboard."
 msgstr "In die Zwischenablage kopiert."
 
-
 #: app_ui/pages/settings.py:970
-
 msgid "Create export"
 msgstr "Export erzeugen"
 
-
 #: app_ui/pages/settings.py:973
-
 msgid "Copy"
 msgstr "Kopieren"
 
-
 #: app_ui/pages/settings.py:979
-msgid "The copy button needs HTTPS or localhost. Otherwise select the text in the field and copy it manually."
-msgstr "Der Kopieren-Knopf braucht HTTPS oder localhost. Sonst den Text im Feld markieren und von Hand kopieren."
-
+msgid ""
+"The copy button needs HTTPS or localhost. Otherwise select the text in "
+"the field and copy it manually."
+msgstr ""
+"Der Kopieren-Knopf braucht HTTPS oder localhost. Sonst den Text im Feld "
+"markieren und von Hand kopieren."
 
 #: app_ui/pages/settings.py:987
 msgid "Paste export string here"
 msgstr "Export-Zeichenkette hier einfügen"
-
 
 #: app_ui/pages/settings.py:997 app_ui/pages/settings.py:1032
 #, python-brace-format
 msgid "Import failed: {err}"
 msgstr "Import fehlgeschlagen: {err}"
 
-
 #: app_ui/pages/settings.py:1002
 msgid "The string contains no importable settings."
 msgstr "Die Zeichenkette enthält keine importierbaren Einstellungen."
-
 
 #: app_ui/pages/settings.py:1006
 msgid "Apply these settings?"
 msgstr "Diese Einstellungen übernehmen?"
 
-
 #: app_ui/pages/settings.py:1014
 msgid "The export contains no secrets — existing passwords and API keys are kept."
-msgstr "Der Export enthält keine Geheimnisse — vorhandene Passwörter und API-Schlüssel bleiben erhalten."
-
+msgstr ""
+"Der Export enthält keine Geheimnisse — vorhandene Passwörter und API-"
+"Schlüssel bleiben erhalten."
 
 #: app_ui/pages/settings.py:1020
-
 msgid "Apply"
 msgstr "Übernehmen"
 
-
 #: app_ui/pages/settings.py:1037
-
 msgid "Settings imported."
 msgstr "Einstellungen importiert."
 
-
 #: app_ui/pages/settings.py:1040
-
 msgid "Import"
 msgstr "Importieren"
 
-
 #: app_ui/pages/settings.py:1046
-msgid "Import overwrites the sections contained in the string. Global settings (processing, tags, search, deep research) are <b>not</b> part of the export — they apply to all users."
-msgstr "Der Import überschreibt die in der Zeichenkette enthaltenen Abschnitte. Globale Einstellungen (Verarbeitung, Tags, Suche, Tiefenrecherche) sind <b>nicht</b> Teil des Exports — sie gelten für alle Nutzer."
-
+msgid ""
+"Import overwrites the sections contained in the string. Global settings "
+"(processing, tags, search, deep research) are <b>not</b> part of the "
+"export — they apply to all users."
+msgstr ""
+"Der Import überschreibt die in der Zeichenkette enthaltenen Abschnitte. "
+"Globale Einstellungen (Verarbeitung, Tags, Suche, Tiefenrecherche) sind "
+"<b>nicht</b> Teil des Exports — sie gelten für alle Nutzer."
 
 #: app_ui/pages/settings.py:1058
 msgid "Vault / Obsidian synchronization"
@@ -2188,101 +2197,99 @@ msgstr ""
 "Paperless-Token — wenn du es in Paperless regenerierst, musst du die "
 "Einstellungen neu eingeben."
 
-#: services/chat_service.py:865
+#: services/chat_service.py:883
 msgid "🔍 Searching documents..."
 msgstr "🔍 Suche Dokumente..."
 
-#: services/chat_service.py:866
+#: services/chat_service.py:884
 msgid "🔎 Analytical search..."
 msgstr "🔎 Analytische Suche..."
 
-#: services/chat_service.py:867
+#: services/chat_service.py:885
 msgid "📋 Loading document details..."
 msgstr "📋 Lade Dokumentdetails..."
 
-#: services/chat_service.py:868
+#: services/chat_service.py:886
 msgid "📊 Loading table..."
 msgstr "📊 Lade Tabelle..."
 
-#: services/chat_service.py:869
+#: services/chat_service.py:887
 msgid "📄 Reading page text..."
 msgstr "📄 Lese Seitentext..."
 
-#: services/chat_service.py:870
+#: services/chat_service.py:888
 msgid "👁 Visual analysis..."
 msgstr "👁 Visuelle Analyse..."
 
-#: services/chat_service.py:871
+#: services/chat_service.py:889
 msgid "🌐 Web search..."
 msgstr "🌐 Websuche..."
 
-#: services/chat_service.py:872
+#: services/chat_service.py:890
 msgid "🌐 Loading web page..."
 msgstr "🌐 Lade Webseite..."
 
-#: services/chat_service.py:873
+#: services/chat_service.py:891
 msgid "🧮 Calculating..."
 msgstr "🧮 Berechne..."
 
-#: services/chat_service.py:874
+#: services/chat_service.py:892
 msgid "📅 Getting date..."
 msgstr "📅 Datum abrufen..."
 
-#: services/chat_service.py:875
+#: services/chat_service.py:893
 msgid "📌 Loading deadlines..."
 msgstr "📌 Lade Fristen..."
 
-#: services/chat_service.py:876
+#: services/chat_service.py:894
 msgid "📌 Creating deadline..."
 msgstr "📌 Lege Frist an..."
 
-#: services/chat_service.py:877
+#: services/chat_service.py:895
 msgid "📧 Searching emails..."
 msgstr "📧 Durchsuche E-Mails..."
 
-#: services/chat_service.py:878
+#: services/chat_service.py:896
 msgid "📅 Searching calendar..."
 msgstr "📅 Durchsuche Kalender..."
 
-#: services/chat_service.py:879
+#: services/chat_service.py:897
 msgid "📝 Creating letter template..."
 msgstr "📝 Erstelle Briefvorlage..."
 
-#: services/chat_service.py:880
+#: services/chat_service.py:898
 msgid "📧 Creating email template..."
 msgstr "📧 Erstelle E-Mail-Vorlage..."
 
-#: services/chat_service.py:881
+#: services/chat_service.py:899
 msgid "🧠 Saving fact..."
 msgstr "🧠 Speichere Fakt..."
 
-#: services/chat_service.py:882
+#: services/chat_service.py:900
 msgid "🧠 Searching memory..."
 msgstr "🧠 Durchsuche Gedächtnis..."
 
-#: services/chat_service.py:883
+#: services/chat_service.py:901
 msgid "🧠 Updating fact..."
 msgstr "🧠 Aktualisiere Fakt..."
 
-#: services/chat_service.py:884
+#: services/chat_service.py:902
 msgid "🧠 Deleting fact..."
 msgstr "🧠 Lösche Fakt..."
 
-#: services/chat_service.py:885
+#: services/chat_service.py:903
 msgid "📓 Searching notes..."
 msgstr "📓 Durchsuche Notizen..."
 
-#: services/chat_service.py:886
+#: services/chat_service.py:904
 msgid "💾 Creating document..."
 msgstr "💾 Erstelle Dokument..."
 
-#: services/chat_service.py:887
-
+#: services/chat_service.py:905
 msgid "⬇️ Preparing download..."
 msgstr "⬇️ Starte Download..."
 
-
-#: services/chat_service.py:888
+#: services/chat_service.py:906
 msgid "⚙️ Starting deep research..."
 msgstr "⚙️ Starte Tiefenrecherche..."
 

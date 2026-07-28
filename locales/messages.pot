@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-26 20:34+0200\n"
+"POT-Creation-Date: 2026-07-28 19:17+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -116,7 +116,7 @@ msgid "Actions"
 msgstr ""
 
 #: app_ui/document_dialog.py:491 app_ui/pages/brain.py:174
-#: app_ui/pages/dashboard.py:1511
+#: app_ui/pages/dashboard.py:1529
 msgid "Description"
 msgstr ""
 
@@ -124,7 +124,7 @@ msgstr ""
 msgid "Deadline"
 msgstr ""
 
-#: app_ui/document_dialog.py:505 app_ui/pages/dashboard.py:1467
+#: app_ui/document_dialog.py:505 app_ui/pages/dashboard.py:1485
 msgid "Certain"
 msgstr ""
 
@@ -242,7 +242,7 @@ msgstr ""
 #: app_ui/pages/chat.py:1056 app_ui/pages/chat.py:2705
 #: app_ui/pages/chat.py:2956 app_ui/pages/chat.py:3039
 #: app_ui/pages/dashboard.py:869 app_ui/pages/dashboard.py:1062
-#: app_ui/pages/dashboard.py:1214 app_ui/pages/settings.py:281
+#: app_ui/pages/dashboard.py:1232 app_ui/pages/settings.py:281
 #: app_ui/pages/settings.py:1017 werkbank/ui/module_page.py:93
 msgid "Cancel"
 msgstr ""
@@ -1214,7 +1214,7 @@ msgstr ""
 msgid "Sync complete"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:839 app_ui/pages/dashboard.py:1257
+#: app_ui/pages/dashboard.py:839 app_ui/pages/dashboard.py:1275
 #, python-brace-format, python-format
 msgid "{pct} % indexed in ChromaDB"
 msgstr ""
@@ -1374,107 +1374,118 @@ msgstr ""
 msgid "Shutting down…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1187
+#: app_ui/pages/dashboard.py:1195
+#, python-brace-format
+msgid "Shutdown failed: {err}"
+msgstr ""
+
+#: app_ui/pages/dashboard.py:1196
+#, python-brace-format
+msgid "ssh exited with {code}"
+msgstr ""
+
+#: app_ui/pages/dashboard.py:1201 app_ui/pages/dashboard.py:1205
+#: app_ui/pages/dashboard.py:1284
+msgid "Online"
+msgstr ""
+
+#: app_ui/pages/dashboard.py:1204
 #, python-brace-format
 msgid "SSH error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1197 app_ui/pages/dashboard.py:1266
-#: app_ui/pages/dashboard.py:1271
+#: app_ui/pages/dashboard.py:1215 app_ui/pages/dashboard.py:1284
+#: app_ui/pages/dashboard.py:1289
 msgid "Offline"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1200
+#: app_ui/pages/dashboard.py:1218
 msgid "Server is shutting down…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1205
+#: app_ui/pages/dashboard.py:1223
 msgid "Shut down server"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1207 app_ui/pages/login.py:72
+#: app_ui/pages/dashboard.py:1225 app_ui/pages/login.py:72
 #: app_ui/pages/settings.py:669
 msgid "Password"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1211
+#: app_ui/pages/dashboard.py:1229
 msgid "Wrong password"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1225
+#: app_ui/pages/dashboard.py:1243
 msgid "Shut down"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1260
+#: app_ui/pages/dashboard.py:1278
 msgid "Paperless not reachable"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1266
-msgid "Online"
-msgstr ""
-
-#: app_ui/pages/dashboard.py:1269
+#: app_ui/pages/dashboard.py:1287
 #, python-brace-format
 msgid "{n} docs"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1269 werkbank/ui/module_page.py:135
+#: app_ui/pages/dashboard.py:1287 werkbank/ui/module_page.py:135
 msgid "Error"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1295 app_ui/pages/dashboard.py:1297
-#: app_ui/pages/dashboard.py:1310
+#: app_ui/pages/dashboard.py:1313 app_ui/pages/dashboard.py:1315
+#: app_ui/pages/dashboard.py:1328
 msgid "Not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1306
+#: app_ui/pages/dashboard.py:1324
 #, python-brace-format
 msgid "iCal ({n} calendars)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1352
+#: app_ui/pages/dashboard.py:1370
 msgid "upcoming"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1354
+#: app_ui/pages/dashboard.py:1372
 #, python-brace-format
 msgid "{n} overdue"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1425
+#: app_ui/pages/dashboard.py:1443
 msgid "No deadlines found."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1436
+#: app_ui/pages/dashboard.py:1454
 #, python-brace-format
 msgid "{n} hidden"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1439
+#: app_ui/pages/dashboard.py:1457
 msgid "Show"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1439 app_ui/pages/dashboard.py:1484
+#: app_ui/pages/dashboard.py:1457 app_ui/pages/dashboard.py:1502
 msgid "Hide"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1467
+#: app_ui/pages/dashboard.py:1485
 msgid "Uncertain"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1484
+#: app_ui/pages/dashboard.py:1502
 msgid "Show again"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1509
+#: app_ui/pages/dashboard.py:1527
 msgid "Date"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1512
+#: app_ui/pages/dashboard.py:1530
 msgid "Doc"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1541
+#: app_ui/pages/dashboard.py:1559
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr ""
@@ -2103,99 +2114,99 @@ msgid ""
 "regenerate it in Paperless, you must re-enter the settings."
 msgstr ""
 
-#: services/chat_service.py:865
+#: services/chat_service.py:883
 msgid "🔍 Searching documents..."
 msgstr ""
 
-#: services/chat_service.py:866
+#: services/chat_service.py:884
 msgid "🔎 Analytical search..."
 msgstr ""
 
-#: services/chat_service.py:867
+#: services/chat_service.py:885
 msgid "📋 Loading document details..."
 msgstr ""
 
-#: services/chat_service.py:868
+#: services/chat_service.py:886
 msgid "📊 Loading table..."
 msgstr ""
 
-#: services/chat_service.py:869
+#: services/chat_service.py:887
 msgid "📄 Reading page text..."
 msgstr ""
 
-#: services/chat_service.py:870
+#: services/chat_service.py:888
 msgid "👁 Visual analysis..."
 msgstr ""
 
-#: services/chat_service.py:871
+#: services/chat_service.py:889
 msgid "🌐 Web search..."
 msgstr ""
 
-#: services/chat_service.py:872
+#: services/chat_service.py:890
 msgid "🌐 Loading web page..."
 msgstr ""
 
-#: services/chat_service.py:873
+#: services/chat_service.py:891
 msgid "🧮 Calculating..."
 msgstr ""
 
-#: services/chat_service.py:874
+#: services/chat_service.py:892
 msgid "📅 Getting date..."
 msgstr ""
 
-#: services/chat_service.py:875
+#: services/chat_service.py:893
 msgid "📌 Loading deadlines..."
 msgstr ""
 
-#: services/chat_service.py:876
+#: services/chat_service.py:894
 msgid "📌 Creating deadline..."
 msgstr ""
 
-#: services/chat_service.py:877
+#: services/chat_service.py:895
 msgid "📧 Searching emails..."
 msgstr ""
 
-#: services/chat_service.py:878
+#: services/chat_service.py:896
 msgid "📅 Searching calendar..."
 msgstr ""
 
-#: services/chat_service.py:879
+#: services/chat_service.py:897
 msgid "📝 Creating letter template..."
 msgstr ""
 
-#: services/chat_service.py:880
+#: services/chat_service.py:898
 msgid "📧 Creating email template..."
 msgstr ""
 
-#: services/chat_service.py:881
+#: services/chat_service.py:899
 msgid "🧠 Saving fact..."
 msgstr ""
 
-#: services/chat_service.py:882
+#: services/chat_service.py:900
 msgid "🧠 Searching memory..."
 msgstr ""
 
-#: services/chat_service.py:883
+#: services/chat_service.py:901
 msgid "🧠 Updating fact..."
 msgstr ""
 
-#: services/chat_service.py:884
+#: services/chat_service.py:902
 msgid "🧠 Deleting fact..."
 msgstr ""
 
-#: services/chat_service.py:885
+#: services/chat_service.py:903
 msgid "📓 Searching notes..."
 msgstr ""
 
-#: services/chat_service.py:886
+#: services/chat_service.py:904
 msgid "💾 Creating document..."
 msgstr ""
 
-#: services/chat_service.py:887
+#: services/chat_service.py:905
 msgid "⬇️ Preparing download..."
 msgstr ""
 
-#: services/chat_service.py:888
+#: services/chat_service.py:906
 msgid "⚙️ Starting deep research..."
 msgstr ""
 

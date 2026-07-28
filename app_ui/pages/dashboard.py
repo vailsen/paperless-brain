@@ -1174,17 +1174,35 @@ window.__toggleHideAction = function(key) {{
                 "StrictHostKeyChecking=no",
                 "-o",
                 "ConnectTimeout=5",
+                "-o",
+                "BatchMode=yes",  # fail instead of hanging on a password prompt
                 f"{ssh_user}@{host}",
                 "sudo shutdown -h now",
                 stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
             )
             try:
-                await asyncio.wait_for(proc.wait(), timeout=8.0)
+                _, err = await asyncio.wait_for(proc.communicate(), timeout=8.0)
             except asyncio.TimeoutError:
-                pass  # SSH may drop before returning exit code
+                err = b""  # SSH may drop before returning exit code — treat as success
+            else:
+                # A fast non-zero exit means the command never ran: no key in the
+                # container, wrong user, sudo asking for a password. Say so —
+                # reporting "shutting down" here is how this failure stays silent.
+                if proc.returncode:
+                    detail = (err or b"").decode(errors="replace").strip().splitlines()
+                    ui.notify(
+                        _("Shutdown failed: {err}").format(
+                            err=detail[-1] if detail else _("ssh exited with {code}").format(code=proc.returncode)
+                        ),
+                        type="negative",
+                        timeout=10000,
+                    )
+                    ollama_badge.set_text(_("Online"))
+                    return
         except Exception as exc:
             ui.notify(_("SSH error: {err}").format(err=exc), type="negative")
+            ollama_badge.set_text(_("Online"))
             return
 
         if _poll_timer[0]:
