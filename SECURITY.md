@@ -53,6 +53,30 @@ Consequences worth stating plainly:
   keys" enabled it is a credential dump the moment it leaves the app. It is off
   by default for that reason.
 
+## Multi-user isolation
+
+Document access is delegated to Paperless-ngx, not reimplemented here. Every
+document a tool returns is fetched through the logged-in user's own Paperless
+token, so Paperless' object-level permissions decide what that user sees. Vector
+hits, sidecar extractions and deadlines are all filtered through that check
+before any of their text is shown.
+
+Two limits are worth knowing before you rely on this:
+
+- **The vector index itself is not partitioned.** ChromaDB is populated by the
+  superuser sync and holds chunks of every document. It is queried unscoped and
+  the permission filter is applied to the results — so no foreign text is
+  displayed, but foreign documents do occupy ranking slots and can push your own
+  hits out of a result page.
+- **Paperless-ngx documents have no owner by default**, which makes them visible
+  to every user. If you want separation between users, you must set owners and
+  permissions in Paperless. PaperlessBrain inherits whatever you configure there
+  and cannot add isolation that Paperless is not enforcing.
+
+Per-user data that PaperlessBrain owns itself — brain facts, vault notes, stored
+credentials, model registry — is scoped by username and does not depend on the
+Paperless configuration.
+
 ## Deployment expectations
 
 This project assumes a trusted network — a homelab, a LAN, or behind a VPN.

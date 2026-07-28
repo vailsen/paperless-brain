@@ -42,16 +42,34 @@ _PDF_CACHE = str(settings.app_path / "data" / "pdf_cache")
 os.makedirs(_PDF_CACHE, exist_ok=True)
 
 
+class NoUserContext(Exception):
+    """No session token in scope — every document tool must refuse."""
+
+
 def _user_paperless() -> _PaperlessClient:
     """Per-request Paperless client scoped to the current user's token.
-    Falls back to admin client if no user token is present (e.g. background tasks)."""
+
+    Fails closed. The user's token IS the permission boundary: Paperless-ngx
+    filters the archive by it, and every document tool relies on that filtering
+    to decide what may be shown. Falling back to the superuser client here would
+    silently hand out the whole archive — so a missing token (expired session, or
+    STORAGE_SECRET rotated so the sealed token no longer decrypts) raises and the
+    user logs in again.
+    """
     token = _current_token.get()
-    if token:
-        return _PaperlessClient(settings.paperless_url, token)
-    return paperless
+    if not token:
+        raise NoUserContext
+    return _PaperlessClient(settings.paperless_url, token)
 
 
 MAX_ITERATIONS = 16
+
+# Returned to the LLM when the session token is gone. Phrased so the model tells
+# the user to sign in rather than retrying the tool.
+_NO_USER_MSG = (
+    "No active user session — the tool cannot check your document permissions. "
+    "Tell the user to sign in again; do not retry."
+)
 
 
 async def check_ollama_available(base_url: str) -> bool:
@@ -897,6 +915,15 @@ async def execute_tool(
     name: str, inputs: dict
 ) -> tuple[str, list[DocumentResult], list]:
     """Execute a tool call. Returns (text_for_llm, doc_results_for_ui, list[extra_events])."""
+    try:
+        return await _execute_tool_dispatch(name, inputs)
+    except NoUserContext:
+        return _NO_USER_MSG, [], []
+
+
+async def _execute_tool_dispatch(
+    name: str, inputs: dict
+) -> tuple[str, list[DocumentResult], list]:
     if name == "trigger_docx_generation":
         text = (
             "Letter parameters received. A dialog window opens where you can adjust sender details and download the finished letter."
@@ -1431,9 +1458,12 @@ def _render_table_md(t: dict, offset: int = 0, limit: int | None = None) -> str:
 async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentResult]]:
     doc_id = int(inputs.get("document_id", 0))
 
-    # Fetch via user-scoped client — acts as permission check
+    # Fetch via user-scoped client — acts as permission check. Resolving the
+    # client stays outside the try: a missing session must surface as "sign in
+    # again", not be flattened into a generic load error.
+    pl = _user_paperless()
     try:
-        docs = await _user_paperless().list_documents(ids=[doc_id])
+        docs = await pl.list_documents(ids=[doc_id])
         if not docs:
             return f"Dokument #{doc_id} not found or no access.", []
         doc = docs[0]
@@ -1526,9 +1556,11 @@ async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResu
     limit_raw = inputs.get("limit")
     limit = int(limit_raw) if limit_raw not in (None, "") else 100
 
-    # Permission check via user-scoped client
+    # Permission check via user-scoped client (resolved outside the try, so a
+    # missing session surfaces as such instead of a generic access error)
+    pl = _user_paperless()
     try:
-        if not await _user_paperless().list_documents(ids=[doc_id]):
+        if not await pl.list_documents(ids=[doc_id]):
             return f"Dokument #{doc_id} not found or no access.", []
     except Exception as e:
         return f"Error accessing document {doc_id}: {e}", []
@@ -1837,6 +1869,14 @@ async def _tool_get_actions(inputs: dict) -> str:
         return f"index.json could not be loaded: {e}"
 
     actions: list[dict] = list(data.get("actions") or [])
+
+    # index.json aggregates the actions of EVERY sidecar, i.e. of every document
+    # in the archive regardless of owner — it is built by the superuser sync. The
+    # descriptions are extracted document content, so they must pass the same
+    # permission check as the documents themselves before being shown.
+    from services.sidecar_service import filter_visible_actions
+
+    actions = await filter_visible_actions(actions, _user_paperless())
 
     # Merge the current user's manual due-dates (kind=deadline brain notes)
     user = _current_owner.get()

@@ -4,6 +4,40 @@ import os
 
 from models.extraction import JsonSidecar
 
+# Paperless takes the id filter as one comma-joined query param; a whole archive's
+# worth of ids in a single URL gets rejected by the proxy long before Paperless
+# sees it. 200 ids ≈ 1.4 kB, comfortably under any default limit.
+_ID_BATCH = 200
+
+
+async def filter_visible_actions(actions: list[dict], paperless_client) -> list[dict]:
+    """Keep only the actions whose source document the caller may read.
+
+    index.json is built by the superuser sync and therefore aggregates the
+    actions of every document in the archive, across all owners. The action
+    descriptions are extracted document content, so they need the same
+    permission check as the documents — done here by re-fetching the referenced
+    ids through the caller's own Paperless client and keeping what comes back.
+
+    Fails closed: any error drops the affected batch rather than showing it.
+    Actions without a paperless_id (manually created) are not index.json's and
+    are left to the caller.
+    """
+    ids = list({a["paperless_id"] for a in actions if a.get("paperless_id")})
+    if not ids:
+        return list(actions)
+
+    visible: set[int] = set()
+    for start in range(0, len(ids), _ID_BATCH):
+        batch = ids[start : start + _ID_BATCH]
+        try:
+            docs = await paperless_client.list_documents(ids=batch)
+        except Exception:
+            continue  # batch stays invisible
+        visible.update(d.id for d in docs)
+
+    return [a for a in actions if a.get("paperless_id") in visible]
+
 
 class SidecarService:
     """Provides all services regarding the json sidecar file management alongside pdf extraction."""

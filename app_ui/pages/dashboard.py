@@ -1314,18 +1314,18 @@ window.__toggleHideAction = function(key) {{
     )
     cal_badge.set_text(_cal_detail)
 
-    # deadlines — filtered to docs accessible by the current user
+    # deadlines — filtered to docs accessible by the current user. index.json is
+    # built by the superuser sync and holds every owner's actions, so this filter
+    # is the only thing standing between the user and other people's document
+    # content. It fails closed: no token or an API error hides the deadlines.
     actions = _load_actions()
-    if actions and _token:
-        _action_ids = list(
-            {a["paperless_id"] for a in actions if a.get("paperless_id")}
-        )
-        try:
-            _ok_docs = await get_session_paperless().list_documents(ids=_action_ids)
-            _ok_ids = {d.id for d in _ok_docs}
-            actions = [a for a in actions if a.get("paperless_id") in _ok_ids]
-        except Exception:
-            pass  # fail-open: show all on API error
+    if actions:
+        if _token:
+            from services.sidecar_service import filter_visible_actions
+
+            actions = await filter_visible_actions(actions, get_session_paperless())
+        else:
+            actions = []
 
     # Merge the user's manual due-dates (kind=deadline brain notes)
     if _username:
