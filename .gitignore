@@ -10,8 +10,10 @@ output.jpg
 deploy.sh
 
 # Internal working docs — not shipped to the public repo.
-# (roadmap = open-source planning notes; CLAUDE-*-section = fragments already
-#  merged into CLAUDE.md. The architecture/*-tasks docs DO ship.)
+# (roadmap + sharing = open-source planning notes and launch drafts;
+#  CLAUDE-*-section = fragments already merged into CLAUDE.md.
+#  The architecture/*-tasks docs DO ship.)
+paperlessbrain-sharing.md
 docs/open-source-roadmap.md
 docs/CLAUDE-localization-section.md
 docs/CLAUDE-vault-section.md

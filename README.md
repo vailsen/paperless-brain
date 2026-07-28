@@ -21,6 +21,15 @@ Installable PWA — built for mobile and desktop.</p>
 
 ---
 
+> **Status and expectations.** This is a personal homelab project, shared as-is because it
+> might be useful to someone else. It's alpha, it has rough edges, and I'm not a full-time
+> maintainer — issues and PRs get answered when I have time.
+>
+> I'd rather this grew into one good app than five half-finished ones, so if something is
+> missing, broken or awkward, please open an issue or a PR here. Good work gets merged, and if
+> you want a larger role than that, just ask. It's MIT — you're free to fork, but I'd much
+> rather build it with you.
+
 ## What it does
 
 Paperless-ngx stores and organizes your documents. PaperlessBrain reads them —
