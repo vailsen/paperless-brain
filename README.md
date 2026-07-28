@@ -173,7 +173,7 @@ the env value is only the initial fallback).
 | `BRAIN_SUBFOLDER` | | `PaperlessBrain Memory` | Vault subfolder reserved for agent-curated memory (names a real folder — change only on a fresh install) |
 | `VAULT_SYNC_COOLDOWN_S` | | `3` | Min seconds between vault sync runs per user |
 | `STORAGE_SECRET` | ✅ | — | Secret encrypting server-side sessions — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `SHUTDOWN_PASSWORD` | | empty | Password gating the in-app shutdown button (empty = hidden) |
+| `SHUTDOWN_PASSWORD` | | empty | Confirmation prompt before the shutdown button acts. **Empty = no prompt**, one click powers the machine off. What hides the buttons is an empty `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` / `OLLAMA_SSH_USER` |
 | `HOST` / `PORT` | | `0.0.0.0` / `8080` | Bind address and port |
 
 ## Vault & memory
