@@ -162,23 +162,64 @@ def _parse_date(s: str | None) -> date | None:
         return None
 
 
+def _local_ollama_urls(username: str = "", token: str = "") -> list[str]:
+    """Distinct base URLs of the user's local-lane models, in registry order.
+
+    `lane` marks the concurrency lane, not the machine — it says "runs on my own
+    GPU", not "runs on THIS host". So several local models may well point at
+    different boxes, and the registry order is just the user's sort order in
+    Settings. Callers that need one specific machine have to handle >1 entry.
+    """
+    if not (username and token):
+        return []
+    urls: list[str] = []
+    try:
+        from services.model_registry import get_models
+
+        for mdl in get_models(username, token):
+            if mdl.get("lane") != "local" or not mdl.get("base_url"):
+                continue
+            url = mdl["base_url"].rstrip("/")
+            if url.endswith("/v1"):
+                url = url[:-3]
+            if url not in urls:
+                urls.append(url)
+    except Exception:
+        pass
+    return urls
+
+
 def _resolve_ollama_server(username: str = "", token: str = "") -> str:
-    """Return Ollama base URL: settings → registry local-lane model → empty."""
+    """Return Ollama base URL: settings → first local-lane model → empty.
+
+    Good enough for the reachability probe (any local host answering means the
+    GPU is up). Power actions must use `_power_target()` instead, which refuses
+    to guess between several hosts.
+    """
     if settings.ollama_server:
         return settings.ollama_server
-    if username and token:
-        try:
-            from services.model_registry import get_models
+    urls = _local_ollama_urls(username, token)
+    return urls[0] if urls else ""
 
-            for mdl in get_models(username, token):
-                if mdl.get("lane") == "local" and mdl.get("base_url"):
-                    url = mdl["base_url"].rstrip("/")
-                    if url.endswith("/v1"):
-                        url = url[:-3]
-                    return url
-        except Exception:
-            pass
-    return ""
+
+def _power_hosts(username: str = "", token: str = "") -> list[str]:
+    """Candidate hosts for wake/shutdown — exactly one means unambiguous.
+
+    OLLAMA_SERVER is the explicit answer when set. Otherwise the local-lane
+    models have to agree: sending a magic packet to the wrong subnet is harmless,
+    but `sudo shutdown -h now` on the wrong machine is not, and the single global
+    OLLAMA_HOST_LAN_MAC_ADDRESS_WOL / OLLAMA_SSH_USER already assume there is
+    exactly one such box. Callers refuse to act on more than one.
+    """
+    if settings.ollama_server:
+        ip = _ollama_host_ip(username, token)
+        return [ip] if ip else []
+    hosts: list[str] = []
+    for url in _local_ollama_urls(username, token):
+        m = re.search(r"(\d+\.\d+\.\d+\.\d+)", url)
+        if m and m.group(1) not in hosts:
+            hosts.append(m.group(1))
+    return hosts
 
 
 def _wol_broadcast(username: str = "", token: str = "") -> str:
@@ -1116,6 +1157,16 @@ window.__toggleHideAction = function(key) {{
     # ── WoL / SSH shutdown ────────────────────────────────────────────────────
     _poll_timer: list = [None]
 
+    def _ambiguous_power_target() -> str:
+        """Warning text when the power buttons cannot tell which machine to hit."""
+        hosts = _power_hosts(_username, _token)
+        if len(hosts) < 2:
+            return ""
+        return _(
+            "Several local models point at different hosts ({hosts}). Set "
+            "OLLAMA_SERVER in .env to say which machine the power buttons control."
+        ).format(hosts=", ".join(hosts))
+
     async def wake_ollama() -> None:
         mac = settings.ollama_host_lan_mac_address_wol
         if not mac:
@@ -1123,6 +1174,9 @@ window.__toggleHideAction = function(key) {{
                 _("OLLAMA_HOST_LAN_MAC_ADDRESS_WOL not configured"), type="warning"
             )
             return
+        # Waking the wrong subnet costs nothing, so warn and carry on.
+        if warn := _ambiguous_power_target():
+            ui.notify(warn, type="warning", timeout=10000)
         broadcast = _wol_broadcast(_username, _token)
         try:
             mac_bytes = bytes.fromhex(mac.replace(":", "").replace("-", ""))
@@ -1161,6 +1215,11 @@ window.__toggleHideAction = function(key) {{
 
     async def _run_shutdown() -> None:
         ssh_user = settings.ollama_ssh_user
+        # Powering off the wrong machine is not recoverable from here — refuse
+        # rather than pick whichever local model happens to sort first.
+        if warn := _ambiguous_power_target():
+            ui.notify(warn, type="negative", timeout=15000)
+            return
         host = _ollama_host_ip(_username, _token)
         if not ssh_user or not host:
             ui.notify(_("OLLAMA_SSH_USER not configured"), type="warning")
