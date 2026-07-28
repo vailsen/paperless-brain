@@ -16,8 +16,8 @@ body:
     id: version
     attributes:
       label: Version
-      description: Image tag (e.g. `v0.1.0a4`, `latest`) or the value in `config/version.py`
-      placeholder: v0.1.0a4
+      description: Image tag (e.g. `v0.1.0a5`, `latest`) or the value in `config/version.py`
+      placeholder: v0.1.0a5
     validations:
       required: true
 
