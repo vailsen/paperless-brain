@@ -1700,7 +1700,9 @@ async def _tool_web_search(inputs: dict) -> tuple[str, list[WebSearchResult]]:
         max_results = min(int(inputs.get("max_results") or 5), 10)
     except (TypeError, ValueError):
         max_results = 5
-    _default_lang = settings.archive_language or "en"
+    from werkbank.settings_store import get_archive_language
+
+    _default_lang = get_archive_language() or "en"
     language = (inputs.get("language") or _default_lang).strip() or _default_lang
     time_range = (inputs.get("time_range") or "").strip()
     category = (inputs.get("category") or "").strip().lower()

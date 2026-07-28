@@ -13,10 +13,10 @@ from config.extraction_rules import (
     AVAILABLE_PROFILES,
     DEFAULT_PROFILE,
     EXTRACTION_JSON_SCHEMA,
-    EXTRACTION_PROFILE,
-    EXTRACTION_RULES,
     PROMPT_VERSION,
-    _load_profile,
+    _resolve,
+    get_active_profile,
+    get_extraction_rules,
 )
 
 
@@ -32,23 +32,19 @@ def test_default_profile_is_available():
 
 
 def test_active_profile_resolved_to_something_real():
-    assert EXTRACTION_PROFILE in AVAILABLE_PROFILES
-    assert EXTRACTION_RULES
+    assert get_active_profile() in AVAILABLE_PROFILES
+    assert get_extraction_rules()
 
 
 def test_unknown_profile_falls_back_and_reports_the_resolved_name():
     """Regression: the loader used to return the *requested* name after falling
     back, so the UI would display a profile that was not actually loaded."""
-    name, rules = _load_profile("klingon")
-    assert name == DEFAULT_PROFILE
-    assert rules == _rules(DEFAULT_PROFILE)
+    assert _resolve("klingon") == DEFAULT_PROFILE
 
 
-def test_known_profile_loads_itself():
+def test_known_profile_resolves_to_itself():
     for code in AVAILABLE_PROFILES:
-        name, rules = _load_profile(code)
-        assert name == code
-        assert rules is _rules(code)
+        assert _resolve(code) == code
 
 
 # ── structure ────────────────────────────────────────────────────────────────

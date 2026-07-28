@@ -33,6 +33,14 @@ _HEADER_LABELS = {
 }
 
 
+def _archive_language() -> str:
+    """Imported lazily: settings_store pulls in the Werkbank DB, and export.py is
+    imported from module scope in places that must not touch sqlite at import."""
+    from werkbank.settings_store import get_archive_language
+
+    return get_archive_language()
+
+
 def _sanitize(text: str, max_len: int = 40) -> str:
     """Return a filesystem-safe slug from text."""
     slug = _FILENAME_UNSAFE.sub("", text[:max_len]).strip().replace(" ", "_")
@@ -90,13 +98,13 @@ def _build_title(task: repository.Task) -> str:
     first_line = goal.split("\n")[0][:60].rstrip(".")
     if first_line:
         return first_line
-    labels = _HEADER_LABELS.get(settings.archive_language, _HEADER_LABELS["en"])
+    labels = _HEADER_LABELS.get(_archive_language(), _HEADER_LABELS["en"])
     return labels["default_title"]
 
 
 def assemble_markdown(task: repository.Task, subtasks: list[repository.SubTask]) -> str:
     """Prepend a metadata header to result_md for the PDF export."""
-    lang = settings.archive_language
+    lang = _archive_language()
     labels = _HEADER_LABELS.get(lang, _HEADER_LABELS["en"])
     dt_str = format_datetime(datetime.now(tz=local_tz()), lang)
     done = sum(1 for s in subtasks if s.status.value == "DONE")

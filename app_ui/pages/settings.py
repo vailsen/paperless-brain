@@ -444,6 +444,45 @@ async def settings_page() -> None:
                 _("Documents with this Paperless tag are <b>not</b> embedded into ChromaDB during sync.")
             )
 
+            # Extraction profile + summary language. Both used to be .env-only and
+            # invisible, so a missing line silently switched a German archive to
+            # the generic English rule set with nothing in the UI to show it.
+            from config.extraction_rules import (
+                AVAILABLE_PROFILES as _PROFILES,
+                get_active_profile as _get_active_profile,
+            )
+            from i18n import SUPPORTED_LANGUAGES as _LANGS
+            from werkbank.settings_store import get_archive_language as _get_arch_lang
+
+            _profile_select = ui.select(
+                {p: p for p in _PROFILES},
+                label=_("Extraction profile"),
+                value=_get_active_profile(),
+            ).props("outlined dark dense").classes("w-full mt-3")
+            _hint(
+                _(
+                    "Which set of per-document-type extraction prompts to use. This follows the "
+                    "<b>names of your document types in Paperless</b>, not the language of the "
+                    "documents themselves — an English invoice filed as <i>Rechnung</i> still "
+                    "matches the <code>de</code> rules. <code>de</code> covers ~46 German "
+                    "legal/administrative types, <code>en</code> ~13 common international ones."
+                )
+            )
+
+            _arch_lang_select = ui.select(
+                dict(_LANGS),
+                label=_("Language of generated summaries"),
+                value=_get_arch_lang() if _get_arch_lang() in _LANGS else "en",
+            ).props("outlined dark dense").classes("w-full mt-3")
+            _hint(
+                _(
+                    "Summaries and image descriptions are written in this language, whatever the "
+                    "document's own language is — that keeps every summary searchable with the "
+                    "same query language. The extracted page text is always kept verbatim in the "
+                    "original language."
+                )
+            )
+
             def _save_ingest_cfg():
                 sel = next(
                     (m for m in _get_models(username, token) if m["name"] == _ingest_select.value),
@@ -457,7 +496,15 @@ async def settings_page() -> None:
                 _ws.set_value(_ws.INGEST_SERVER, server)
                 _ws.set_value(_ws.INGEST_MODEL, sel.get("model", ""))
                 _ws.set_value(_ws.TAG_NO_INGEST, _no_ingest_field.value.strip())
+                _ws.set_value(_ws.EXTRACTION_PROFILE, _profile_select.value or "")
+                _ws.set_value(_ws.ARCHIVE_LANGUAGE, _arch_lang_select.value or "")
                 ui.notify(_("Processing settings saved."), type="positive")
+                # Only affects documents ingested from here on — existing sidecars
+                # keep the rules and language they were extracted with.
+                ui.notify(
+                    _("Applies to newly ingested documents; existing ones keep their extraction."),
+                    type="info",
+                )
 
             ui.button(_("Save"), icon="save", on_click=_save_ingest_cfg).props(
                 "unelevated dark dense"

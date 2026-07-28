@@ -10,8 +10,8 @@ import httpx
 from config.extraction_rules import (
     CONDENSED_SUMMARY_PROMPT,
     EXTRACTION_JSON_SCHEMA,
-    EXTRACTION_RULES,
     TABLE_CONTINUATION_CONTEXT,
+    get_extraction_rules,
 )
 from services.extraction_guard import (
     MAX_PLAUSIBLE_PAGE_WORDS,
@@ -29,9 +29,9 @@ _FOREIGN_SCRIPT_RE = re.compile(
 
 
 def _archive_language_name() -> str:
-    from config.settings import settings
     from i18n import language_name
-    return language_name(settings.archive_language)
+    from werkbank.settings_store import get_archive_language
+    return language_name(get_archive_language())
 
 
 class VisionClient(ABC):
@@ -82,7 +82,10 @@ class OllamaVisionClient(VisionClient):
         ai_doc_type: str,
         prev_table: dict | None = None,
     ) -> ExtractedContent:
-        rules = EXTRACTION_RULES.get(document_type, EXTRACTION_RULES["_default"])
+        # Resolved per call: the profile is settable in Settings > Processing,
+        # so binding the rules once at import would serve stale ones until restart.
+        _rules_map = get_extraction_rules()
+        rules = _rules_map.get(document_type, _rules_map["_default"])
         prompt = rules["prompt"] + (
             f"\n\nWrite page_summary and image descriptions in {_archive_language_name()}. "
             "page_text is extracted verbatim and keeps the document's original language."

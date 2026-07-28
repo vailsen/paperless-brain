@@ -167,8 +167,8 @@ the env value is only the initial fallback).
 | `BRAIN_HINT_WINDOW_FACTOR` | | `1.5` | *UI* — window factor for memory hints |
 | `OLLAMA_SERVER` | | empty | *UI* — Ollama base URL for vision ingestion; also names the host the WoL/shutdown buttons control (otherwise inferred from your first local-lane model) |
 | `OLLAMA_INGEST_MODEL` | | empty | *UI* — vision model used to read documents |
-| `EXTRACTION_PROFILE` | | `en` | Extraction-rule profile: `en` or `de` (see [Extraction rules](#extraction-rules)) |
-| `ARCHIVE_LANGUAGE` | | `en` | Language of AI-generated summaries (archive-level — sidecars are shared by all users) |
+| `EXTRACTION_PROFILE` | | `en` | *UI* — extraction-rule profile: `en` or `de` (see [Extraction rules](#extraction-rules)) |
+| `ARCHIVE_LANGUAGE` | | `en` | *UI* — language of AI-generated summaries (archive-level — sidecars are shared by all users) |
 | `TZ` | | system | IANA timezone for timestamps on generated documents |
 | `ANTHROPIC_API_KEY` | | empty | *UI* — global fallback key; users can store their own key |
 | `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` | | empty | MAC for Wake-on-LAN (empty = feature hidden) |
@@ -241,11 +241,17 @@ Pay particular attention to:
 ```
 
 To add a whole profile, drop `<code>.py` next to the others exporting a `RULES`
-dict, add the code to `AVAILABLE_PROFILES` in `__init__.py`, and set
-`EXTRACTION_PROFILE=<code>`.
+dict and add the code to `AVAILABLE_PROFILES` in `__init__.py`. It then appears
+in the profile selector automatically.
+
+The profile follows **the names of your Paperless document types**, not the
+language of the documents. An English invoice filed as `Rechnung` still matches
+the `de` rules — so a mixed-language archive needs no special handling.
 
 `ARCHIVE_LANGUAGE` separately controls the language of generated summaries;
-extracted text always keeps the document's original language.
+extracted page text always keeps the document's original language, whatever it
+is. Both are set in **Settings > Processing**, with the `.env` values as
+fallback.
 
 ## Languages (i18n)
 

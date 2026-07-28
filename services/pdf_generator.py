@@ -128,7 +128,9 @@ def generate_chat_pdf(
     """Render markdown to a styled A4 PDF and return the bytes."""
     if dt is None:
         dt = datetime.now(tz=local_tz())
-    lang = settings.archive_language
+    from werkbank.settings_store import get_archive_language
+
+    lang = get_archive_language()
     dt_str = format_datetime(dt, lang)
     badge = _BADGE_TEXT.get(lang, _BADGE_TEXT["en"])
 

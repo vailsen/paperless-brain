@@ -31,6 +31,8 @@ INGEST_SERVER        = "ingest_server"
 INGEST_MODEL         = "ingest_model"
 INGEST_CORRESPONDENT = "ingest_correspondent"
 INGEST_DOC_TYPE      = "ingest_doc_type"
+EXTRACTION_PROFILE   = "extraction_profile"
+ARCHIVE_LANGUAGE     = "archive_language"
 SEARCH_MAX_RESULTS   = "search_max_results"
 BRAIN_HINT_THRESHOLD = "brain_hint_threshold"
 BRAIN_HINT_WINDOW    = "brain_hint_window"
@@ -51,6 +53,7 @@ _ALL_KEYS = (
     TAG_INBOX, TAG_AI_GENERATED, TAG_NO_INGEST,
     INGEST_SERVER, INGEST_MODEL,
     INGEST_CORRESPONDENT, INGEST_DOC_TYPE,
+    EXTRACTION_PROFILE, ARCHIVE_LANGUAGE,
     SEARCH_MAX_RESULTS, BRAIN_HINT_THRESHOLD, BRAIN_HINT_WINDOW,
     TOKENS_PLANNER, TOKENS_SPLITTER, TOKENS_SPLITTER_CRITIQUE, TOKENS_CRITIC,
     TOKENS_SYNTHESIZER, TOKENS_COMPACTION, TOKENS_WORKER,
@@ -156,6 +159,34 @@ def get_ingest_model() -> str:
         return stored
     from config.settings import settings
     return settings.ollama_ingest_model
+
+
+def get_extraction_profile() -> str:
+    """Requested extraction-rule profile. Falls back to .env EXTRACTION_PROFILE.
+
+    "Requested", not "active": an unknown name still falls back to the default
+    profile at load time. Use config.extraction_rules.get_active_profile() to
+    show what is really in use.
+    """
+    stored = get(EXTRACTION_PROFILE)
+    if stored.strip():
+        return stored.strip().lower()
+    from config.settings import settings
+    return (settings.extraction_profile or "").strip().lower()
+
+
+def get_archive_language() -> str:
+    """Language the vision model writes summaries in. Falls back to .env.
+
+    Only generated text is affected — page_text is extracted verbatim and keeps
+    the document's own language, so a foreign-language document stays readable
+    while its summary stays consistent with the rest of the archive.
+    """
+    stored = get(ARCHIVE_LANGUAGE)
+    if stored.strip():
+        return stored.strip().lower()
+    from config.settings import settings
+    return (settings.archive_language or "en").strip().lower()
 
 
 def get_ingest_correspondent() -> str:
