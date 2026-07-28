@@ -156,14 +156,14 @@ the env value is only the initial fallback).
 | `CHROMA_MAX_RESULTS` | | `20` | *UI* — max search results per query |
 | `BRAIN_HINT_SIMILARITY_THRESHOLD` | | `0.70` | *UI* — min similarity for memory hints in search |
 | `BRAIN_HINT_WINDOW_FACTOR` | | `1.5` | *UI* — window factor for memory hints |
-| `OLLAMA_SERVER` | | empty | *UI* — Ollama base URL for vision ingestion |
+| `OLLAMA_SERVER` | | empty | *UI* — Ollama base URL for vision ingestion; also names the host the WoL/shutdown buttons control (otherwise inferred from your first local-lane model) |
 | `OLLAMA_INGEST_MODEL` | | empty | *UI* — vision model used to read documents |
 | `EXTRACTION_PROFILE` | | `en` | Extraction-rule profile: `en` or `de` (see [Extraction rules](#extraction-rules)) |
 | `ARCHIVE_LANGUAGE` | | `en` | Language of AI-generated summaries (archive-level — sidecars are shared by all users) |
 | `TZ` | | system | IANA timezone for timestamps on generated documents |
 | `ANTHROPIC_API_KEY` | | empty | *UI* — global fallback key; users can store their own key |
 | `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` | | empty | MAC for Wake-on-LAN (empty = feature hidden) |
-| `OLLAMA_SSH_USER` | | empty | SSH user for remote shutdown of the Ollama host (empty = feature hidden) |
+| `OLLAMA_SSH_USER` | | empty | SSH user for remote shutdown of the Ollama host (empty = feature hidden). Needs passwordless sudo for `/usr/bin/shutdown`; in Docker, mount an SSH key into the container |
 | `OLLAMA_IDLE_SHUTDOWN_MINUTES` | | `30` | Idle minutes before the Ollama host is shut down |
 | `AI_GENERATED_TAG_NAME` | | `AI-generated` | *UI* — tag applied to documents the app creates in Paperless |
 | `AI_GENERATED_CORRESPONDENT` | | `PaperlessBrain AI` | *UI* — correspondent for AI-generated documents |

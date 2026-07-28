@@ -49,7 +49,11 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
 - `PAPERLESS_URL`, `PAPERLESS_SUPERUSER_TOKEN` — Paperless-ngx API
 - `IGNORE_INBOX_TAG_AT_SYNC` — tag name to skip during sync
 - `EMBEDDING_MODEL`, `CHROMA_PATH`, `CHROMA_COLLECTION`, `EXTRACTION_SIDECAR_PATH`, `THUMB_PATH`
-- `OLLAMA_SERVER`, `OLLAMA_INGEST_MODEL` — vision LLM for ingestion
+- `OLLAMA_SERVER`, `OLLAMA_INGEST_MODEL` — *optional*, vision LLM for ingestion
+  (both also settable in Settings > Processing, which wins). Chat and Werkbank
+  never read them — those use per-user models with their own `base_url`.
+  `OLLAMA_SERVER` additionally names the host the WoL/shutdown buttons control;
+  without it that is inferred from the first local-lane model in the registry.
 - `ANTHROPIC_API_KEY` (optional) — global fallback key; chat models are managed per user in the UI (Settings > AI Models, `services/model_registry.py`)
 - `SEARXNG_HOST` — self-hosted SearXNG instance
 - `STORAGE_SECRET` — NiceGUI session secret
