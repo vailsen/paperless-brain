@@ -47,19 +47,68 @@ def _unescape(value: str) -> str:
     )
 
 
-def _parse_ical_date(s: str) -> str:
-    s = s.strip().split(";")[-1].rstrip("Z")  # strip TZID= param if present
+def _tz_from_params(params: str):
+    """ZoneInfo for a TZID= parameter, or None if absent/unknown.
+
+    Unknown covers Outlook's Windows names ("W. Europe Standard Time"), which
+    zoneinfo cannot resolve — the caller then treats the value as local time,
+    which is the least wrong reading of a name we cannot map.
+    """
+    m = re.search(r"TZID=([^;:]+)", params, re.I)
+    if not m:
+        return None
     try:
-        if len(s) == 8:
-            return datetime.strptime(s, "%Y%m%d").strftime("%d.%m.%Y")
-        return datetime.strptime(s[:15], "%Y%m%dT%H%M%S").strftime("%d.%m.%Y %H:%M")
+        from zoneinfo import ZoneInfo
+
+        return ZoneInfo(m.group(1).strip().strip('"'))
     except Exception:
-        return s
+        return None
 
 
-def _parse_ical_date_raw(s: str) -> str:
-    """Return raw date string for sorting (strip TZID)."""
-    return s.strip().split(":")[-1].rstrip("Z")[:15]
+def _ical_to_local(params: str, value: str) -> tuple[datetime | None, bool]:
+    """Parse an iCal date-time into local time. Returns (dt, is_all_day).
+
+    The three forms RFC 5545 allows, and what each means:
+      20260728T150000Z              UTC — convert
+      TZID=Europe/Berlin:…T170000   that zone — convert
+      20260728T170000               floating — already local, leave alone
+      20260728                      a whole day — no time, no conversion
+
+    Google exports UTC, so dropping the trailing Z (as this used to) reports
+    every event two hours early in summer and one in winter.
+    """
+    v = value.strip()
+    if len(v) == 8 and v.isdigit():
+        try:
+            return datetime.strptime(v, "%Y%m%d"), True
+        except ValueError:
+            return None, False
+    try:
+        naive = datetime.strptime(v[:15], "%Y%m%dT%H%M%S")
+    except ValueError:
+        return None, False
+
+    from config.settings import local_tz
+
+    source = timezone.utc if v.endswith("Z") else (_tz_from_params(params) or local_tz())
+    return naive.replace(tzinfo=source).astimezone(local_tz()), False
+
+
+def _parse_ical_date(params: str, value: str) -> str:
+    dt, all_day = _ical_to_local(params, value)
+    if dt is None:
+        return value.strip()
+    return dt.strftime("%d.%m.%Y") if all_day else dt.strftime("%d.%m.%Y %H:%M")
+
+
+def _parse_ical_date_raw(params: str, value: str) -> str:
+    """Sortable local-time key. Comparable across mixed UTC/TZID/floating feeds,
+    which raw iCal strings are not — and `_filter_and_sort` compares them
+    lexicographically against local YYYY-MM-DD range bounds."""
+    dt, all_day = _ical_to_local(params, value)
+    if dt is None:
+        return value.strip().rstrip("Z")[:15]
+    return dt.strftime("%Y%m%d") if all_day else dt.strftime("%Y%m%dT%H%M%S")
 
 
 def _parse_ical_text(ical_text: str) -> list[dict[str, Any]]:
@@ -82,14 +131,18 @@ def _parse_ical_text(ical_text: str) -> list[dict[str, Any]]:
                     continue
                 key_part, _, val = l.partition(":")
                 key = key_part.split(";")[0].upper().strip()
+                # Everything after the property name: TZID and friends live here,
+                # so the date parser needs it — dropping it made every TZID feed
+                # render as if it were already local.
+                params = key_part.partition(";")[2]
                 val = _unescape(val.strip())
                 if key == "SUMMARY":
                     ev["summary"] = val
                 elif key == "DTSTART":
-                    ev["dtstart_raw"] = _parse_ical_date_raw(val)
-                    ev["dtstart"] = _parse_ical_date(val)
+                    ev["dtstart_raw"] = _parse_ical_date_raw(params, val)
+                    ev["dtstart"] = _parse_ical_date(params, val)
                 elif key == "DTEND":
-                    ev["dtend"] = _parse_ical_date(val)
+                    ev["dtend"] = _parse_ical_date(params, val)
                 elif key == "DESCRIPTION":
                     ev["description"] = val[:600]
                 elif key == "LOCATION":
