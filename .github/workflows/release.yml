@@ -74,7 +74,11 @@ jobs:
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=lean,enable=${{ matrix.variant == 'lean' }}
+            # suffix= overrides the global -lean flavor for this entry only.
+            # Without it the flavor is appended here too and the moving tag is
+            # published as "lean-lean", so the ":lean" the README tells people to
+            # pull does not exist.
+            type=raw,value=lean,suffix=,enable=${{ matrix.variant == 'lean' }}
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
