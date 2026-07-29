@@ -8,18 +8,61 @@ import httpx
 from models.paperless_document import PaperlessDocument
 
 
-def get_token(base_url: str, username: str, password: str) -> str | None:
-    """Fetch a Paperless API token for the given credentials (synchronous)."""
+# Why a login attempt failed. The caller turns these into translated text — this
+# module has no user context and must not build UI strings.
+AUTH_NOT_CONFIGURED = "not_configured"   # PAPERLESS_URL never filled in
+AUTH_UNREACHABLE = "unreachable"         # DNS / refused / timeout
+AUTH_INVALID = "invalid"                 # Paperless rejected the credentials
+AUTH_SERVER_ERROR = "server_error"       # reachable, but answered with an error
+
+# Hostnames shipped in .env.example. Someone who starts the app without editing
+# .env lands on a name that does not resolve, and "check your details" would send
+# them hunting through their password instead of their config.
+_PLACEHOLDER_MARKERS = (".example.", "example.lan", "example.com", "changeme")
+
+
+def is_placeholder_url(base_url: str) -> bool:
+    """True when PAPERLESS_URL is empty or still the .env.example value."""
+    url = (base_url or "").strip().lower()
+    return not url or any(m in url for m in _PLACEHOLDER_MARKERS)
+
+
+def authenticate(
+    base_url: str, username: str, password: str
+) -> tuple[str | None, str]:
+    """Fetch a Paperless API token. Returns (token, "") or (None, reason).
+
+    The reason matters: a wrong password and an unreachable server used to be
+    indistinguishable, so a fresh install with an unedited .env told the user to
+    check credentials that were perfectly fine.
+    """
+    if is_placeholder_url(base_url):
+        return None, AUTH_NOT_CONFIGURED
     try:
         r = httpx.post(
             f"{base_url.rstrip('/')}/api/token/",
             json={"username": username, "password": password},
             timeout=5,
         )
-        r.raise_for_status()
-        return r.json().get("token")
     except Exception:
-        return None
+        # httpx raises RequestError for DNS/connect/timeout, but a malformed URL
+        # surfaces as other types — none of them mean "bad password".
+        return None, AUTH_UNREACHABLE
+
+    if r.status_code in (400, 401, 403):
+        return None, AUTH_INVALID
+    if r.status_code >= 400:
+        return None, AUTH_SERVER_ERROR
+    try:
+        token = r.json().get("token")
+    except Exception:
+        return None, AUTH_SERVER_ERROR
+    return (token, "") if token else (None, AUTH_SERVER_ERROR)
+
+
+def get_token(base_url: str, username: str, password: str) -> str | None:
+    """Token or None. Use authenticate() when the failure reason matters."""
+    return authenticate(base_url, username, password)[0]
 
 
 class PaperlessClient:

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-28 23:13+0200\n"
+"POT-Creation-Date: 2026-07-29 07:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1414,7 +1414,7 @@ msgstr ""
 msgid "Shut down server"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1284 app_ui/pages/login.py:72
+#: app_ui/pages/dashboard.py:1284 app_ui/pages/login.py:99
 #: app_ui/pages/settings.py:716
 msgid "Password"
 msgstr ""
@@ -1497,23 +1497,53 @@ msgstr ""
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr ""
 
-#: app_ui/pages/login.py:63
+#: app_ui/pages/login.py:70
 msgid "Paperless login"
 msgstr ""
 
-#: app_ui/pages/login.py:69 app_ui/pages/settings.py:713
+#: app_ui/pages/login.py:81
+msgid "Not configured yet"
+msgstr ""
+
+#: app_ui/pages/login.py:86
+msgid ""
+"PAPERLESS_URL still points at the example address. Set it and "
+"PAPERLESS_SUPERUSER_TOKEN in your .env, then restart the container."
+msgstr ""
+
+#: app_ui/pages/login.py:96 app_ui/pages/settings.py:713
 msgid "Username"
 msgstr ""
 
-#: app_ui/pages/login.py:78
+#: app_ui/pages/login.py:109
 msgid "Sign in"
 msgstr ""
 
-#: app_ui/pages/login.py:87
+#: app_ui/pages/login.py:118
 msgid "Please enter username and password."
 msgstr ""
 
-#: app_ui/pages/login.py:105
+#: app_ui/pages/login.py:142
+msgid ""
+"PaperlessBrain is not configured: set PAPERLESS_URL in .env to your "
+"Paperless-ngx address and restart."
+msgstr ""
+
+#: app_ui/pages/login.py:146
+#, python-brace-format
+msgid ""
+"Cannot reach Paperless-ngx at {url} — check the address, the network and "
+"whether Paperless is running."
+msgstr ""
+
+#: app_ui/pages/login.py:150
+#, python-brace-format
+msgid ""
+"Paperless-ngx answered with an error. Check its logs and that {url} is "
+"really a Paperless instance."
+msgstr ""
+
+#: app_ui/pages/login.py:155
 msgid "Login failed. Please check your details."
 msgstr ""
 

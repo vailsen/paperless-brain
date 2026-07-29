@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-28 23:13+0200\n"
+"POT-Creation-Date: 2026-07-29 07:37+0200\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -1448,7 +1448,7 @@ msgstr "Server wird heruntergefahren…"
 msgid "Shut down server"
 msgstr "Server herunterfahren"
 
-#: app_ui/pages/dashboard.py:1284 app_ui/pages/login.py:72
+#: app_ui/pages/dashboard.py:1284 app_ui/pages/login.py:99
 #: app_ui/pages/settings.py:716
 msgid "Password"
 msgstr "Passwort"
@@ -1531,23 +1531,61 @@ msgstr "Dok"
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr "Seite {page} / {total}  ·  {count} Einträge"
 
-#: app_ui/pages/login.py:63
+#: app_ui/pages/login.py:70
 msgid "Paperless login"
 msgstr "Paperless-Anmeldung"
 
-#: app_ui/pages/login.py:69 app_ui/pages/settings.py:713
+#: app_ui/pages/login.py:81
+msgid "Not configured yet"
+msgstr "Noch nicht konfiguriert"
+
+#: app_ui/pages/login.py:86
+msgid ""
+"PAPERLESS_URL still points at the example address. Set it and "
+"PAPERLESS_SUPERUSER_TOKEN in your .env, then restart the container."
+msgstr ""
+"PAPERLESS_URL zeigt noch auf die Beispiel-Adresse. Trage sie und "
+"PAPERLESS_SUPERUSER_TOKEN in deiner .env ein und starte den Container neu."
+
+#: app_ui/pages/login.py:96 app_ui/pages/settings.py:713
 msgid "Username"
 msgstr "Benutzername"
 
-#: app_ui/pages/login.py:78
+#: app_ui/pages/login.py:109
 msgid "Sign in"
 msgstr "Anmelden"
 
-#: app_ui/pages/login.py:87
+#: app_ui/pages/login.py:118
 msgid "Please enter username and password."
 msgstr "Bitte Benutzername und Passwort eingeben."
 
-#: app_ui/pages/login.py:105
+#: app_ui/pages/login.py:142
+msgid ""
+"PaperlessBrain is not configured: set PAPERLESS_URL in .env to your "
+"Paperless-ngx address and restart."
+msgstr ""
+"PaperlessBrain ist nicht konfiguriert: Trage PAPERLESS_URL in der .env auf "
+"deine Paperless-ngx-Adresse ein und starte neu."
+
+#: app_ui/pages/login.py:146
+#, python-brace-format
+msgid ""
+"Cannot reach Paperless-ngx at {url} — check the address, the network and "
+"whether Paperless is running."
+msgstr ""
+"Paperless-ngx unter {url} nicht erreichbar — prüfe Adresse, Netzwerk und ob "
+"Paperless läuft."
+
+#: app_ui/pages/login.py:150
+#, python-brace-format
+msgid ""
+"Paperless-ngx answered with an error. Check its logs and that {url} is "
+"really a Paperless instance."
+msgstr ""
+"Paperless-ngx hat mit einem Fehler geantwortet. Prüfe dessen Logs und ob "
+"{url} wirklich eine Paperless-Instanz ist."
+
+#: app_ui/pages/login.py:155
 msgid "Login failed. Please check your details."
 msgstr "Anmeldung fehlgeschlagen. Bitte prüfen."
 
@@ -1780,11 +1818,11 @@ msgid ""
 "international ones."
 msgstr ""
 "Welcher Satz von Extraktions-Prompts pro Dokumenttyp verwendet wird. Das "
-"richtet sich nach den <b>Namen deiner Dokumenttypen in Paperless</b>, nicht "
-"nach der Sprache der Dokumente selbst — eine englische Rechnung, die als "
-"<i>Rechnung</i> abgelegt ist, trifft weiterhin die <code>de</code>-Regeln. "
-"<code>de</code> deckt ~46 deutsche Rechts-/Verwaltungstypen ab, "
-"<code>en</code> ~13 gängige internationale."
+"richtet sich nach den <b>Namen deiner Dokumenttypen in Paperless</b>, "
+"nicht nach der Sprache der Dokumente selbst — eine englische Rechnung, "
+"die als <i>Rechnung</i> abgelegt ist, trifft weiterhin die "
+"<code>de</code>-Regeln. <code>de</code> deckt ~46 deutsche "
+"Rechts-/Verwaltungstypen ab, <code>en</code> ~13 gängige internationale."
 
 #: app_ui/pages/settings.py:474
 msgid "Language of generated summaries"
@@ -1797,10 +1835,10 @@ msgid ""
 " the same query language. The extracted page text is always kept verbatim"
 " in the original language."
 msgstr ""
-"Zusammenfassungen und Bildbeschreibungen werden in dieser Sprache verfasst, "
-"unabhängig von der Sprache des Dokuments — so bleibt jede Zusammenfassung mit "
-"derselben Suchsprache auffindbar. Der extrahierte Seitentext bleibt immer "
-"wortgetreu in der Originalsprache."
+"Zusammenfassungen und Bildbeschreibungen werden in dieser Sprache "
+"verfasst, unabhängig von der Sprache des Dokuments — so bleibt jede "
+"Zusammenfassung mit derselben Suchsprache auffindbar. Der extrahierte "
+"Seitentext bleibt immer wortgetreu in der Originalsprache."
 
 #: app_ui/pages/settings.py:492
 msgid "No model selected."
@@ -1812,8 +1850,7 @@ msgstr "Verarbeitungs-Einstellungen gespeichert."
 
 #: app_ui/pages/settings.py:505
 msgid "Applies to newly ingested documents; existing ones keep their extraction."
-msgstr ""
-"Gilt für neu eingelesene Dokumente; bestehende behalten ihre Extraktion."
+msgstr "Gilt für neu eingelesene Dokumente; bestehende behalten ihre Extraktion."
 
 #: app_ui/pages/settings.py:519
 msgid "Search & memory thresholds"

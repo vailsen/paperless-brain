@@ -7,7 +7,14 @@ from nicegui import ui
 from app_ui.theme import apply_theme
 from config.settings import settings
 from i18n import get_translator
-from services.paperless import get_token
+from services.paperless import (
+    AUTH_INVALID,
+    AUTH_NOT_CONFIGURED,
+    AUTH_SERVER_ERROR,
+    AUTH_UNREACHABLE,
+    authenticate,
+    is_placeholder_url,
+)
 from services.session_auth import get_session_token, set_session_token
 
 
@@ -65,6 +72,26 @@ async def login_page() -> None:
             )
             ui.separator().classes("my-1")
 
+            # Fresh install with an unedited .env: say so before the user spends
+            # attempts on a password that was never the problem.
+            if is_placeholder_url(settings.paperless_url):
+                with ui.column().classes(
+                    "w-full gap-1 rounded-lg p-3 bg-amber-950 border border-amber-700"
+                ):
+                    ui.label(_("Not configured yet")).classes(
+                        "text-amber-300 text-sm font-semibold"
+                    )
+                    ui.label(
+                        _(
+                            "PAPERLESS_URL still points at the example address. Set it "
+                            "and PAPERLESS_SUPERUSER_TOKEN in your .env, then restart "
+                            "the container."
+                        )
+                    ).classes("text-amber-200/80 text-xs leading-snug")
+                    ui.label(settings.paperless_url or "PAPERLESS_URL=").classes(
+                        "text-amber-200/60 text-xs font-mono break-all"
+                    )
+
             username_input = (
                 ui.input(_("Username")).props("dark outlined dense").classes("w-full")
             )
@@ -73,7 +100,11 @@ async def login_page() -> None:
                 .props("dark outlined dense")
                 .classes("w-full")
             )
-            error_label = ui.label("").classes("text-red-400 text-xs hidden")
+            # Messages here can be a full sentence naming the configured URL,
+            # so it has to wrap rather than overflow the 20rem card.
+            error_label = ui.label("").classes(
+                "text-red-400 text-xs hidden leading-snug break-words w-full"
+            )
             login_btn = (
                 ui.button(_("Sign in"), icon="login")
                 .props("dark")
@@ -91,8 +122,8 @@ async def login_page() -> None:
                 login_btn.props(add="loading")
                 error_label.classes(add="hidden")
 
-                token = await asyncio.to_thread(
-                    get_token, settings.paperless_url, username, password
+                token, reason = await asyncio.to_thread(
+                    authenticate, settings.paperless_url, username, password
                 )
 
                 login_btn.props(remove="loading")
@@ -101,9 +132,30 @@ async def login_page() -> None:
                     set_session_token(token)
                     ng_app.storage.user["paperless_user"] = username
                     ui.navigate.to("/")
-                else:
-                    error_label.set_text(_("Login failed. Please check your details."))
-                    error_label.classes(remove="hidden")
+                    return
+
+                # Only a rejected credential is the user's fault — everything
+                # else is a configuration or server problem, and saying "check
+                # your details" for those sends people down the wrong path.
+                messages = {
+                    AUTH_NOT_CONFIGURED: _(
+                        "PaperlessBrain is not configured: set PAPERLESS_URL in .env "
+                        "to your Paperless-ngx address and restart."
+                    ),
+                    AUTH_UNREACHABLE: _(
+                        "Cannot reach Paperless-ngx at {url} — check the address, the "
+                        "network and whether Paperless is running."
+                    ).format(url=settings.paperless_url),
+                    AUTH_SERVER_ERROR: _(
+                        "Paperless-ngx answered with an error. Check its logs and that "
+                        "{url} is really a Paperless instance."
+                    ).format(url=settings.paperless_url),
+                }
+                error_label.set_text(
+                    messages.get(reason, _("Login failed. Please check your details."))
+                )
+                error_label.classes(remove="hidden")
+                if reason == AUTH_INVALID:
                     password_input.set_value("")
 
             login_btn.on_click(do_login)
