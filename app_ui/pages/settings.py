@@ -585,7 +585,7 @@ async def settings_page() -> None:
             _section_header(
                 "bedtime",
                 _("Memory maintenance (dreaming)"),
-                _("Model for automatic cleanup of memory entries"),
+                _("Model for memory cleanup and for reviewing extracted deadlines"),
             )
             from services.model_registry import get_models as _get_models_dream
             from services.credential_store import load_credentials as _lc_dream, save_credentials as _sc_dream
@@ -599,11 +599,30 @@ async def settings_page() -> None:
                 value=_cur_dream_model if _cur_dream_model in _dream_model_opts else next(iter(_dream_model_opts), None),
             ).props("outlined dark dense").classes("w-full mt-2")
 
+            # This model has a second job that its name does not suggest: the
+            # final step of every sync reviews extracted deadlines with it,
+            # dropping content-free entries and cross-document duplicates. Left
+            # unset, that step is skipped and only a line in the sync log says so.
+            _hint(
+                _(
+                    "Used for two things: tidying up memory entries, and reviewing the "
+                    "deadlines found during sync — junk and duplicates are dropped before "
+                    "they reach the dashboard. Can be a local or a cloud model. "
+                    "<b>Without a model here, deadline review is skipped.</b>"
+                )
+            )
+
             def _save_dream_cfg():
                 c = _lc_dream(username, token)
                 c["dream_model"] = _dream_sel.value
                 _sc_dream(username, token, c)
                 ui.notify(_("Saved."), type="positive")
+                # Verdicts are cached per action, so a model change only affects
+                # deadlines that have not been judged yet.
+                ui.notify(
+                    _("Applies to newly found deadlines; existing verdicts are kept."),
+                    type="info",
+                )
 
             ui.button(_("Save"), icon="save", on_click=_save_dream_cfg).props(
                 "unelevated dark dense"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-29 09:36+0200\n"
+"POT-Creation-Date: 2026-07-29 10:35+0200\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -244,7 +244,7 @@ msgstr "Wirklich löschen?"
 #: app_ui/pages/chat.py:2998 app_ui/pages/chat.py:3081
 #: app_ui/pages/dashboard.py:918 app_ui/pages/dashboard.py:1111
 #: app_ui/pages/dashboard.py:1299 app_ui/pages/settings.py:281
-#: app_ui/pages/settings.py:1078 werkbank/ui/module_page.py:93
+#: app_ui/pages/settings.py:1097 werkbank/ui/module_page.py:93
 msgid "Cancel"
 msgstr "Abbrechen"
 
@@ -304,9 +304,9 @@ msgstr "Tatsache darf nicht leer sein."
 #: app_ui/pages/brain.py:152 app_ui/pages/brain.py:212
 #: app_ui/pages/chat.py:1063 app_ui/pages/settings.py:282
 #: app_ui/pages/settings.py:523 app_ui/pages/settings.py:579
-#: app_ui/pages/settings.py:608 app_ui/pages/settings.py:685
-#: app_ui/pages/settings.py:790 app_ui/pages/settings.py:841
-#: app_ui/pages/settings.py:886 app_ui/pages/settings.py:973
+#: app_ui/pages/settings.py:627 app_ui/pages/settings.py:704
+#: app_ui/pages/settings.py:809 app_ui/pages/settings.py:860
+#: app_ui/pages/settings.py:905 app_ui/pages/settings.py:992
 #: werkbank/ui/archetype_dialog.py:141
 msgid "Save"
 msgstr "Speichern"
@@ -450,12 +450,12 @@ msgid "Title"
 msgstr "Titel"
 
 #: app_ui/pages/browser.py:313 app_ui/pages/browser.py:373
-#: app_ui/pages/browser.py:465 app_ui/pages/settings.py:868
+#: app_ui/pages/browser.py:465 app_ui/pages/settings.py:887
 msgid "Correspondent"
 msgstr "Korrespondent"
 
 #: app_ui/pages/browser.py:314 app_ui/pages/browser.py:385
-#: app_ui/pages/browser.py:473 app_ui/pages/settings.py:870
+#: app_ui/pages/browser.py:473 app_ui/pages/settings.py:889
 msgid "Document type"
 msgstr "Dokumententyp"
 
@@ -523,7 +523,7 @@ msgid "Email"
 msgstr "E-Mail"
 
 #: app_ui/pages/chat.py:483 app_ui/pages/dashboard.py:578
-#: app_ui/pages/settings.py:693
+#: app_ui/pages/settings.py:712
 msgid "Calendar"
 msgstr "Kalender"
 
@@ -910,12 +910,12 @@ msgid "Street"
 msgstr "Straße"
 
 #: app_ui/pages/chat.py:2575 app_ui/pages/chat.py:2616
-#: app_ui/pages/settings.py:812
+#: app_ui/pages/settings.py:831
 msgid "Postcode"
 msgstr "PLZ"
 
 #: app_ui/pages/chat.py:2580 app_ui/pages/chat.py:2622
-#: app_ui/pages/settings.py:814
+#: app_ui/pages/settings.py:833
 msgid "City"
 msgstr "Ort"
 
@@ -1214,7 +1214,7 @@ msgstr "Aufwecken (WoL)"
 msgid "Shut down (SSH)"
 msgstr "Herunterfahren (SSH)"
 
-#: app_ui/pages/dashboard.py:569 app_ui/pages/settings.py:616
+#: app_ui/pages/dashboard.py:569 app_ui/pages/settings.py:635
 msgid "Email (IMAP)"
 msgstr "E-Mail (IMAP)"
 
@@ -1463,7 +1463,7 @@ msgid "Shut down server"
 msgstr "Server herunterfahren"
 
 #: app_ui/pages/dashboard.py:1292 app_ui/pages/login.py:99
-#: app_ui/pages/settings.py:730
+#: app_ui/pages/settings.py:749
 msgid "Password"
 msgstr "Passwort"
 
@@ -1562,7 +1562,7 @@ msgstr ""
 "PAPERLESS_SUPERUSER_TOKEN in deiner .env ein und starte den Container "
 "neu."
 
-#: app_ui/pages/login.py:96 app_ui/pages/settings.py:727
+#: app_ui/pages/login.py:96 app_ui/pages/settings.py:746
 msgid "Username"
 msgstr "Benutzername"
 
@@ -1803,9 +1803,10 @@ msgid ""
 "one via Ollama (qwen2.5-vl, qwen3.6, llava …) or a cloud one (Claude, "
 "GPT, MiniMax …). A model without vision will fail on the first page."
 msgstr ""
-"Beliebiges Modell <b>mit Bildverarbeitung</b> aus <i>KI-Modelle</i> — lokal "
-"über Ollama (qwen2.5-vl, qwen3.6, llava …) oder in der Cloud (Claude, GPT, "
-"MiniMax …). Ein Modell ohne Vision scheitert an der ersten Seite."
+"Beliebiges Modell <b>mit Bildverarbeitung</b> aus <i>KI-Modelle</i> — "
+"lokal über Ollama (qwen2.5-vl, qwen3.6, llava …) oder in der Cloud "
+"(Claude, GPT, MiniMax …). Ein Modell ohne Vision scheitert an der ersten "
+"Seite."
 
 #: app_ui/pages/settings.py:449
 msgid "No-ingest tag"
@@ -1920,38 +1921,54 @@ msgid "Memory maintenance (dreaming)"
 msgstr "Gedächtnis-Pflege (Träumen)"
 
 #: app_ui/pages/settings.py:588
-msgid "Model for automatic cleanup of memory entries"
-msgstr "Modell für automatische Bereinigung von Gedächtnis-Einträgen"
+msgid "Model for memory cleanup and for reviewing extracted deadlines"
+msgstr "Modell für Gedächtnis-Bereinigung und die Prüfung extrahierter Fristen"
 
 #: app_ui/pages/settings.py:598
 msgid "Model for memory cleanup"
 msgstr "Modell für Gedächtnis-Bereinigung"
 
-#: app_ui/pages/settings.py:606
+#: app_ui/pages/settings.py:608
+msgid ""
+"Used for two things: tidying up memory entries, and reviewing the "
+"deadlines found during sync — junk and duplicates are dropped before they"
+" reach the dashboard. Can be a local or a cloud model. <b>Without a model"
+" here, deadline review is skipped.</b>"
+msgstr ""
+"Wird für zwei Dinge genutzt: Aufräumen der Gedächtnis-Einträge und Prüfen der "
+"beim Sync gefundenen Fristen — Unsinn und Duplikate werden verworfen, bevor sie "
+"im Dashboard landen. Lokales oder Cloud-Modell möglich. <b>Ohne Modell hier "
+"entfällt die Fristen-Prüfung.</b>"
+
+#: app_ui/pages/settings.py:619
 msgid "Saved."
 msgstr "Gespeichert."
 
-#: app_ui/pages/settings.py:617
+#: app_ui/pages/settings.py:623
+msgid "Applies to newly found deadlines; existing verdicts are kept."
+msgstr "Gilt für neu gefundene Fristen; bestehende Bewertungen bleiben erhalten."
+
+#: app_ui/pages/settings.py:636
 msgid "Read-only — no emails are sent or modified"
 msgstr "Nur lesen — keine E-Mails werden versendet oder verändert"
 
-#: app_ui/pages/settings.py:620
+#: app_ui/pages/settings.py:639
 msgid "IMAP server"
 msgstr "IMAP-Server"
 
-#: app_ui/pages/settings.py:626
+#: app_ui/pages/settings.py:645
 msgid "Port"
 msgstr "Port"
 
-#: app_ui/pages/settings.py:639
+#: app_ui/pages/settings.py:658
 msgid "Username / email address"
 msgstr "Benutzername / E-Mail-Adresse"
 
-#: app_ui/pages/settings.py:642
+#: app_ui/pages/settings.py:661
 msgid "Password / app password"
 msgstr "Passwort / App-Passwort"
 
-#: app_ui/pages/settings.py:647
+#: app_ui/pages/settings.py:666
 msgid ""
 "<b style='color:#a78bfa'>Gmail:</b> IMAP must be enabled (Gmail → "
 "Settings → Forwarding and POP/IMAP). Password = Google <b>app "
@@ -1963,43 +1980,43 @@ msgstr ""
 "Passwort</b> (2FA muss aktiv sein): Google-Konto → Sicherheit → App-"
 "Passwörter."
 
-#: app_ui/pages/settings.py:669 app_ui/pages/settings.py:772
+#: app_ui/pages/settings.py:688 app_ui/pages/settings.py:791
 msgid "Test connection"
 msgstr "Verbindung testen"
 
-#: app_ui/pages/settings.py:683
+#: app_ui/pages/settings.py:702
 msgid "IMAP settings saved"
 msgstr "IMAP-Einstellungen gespeichert"
 
-#: app_ui/pages/settings.py:694
+#: app_ui/pages/settings.py:713
 msgid "Read-only — no events are created or modified"
 msgstr "Nur lesen — keine Termine werden erstellt oder verändert"
 
-#: app_ui/pages/settings.py:699
+#: app_ui/pages/settings.py:718
 msgid "Google Calendar (iCal URL)"
 msgstr "Google Kalender (iCal-URL)"
 
-#: app_ui/pages/settings.py:699
+#: app_ui/pages/settings.py:718
 msgid "CalDAV (Nextcloud, iCloud, …)"
 msgstr "CalDAV (Nextcloud, iCloud, …)"
 
-#: app_ui/pages/settings.py:701
+#: app_ui/pages/settings.py:720
 msgid "Connection type"
 msgstr "Verbindungstyp"
 
-#: app_ui/pages/settings.py:706
+#: app_ui/pages/settings.py:725
 msgid "Calendar 1 – iCal URL"
 msgstr "Kalender 1 – iCal-URL"
 
-#: app_ui/pages/settings.py:708
+#: app_ui/pages/settings.py:727
 msgid "Calendar 2 – iCal URL (optional)"
 msgstr "Kalender 2 – iCal-URL (optional)"
 
-#: app_ui/pages/settings.py:710
+#: app_ui/pages/settings.py:729
 msgid "Calendar 3 – iCal URL (optional)"
 msgstr "Kalender 3 – iCal-URL (optional)"
 
-#: app_ui/pages/settings.py:715
+#: app_ui/pages/settings.py:734
 msgid ""
 "<b style='color:#a78bfa'>Google Calendar:</b> Calendar settings &rarr; "
 "[select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy"
@@ -2012,11 +2029,11 @@ msgstr ""
 "funktioniert ohne Passwort.<br>Bis zu 3 Kalender werden parallel "
 "durchsucht."
 
-#: app_ui/pages/settings.py:722
+#: app_ui/pages/settings.py:741
 msgid "CalDAV URL"
 msgstr "CalDAV-URL"
 
-#: app_ui/pages/settings.py:735
+#: app_ui/pages/settings.py:754
 msgid ""
 "<b style='color:#a78bfa'>iCloud:</b> "
 "<code>https://caldav.icloud.com/</code>, app-specific password.<br><b "
@@ -2028,72 +2045,72 @@ msgstr ""
 " style='color:#a78bfa'>Nextcloud:</b> Remote-URL aus Kalender-App "
 "kopieren."
 
-#: app_ui/pages/settings.py:758
+#: app_ui/pages/settings.py:777
 msgid "No URL entered"
 msgstr "Keine URL eingegeben"
 
-#: app_ui/pages/settings.py:762
+#: app_ui/pages/settings.py:781
 #, python-brace-format
 msgid "{n} calendars reachable"
 msgstr "{n} Kalender erreichbar"
 
-#: app_ui/pages/settings.py:788
+#: app_ui/pages/settings.py:807
 msgid "Calendar settings saved"
 msgstr "Kalender-Einstellungen gespeichert"
 
-#: app_ui/pages/settings.py:798
+#: app_ui/pages/settings.py:817
 msgid "Sender profile"
 msgstr "Absender-Profil"
 
-#: app_ui/pages/settings.py:799
+#: app_ui/pages/settings.py:818
 msgid "Used for letter generation (DOCX)"
 msgstr "Wird für die Briefgenerierung (DOCX) verwendet"
 
-#: app_ui/pages/settings.py:802
+#: app_ui/pages/settings.py:821
 msgid "Full name"
 msgstr "Vollständiger Name"
 
-#: app_ui/pages/settings.py:805
+#: app_ui/pages/settings.py:824
 msgid "Company / organization (optional)"
 msgstr "Firma / Organisation (optional)"
 
-#: app_ui/pages/settings.py:808
+#: app_ui/pages/settings.py:827
 msgid "Street and number"
 msgstr "Straße und Hausnummer"
 
-#: app_ui/pages/settings.py:817
+#: app_ui/pages/settings.py:836
 msgid "Phone (optional)"
 msgstr "Telefon (optional)"
 
-#: app_ui/pages/settings.py:820
+#: app_ui/pages/settings.py:839
 msgid "Email (optional)"
 msgstr "E-Mail (optional)"
 
-#: app_ui/pages/settings.py:823
+#: app_ui/pages/settings.py:842
 msgid "Default closing"
 msgstr "Standard-Grußformel"
 
-#: app_ui/pages/settings.py:839
+#: app_ui/pages/settings.py:858
 msgid "Sender profile saved"
 msgstr "Absender-Profil gespeichert"
 
-#: app_ui/pages/settings.py:857
+#: app_ui/pages/settings.py:876
 msgid "PDF → Paperless: default tags"
 msgstr "PDF → Paperless: Standard-Tags"
 
-#: app_ui/pages/settings.py:858
+#: app_ui/pages/settings.py:877
 msgid "Tags, correspondent and document type for AI-generated documents"
 msgstr "Tags, Korrespondent und Dokumententyp für KI-generierte Dokumente"
 
-#: app_ui/pages/settings.py:862
+#: app_ui/pages/settings.py:881
 msgid "Tag: Inbox"
 msgstr "Tag: Posteingang"
 
-#: app_ui/pages/settings.py:864
+#: app_ui/pages/settings.py:883
 msgid "Tag: AI-generated"
 msgstr "Tag: KI-generiert"
 
-#: app_ui/pages/settings.py:875
+#: app_ui/pages/settings.py:894
 msgid ""
 "Tags must exist in Paperless. Correspondent and document type are created"
 " automatically if missing."
@@ -2101,84 +2118,84 @@ msgstr ""
 "Tags müssen in Paperless existieren. Korrespondent und Dokumententyp "
 "werden automatisch angelegt, falls nicht vorhanden."
 
-#: app_ui/pages/settings.py:884
+#: app_ui/pages/settings.py:903
 msgid "Tags saved."
 msgstr "Tags gespeichert."
 
-#: app_ui/pages/settings.py:894 werkbank/ui/module_page.py:176
+#: app_ui/pages/settings.py:913 werkbank/ui/module_page.py:176
 msgid "AI deep research"
 msgstr "KI-Tiefenrecherche"
 
-#: app_ui/pages/settings.py:895
+#: app_ui/pages/settings.py:914
 msgid "System prompts for Planner, Splitter, Critic, Synthesizer"
 msgstr "System-Prompts für Planner, Splitter, Critic, Synthesizer"
 
-#: app_ui/pages/settings.py:903
+#: app_ui/pages/settings.py:922
 msgid "Token limits per role"
 msgstr "Token-Limits pro Rolle"
 
-#: app_ui/pages/settings.py:905 app_ui/pages/settings.py:924
+#: app_ui/pages/settings.py:924 app_ui/pages/settings.py:943
 msgid "Planner"
 msgstr "Planner"
 
-#: app_ui/pages/settings.py:906 app_ui/pages/settings.py:925
+#: app_ui/pages/settings.py:925 app_ui/pages/settings.py:944
 msgid "Splitter"
 msgstr "Splitter"
 
-#: app_ui/pages/settings.py:907 app_ui/pages/settings.py:926
+#: app_ui/pages/settings.py:926 app_ui/pages/settings.py:945
 msgid "Critic"
 msgstr "Critic"
 
-#: app_ui/pages/settings.py:908 app_ui/pages/settings.py:927
+#: app_ui/pages/settings.py:927 app_ui/pages/settings.py:946
 msgid "Synthesizer"
 msgstr "Synthesizer"
 
-#: app_ui/pages/settings.py:909 app_ui/pages/settings.py:928
+#: app_ui/pages/settings.py:928 app_ui/pages/settings.py:947
 msgid "Compaction"
 msgstr "Kompaktierung"
 
-#: app_ui/pages/settings.py:910
+#: app_ui/pages/settings.py:929
 msgid "Worker"
 msgstr "Worker"
 
-#: app_ui/pages/settings.py:936
+#: app_ui/pages/settings.py:955
 #, python-brace-format
 msgid "System prompt: {role}"
 msgstr "System-Prompt: {role}"
 
-#: app_ui/pages/settings.py:947
+#: app_ui/pages/settings.py:966
 msgid "Prompt reset."
 msgstr "Prompt zurückgesetzt."
 
-#: app_ui/pages/settings.py:949
+#: app_ui/pages/settings.py:968
 msgid "Reset to default"
 msgstr "Auf Standard zurücksetzen"
 
-#: app_ui/pages/settings.py:960
+#: app_ui/pages/settings.py:979
 msgid "Deep research settings saved."
 msgstr "Tiefenrecherche-Einstellungen gespeichert."
 
-#: app_ui/pages/settings.py:968
+#: app_ui/pages/settings.py:987
 msgid "All prompts reset."
 msgstr "Alle Prompts zurückgesetzt."
 
-#: app_ui/pages/settings.py:970
+#: app_ui/pages/settings.py:989
 msgid "Reset all"
 msgstr "Alle zurücksetzen"
 
-#: app_ui/pages/settings.py:983
+#: app_ui/pages/settings.py:1002
 msgid "Import / export settings"
 msgstr "Einstellungen importieren / exportieren"
 
-#: app_ui/pages/settings.py:984
+#: app_ui/pages/settings.py:1003
 msgid "Move your personal settings to another installation"
 msgstr "Persönliche Einstellungen auf eine andere Installation übertragen"
 
-#: app_ui/pages/settings.py:994
+#: app_ui/pages/settings.py:1013
 msgid "Include passwords and API keys"
 msgstr "Passwörter und API-Schlüssel einschließen"
 
-#: app_ui/pages/settings.py:998
+#: app_ui/pages/settings.py:1017
 msgid ""
 "Without this option the export contains no secrets; on import the "
 "existing passwords and keys are kept. <b style='color:#f87171'>With it, "
@@ -2191,23 +2208,23 @@ msgstr ""
 "Schlüssel, IMAP-/CalDAV-Passwörter und iCal-URLs im Klartext</b> — "
 "behandle sie wie ein Passwort."
 
-#: app_ui/pages/settings.py:1006
+#: app_ui/pages/settings.py:1025
 msgid "Export string"
 msgstr "Export-Zeichenkette"
 
-#: app_ui/pages/settings.py:1028
+#: app_ui/pages/settings.py:1047
 msgid "Copied to clipboard."
 msgstr "In die Zwischenablage kopiert."
 
-#: app_ui/pages/settings.py:1031
+#: app_ui/pages/settings.py:1050
 msgid "Create export"
 msgstr "Export erzeugen"
 
-#: app_ui/pages/settings.py:1034
+#: app_ui/pages/settings.py:1053
 msgid "Copy"
 msgstr "Kopieren"
 
-#: app_ui/pages/settings.py:1040
+#: app_ui/pages/settings.py:1059
 msgid ""
 "The copy button needs HTTPS or localhost. Otherwise select the text in "
 "the field and copy it manually."
@@ -2215,42 +2232,42 @@ msgstr ""
 "Der Kopieren-Knopf braucht HTTPS oder localhost. Sonst den Text im Feld "
 "markieren und von Hand kopieren."
 
-#: app_ui/pages/settings.py:1048
+#: app_ui/pages/settings.py:1067
 msgid "Paste export string here"
 msgstr "Export-Zeichenkette hier einfügen"
 
-#: app_ui/pages/settings.py:1058 app_ui/pages/settings.py:1093
+#: app_ui/pages/settings.py:1077 app_ui/pages/settings.py:1112
 #, python-brace-format
 msgid "Import failed: {err}"
 msgstr "Import fehlgeschlagen: {err}"
 
-#: app_ui/pages/settings.py:1063
+#: app_ui/pages/settings.py:1082
 msgid "The string contains no importable settings."
 msgstr "Die Zeichenkette enthält keine importierbaren Einstellungen."
 
-#: app_ui/pages/settings.py:1067
+#: app_ui/pages/settings.py:1086
 msgid "Apply these settings?"
 msgstr "Diese Einstellungen übernehmen?"
 
-#: app_ui/pages/settings.py:1075
+#: app_ui/pages/settings.py:1094
 msgid "The export contains no secrets — existing passwords and API keys are kept."
 msgstr ""
 "Der Export enthält keine Geheimnisse — vorhandene Passwörter und API-"
 "Schlüssel bleiben erhalten."
 
-#: app_ui/pages/settings.py:1081
+#: app_ui/pages/settings.py:1100
 msgid "Apply"
 msgstr "Übernehmen"
 
-#: app_ui/pages/settings.py:1098
+#: app_ui/pages/settings.py:1117
 msgid "Settings imported."
 msgstr "Einstellungen importiert."
 
-#: app_ui/pages/settings.py:1101
+#: app_ui/pages/settings.py:1120
 msgid "Import"
 msgstr "Importieren"
 
-#: app_ui/pages/settings.py:1107
+#: app_ui/pages/settings.py:1126
 msgid ""
 "Import overwrites the sections contained in the string. Global settings "
 "(processing, tags, search, deep research) are <b>not</b> part of the "
@@ -2260,23 +2277,23 @@ msgstr ""
 "Globale Einstellungen (Verarbeitung, Tags, Suche, Tiefenrecherche) sind "
 "<b>nicht</b> Teil des Exports — sie gelten für alle Nutzer."
 
-#: app_ui/pages/settings.py:1119
+#: app_ui/pages/settings.py:1138
 msgid "Vault / Obsidian synchronization"
 msgstr "Vault / Obsidian-Synchronisation"
 
-#: app_ui/pages/settings.py:1120
+#: app_ui/pages/settings.py:1139
 msgid "Where PaperlessBrain expects memory files and your notes"
 msgstr "Wo PaperlessBrain Gedächtnis-Dateien und deine Notizen erwartet"
 
-#: app_ui/pages/settings.py:1127
+#: app_ui/pages/settings.py:1146
 msgid "Vault directory (Obsidian vault root)"
 msgstr "Vault-Verzeichnis (Obsidian-Vault-Root)"
 
-#: app_ui/pages/settings.py:1130
+#: app_ui/pages/settings.py:1149
 msgid "Memory subfolder (Brain)"
 msgstr "Gedächtnis-Unterordner (Brain)"
 
-#: app_ui/pages/settings.py:1135
+#: app_ui/pages/settings.py:1154
 msgid ""
 "<b>Obsidian / Remotely Save:</b> point synchronization at the vault "
 "directory above.<br>Exclude <code>.git/</code> client-side in Remotely "
@@ -2289,7 +2306,7 @@ msgstr ""
 " <code>.git</code>), damit das Server-seitige Git-Repo nicht auf Geräte "
 "propagiert wird."
 
-#: app_ui/pages/settings.py:1144
+#: app_ui/pages/settings.py:1163
 msgid ""
 "Credentials are stored encrypted and are accessible only to your "
 "Paperless user account. The key is your current Paperless token — if you "
@@ -2682,4 +2699,7 @@ msgstr "Aufgabe nicht gefunden."
 #~ "(z.B. qwen2.5-vl, qwen3.6, llava). Muss "
 #~ "im Bereich <i>KI-Modelle</i> als "
 #~ "OpenAI-kompatibles Modell konfiguriert sein."
+
+#~ msgid "Model for automatic cleanup of memory entries"
+#~ msgstr "Modell für automatische Bereinigung von Gedächtnis-Einträgen"
 
