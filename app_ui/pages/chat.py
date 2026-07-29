@@ -1455,6 +1455,28 @@ async def chat():
                                 "text-yellow-400 text-xs"
                             )
 
+                    # No chat model configured — a fresh install has an empty
+                    # registry, and without this the input accepts a message that
+                    # can never be answered.
+                    no_model_banner = ui.row().style(
+                        "flex-shrink:0; background:#7f1d1d22; border-top:1px solid #b91c1c;"
+                    )
+                    no_model_banner.set_visibility(not _reg_backends)
+                    with no_model_banner:
+                        with ui.element("div").style(
+                            "max-width:860px; margin:0 auto; width:100%;"
+                            "display:flex; align-items:center; justify-content:center;"
+                            "gap:6px; padding:4px 12px; flex-wrap:wrap;"
+                        ):
+                            ui.icon("smart_toy", size="xs").classes("text-red-400")
+                            ui.label(_("No chat model configured")).classes(
+                                "text-red-300 text-xs"
+                            )
+                            ui.button(
+                                _("Set one up"),
+                                on_click=lambda: ui.navigate.to("/settings"),
+                            ).props("flat dense no-caps color=red").classes("text-xs")
+
                     # Tool toggle panel (collapsible, hidden by default)
                     tools_panel = (
                         ui.row()
@@ -1859,12 +1881,16 @@ window.__openVaultNote = function(noteId) {{
 
     # ── Sync-block watcher ────────────────────────────────────────────────────
     def _update_sync_block() -> None:
-        blocked = sync_state.is_running[0] and _chat_uses_local_lane()
-        sync_banner.set_visibility(blocked)
+        syncing = sync_state.is_running[0] and _chat_uses_local_lane()
+        sync_banner.set_visibility(syncing)
+        # An empty model registry blocks permanently, not until sync finishes —
+        # but it disables the same two controls, so it rides the same watcher.
+        blocked = syncing or not _reg_backends
         if not _s["running"]:
             input_field.set_enabled(not blocked)
             send_btn.set_enabled(not blocked)
 
+    _update_sync_block()  # apply before the first tick, not 2 s later
     ui.timer(2.0, _update_sync_block)
 
     # ── Callbacks (defined after layout so layout elements are in scope) ───────
@@ -2077,6 +2103,15 @@ window.__openVaultNote = function(noteId) {{
         text = input_field.value.strip()
         if not text or _s["running"]:
             return
+        # Checked before any state is mutated. The backend lookup further down
+        # happens only after the user bubble is rendered and the button has been
+        # switched to "stop", so failing there leaves the UI stuck mid-turn.
+        if not _reg_backends:
+            ui.notify(
+                _("No chat model configured — add one in Settings > AI Models."),
+                type="negative",
+            )
+            return
         if sync_state.is_running[0] and _chat_uses_local_lane():
             ui.notify(_("Sync is currently running — please wait"), type="warning")
             return
@@ -2253,8 +2288,15 @@ window.__openVaultNote = function(noteId) {{
             next(iter(_reg_backends.values())) if _reg_backends else None,
         )
         if backend is None:
+            # Reachable only if the registry emptied mid-turn (model deleted in
+            # another tab). do_send has already switched the button to "stop" and
+            # rendered the user bubble, so both have to be undone here — leaving
+            # them is what made this look like a request hanging forever.
             ui.notify(_("No model configured — please set one up in Settings > AI Models."), type="negative")
             _s["running"] = False
+            send_btn.props(remove="icon=stop color=red")
+            send_btn.props(add="icon=send color=purple")
+            _update_sync_block()
             return
 
         _username = ng_app.storage.user.get("paperless_user") or ""
