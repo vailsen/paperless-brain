@@ -1649,7 +1649,12 @@ async def _tool_view_document_page(inputs: dict) -> tuple[str, list[DocumentResu
         return f"Page {page_number} does not exist in document {doc_id}.", []
 
     try:
-        result = await vision.describe_page(page_image, question)
+        # Same model the user picked for ingestion, resolved through their own
+        # registry so a cloud entry's API key is available here too.
+        from services.vision import build_vision_client
+
+        _vision = build_vision_client(_current_owner.get() or "", _current_token.get() or "")
+        result = await _vision.describe_page(page_image, question)
         return (
             f"Vision analysis of page {page_number} (document {doc_id}):\n\n{result}",
             [],

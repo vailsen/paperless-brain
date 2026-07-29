@@ -764,6 +764,14 @@ window.__toggleHideAction = function(key) {{
             except RuntimeError:
                 pass
 
+        # Built per sync from the signed-in user: a cloud ingestion model needs
+        # the API key off that user's registry entry, which is encrypted with
+        # their Paperless token and readable only inside their session. Falls
+        # back to the .env Ollama client when nothing is configured.
+        from services.vision import build_vision_client
+
+        _vision = build_vision_client(_username, _token)
+
         _log("Sync gestartet…")
         try:
             state = await check_sync_state(paperless, chroma)
@@ -781,7 +789,7 @@ window.__toggleHideAction = function(key) {{
                         doc_id,
                         paperless,
                         chroma,
-                        vision,
+                        _vision,
                         sidecar_service,
                         thumbnail_service,
                     )
@@ -821,7 +829,7 @@ window.__toggleHideAction = function(key) {{
                             doc_id, chroma, sidecar_service, thumbnail_service
                         )
                         await ingest_document(
-                            doc_id, paperless, chroma, vision,
+                            doc_id, paperless, chroma, _vision,
                             sidecar_service, thumbnail_service,
                         )
                         _log(f"  ✓ #{doc_id}")

@@ -39,8 +39,9 @@ talk to.
 - **Chat with your archive** — an agentic tool loop (Claude API or your local
   Ollama models) that searches, reads, cross-references and cites your documents.
 - **Vision-LLM ingestion** — each page is rendered to an image and read by a
-  local vision model: full-text summary, tables, actions and deadlines, extracted
-  per document type. No cloud required for ingestion.
+  vision model: full-text summary, tables, actions and deadlines, extracted per
+  document type. Runs entirely locally on Ollama if you want it to, or on a cloud
+  model — same picker as the chat.
 - **Deadlines & actions** — extracted obligations ("cancel by …", "pay until …")
   surfaced on the dashboard.
 - **Brain memory** — the assistant remembers facts about you as plain Markdown
@@ -138,7 +139,7 @@ for reproducible deploys.
 | You need | Notes |
 |---|---|
 | Paperless-ngx | any recent version + a superuser API token |
-| Ollama with a vision model | for document ingestion (e.g. a Qwen-VL-class model); can run on another machine |
+| A vision-capable model | for document ingestion — local via Ollama (e.g. a Qwen-VL-class model, can run on another machine) or a cloud model (Claude, GPT, MiniMax …). Picked in Settings > Processing |
 | Anthropic API key | optional — enables Claude as chat backend (per-user keys in Settings > AI Models) |
 | SearXNG | optional — enables the web-search tool |
 | Wake-on-LAN capable GPU server | optional — see [Power management](#power-management-optional) |

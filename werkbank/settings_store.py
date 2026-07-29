@@ -29,6 +29,7 @@ TAG_AI_GENERATED   = "tag_ai_generated"
 TAG_NO_INGEST      = "tag_no_ingest"
 INGEST_SERVER        = "ingest_server"
 INGEST_MODEL         = "ingest_model"
+INGEST_MODEL_NAME    = "ingest_model_name"
 INGEST_CORRESPONDENT = "ingest_correspondent"
 INGEST_DOC_TYPE      = "ingest_doc_type"
 EXTRACTION_PROFILE   = "extraction_profile"
@@ -51,7 +52,7 @@ _ALL_KEYS = (
     PROMPT_PLANNER, PROMPT_SPLITTER, PROMPT_SPLITTER_CRITIQUE, PROMPT_CRITIC,
     PROMPT_SYNTHESIZER, PROMPT_COMPACTION,
     TAG_INBOX, TAG_AI_GENERATED, TAG_NO_INGEST,
-    INGEST_SERVER, INGEST_MODEL,
+    INGEST_SERVER, INGEST_MODEL, INGEST_MODEL_NAME,
     INGEST_CORRESPONDENT, INGEST_DOC_TYPE,
     EXTRACTION_PROFILE, ARCHIVE_LANGUAGE,
     SEARCH_MAX_RESULTS, BRAIN_HINT_THRESHOLD, BRAIN_HINT_WINDOW,
@@ -187,6 +188,16 @@ def get_archive_language() -> str:
         return stored.strip().lower()
     from config.settings import settings
     return (settings.archive_language or "en").strip().lower()
+
+
+def get_ingest_model_name() -> str:
+    """Registry entry name of the ingestion model, or "" for the .env Ollama path.
+
+    The name rather than the model id, because the transport, base URL and API key
+    all have to be looked up in the user's registry at call time — the key is
+    encrypted per user and cannot be copied into this global store.
+    """
+    return get(INGEST_MODEL_NAME).strip()
 
 
 def get_ingest_correspondent() -> str:

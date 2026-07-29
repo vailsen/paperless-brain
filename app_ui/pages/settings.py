@@ -398,8 +398,15 @@ async def settings_page() -> None:
             _cur_ingest_server = _ws.get_ingest_server()
             _cur_ingest_model  = _ws.get_ingest_model()
 
-            # Pre-select whichever registry entry matches the saved model ID
+            # Pre-select by stored registry name; fall back to matching the model
+            # id for installs configured before the name was recorded. Two entries
+            # can share a model id with different servers or keys, so the name is
+            # the reliable one.
+            _cur_ingest_name = _ws.get_ingest_model_name()
             _cur_sel: str | None = next(
+                (m["name"] for m in _ingest_models if m["name"] == _cur_ingest_name),
+                None,
+            ) or next(
                 (m["name"] for m in _ingest_models if m.get("model") == _cur_ingest_model),
                 None,
             )
@@ -431,7 +438,9 @@ async def settings_page() -> None:
 
             _hint(
                 _(
-                    "Ollama model <b>with image processing</b> (e.g. qwen2.5-vl, qwen3.6, llava). Must be configured as an OpenAI-compatible model under <i>AI models</i>."
+                    "Any model <b>with image processing</b> from <i>AI models</i> — a local one "
+                    "via Ollama (qwen2.5-vl, qwen3.6, llava …) or a cloud one (Claude, GPT, "
+                    "MiniMax …). A model without vision will fail on the first page."
                 )
             )
 
@@ -495,6 +504,11 @@ async def settings_page() -> None:
                 server = base.removesuffix("/v1") if base else settings.ollama_server
                 _ws.set_value(_ws.INGEST_SERVER, server)
                 _ws.set_value(_ws.INGEST_MODEL, sel.get("model", ""))
+                # The registry NAME as well: the transport and the API key live on
+                # the registry entry, and the key is encrypted per user, so it
+                # cannot be copied into this global store. build_vision_client()
+                # re-resolves the entry from the signed-in user at ingest time.
+                _ws.set_value(_ws.INGEST_MODEL_NAME, sel.get("name", ""))
                 _ws.set_value(_ws.TAG_NO_INGEST, _no_ingest_field.value.strip())
                 _ws.set_value(_ws.EXTRACTION_PROFILE, _profile_select.value or "")
                 _ws.set_value(_ws.ARCHIVE_LANGUAGE, _arch_lang_select.value or "")

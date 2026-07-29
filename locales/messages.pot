@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-29 07:43+0200\n"
+"POT-Creation-Date: 2026-07-29 09:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -116,7 +116,7 @@ msgid "Actions"
 msgstr ""
 
 #: app_ui/document_dialog.py:491 app_ui/pages/brain.py:174
-#: app_ui/pages/dashboard.py:1588
+#: app_ui/pages/dashboard.py:1596
 msgid "Description"
 msgstr ""
 
@@ -124,7 +124,7 @@ msgstr ""
 msgid "Deadline"
 msgstr ""
 
-#: app_ui/document_dialog.py:505 app_ui/pages/dashboard.py:1544
+#: app_ui/document_dialog.py:505 app_ui/pages/dashboard.py:1552
 msgid "Certain"
 msgstr ""
 
@@ -241,9 +241,9 @@ msgstr ""
 #: app_ui/pages/brain.py:61 app_ui/pages/brain.py:149 app_ui/pages/brain.py:209
 #: app_ui/pages/chat.py:1056 app_ui/pages/chat.py:2747
 #: app_ui/pages/chat.py:2998 app_ui/pages/chat.py:3081
-#: app_ui/pages/dashboard.py:910 app_ui/pages/dashboard.py:1103
-#: app_ui/pages/dashboard.py:1291 app_ui/pages/settings.py:281
-#: app_ui/pages/settings.py:1064 werkbank/ui/module_page.py:93
+#: app_ui/pages/dashboard.py:918 app_ui/pages/dashboard.py:1111
+#: app_ui/pages/dashboard.py:1299 app_ui/pages/settings.py:281
+#: app_ui/pages/settings.py:1078 werkbank/ui/module_page.py:93
 msgid "Cancel"
 msgstr ""
 
@@ -302,10 +302,10 @@ msgstr ""
 
 #: app_ui/pages/brain.py:152 app_ui/pages/brain.py:212
 #: app_ui/pages/chat.py:1063 app_ui/pages/settings.py:282
-#: app_ui/pages/settings.py:509 app_ui/pages/settings.py:565
-#: app_ui/pages/settings.py:594 app_ui/pages/settings.py:671
-#: app_ui/pages/settings.py:776 app_ui/pages/settings.py:827
-#: app_ui/pages/settings.py:872 app_ui/pages/settings.py:959
+#: app_ui/pages/settings.py:523 app_ui/pages/settings.py:579
+#: app_ui/pages/settings.py:608 app_ui/pages/settings.py:685
+#: app_ui/pages/settings.py:790 app_ui/pages/settings.py:841
+#: app_ui/pages/settings.py:886 app_ui/pages/settings.py:973
 #: werkbank/ui/archetype_dialog.py:141
 msgid "Save"
 msgstr ""
@@ -449,12 +449,12 @@ msgid "Title"
 msgstr ""
 
 #: app_ui/pages/browser.py:313 app_ui/pages/browser.py:373
-#: app_ui/pages/browser.py:465 app_ui/pages/settings.py:854
+#: app_ui/pages/browser.py:465 app_ui/pages/settings.py:868
 msgid "Correspondent"
 msgstr ""
 
 #: app_ui/pages/browser.py:314 app_ui/pages/browser.py:385
-#: app_ui/pages/browser.py:473 app_ui/pages/settings.py:856
+#: app_ui/pages/browser.py:473 app_ui/pages/settings.py:870
 msgid "Document type"
 msgstr ""
 
@@ -522,7 +522,7 @@ msgid "Email"
 msgstr ""
 
 #: app_ui/pages/chat.py:483 app_ui/pages/dashboard.py:578
-#: app_ui/pages/settings.py:679
+#: app_ui/pages/settings.py:693
 msgid "Calendar"
 msgstr ""
 
@@ -655,7 +655,7 @@ msgstr ""
 
 #: app_ui/pages/chat.py:570 app_ui/pages/chat.py:2413 app_ui/pages/chat.py:2743
 #: app_ui/pages/chat.py:2991 app_ui/pages/chat.py:3077
-#: app_ui/pages/dashboard.py:1098 app_ui/pages/settings.py:96
+#: app_ui/pages/dashboard.py:1106 app_ui/pages/settings.py:96
 #, python-brace-format
 msgid "Error: {err}"
 msgstr ""
@@ -903,12 +903,12 @@ msgid "Street"
 msgstr ""
 
 #: app_ui/pages/chat.py:2575 app_ui/pages/chat.py:2616
-#: app_ui/pages/settings.py:798
+#: app_ui/pages/settings.py:812
 msgid "Postcode"
 msgstr ""
 
 #: app_ui/pages/chat.py:2580 app_ui/pages/chat.py:2622
-#: app_ui/pages/settings.py:800
+#: app_ui/pages/settings.py:814
 msgid "City"
 msgstr ""
 
@@ -980,8 +980,8 @@ msgstr ""
 msgid "Copy message"
 msgstr ""
 
-#: app_ui/pages/chat.py:2864 app_ui/pages/dashboard.py:967
-#: app_ui/pages/dashboard.py:994
+#: app_ui/pages/chat.py:2864 app_ui/pages/dashboard.py:975
+#: app_ui/pages/dashboard.py:1002
 msgid "Close"
 msgstr ""
 
@@ -1186,7 +1186,7 @@ msgstr ""
 msgid "Shut down (SSH)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:569 app_ui/pages/settings.py:602
+#: app_ui/pages/dashboard.py:569 app_ui/pages/settings.py:616
 msgid "Email (IMAP)"
 msgstr ""
 
@@ -1207,304 +1207,304 @@ msgstr ""
 msgid "Sync already running…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:789
+#: app_ui/pages/dashboard.py:797
 #, python-brace-format
 msgid "✓ #{id} imported"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:792
+#: app_ui/pages/dashboard.py:800
 #, python-brace-format
 msgid "✗ #{id} error"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:802
+#: app_ui/pages/dashboard.py:810
 #, python-brace-format
 msgid "#{id} removed"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:868
+#: app_ui/pages/dashboard.py:876
 msgid "Sync complete"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:880 app_ui/pages/dashboard.py:1334
+#: app_ui/pages/dashboard.py:888 app_ui/pages/dashboard.py:1342
 #, python-brace-format, python-format
 msgid "{pct} % indexed in ChromaDB"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:885
+#: app_ui/pages/dashboard.py:893
 #, python-brace-format
 msgid "Sync error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:898
+#: app_ui/pages/dashboard.py:906
 msgid "Sync"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:901
+#: app_ui/pages/dashboard.py:909
 msgid ""
 "New documents are always ingested. Additionally, outdated documents (old "
 "prompt version) are re-ingested — up to how many? Empty = all. Large "
 "numbers can take a long time."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:905
+#: app_ui/pages/dashboard.py:913
 msgid "Max. re-ingests (empty = all)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:920 werkbank/ui/task_dialog.py:346
+#: app_ui/pages/dashboard.py:928 werkbank/ui/task_dialog.py:346
 msgid "Start"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:939
+#: app_ui/pages/dashboard.py:947
 msgid ""
 "No model configured for dreaming. Please set one in Settings > Memory "
 "maintenance."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:948
+#: app_ui/pages/dashboard.py:956
 msgid "No memory entries available."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:961
+#: app_ui/pages/dashboard.py:969
 msgid "Error during memory analysis"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:982
+#: app_ui/pages/dashboard.py:990
 msgid "Memory analysis"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:985
+#: app_ui/pages/dashboard.py:993
 msgid "No actions suggested."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:988
+#: app_ui/pages/dashboard.py:996
 msgid "LLM response (debug)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:991
+#: app_ui/pages/dashboard.py:999
 msgid "(empty)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1009
+#: app_ui/pages/dashboard.py:1017
 msgid "Memory cleanup"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1013
+#: app_ui/pages/dashboard.py:1021
 #, python-brace-format
 msgid "{n} actions suggested — deselect to skip"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1033
+#: app_ui/pages/dashboard.py:1041
 msgid "🗑 Delete"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1034
+#: app_ui/pages/dashboard.py:1042
 msgid "✏️ Update"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1036
+#: app_ui/pages/dashboard.py:1044
 msgid "🏷️ Update tags"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1054
+#: app_ui/pages/dashboard.py:1062
 #, python-brace-format
 msgid "Current: {text}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1061
+#: app_ui/pages/dashboard.py:1069
 #, python-brace-format
 msgid "New: {text}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1072
+#: app_ui/pages/dashboard.py:1080
 #, python-brace-format
 msgid "Tags old: {tags}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1075
+#: app_ui/pages/dashboard.py:1083
 #, python-brace-format
 msgid "Tags new: {tags}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1084
+#: app_ui/pages/dashboard.py:1092
 msgid "No actions selected."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1092
+#: app_ui/pages/dashboard.py:1100
 #, python-brace-format
 msgid "Cleanup complete: {d} deleted, {u} updated."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1107
+#: app_ui/pages/dashboard.py:1115
 msgid "Run selected"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1118
+#: app_ui/pages/dashboard.py:1126
 msgid "No user signed in."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1123
+#: app_ui/pages/dashboard.py:1131
 msgid "📂 Synchronizing vault…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1133
+#: app_ui/pages/dashboard.py:1141
 msgid "Vault synchronized."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1136
+#: app_ui/pages/dashboard.py:1144
 #, python-brace-format
 msgid "Vault sync error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1166
+#: app_ui/pages/dashboard.py:1174
 #, python-brace-format
 msgid ""
 "Several local models point at different hosts ({hosts}). Set "
 "OLLAMA_SERVER in .env to say which machine the power buttons control."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1174
+#: app_ui/pages/dashboard.py:1182
 msgid "OLLAMA_HOST_LAN_MAC_ADDRESS_WOL not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1188
+#: app_ui/pages/dashboard.py:1196
 #, python-brace-format
 msgid "WoL error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1192
+#: app_ui/pages/dashboard.py:1200
 #, python-brace-format
 msgid "Magic packet → {target}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1193
+#: app_ui/pages/dashboard.py:1201
 msgid "Waking up…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1212
+#: app_ui/pages/dashboard.py:1220
 msgid "Ollama is online!"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1225
+#: app_ui/pages/dashboard.py:1233
 msgid "OLLAMA_SSH_USER not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1228
+#: app_ui/pages/dashboard.py:1236
 msgid "Shutting down…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1254
+#: app_ui/pages/dashboard.py:1262
 #, python-brace-format
 msgid "Shutdown failed: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1255
+#: app_ui/pages/dashboard.py:1263
 #, python-brace-format
 msgid "ssh exited with {code}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1260 app_ui/pages/dashboard.py:1264
-#: app_ui/pages/dashboard.py:1343
+#: app_ui/pages/dashboard.py:1268 app_ui/pages/dashboard.py:1272
+#: app_ui/pages/dashboard.py:1351
 msgid "Online"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1263
+#: app_ui/pages/dashboard.py:1271
 #, python-brace-format
 msgid "SSH error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1274 app_ui/pages/dashboard.py:1343
-#: app_ui/pages/dashboard.py:1348
+#: app_ui/pages/dashboard.py:1282 app_ui/pages/dashboard.py:1351
+#: app_ui/pages/dashboard.py:1356
 msgid "Offline"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1277
+#: app_ui/pages/dashboard.py:1285
 msgid "Server is shutting down…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1282
+#: app_ui/pages/dashboard.py:1290
 msgid "Shut down server"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1284 app_ui/pages/login.py:99
-#: app_ui/pages/settings.py:716
+#: app_ui/pages/dashboard.py:1292 app_ui/pages/login.py:99
+#: app_ui/pages/settings.py:730
 msgid "Password"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1288
+#: app_ui/pages/dashboard.py:1296
 msgid "Wrong password"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1302
+#: app_ui/pages/dashboard.py:1310
 msgid "Shut down"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1337
+#: app_ui/pages/dashboard.py:1345
 msgid "Paperless not reachable"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1346
+#: app_ui/pages/dashboard.py:1354
 #, python-brace-format
 msgid "{n} docs"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1346 werkbank/ui/module_page.py:135
+#: app_ui/pages/dashboard.py:1354 werkbank/ui/module_page.py:135
 msgid "Error"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1372 app_ui/pages/dashboard.py:1374
-#: app_ui/pages/dashboard.py:1387
+#: app_ui/pages/dashboard.py:1380 app_ui/pages/dashboard.py:1382
+#: app_ui/pages/dashboard.py:1395
 msgid "Not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1383
+#: app_ui/pages/dashboard.py:1391
 #, python-brace-format
 msgid "iCal ({n} calendars)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1429
+#: app_ui/pages/dashboard.py:1437
 msgid "upcoming"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1431
+#: app_ui/pages/dashboard.py:1439
 #, python-brace-format
 msgid "{n} overdue"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1502
+#: app_ui/pages/dashboard.py:1510
 msgid "No deadlines found."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1513
+#: app_ui/pages/dashboard.py:1521
 #, python-brace-format
 msgid "{n} hidden"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1516
+#: app_ui/pages/dashboard.py:1524
 msgid "Show"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1516 app_ui/pages/dashboard.py:1561
+#: app_ui/pages/dashboard.py:1524 app_ui/pages/dashboard.py:1569
 msgid "Hide"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1544
+#: app_ui/pages/dashboard.py:1552
 msgid "Uncertain"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1561
+#: app_ui/pages/dashboard.py:1569
 msgid "Show again"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1586
+#: app_ui/pages/dashboard.py:1594
 msgid "Date"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1589
+#: app_ui/pages/dashboard.py:1597
 msgid "Doc"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1618
+#: app_ui/pages/dashboard.py:1626
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr ""
@@ -1523,7 +1523,7 @@ msgid ""
 "PAPERLESS_SUPERUSER_TOKEN in your .env, then restart the container."
 msgstr ""
 
-#: app_ui/pages/login.py:96 app_ui/pages/settings.py:713
+#: app_ui/pages/login.py:96 app_ui/pages/settings.py:727
 msgid "Username"
 msgstr ""
 
@@ -1728,46 +1728,46 @@ msgstr ""
 msgid "Vision model for OCR / page extraction (ChromaDB embeddings)"
 msgstr ""
 
-#: app_ui/pages/settings.py:408
+#: app_ui/pages/settings.py:415
 msgid "— No models configured yet —"
 msgstr ""
 
-#: app_ui/pages/settings.py:409
+#: app_ui/pages/settings.py:416
 msgid "Vision model"
 msgstr ""
 
-#: app_ui/pages/settings.py:414 app_ui/pages/settings.py:427
+#: app_ui/pages/settings.py:421 app_ui/pages/settings.py:434
 #, python-brace-format
 msgid "Server: {server}"
 msgstr ""
 
-#: app_ui/pages/settings.py:417 app_ui/pages/settings.py:428
+#: app_ui/pages/settings.py:424 app_ui/pages/settings.py:435
 #, python-brace-format
 msgid "Model ID: {model}"
 msgstr ""
 
-#: app_ui/pages/settings.py:434
+#: app_ui/pages/settings.py:441
 msgid ""
-"Ollama model <b>with image processing</b> (e.g. qwen2.5-vl, qwen3.6, "
-"llava). Must be configured as an OpenAI-compatible model under <i>AI "
-"models</i>."
+"Any model <b>with image processing</b> from <i>AI models</i> — a local "
+"one via Ollama (qwen2.5-vl, qwen3.6, llava …) or a cloud one (Claude, "
+"GPT, MiniMax …). A model without vision will fail on the first page."
 msgstr ""
 
-#: app_ui/pages/settings.py:440
+#: app_ui/pages/settings.py:449
 msgid "No-ingest tag"
 msgstr ""
 
-#: app_ui/pages/settings.py:444
+#: app_ui/pages/settings.py:453
 msgid ""
 "Documents with this Paperless tag are <b>not</b> embedded into ChromaDB "
 "during sync."
 msgstr ""
 
-#: app_ui/pages/settings.py:459
+#: app_ui/pages/settings.py:468
 msgid "Extraction profile"
 msgstr ""
 
-#: app_ui/pages/settings.py:464
+#: app_ui/pages/settings.py:473
 msgid ""
 "Which set of per-document-type extraction prompts to use. This follows "
 "the <b>names of your document types in Paperless</b>, not the language of"
@@ -1777,11 +1777,11 @@ msgid ""
 "international ones."
 msgstr ""
 
-#: app_ui/pages/settings.py:474
+#: app_ui/pages/settings.py:483
 msgid "Language of generated summaries"
 msgstr ""
 
-#: app_ui/pages/settings.py:479
+#: app_ui/pages/settings.py:488
 msgid ""
 "Summaries and image descriptions are written in this language, whatever "
 "the document's own language is — that keeps every summary searchable with"
@@ -1789,98 +1789,98 @@ msgid ""
 " in the original language."
 msgstr ""
 
-#: app_ui/pages/settings.py:492
+#: app_ui/pages/settings.py:501
 msgid "No model selected."
 msgstr ""
 
-#: app_ui/pages/settings.py:501
+#: app_ui/pages/settings.py:515
 msgid "Processing settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:505
+#: app_ui/pages/settings.py:519
 msgid "Applies to newly ingested documents; existing ones keep their extraction."
 msgstr ""
 
-#: app_ui/pages/settings.py:519
+#: app_ui/pages/settings.py:533
 msgid "Search & memory thresholds"
 msgstr ""
 
-#: app_ui/pages/settings.py:520
+#: app_ui/pages/settings.py:534
 msgid "Number of search results, relevance threshold and window for memory hints"
 msgstr ""
 
-#: app_ui/pages/settings.py:524
+#: app_ui/pages/settings.py:538
 msgid "Max. search results"
 msgstr ""
 
-#: app_ui/pages/settings.py:529
+#: app_ui/pages/settings.py:543
 msgid "Memory hint similarity threshold (0–1)"
 msgstr ""
 
-#: app_ui/pages/settings.py:535
+#: app_ui/pages/settings.py:549
 msgid ""
 "Cosine similarity: higher value = stricter filter. Distances are shown in"
 " the tool log as <code>[0.XX]</code> — a hint appears only when distance "
 "≤ <code>1 − threshold</code>."
 msgstr ""
 
-#: app_ui/pages/settings.py:540
+#: app_ui/pages/settings.py:554
 msgid "Memory hint window factor (≥ 1.0)"
 msgstr ""
 
-#: app_ui/pages/settings.py:546
+#: app_ui/pages/settings.py:560
 #, python-format
 msgid ""
 "Maximum distance relative to the best match. 1.0 = best match only; 1.5 ="
 " up to 50 % short of the best."
 msgstr ""
 
-#: app_ui/pages/settings.py:561
+#: app_ui/pages/settings.py:575
 msgid "Search settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:563
+#: app_ui/pages/settings.py:577
 #, python-brace-format
 msgid "Invalid value: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:573
+#: app_ui/pages/settings.py:587
 msgid "Memory maintenance (dreaming)"
 msgstr ""
 
-#: app_ui/pages/settings.py:574
+#: app_ui/pages/settings.py:588
 msgid "Model for automatic cleanup of memory entries"
 msgstr ""
 
-#: app_ui/pages/settings.py:584
+#: app_ui/pages/settings.py:598
 msgid "Model for memory cleanup"
 msgstr ""
 
-#: app_ui/pages/settings.py:592
+#: app_ui/pages/settings.py:606
 msgid "Saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:603
+#: app_ui/pages/settings.py:617
 msgid "Read-only — no emails are sent or modified"
 msgstr ""
 
-#: app_ui/pages/settings.py:606
+#: app_ui/pages/settings.py:620
 msgid "IMAP server"
 msgstr ""
 
-#: app_ui/pages/settings.py:612
+#: app_ui/pages/settings.py:626
 msgid "Port"
 msgstr ""
 
-#: app_ui/pages/settings.py:625
+#: app_ui/pages/settings.py:639
 msgid "Username / email address"
 msgstr ""
 
-#: app_ui/pages/settings.py:628
+#: app_ui/pages/settings.py:642
 msgid "Password / app password"
 msgstr ""
 
-#: app_ui/pages/settings.py:633
+#: app_ui/pages/settings.py:647
 msgid ""
 "<b style='color:#a78bfa'>Gmail:</b> IMAP must be enabled (Gmail → "
 "Settings → Forwarding and POP/IMAP). Password = Google <b>app "
@@ -1888,43 +1888,43 @@ msgid ""
 "passwords."
 msgstr ""
 
-#: app_ui/pages/settings.py:655 app_ui/pages/settings.py:758
+#: app_ui/pages/settings.py:669 app_ui/pages/settings.py:772
 msgid "Test connection"
 msgstr ""
 
-#: app_ui/pages/settings.py:669
+#: app_ui/pages/settings.py:683
 msgid "IMAP settings saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:680
+#: app_ui/pages/settings.py:694
 msgid "Read-only — no events are created or modified"
 msgstr ""
 
-#: app_ui/pages/settings.py:685
+#: app_ui/pages/settings.py:699
 msgid "Google Calendar (iCal URL)"
 msgstr ""
 
-#: app_ui/pages/settings.py:685
+#: app_ui/pages/settings.py:699
 msgid "CalDAV (Nextcloud, iCloud, …)"
 msgstr ""
 
-#: app_ui/pages/settings.py:687
+#: app_ui/pages/settings.py:701
 msgid "Connection type"
 msgstr ""
 
-#: app_ui/pages/settings.py:692
+#: app_ui/pages/settings.py:706
 msgid "Calendar 1 – iCal URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:694
+#: app_ui/pages/settings.py:708
 msgid "Calendar 2 – iCal URL (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:696
+#: app_ui/pages/settings.py:710
 msgid "Calendar 3 – iCal URL (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:701
+#: app_ui/pages/settings.py:715
 msgid ""
 "<b style='color:#a78bfa'>Google Calendar:</b> Calendar settings &rarr; "
 "[select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy"
@@ -1932,11 +1932,11 @@ msgid ""
 "password.<br>Up to 3 calendars are searched in parallel."
 msgstr ""
 
-#: app_ui/pages/settings.py:708
+#: app_ui/pages/settings.py:722
 msgid "CalDAV URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:721
+#: app_ui/pages/settings.py:735
 msgid ""
 "<b style='color:#a78bfa'>iCloud:</b> "
 "<code>https://caldav.icloud.com/</code>, app-specific password.<br><b "
@@ -1944,155 +1944,155 @@ msgid ""
 "calendar app."
 msgstr ""
 
-#: app_ui/pages/settings.py:744
+#: app_ui/pages/settings.py:758
 msgid "No URL entered"
 msgstr ""
 
-#: app_ui/pages/settings.py:748
+#: app_ui/pages/settings.py:762
 #, python-brace-format
 msgid "{n} calendars reachable"
 msgstr ""
 
-#: app_ui/pages/settings.py:774
+#: app_ui/pages/settings.py:788
 msgid "Calendar settings saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:784
+#: app_ui/pages/settings.py:798
 msgid "Sender profile"
 msgstr ""
 
-#: app_ui/pages/settings.py:785
+#: app_ui/pages/settings.py:799
 msgid "Used for letter generation (DOCX)"
 msgstr ""
 
-#: app_ui/pages/settings.py:788
+#: app_ui/pages/settings.py:802
 msgid "Full name"
 msgstr ""
 
-#: app_ui/pages/settings.py:791
+#: app_ui/pages/settings.py:805
 msgid "Company / organization (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:794
+#: app_ui/pages/settings.py:808
 msgid "Street and number"
 msgstr ""
 
-#: app_ui/pages/settings.py:803
+#: app_ui/pages/settings.py:817
 msgid "Phone (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:806
+#: app_ui/pages/settings.py:820
 msgid "Email (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:809
+#: app_ui/pages/settings.py:823
 msgid "Default closing"
 msgstr ""
 
-#: app_ui/pages/settings.py:825
+#: app_ui/pages/settings.py:839
 msgid "Sender profile saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:843
+#: app_ui/pages/settings.py:857
 msgid "PDF → Paperless: default tags"
 msgstr ""
 
-#: app_ui/pages/settings.py:844
+#: app_ui/pages/settings.py:858
 msgid "Tags, correspondent and document type for AI-generated documents"
 msgstr ""
 
-#: app_ui/pages/settings.py:848
+#: app_ui/pages/settings.py:862
 msgid "Tag: Inbox"
 msgstr ""
 
-#: app_ui/pages/settings.py:850
+#: app_ui/pages/settings.py:864
 msgid "Tag: AI-generated"
 msgstr ""
 
-#: app_ui/pages/settings.py:861
+#: app_ui/pages/settings.py:875
 msgid ""
 "Tags must exist in Paperless. Correspondent and document type are created"
 " automatically if missing."
 msgstr ""
 
-#: app_ui/pages/settings.py:870
+#: app_ui/pages/settings.py:884
 msgid "Tags saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:880 werkbank/ui/module_page.py:176
+#: app_ui/pages/settings.py:894 werkbank/ui/module_page.py:176
 msgid "AI deep research"
 msgstr ""
 
-#: app_ui/pages/settings.py:881
+#: app_ui/pages/settings.py:895
 msgid "System prompts for Planner, Splitter, Critic, Synthesizer"
 msgstr ""
 
-#: app_ui/pages/settings.py:889
+#: app_ui/pages/settings.py:903
 msgid "Token limits per role"
 msgstr ""
 
-#: app_ui/pages/settings.py:891 app_ui/pages/settings.py:910
+#: app_ui/pages/settings.py:905 app_ui/pages/settings.py:924
 msgid "Planner"
 msgstr ""
 
-#: app_ui/pages/settings.py:892 app_ui/pages/settings.py:911
+#: app_ui/pages/settings.py:906 app_ui/pages/settings.py:925
 msgid "Splitter"
 msgstr ""
 
-#: app_ui/pages/settings.py:893 app_ui/pages/settings.py:912
+#: app_ui/pages/settings.py:907 app_ui/pages/settings.py:926
 msgid "Critic"
 msgstr ""
 
-#: app_ui/pages/settings.py:894 app_ui/pages/settings.py:913
+#: app_ui/pages/settings.py:908 app_ui/pages/settings.py:927
 msgid "Synthesizer"
 msgstr ""
 
-#: app_ui/pages/settings.py:895 app_ui/pages/settings.py:914
+#: app_ui/pages/settings.py:909 app_ui/pages/settings.py:928
 msgid "Compaction"
 msgstr ""
 
-#: app_ui/pages/settings.py:896
+#: app_ui/pages/settings.py:910
 msgid "Worker"
 msgstr ""
 
-#: app_ui/pages/settings.py:922
+#: app_ui/pages/settings.py:936
 #, python-brace-format
 msgid "System prompt: {role}"
 msgstr ""
 
-#: app_ui/pages/settings.py:933
+#: app_ui/pages/settings.py:947
 msgid "Prompt reset."
 msgstr ""
 
-#: app_ui/pages/settings.py:935
+#: app_ui/pages/settings.py:949
 msgid "Reset to default"
 msgstr ""
 
-#: app_ui/pages/settings.py:946
+#: app_ui/pages/settings.py:960
 msgid "Deep research settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:954
+#: app_ui/pages/settings.py:968
 msgid "All prompts reset."
 msgstr ""
 
-#: app_ui/pages/settings.py:956
+#: app_ui/pages/settings.py:970
 msgid "Reset all"
 msgstr ""
 
-#: app_ui/pages/settings.py:969
+#: app_ui/pages/settings.py:983
 msgid "Import / export settings"
 msgstr ""
 
-#: app_ui/pages/settings.py:970
+#: app_ui/pages/settings.py:984
 msgid "Move your personal settings to another installation"
 msgstr ""
 
-#: app_ui/pages/settings.py:980
+#: app_ui/pages/settings.py:994
 msgid "Include passwords and API keys"
 msgstr ""
 
-#: app_ui/pages/settings.py:984
+#: app_ui/pages/settings.py:998
 msgid ""
 "Without this option the export contains no secrets; on import the "
 "existing passwords and keys are kept. <b style='color:#f87171'>With it, "
@@ -2100,85 +2100,85 @@ msgid ""
 " plain text</b> — treat it like a password."
 msgstr ""
 
-#: app_ui/pages/settings.py:992
+#: app_ui/pages/settings.py:1006
 msgid "Export string"
 msgstr ""
 
-#: app_ui/pages/settings.py:1014
+#: app_ui/pages/settings.py:1028
 msgid "Copied to clipboard."
 msgstr ""
 
-#: app_ui/pages/settings.py:1017
+#: app_ui/pages/settings.py:1031
 msgid "Create export"
 msgstr ""
 
-#: app_ui/pages/settings.py:1020
+#: app_ui/pages/settings.py:1034
 msgid "Copy"
 msgstr ""
 
-#: app_ui/pages/settings.py:1026
+#: app_ui/pages/settings.py:1040
 msgid ""
 "The copy button needs HTTPS or localhost. Otherwise select the text in "
 "the field and copy it manually."
 msgstr ""
 
-#: app_ui/pages/settings.py:1034
+#: app_ui/pages/settings.py:1048
 msgid "Paste export string here"
 msgstr ""
 
-#: app_ui/pages/settings.py:1044 app_ui/pages/settings.py:1079
+#: app_ui/pages/settings.py:1058 app_ui/pages/settings.py:1093
 #, python-brace-format
 msgid "Import failed: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:1049
+#: app_ui/pages/settings.py:1063
 msgid "The string contains no importable settings."
 msgstr ""
 
-#: app_ui/pages/settings.py:1053
+#: app_ui/pages/settings.py:1067
 msgid "Apply these settings?"
 msgstr ""
 
-#: app_ui/pages/settings.py:1061
+#: app_ui/pages/settings.py:1075
 msgid "The export contains no secrets — existing passwords and API keys are kept."
 msgstr ""
 
-#: app_ui/pages/settings.py:1067
+#: app_ui/pages/settings.py:1081
 msgid "Apply"
 msgstr ""
 
-#: app_ui/pages/settings.py:1084
+#: app_ui/pages/settings.py:1098
 msgid "Settings imported."
 msgstr ""
 
-#: app_ui/pages/settings.py:1087
+#: app_ui/pages/settings.py:1101
 msgid "Import"
 msgstr ""
 
-#: app_ui/pages/settings.py:1093
+#: app_ui/pages/settings.py:1107
 msgid ""
 "Import overwrites the sections contained in the string. Global settings "
 "(processing, tags, search, deep research) are <b>not</b> part of the "
 "export — they apply to all users."
 msgstr ""
 
-#: app_ui/pages/settings.py:1105
+#: app_ui/pages/settings.py:1119
 msgid "Vault / Obsidian synchronization"
 msgstr ""
 
-#: app_ui/pages/settings.py:1106
+#: app_ui/pages/settings.py:1120
 msgid "Where PaperlessBrain expects memory files and your notes"
 msgstr ""
 
-#: app_ui/pages/settings.py:1113
+#: app_ui/pages/settings.py:1127
 msgid "Vault directory (Obsidian vault root)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1116
+#: app_ui/pages/settings.py:1130
 msgid "Memory subfolder (Brain)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1121
+#: app_ui/pages/settings.py:1135
 msgid ""
 "<b>Obsidian / Remotely Save:</b> point synchronization at the vault "
 "directory above.<br>Exclude <code>.git/</code> client-side in Remotely "
@@ -2186,7 +2186,7 @@ msgid ""
 "server-side Git repo is not propagated to devices."
 msgstr ""
 
-#: app_ui/pages/settings.py:1130
+#: app_ui/pages/settings.py:1144
 msgid ""
 "Credentials are stored encrypted and are accessible only to your "
 "Paperless user account. The key is your current Paperless token — if you "
