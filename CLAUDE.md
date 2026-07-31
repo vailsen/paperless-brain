@@ -13,9 +13,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 python main.py
 # App runs at http://0.0.0.0:8080
 
-# Deploy to LXC server
-./deploy.sh           # code only
-./deploy.sh --data    # code + data/ directory, niemals selbst ausführen!
+# Deploy: tag a release, CI publishes the image, the server pulls it
+git tag vX.Y.Z && git push origin main --tags   # .github/workflows/release.yml
+ssh <server> "cd /root/paperlessbrain && docker compose pull && docker compose up -d"
 ```
 
 ## Dependencies
