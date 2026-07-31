@@ -1249,7 +1249,9 @@ window.__toggleHideAction = function(key) {{
                 stderr=asyncio.subprocess.PIPE,
             )
             try:
-                _, err = await asyncio.wait_for(proc.communicate(), timeout=8.0)
+                # Not `_, err` — that would make `_` a local of this function and
+                # shadow the page translator every `_()` call above relies on.
+                _out, err = await asyncio.wait_for(proc.communicate(), timeout=8.0)
             except asyncio.TimeoutError:
                 err = b""  # SSH may drop before returning exit code — treat as success
             else:

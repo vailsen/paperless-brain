@@ -271,6 +271,30 @@ first use and shut it down over SSH after idle. Set
 `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` and `OLLAMA_SSH_USER` to enable — with Docker
 this needs `network_mode: host` (magic packets don't cross the bridge network).
 
+The shutdown half (dashboard button *and* the idle watchdog) runs
+`ssh <OLLAMA_SSH_USER>@<ollama host> "sudo shutdown -h now"` non-interactively —
+no password prompt is possible, so both steps below are mandatory:
+
+1. **Key-based SSH login** from the app to the Ollama host. On the app host:
+   `ssh-copy-id <OLLAMA_SSH_USER>@<ollama host>`. In Docker the container has no
+   identity of its own — mount the key read-only (see the commented line in
+   `docker-compose.yml`):
+   `- /root/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro`
+2. **Passwordless sudo for shutdown** on the Ollama host. `visudo` and add:
+   ```
+   <OLLAMA_SSH_USER> ALL=(ALL) NOPASSWD: /usr/bin/shutdown
+   ```
+   Without it the SSH call fails with `sudo: a password is required`.
+
+Verify without powering anything off:
+
+```bash
+ssh -o BatchMode=yes <OLLAMA_SSH_USER>@<ollama host> "sudo -n /usr/bin/shutdown --help >/dev/null && echo READY"
+```
+
+(Inside Docker: prefix with `docker exec <container> `.) `READY` means both the
+button and the idle watchdog will work.
+
 ## Security notes
 
 - The **superuser token** is used only for sync/ingestion; every chat request
