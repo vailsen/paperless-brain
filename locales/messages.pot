@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-29 10:35+0200\n"
+"POT-Creation-Date: 2026-08-01 12:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -94,7 +94,7 @@ msgstr ""
 msgid "{n} pages"
 msgstr ""
 
-#: app_ui/document_dialog.py:406 app_ui/pages/chat.py:1967
+#: app_ui/document_dialog.py:406 app_ui/pages/chat.py:1973
 msgid "Notes"
 msgstr ""
 
@@ -116,7 +116,7 @@ msgid "Actions"
 msgstr ""
 
 #: app_ui/document_dialog.py:491 app_ui/pages/brain.py:174
-#: app_ui/pages/dashboard.py:1596
+#: app_ui/pages/dashboard.py:1616
 msgid "Description"
 msgstr ""
 
@@ -124,7 +124,7 @@ msgstr ""
 msgid "Deadline"
 msgstr ""
 
-#: app_ui/document_dialog.py:505 app_ui/pages/dashboard.py:1552
+#: app_ui/document_dialog.py:505 app_ui/pages/dashboard.py:1572
 msgid "Certain"
 msgstr ""
 
@@ -209,11 +209,11 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
-#: app_ui/layout.py:46 app_ui/pages/chat.py:1353 app_ui/pages/dashboard.py:406
+#: app_ui/layout.py:46 app_ui/pages/chat.py:1359 app_ui/pages/dashboard.py:406
 msgid "Chat"
 msgstr ""
 
-#: app_ui/layout.py:47 app_ui/pages/chat.py:489 app_ui/pages/dashboard.py:413
+#: app_ui/layout.py:47 app_ui/pages/chat.py:492 app_ui/pages/dashboard.py:413
 msgid "Deep research"
 msgstr ""
 
@@ -221,12 +221,12 @@ msgstr ""
 msgid "Browser"
 msgstr ""
 
-#: app_ui/layout.py:49 app_ui/pages/brain.py:266 app_ui/pages/chat.py:487
-#: app_ui/pages/chat.py:1966 app_ui/pages/dashboard.py:427
+#: app_ui/layout.py:49 app_ui/pages/brain.py:266 app_ui/pages/chat.py:490
+#: app_ui/pages/chat.py:1972 app_ui/pages/dashboard.py:427
 msgid "Memory"
 msgstr ""
 
-#: app_ui/layout.py:180 app_ui/pages/settings.py:133
+#: app_ui/layout.py:180 app_ui/pages/settings.py:151
 msgid "Settings"
 msgstr ""
 
@@ -239,11 +239,11 @@ msgid "Really delete?"
 msgstr ""
 
 #: app_ui/pages/brain.py:61 app_ui/pages/brain.py:149 app_ui/pages/brain.py:209
-#: app_ui/pages/chat.py:1056 app_ui/pages/chat.py:2747
-#: app_ui/pages/chat.py:2998 app_ui/pages/chat.py:3081
-#: app_ui/pages/dashboard.py:918 app_ui/pages/dashboard.py:1111
-#: app_ui/pages/dashboard.py:1299 app_ui/pages/settings.py:281
-#: app_ui/pages/settings.py:1097 werkbank/ui/module_page.py:93
+#: app_ui/pages/chat.py:1062 app_ui/pages/chat.py:2753
+#: app_ui/pages/chat.py:3004 app_ui/pages/chat.py:3087
+#: app_ui/pages/dashboard.py:936 app_ui/pages/dashboard.py:1129
+#: app_ui/pages/dashboard.py:1319 app_ui/pages/settings.py:317
+#: app_ui/pages/settings.py:1136 werkbank/ui/module_page.py:93
 msgid "Cancel"
 msgstr ""
 
@@ -301,11 +301,11 @@ msgid "Fact must not be empty."
 msgstr ""
 
 #: app_ui/pages/brain.py:152 app_ui/pages/brain.py:212
-#: app_ui/pages/chat.py:1063 app_ui/pages/settings.py:282
-#: app_ui/pages/settings.py:523 app_ui/pages/settings.py:579
-#: app_ui/pages/settings.py:627 app_ui/pages/settings.py:704
-#: app_ui/pages/settings.py:809 app_ui/pages/settings.py:860
-#: app_ui/pages/settings.py:905 app_ui/pages/settings.py:992
+#: app_ui/pages/chat.py:1069 app_ui/pages/settings.py:318
+#: app_ui/pages/settings.py:559 app_ui/pages/settings.py:615
+#: app_ui/pages/settings.py:663 app_ui/pages/settings.py:740
+#: app_ui/pages/settings.py:845 app_ui/pages/settings.py:896
+#: app_ui/pages/settings.py:941 app_ui/pages/settings.py:1028
 #: werkbank/ui/archetype_dialog.py:141
 msgid "Save"
 msgstr ""
@@ -370,7 +370,7 @@ msgid "from {user}"
 msgstr ""
 
 #: app_ui/pages/brain.py:400 app_ui/pages/brain.py:459
-#: app_ui/pages/chat.py:2916 app_ui/pages/chat.py:2950
+#: app_ui/pages/chat.py:2922 app_ui/pages/chat.py:2956
 #: werkbank/ui/task_dialog.py:511 werkbank/ui/task_dialog.py:541
 msgid "Edit"
 msgstr ""
@@ -443,18 +443,18 @@ msgstr ""
 msgid "Created"
 msgstr ""
 
-#: app_ui/pages/browser.py:312 app_ui/pages/chat.py:2901
-#: app_ui/pages/chat.py:3028
+#: app_ui/pages/browser.py:312 app_ui/pages/chat.py:2907
+#: app_ui/pages/chat.py:3034
 msgid "Title"
 msgstr ""
 
 #: app_ui/pages/browser.py:313 app_ui/pages/browser.py:373
-#: app_ui/pages/browser.py:465 app_ui/pages/settings.py:887
+#: app_ui/pages/browser.py:465 app_ui/pages/settings.py:923
 msgid "Correspondent"
 msgstr ""
 
 #: app_ui/pages/browser.py:314 app_ui/pages/browser.py:385
-#: app_ui/pages/browser.py:473 app_ui/pages/settings.py:889
+#: app_ui/pages/browser.py:473 app_ui/pages/settings.py:925
 msgid "Document type"
 msgstr ""
 
@@ -507,555 +507,559 @@ msgstr ""
 msgid "Pinned — click to unpin"
 msgstr ""
 
-#: app_ui/pages/chat.py:245
+#: app_ui/pages/chat.py:248
 #, python-brace-format
 msgid ": Doc #{id}"
 msgstr ""
 
-#: app_ui/pages/chat.py:481 app_ui/pages/chat.py:1965
+#: app_ui/pages/chat.py:484 app_ui/pages/chat.py:1971
 #: app_ui/pages/dashboard.py:466
 msgid "Documents"
 msgstr ""
 
-#: app_ui/pages/chat.py:482 app_ui/pages/chat.py:2590 app_ui/pages/chat.py:2774
+#: app_ui/pages/chat.py:485 app_ui/pages/chat.py:2596 app_ui/pages/chat.py:2780
 msgid "Email"
 msgstr ""
 
-#: app_ui/pages/chat.py:483 app_ui/pages/dashboard.py:578
-#: app_ui/pages/settings.py:712
+#: app_ui/pages/chat.py:486 app_ui/pages/dashboard.py:578
+#: app_ui/pages/settings.py:748
 msgid "Calendar"
 msgstr ""
 
-#: app_ui/pages/chat.py:484 app_ui/pages/chat.py:1511
+#: app_ui/pages/chat.py:487 app_ui/pages/chat.py:1517
 msgid "Web"
 msgstr ""
 
-#: app_ui/pages/chat.py:485
+#: app_ui/pages/chat.py:488
 msgid "Calc"
 msgstr ""
 
-#: app_ui/pages/chat.py:486
+#: app_ui/pages/chat.py:489
 msgid "Visual"
 msgstr ""
 
-#: app_ui/pages/chat.py:488
+#: app_ui/pages/chat.py:491
 msgid "Vault"
 msgstr ""
 
-#: app_ui/pages/chat.py:490 werkbank/ui/module_page.py:94
+#: app_ui/pages/chat.py:493 werkbank/ui/module_page.py:94
 msgid "Create"
 msgstr ""
 
-#: app_ui/pages/chat.py:493
+#: app_ui/pages/chat.py:496
+msgid "Document notes"
+msgstr ""
+
+#: app_ui/pages/chat.py:499
 msgid "✨ What can you do?"
 msgstr ""
 
-#: app_ui/pages/chat.py:493
+#: app_ui/pages/chat.py:499
 msgid "Show me what you can do! List all your capabilities and tools."
 msgstr ""
 
-#: app_ui/pages/chat.py:494
+#: app_ui/pages/chat.py:500
 msgid "📌 Open deadlines"
 msgstr ""
 
-#: app_ui/pages/chat.py:494
+#: app_ui/pages/chat.py:500
 msgid "What open deadlines do I have?"
 msgstr ""
 
-#: app_ui/pages/chat.py:495
+#: app_ui/pages/chat.py:501
 msgid "📅 Next month"
 msgstr ""
 
-#: app_ui/pages/chat.py:495
+#: app_ui/pages/chat.py:501
 msgid "What's in my calendar next month?"
 msgstr ""
 
-#: app_ui/pages/chat.py:496
+#: app_ui/pages/chat.py:502
 msgid "📄 New documents"
 msgstr ""
 
-#: app_ui/pages/chat.py:496
+#: app_ui/pages/chat.py:502
 msgid "Show me my latest documents from the last 30 days."
 msgstr ""
 
-#: app_ui/pages/chat.py:497
+#: app_ui/pages/chat.py:503
 msgid "📧 New emails"
 msgstr ""
 
-#: app_ui/pages/chat.py:497
+#: app_ui/pages/chat.py:503
 msgid "What are my latest emails?"
 msgstr ""
 
-#: app_ui/pages/chat.py:498
+#: app_ui/pages/chat.py:504
 msgid "💰 Invoices"
 msgstr ""
 
-#: app_ui/pages/chat.py:498
+#: app_ui/pages/chat.py:504
 msgid "Are there any open invoices or outstanding payments?"
 msgstr ""
 
-#: app_ui/pages/chat.py:499
+#: app_ui/pages/chat.py:505
 msgid "✉️ Write a letter"
 msgstr ""
 
-#: app_ui/pages/chat.py:499
+#: app_ui/pages/chat.py:505
 msgid "Write a letter."
 msgstr ""
 
-#: app_ui/pages/chat.py:500
+#: app_ui/pages/chat.py:506
 msgid "📧 Write an email"
 msgstr ""
 
-#: app_ui/pages/chat.py:500
+#: app_ui/pages/chat.py:506
 msgid "Write an email."
 msgstr ""
 
-#: app_ui/pages/chat.py:501
+#: app_ui/pages/chat.py:507
 msgid "💾 Save chat to Paperless"
 msgstr ""
 
-#: app_ui/pages/chat.py:501
+#: app_ui/pages/chat.py:507
 msgid "Create a document from the current chat and save it to Paperless."
 msgstr ""
 
-#: app_ui/pages/chat.py:517
+#: app_ui/pages/chat.py:523
 msgid "Note"
 msgstr ""
 
-#: app_ui/pages/chat.py:540
+#: app_ui/pages/chat.py:546
 msgid "Note not found."
 msgstr ""
 
-#: app_ui/pages/chat.py:553
+#: app_ui/pages/chat.py:559
 msgid "_Empty_"
 msgstr ""
 
-#: app_ui/pages/chat.py:556
+#: app_ui/pages/chat.py:562
 msgid "_No content_"
 msgstr ""
 
-#: app_ui/pages/chat.py:560
+#: app_ui/pages/chat.py:566
 #, python-brace-format
 msgid "**Memory fact** (ID: `{id}…`)"
 msgstr ""
 
-#: app_ui/pages/chat.py:562
+#: app_ui/pages/chat.py:568
 #, python-brace-format
 msgid "Tags: {tags}"
 msgstr ""
 
-#: app_ui/pages/chat.py:564
+#: app_ui/pages/chat.py:570
 #, python-brace-format
 msgid "Confidence: {conf}"
 msgstr ""
 
-#: app_ui/pages/chat.py:565
+#: app_ui/pages/chat.py:571
 msgid "🧠 Memory fact"
 msgstr ""
 
-#: app_ui/pages/chat.py:570 app_ui/pages/chat.py:2413 app_ui/pages/chat.py:2743
-#: app_ui/pages/chat.py:2991 app_ui/pages/chat.py:3077
-#: app_ui/pages/dashboard.py:1106 app_ui/pages/settings.py:96
+#: app_ui/pages/chat.py:576 app_ui/pages/chat.py:2419 app_ui/pages/chat.py:2749
+#: app_ui/pages/chat.py:2997 app_ui/pages/chat.py:3083
+#: app_ui/pages/dashboard.py:1124 app_ui/pages/settings.py:114
 #, python-brace-format
 msgid "Error: {err}"
 msgstr ""
 
-#: app_ui/pages/chat.py:601 app_ui/pages/chat.py:645
+#: app_ui/pages/chat.py:607 app_ui/pages/chat.py:651
 #, python-brace-format
 msgid "Dist: {dist}"
 msgstr ""
 
-#: app_ui/pages/chat.py:825
+#: app_ui/pages/chat.py:831
 msgid "Search results appear here"
 msgstr ""
 
-#: app_ui/pages/chat.py:835
+#: app_ui/pages/chat.py:841
 msgid ""
 "Hello! I am your document assistant. I can search and read documents and "
 "answer general questions. What would you like to know?"
 msgstr ""
 
-#: app_ui/pages/chat.py:916
+#: app_ui/pages/chat.py:922
 msgid "just now"
 msgstr ""
 
-#: app_ui/pages/chat.py:918
+#: app_ui/pages/chat.py:924
 #, python-brace-format
 msgid "{n}m ago"
 msgstr ""
 
-#: app_ui/pages/chat.py:951
+#: app_ui/pages/chat.py:957
 msgid "Current chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:1000
+#: app_ui/pages/chat.py:1006
 #, python-brace-format
 msgid "Context: {ct} / {cw}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1010 app_ui/pages/chat.py:1378
+#: app_ui/pages/chat.py:1016 app_ui/pages/chat.py:1384
 msgid "Context: –"
 msgstr ""
 
-#: app_ui/pages/chat.py:1053
+#: app_ui/pages/chat.py:1059
 msgid "Rename conversation"
 msgstr ""
 
-#: app_ui/pages/chat.py:1097
+#: app_ui/pages/chat.py:1103
 msgid "No conversation to compress"
 msgstr ""
 
-#: app_ui/pages/chat.py:1097
+#: app_ui/pages/chat.py:1103
 msgid "Chat running"
 msgstr ""
 
-#: app_ui/pages/chat.py:1102
+#: app_ui/pages/chat.py:1108
 msgid "No model selected"
 msgstr ""
 
-#: app_ui/pages/chat.py:1136
+#: app_ui/pages/chat.py:1142
 msgid "Compressing…"
 msgstr ""
 
-#: app_ui/pages/chat.py:1159
+#: app_ui/pages/chat.py:1165
 msgid "**[Summary]**"
 msgstr ""
 
-#: app_ui/pages/chat.py:1170
+#: app_ui/pages/chat.py:1176
 msgid "🗜 Compressed conversation"
 msgstr ""
 
-#: app_ui/pages/chat.py:1185
+#: app_ui/pages/chat.py:1191
 msgid "Compression produced no result"
 msgstr ""
 
-#: app_ui/pages/chat.py:1190
+#: app_ui/pages/chat.py:1196
 #, python-brace-format
 msgid "Error compressing: {err}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1209
+#: app_ui/pages/chat.py:1215
 msgid "Conversations"
 msgstr ""
 
-#: app_ui/pages/chat.py:1220
+#: app_ui/pages/chat.py:1226
 msgid "New chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:1244
+#: app_ui/pages/chat.py:1250
 msgid "Search results"
 msgstr ""
 
-#: app_ui/pages/chat.py:1260
+#: app_ui/pages/chat.py:1266
 msgid "Show/hide search results"
 msgstr ""
 
-#: app_ui/pages/chat.py:1347
+#: app_ui/pages/chat.py:1353
 msgid "Conversation history"
 msgstr ""
 
-#: app_ui/pages/chat.py:1405
+#: app_ui/pages/chat.py:1411
 msgid "No models configured"
 msgstr ""
 
-#: app_ui/pages/chat.py:1411
+#: app_ui/pages/chat.py:1417
 msgid "Delete conversation"
 msgstr ""
 
-#: app_ui/pages/chat.py:1454
+#: app_ui/pages/chat.py:1460
 msgid "Sync running — chat is locked"
 msgstr ""
 
-#: app_ui/pages/chat.py:1472
+#: app_ui/pages/chat.py:1478
 msgid "No chat model configured"
 msgstr ""
 
-#: app_ui/pages/chat.py:1476
+#: app_ui/pages/chat.py:1482
 msgid "Set one up"
 msgstr ""
 
-#: app_ui/pages/chat.py:1495
+#: app_ui/pages/chat.py:1501
 msgid "Tools"
 msgstr ""
 
-#: app_ui/pages/chat.py:1516
+#: app_ui/pages/chat.py:1522
 msgid "Hybrid"
 msgstr ""
 
-#: app_ui/pages/chat.py:1516
+#: app_ui/pages/chat.py:1522
 msgid "Crawl4AI (thorough)"
 msgstr ""
 
-#: app_ui/pages/chat.py:1531
+#: app_ui/pages/chat.py:1537
 msgid "Other"
 msgstr ""
 
-#: app_ui/pages/chat.py:1536
+#: app_ui/pages/chat.py:1542
 msgid "Max. tool calls"
 msgstr ""
 
-#: app_ui/pages/chat.py:1552
+#: app_ui/pages/chat.py:1558
 msgid "Show thinking log"
 msgstr ""
 
-#: app_ui/pages/chat.py:1624
+#: app_ui/pages/chat.py:1630
 msgid "Configure tools"
 msgstr ""
 
-#: app_ui/pages/chat.py:1633
+#: app_ui/pages/chat.py:1639
 msgid "Compress chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:1638 app_ui/pages/chat.py:1643
+#: app_ui/pages/chat.py:1644 app_ui/pages/chat.py:1649
 msgid "Message …"
 msgstr ""
 
-#: app_ui/pages/chat.py:1642
+#: app_ui/pages/chat.py:1648
 msgid "Message … (Shift+Enter for a new line)"
-msgstr ""
-
-#: app_ui/pages/chat.py:1778
-#, python-brace-format
-msgid "Document #{id} not found or no access."
 msgstr ""
 
 #: app_ui/pages/chat.py:1784
 #, python-brace-format
+msgid "Document #{id} not found or no access."
+msgstr ""
+
+#: app_ui/pages/chat.py:1790
+#, python-brace-format
 msgid "Document #{id} cannot be displayed: {err}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1807
+#: app_ui/pages/chat.py:1813
 msgid "Note could not be opened."
 msgstr ""
 
-#: app_ui/pages/chat.py:1968
+#: app_ui/pages/chat.py:1974
 msgid "Web search"
 msgstr ""
 
-#: app_ui/pages/chat.py:2111
+#: app_ui/pages/chat.py:2117
 msgid "No chat model configured — add one in Settings > AI Models."
 msgstr ""
 
-#: app_ui/pages/chat.py:2116
+#: app_ui/pages/chat.py:2122
 msgid "Sync is currently running — please wait"
 msgstr ""
 
-#: app_ui/pages/chat.py:2167
+#: app_ui/pages/chat.py:2173
 msgid "📓 Synchronizing vault …"
 msgstr ""
 
-#: app_ui/pages/chat.py:2223
+#: app_ui/pages/chat.py:2229
 msgid "Thoughts"
 msgstr ""
 
-#: app_ui/pages/chat.py:2295
+#: app_ui/pages/chat.py:2301
 msgid "No model configured — please set one up in Settings > AI Models."
 msgstr ""
 
-#: app_ui/pages/chat.py:2435
+#: app_ui/pages/chat.py:2441
 msgid "answer.md"
 msgstr ""
 
-#: app_ui/pages/chat.py:2447
+#: app_ui/pages/chat.py:2453
 msgid "Tool history"
 msgstr ""
 
-#: app_ui/pages/chat.py:2482
+#: app_ui/pages/chat.py:2488
 msgid "(no parameters)"
 msgstr ""
 
-#: app_ui/pages/chat.py:2503
+#: app_ui/pages/chat.py:2509
 msgid "Download answer as Markdown"
 msgstr ""
 
-#: app_ui/pages/chat.py:2518
+#: app_ui/pages/chat.py:2524
 #, python-brace-format
 msgid "Table {n} as CSV"
 msgstr ""
 
-#: app_ui/pages/chat.py:2520
+#: app_ui/pages/chat.py:2526
 msgid "Download table as CSV"
 msgstr ""
 
-#: app_ui/pages/chat.py:2526
+#: app_ui/pages/chat.py:2532
 msgid "Show tool history"
 msgstr ""
 
-#: app_ui/pages/chat.py:2546
+#: app_ui/pages/chat.py:2552
 msgid "Create letter"
 msgstr ""
 
-#: app_ui/pages/chat.py:2555
+#: app_ui/pages/chat.py:2561
 msgid "Sender"
 msgstr ""
 
-#: app_ui/pages/chat.py:2559 app_ui/pages/chat.py:2602
+#: app_ui/pages/chat.py:2565 app_ui/pages/chat.py:2608
 #: werkbank/ui/archetype_dialog.py:79
 msgid "Name"
 msgstr ""
 
-#: app_ui/pages/chat.py:2564
+#: app_ui/pages/chat.py:2570
 msgid "Company"
 msgstr ""
 
-#: app_ui/pages/chat.py:2569 app_ui/pages/chat.py:2608
+#: app_ui/pages/chat.py:2575 app_ui/pages/chat.py:2614
 msgid "Street"
 msgstr ""
 
-#: app_ui/pages/chat.py:2575 app_ui/pages/chat.py:2616
-#: app_ui/pages/settings.py:831
+#: app_ui/pages/chat.py:2581 app_ui/pages/chat.py:2622
+#: app_ui/pages/settings.py:867
 msgid "Postcode"
 msgstr ""
 
-#: app_ui/pages/chat.py:2580 app_ui/pages/chat.py:2622
-#: app_ui/pages/settings.py:833
+#: app_ui/pages/chat.py:2586 app_ui/pages/chat.py:2628
+#: app_ui/pages/settings.py:869
 msgid "City"
 msgstr ""
 
-#: app_ui/pages/chat.py:2585
+#: app_ui/pages/chat.py:2591
 msgid "Phone"
 msgstr ""
 
-#: app_ui/pages/chat.py:2598
+#: app_ui/pages/chat.py:2604
 msgid "Recipient"
 msgstr ""
 
-#: app_ui/pages/chat.py:2630 app_ui/pages/chat.py:2912
+#: app_ui/pages/chat.py:2636 app_ui/pages/chat.py:2918
 msgid "Content"
 msgstr ""
 
-#: app_ui/pages/chat.py:2635
+#: app_ui/pages/chat.py:2641
 msgid "Your reference (invoice no. / file no.)"
 msgstr ""
 
-#: app_ui/pages/chat.py:2643
+#: app_ui/pages/chat.py:2649
 msgid "Reference (short title of ref. doc., empty = none)"
 msgstr ""
 
-#: app_ui/pages/chat.py:2650 app_ui/pages/chat.py:2804
+#: app_ui/pages/chat.py:2656 app_ui/pages/chat.py:2810
 msgid "Subject"
 msgstr ""
 
-#: app_ui/pages/chat.py:2656
+#: app_ui/pages/chat.py:2662
 msgid "Salutation"
 msgstr ""
 
-#: app_ui/pages/chat.py:2666
+#: app_ui/pages/chat.py:2672
 msgid "Letter body (separate paragraphs with blank lines)"
 msgstr ""
 
-#: app_ui/pages/chat.py:2675
+#: app_ui/pages/chat.py:2681
 msgid "Closing"
 msgstr ""
 
-#: app_ui/pages/chat.py:2750
+#: app_ui/pages/chat.py:2756
 msgid "Download letter"
 msgstr ""
 
-#: app_ui/pages/chat.py:2783
+#: app_ui/pages/chat.py:2789
 msgid "To"
 msgstr ""
 
-#: app_ui/pages/chat.py:2795 app_ui/pages/chat.py:2816
+#: app_ui/pages/chat.py:2801 app_ui/pages/chat.py:2822
 msgid "Copied!"
 msgstr ""
 
-#: app_ui/pages/chat.py:2801
+#: app_ui/pages/chat.py:2807
 msgid "Copy address"
 msgstr ""
 
-#: app_ui/pages/chat.py:2822
+#: app_ui/pages/chat.py:2828
 msgid "Copy subject"
 msgstr ""
 
-#: app_ui/pages/chat.py:2825
+#: app_ui/pages/chat.py:2831
 msgid "Message"
 msgstr ""
 
-#: app_ui/pages/chat.py:2839
+#: app_ui/pages/chat.py:2845
 msgid "Message copied!"
 msgstr ""
 
-#: app_ui/pages/chat.py:2842
+#: app_ui/pages/chat.py:2848
 msgid "Copy message"
 msgstr ""
 
-#: app_ui/pages/chat.py:2864 app_ui/pages/dashboard.py:975
-#: app_ui/pages/dashboard.py:1002
+#: app_ui/pages/chat.py:2870 app_ui/pages/dashboard.py:993
+#: app_ui/pages/dashboard.py:1020
 msgid "Close"
 msgstr ""
 
-#: app_ui/pages/chat.py:2874
+#: app_ui/pages/chat.py:2880
 msgid "Open in mail app"
 msgstr ""
 
-#: app_ui/pages/chat.py:2893
+#: app_ui/pages/chat.py:2899
 msgid "Save document to Paperless"
 msgstr ""
 
-#: app_ui/pages/chat.py:2942 werkbank/ui/task_dialog.py:534
+#: app_ui/pages/chat.py:2948 werkbank/ui/task_dialog.py:534
 msgid "Preview"
 msgstr ""
 
-#: app_ui/pages/chat.py:2958
+#: app_ui/pages/chat.py:2964
 msgid "Creating PDF…"
 msgstr ""
 
-#: app_ui/pages/chat.py:2973
+#: app_ui/pages/chat.py:2979
 msgid "Uploading…"
 msgstr ""
 
-#: app_ui/pages/chat.py:2984
+#: app_ui/pages/chat.py:2990
 #, python-brace-format
 msgid "Saved as: {filename}"
 msgstr ""
 
-#: app_ui/pages/chat.py:3002
+#: app_ui/pages/chat.py:3008
 msgid "Save to Paperless"
 msgstr ""
 
-#: app_ui/pages/chat.py:3020
+#: app_ui/pages/chat.py:3026
 msgid "Start deep research"
 msgstr ""
 
-#: app_ui/pages/chat.py:3024
+#: app_ui/pages/chat.py:3030
 msgid "Review and adjust the task, then choose the model."
 msgstr ""
 
-#: app_ui/pages/chat.py:3032 werkbank/ui/module_page.py:69
+#: app_ui/pages/chat.py:3038 werkbank/ui/module_page.py:69
 #: werkbank/ui/module_page.py:195 werkbank/ui/task_dialog.py:274
 #: werkbank/ui/task_dialog.py:469
 msgid "Task"
 msgstr ""
 
-#: app_ui/pages/chat.py:3045 werkbank/ui/module_page.py:74
+#: app_ui/pages/chat.py:3051 werkbank/ui/module_page.py:74
 msgid "Model"
 msgstr ""
 
-#: app_ui/pages/chat.py:3056
+#: app_ui/pages/chat.py:3062
 msgid "Creating task…"
 msgstr ""
 
-#: app_ui/pages/chat.py:3072
+#: app_ui/pages/chat.py:3078
 #, python-brace-format
 msgid "Task #{id} running ✓"
 msgstr ""
 
-#: app_ui/pages/chat.py:3085
+#: app_ui/pages/chat.py:3091
 msgid "Start task"
 msgstr ""
 
-#: app_ui/pages/chat.py:3116
+#: app_ui/pages/chat.py:3122
 #, python-brace-format
 msgid "Download of document #{id} failed: {err}"
 msgstr ""
 
-#: app_ui/pages/chat.py:3131
+#: app_ui/pages/chat.py:3137
 #, python-brace-format
 msgid "Download document #{id}"
 msgstr ""
 
-#: app_ui/pages/chat.py:3152
+#: app_ui/pages/chat.py:3158
 msgid "New conversation"
 msgstr ""
 
@@ -1149,7 +1153,7 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:471
+#: app_ui/pages/dashboard.py:471 app_ui/pages/dashboard.py:900
 #, python-brace-format
 msgid "Last sync: {ts}"
 msgstr ""
@@ -1186,7 +1190,7 @@ msgstr ""
 msgid "Shut down (SSH)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:569 app_ui/pages/settings.py:635
+#: app_ui/pages/dashboard.py:569 app_ui/pages/settings.py:671
 msgid "Email (IMAP)"
 msgstr ""
 
@@ -1222,289 +1226,289 @@ msgstr ""
 msgid "#{id} removed"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:876
+#: app_ui/pages/dashboard.py:892
 msgid "Sync complete"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:888 app_ui/pages/dashboard.py:1342
+#: app_ui/pages/dashboard.py:906 app_ui/pages/dashboard.py:1362
 #, python-brace-format, python-format
 msgid "{pct} % indexed in ChromaDB"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:893
+#: app_ui/pages/dashboard.py:911
 #, python-brace-format
 msgid "Sync error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:906
+#: app_ui/pages/dashboard.py:924
 msgid "Sync"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:909
+#: app_ui/pages/dashboard.py:927
 msgid ""
 "New documents are always ingested. Additionally, outdated documents (old "
 "prompt version) are re-ingested — up to how many? Empty = all. Large "
 "numbers can take a long time."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:913
+#: app_ui/pages/dashboard.py:931
 msgid "Max. re-ingests (empty = all)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:928 werkbank/ui/task_dialog.py:346
+#: app_ui/pages/dashboard.py:946 werkbank/ui/task_dialog.py:346
 msgid "Start"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:947
+#: app_ui/pages/dashboard.py:965
 msgid ""
 "No model configured for dreaming. Please set one in Settings > Memory "
 "maintenance."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:956
+#: app_ui/pages/dashboard.py:974
 msgid "No memory entries available."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:969
+#: app_ui/pages/dashboard.py:987
 msgid "Error during memory analysis"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:990
+#: app_ui/pages/dashboard.py:1008
 msgid "Memory analysis"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:993
+#: app_ui/pages/dashboard.py:1011
 msgid "No actions suggested."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:996
+#: app_ui/pages/dashboard.py:1014
 msgid "LLM response (debug)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:999
+#: app_ui/pages/dashboard.py:1017
 msgid "(empty)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1017
+#: app_ui/pages/dashboard.py:1035
 msgid "Memory cleanup"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1021
+#: app_ui/pages/dashboard.py:1039
 #, python-brace-format
 msgid "{n} actions suggested — deselect to skip"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1041
+#: app_ui/pages/dashboard.py:1059
 msgid "🗑 Delete"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1042
+#: app_ui/pages/dashboard.py:1060
 msgid "✏️ Update"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1044
-msgid "🏷️ Update tags"
-msgstr ""
-
 #: app_ui/pages/dashboard.py:1062
-#, python-brace-format
-msgid "Current: {text}"
-msgstr ""
-
-#: app_ui/pages/dashboard.py:1069
-#, python-brace-format
-msgid "New: {text}"
+msgid "🏷️ Update tags"
 msgstr ""
 
 #: app_ui/pages/dashboard.py:1080
 #, python-brace-format
+msgid "Current: {text}"
+msgstr ""
+
+#: app_ui/pages/dashboard.py:1087
+#, python-brace-format
+msgid "New: {text}"
+msgstr ""
+
+#: app_ui/pages/dashboard.py:1098
+#, python-brace-format
 msgid "Tags old: {tags}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1083
+#: app_ui/pages/dashboard.py:1101
 #, python-brace-format
 msgid "Tags new: {tags}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1092
+#: app_ui/pages/dashboard.py:1110
 msgid "No actions selected."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1100
+#: app_ui/pages/dashboard.py:1118
 #, python-brace-format
 msgid "Cleanup complete: {d} deleted, {u} updated."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1115
+#: app_ui/pages/dashboard.py:1133
 msgid "Run selected"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1126
+#: app_ui/pages/dashboard.py:1144
 msgid "No user signed in."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1131
+#: app_ui/pages/dashboard.py:1149
 msgid "📂 Synchronizing vault…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1141
+#: app_ui/pages/dashboard.py:1159
 msgid "Vault synchronized."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1144
+#: app_ui/pages/dashboard.py:1162
 #, python-brace-format
 msgid "Vault sync error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1174
+#: app_ui/pages/dashboard.py:1192
 #, python-brace-format
 msgid ""
 "Several local models point at different hosts ({hosts}). Set "
 "OLLAMA_SERVER in .env to say which machine the power buttons control."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1182
+#: app_ui/pages/dashboard.py:1200
 msgid "OLLAMA_HOST_LAN_MAC_ADDRESS_WOL not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1196
+#: app_ui/pages/dashboard.py:1214
 #, python-brace-format
 msgid "WoL error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1200
+#: app_ui/pages/dashboard.py:1218
 #, python-brace-format
 msgid "Magic packet → {target}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1201
+#: app_ui/pages/dashboard.py:1219
 msgid "Waking up…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1220
+#: app_ui/pages/dashboard.py:1238
 msgid "Ollama is online!"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1233
+#: app_ui/pages/dashboard.py:1251
 msgid "OLLAMA_SSH_USER not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1236
+#: app_ui/pages/dashboard.py:1254
 msgid "Shutting down…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1262
+#: app_ui/pages/dashboard.py:1282
 #, python-brace-format
 msgid "Shutdown failed: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1263
+#: app_ui/pages/dashboard.py:1283
 #, python-brace-format
 msgid "ssh exited with {code}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1268 app_ui/pages/dashboard.py:1272
-#: app_ui/pages/dashboard.py:1351
+#: app_ui/pages/dashboard.py:1288 app_ui/pages/dashboard.py:1292
+#: app_ui/pages/dashboard.py:1371
 msgid "Online"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1271
+#: app_ui/pages/dashboard.py:1291
 #, python-brace-format
 msgid "SSH error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1282 app_ui/pages/dashboard.py:1351
-#: app_ui/pages/dashboard.py:1356
+#: app_ui/pages/dashboard.py:1302 app_ui/pages/dashboard.py:1371
+#: app_ui/pages/dashboard.py:1376
 msgid "Offline"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1285
+#: app_ui/pages/dashboard.py:1305
 msgid "Server is shutting down…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1290
+#: app_ui/pages/dashboard.py:1310
 msgid "Shut down server"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1292 app_ui/pages/login.py:99
-#: app_ui/pages/settings.py:749
+#: app_ui/pages/dashboard.py:1312 app_ui/pages/login.py:99
+#: app_ui/pages/settings.py:785
 msgid "Password"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1296
+#: app_ui/pages/dashboard.py:1316
 msgid "Wrong password"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1310
+#: app_ui/pages/dashboard.py:1330
 msgid "Shut down"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1345
+#: app_ui/pages/dashboard.py:1365
 msgid "Paperless not reachable"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1354
+#: app_ui/pages/dashboard.py:1374
 #, python-brace-format
 msgid "{n} docs"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1354 werkbank/ui/module_page.py:135
+#: app_ui/pages/dashboard.py:1374 werkbank/ui/module_page.py:135
 msgid "Error"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1380 app_ui/pages/dashboard.py:1382
-#: app_ui/pages/dashboard.py:1395
+#: app_ui/pages/dashboard.py:1400 app_ui/pages/dashboard.py:1402
+#: app_ui/pages/dashboard.py:1415
 msgid "Not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1391
+#: app_ui/pages/dashboard.py:1411
 #, python-brace-format
 msgid "iCal ({n} calendars)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1437
+#: app_ui/pages/dashboard.py:1457
 msgid "upcoming"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1439
+#: app_ui/pages/dashboard.py:1459
 #, python-brace-format
 msgid "{n} overdue"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1510
+#: app_ui/pages/dashboard.py:1530
 msgid "No deadlines found."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1521
+#: app_ui/pages/dashboard.py:1541
 #, python-brace-format
 msgid "{n} hidden"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1524
+#: app_ui/pages/dashboard.py:1544
 msgid "Show"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1524 app_ui/pages/dashboard.py:1569
+#: app_ui/pages/dashboard.py:1544 app_ui/pages/dashboard.py:1589
 msgid "Hide"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1552
+#: app_ui/pages/dashboard.py:1572
 msgid "Uncertain"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1569
+#: app_ui/pages/dashboard.py:1589
 msgid "Show again"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1594
+#: app_ui/pages/dashboard.py:1614
 msgid "Date"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1597
+#: app_ui/pages/dashboard.py:1617
 msgid "Doc"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1626
+#: app_ui/pages/dashboard.py:1646
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr ""
@@ -1523,7 +1527,7 @@ msgid ""
 "PAPERLESS_SUPERUSER_TOKEN in your .env, then restart the container."
 msgstr ""
 
-#: app_ui/pages/login.py:96 app_ui/pages/settings.py:746
+#: app_ui/pages/login.py:96 app_ui/pages/settings.py:782
 msgid "Username"
 msgstr ""
 
@@ -1567,151 +1571,172 @@ msgstr ""
 msgid "Light"
 msgstr ""
 
-#: app_ui/pages/settings.py:48 app_ui/pages/settings.py:148
+#: app_ui/pages/settings.py:48 app_ui/pages/settings.py:166
 msgid "Appearance"
 msgstr ""
 
-#: app_ui/pages/settings.py:93
+#: app_ui/pages/settings.py:65
+msgid "Push AI extracted text to Paperless-ngx"
+msgstr ""
+
+#: app_ui/pages/settings.py:111
 msgid "Connection successful"
 msgstr ""
 
-#: app_ui/pages/settings.py:139
+#: app_ui/pages/settings.py:157
 msgid "Language"
 msgstr ""
 
-#: app_ui/pages/settings.py:140
+#: app_ui/pages/settings.py:158
 msgid "Display language of the interface"
 msgstr ""
 
-#: app_ui/pages/settings.py:149
+#: app_ui/pages/settings.py:167
 msgid "Light or dark theme"
 msgstr ""
 
-#: app_ui/pages/settings.py:158 app_ui/pages/settings.py:187
+#: app_ui/pages/settings.py:175
+msgid "Paperless-ngx write-back"
+msgstr ""
+
+#: app_ui/pages/settings.py:176
+msgid "What PaperlessBrain may write into your archive"
+msgstr ""
+
+#: app_ui/pages/settings.py:181
+msgid ""
+"After each sync, documents whose AI-extracted text differs from the text "
+"in Paperless-ngx are updated there. This improves the Paperless full-text"
+" search. <b style='color:#f87171'>The previous OCR text is overwritten "
+"and cannot be restored by Paperless-ngx.</b> Reprocessing a document in "
+"Paperless-ngx replaces the text with its own OCR again."
+msgstr ""
+
+#: app_ui/pages/settings.py:194 app_ui/pages/settings.py:223
 msgid "Anthropic-compatible"
 msgstr ""
 
-#: app_ui/pages/settings.py:159 app_ui/pages/settings.py:187
+#: app_ui/pages/settings.py:195 app_ui/pages/settings.py:223
 msgid "OpenAI-compatible"
 msgstr ""
 
-#: app_ui/pages/settings.py:170
+#: app_ui/pages/settings.py:206
 msgid "AI models"
 msgstr ""
 
-#: app_ui/pages/settings.py:171
+#: app_ui/pages/settings.py:207
 msgid "Providers and models — order = dropdown order"
 msgstr ""
 
-#: app_ui/pages/settings.py:179
+#: app_ui/pages/settings.py:215
 msgid "Edit model"
 msgstr ""
 
-#: app_ui/pages/settings.py:179
+#: app_ui/pages/settings.py:215
 msgid "Add model"
 msgstr ""
 
-#: app_ui/pages/settings.py:183
+#: app_ui/pages/settings.py:219
 msgid "Display name"
 msgstr ""
 
-#: app_ui/pages/settings.py:183
+#: app_ui/pages/settings.py:219
 msgid "e.g. Qwen3 local"
 msgstr ""
 
-#: app_ui/pages/settings.py:188
+#: app_ui/pages/settings.py:224
 msgid "Backend"
 msgstr ""
 
-#: app_ui/pages/settings.py:192
+#: app_ui/pages/settings.py:228
 msgid "Model ID"
 msgstr ""
 
-#: app_ui/pages/settings.py:192
+#: app_ui/pages/settings.py:228
 msgid "e.g. qwen3:32b or claude-sonnet-4-6"
 msgstr ""
 
-#: app_ui/pages/settings.py:195
+#: app_ui/pages/settings.py:231
 msgid "Base URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:199
+#: app_ui/pages/settings.py:235
 msgid "https://api.anthropic.com (empty = default)"
 msgstr ""
 
-#: app_ui/pages/settings.py:207
+#: app_ui/pages/settings.py:243
 msgid "API key"
 msgstr ""
 
-#: app_ui/pages/settings.py:207
+#: app_ui/pages/settings.py:243
 msgid "sk-… (leave empty if not needed)"
 msgstr ""
 
-#: app_ui/pages/settings.py:211
+#: app_ui/pages/settings.py:247
 msgid "API (several in parallel)"
 msgstr ""
 
-#: app_ui/pages/settings.py:211
+#: app_ui/pages/settings.py:247
 msgid "Local (one request at a time)"
 msgstr ""
 
-#: app_ui/pages/settings.py:212
+#: app_ui/pages/settings.py:248
 msgid "Concurrency lane"
 msgstr ""
 
-#: app_ui/pages/settings.py:218
+#: app_ui/pages/settings.py:254
 msgid "Temperature (0.0 precise – 1.5 creative)"
 msgstr ""
 
-#: app_ui/pages/settings.py:228
+#: app_ui/pages/settings.py:264
 msgid "Max. output tokens (thinking + answer, 0 = default 16384)"
 msgstr ""
 
-#: app_ui/pages/settings.py:239
+#: app_ui/pages/settings.py:275
 msgid "Auto (model default)"
 msgstr ""
 
-#: app_ui/pages/settings.py:239
+#: app_ui/pages/settings.py:275
 msgid "Thinking ON"
 msgstr ""
 
-#: app_ui/pages/settings.py:239
+#: app_ui/pages/settings.py:275
 msgid "Thinking OFF"
 msgstr ""
 
-#: app_ui/pages/settings.py:240
+#: app_ui/pages/settings.py:276
 msgid "Thinking mode (Qwen3 / DeepSeek-R)"
 msgstr ""
 
-#: app_ui/pages/settings.py:244
+#: app_ui/pages/settings.py:280
 msgid "⚠ Qwen3 thinking-loop risk at temp. < 0.5 — recommended: ≥ 0.6"
 msgstr ""
 
-#: app_ui/pages/settings.py:253 werkbank/ui/archetype_dialog.py:114
+#: app_ui/pages/settings.py:289 werkbank/ui/archetype_dialog.py:114
 msgid "Name must not be empty."
 msgstr ""
 
-#: app_ui/pages/settings.py:278
+#: app_ui/pages/settings.py:314
 msgid "Model saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:288
+#: app_ui/pages/settings.py:324
 msgid "Add"
 msgstr ""
 
-#: app_ui/pages/settings.py:298
+#: app_ui/pages/settings.py:334
 msgid "No models configured yet."
 msgstr ""
 
-#: app_ui/pages/settings.py:345
+#: app_ui/pages/settings.py:381
 msgid "local"
 msgstr ""
 
-#: app_ui/pages/settings.py:370
+#: app_ui/pages/settings.py:406
 msgid "Model deleted."
 msgstr ""
 
-#: app_ui/pages/settings.py:380
+#: app_ui/pages/settings.py:416
 msgid ""
 "Models appear in dropdowns in the configured order.<br><b>OpenAI-"
 "compatible</b>: Ollama (<code>http://host:11434/v1</code>), MiniMax, "
@@ -1720,54 +1745,54 @@ msgid ""
 "Anthropic-compatible endpoint."
 msgstr ""
 
-#: app_ui/pages/settings.py:391
+#: app_ui/pages/settings.py:427
 msgid "Processing new documents"
 msgstr ""
 
-#: app_ui/pages/settings.py:392
+#: app_ui/pages/settings.py:428
 msgid "Vision model for OCR / page extraction (ChromaDB embeddings)"
 msgstr ""
 
-#: app_ui/pages/settings.py:415
+#: app_ui/pages/settings.py:451
 msgid "— No models configured yet —"
 msgstr ""
 
-#: app_ui/pages/settings.py:416
+#: app_ui/pages/settings.py:452
 msgid "Vision model"
 msgstr ""
 
-#: app_ui/pages/settings.py:421 app_ui/pages/settings.py:434
+#: app_ui/pages/settings.py:457 app_ui/pages/settings.py:470
 #, python-brace-format
 msgid "Server: {server}"
 msgstr ""
 
-#: app_ui/pages/settings.py:424 app_ui/pages/settings.py:435
+#: app_ui/pages/settings.py:460 app_ui/pages/settings.py:471
 #, python-brace-format
 msgid "Model ID: {model}"
 msgstr ""
 
-#: app_ui/pages/settings.py:441
+#: app_ui/pages/settings.py:477
 msgid ""
 "Any model <b>with image processing</b> from <i>AI models</i> — a local "
 "one via Ollama (qwen2.5-vl, qwen3.6, llava …) or a cloud one (Claude, "
 "GPT, MiniMax …). A model without vision will fail on the first page."
 msgstr ""
 
-#: app_ui/pages/settings.py:449
+#: app_ui/pages/settings.py:485
 msgid "No-ingest tag"
 msgstr ""
 
-#: app_ui/pages/settings.py:453
+#: app_ui/pages/settings.py:489
 msgid ""
 "Documents with this Paperless tag are <b>not</b> embedded into ChromaDB "
 "during sync."
 msgstr ""
 
-#: app_ui/pages/settings.py:468
+#: app_ui/pages/settings.py:504
 msgid "Extraction profile"
 msgstr ""
 
-#: app_ui/pages/settings.py:473
+#: app_ui/pages/settings.py:509
 msgid ""
 "Which set of per-document-type extraction prompts to use. This follows "
 "the <b>names of your document types in Paperless</b>, not the language of"
@@ -1777,11 +1802,11 @@ msgid ""
 "international ones."
 msgstr ""
 
-#: app_ui/pages/settings.py:483
+#: app_ui/pages/settings.py:519
 msgid "Language of generated summaries"
 msgstr ""
 
-#: app_ui/pages/settings.py:488
+#: app_ui/pages/settings.py:524
 msgid ""
 "Summaries and image descriptions are written in this language, whatever "
 "the document's own language is — that keeps every summary searchable with"
@@ -1789,74 +1814,74 @@ msgid ""
 " in the original language."
 msgstr ""
 
-#: app_ui/pages/settings.py:501
+#: app_ui/pages/settings.py:537
 msgid "No model selected."
 msgstr ""
 
-#: app_ui/pages/settings.py:515
+#: app_ui/pages/settings.py:551
 msgid "Processing settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:519
+#: app_ui/pages/settings.py:555
 msgid "Applies to newly ingested documents; existing ones keep their extraction."
 msgstr ""
 
-#: app_ui/pages/settings.py:533
+#: app_ui/pages/settings.py:569
 msgid "Search & memory thresholds"
 msgstr ""
 
-#: app_ui/pages/settings.py:534
+#: app_ui/pages/settings.py:570
 msgid "Number of search results, relevance threshold and window for memory hints"
 msgstr ""
 
-#: app_ui/pages/settings.py:538
+#: app_ui/pages/settings.py:574
 msgid "Max. search results"
 msgstr ""
 
-#: app_ui/pages/settings.py:543
+#: app_ui/pages/settings.py:579
 msgid "Memory hint similarity threshold (0–1)"
 msgstr ""
 
-#: app_ui/pages/settings.py:549
+#: app_ui/pages/settings.py:585
 msgid ""
 "Cosine similarity: higher value = stricter filter. Distances are shown in"
 " the tool log as <code>[0.XX]</code> — a hint appears only when distance "
 "≤ <code>1 − threshold</code>."
 msgstr ""
 
-#: app_ui/pages/settings.py:554
+#: app_ui/pages/settings.py:590
 msgid "Memory hint window factor (≥ 1.0)"
 msgstr ""
 
-#: app_ui/pages/settings.py:560
+#: app_ui/pages/settings.py:596
 #, python-format
 msgid ""
 "Maximum distance relative to the best match. 1.0 = best match only; 1.5 ="
 " up to 50 % short of the best."
 msgstr ""
 
-#: app_ui/pages/settings.py:575
+#: app_ui/pages/settings.py:611
 msgid "Search settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:577
+#: app_ui/pages/settings.py:613
 #, python-brace-format
 msgid "Invalid value: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:587
+#: app_ui/pages/settings.py:623
 msgid "Memory maintenance (dreaming)"
 msgstr ""
 
-#: app_ui/pages/settings.py:588
+#: app_ui/pages/settings.py:624
 msgid "Model for memory cleanup and for reviewing extracted deadlines"
 msgstr ""
 
-#: app_ui/pages/settings.py:598
+#: app_ui/pages/settings.py:634
 msgid "Model for memory cleanup"
 msgstr ""
 
-#: app_ui/pages/settings.py:608
+#: app_ui/pages/settings.py:644
 msgid ""
 "Used for two things: tidying up memory entries, and reviewing the "
 "deadlines found during sync — junk and duplicates are dropped before they"
@@ -1864,35 +1889,35 @@ msgid ""
 " here, deadline review is skipped.</b>"
 msgstr ""
 
-#: app_ui/pages/settings.py:619
+#: app_ui/pages/settings.py:655
 msgid "Saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:623
+#: app_ui/pages/settings.py:659
 msgid "Applies to newly found deadlines; existing verdicts are kept."
 msgstr ""
 
-#: app_ui/pages/settings.py:636
+#: app_ui/pages/settings.py:672
 msgid "Read-only — no emails are sent or modified"
 msgstr ""
 
-#: app_ui/pages/settings.py:639
+#: app_ui/pages/settings.py:675
 msgid "IMAP server"
 msgstr ""
 
-#: app_ui/pages/settings.py:645
+#: app_ui/pages/settings.py:681
 msgid "Port"
 msgstr ""
 
-#: app_ui/pages/settings.py:658
+#: app_ui/pages/settings.py:694
 msgid "Username / email address"
 msgstr ""
 
-#: app_ui/pages/settings.py:661
+#: app_ui/pages/settings.py:697
 msgid "Password / app password"
 msgstr ""
 
-#: app_ui/pages/settings.py:666
+#: app_ui/pages/settings.py:702
 msgid ""
 "<b style='color:#a78bfa'>Gmail:</b> IMAP must be enabled (Gmail → "
 "Settings → Forwarding and POP/IMAP). Password = Google <b>app "
@@ -1900,43 +1925,43 @@ msgid ""
 "passwords."
 msgstr ""
 
-#: app_ui/pages/settings.py:688 app_ui/pages/settings.py:791
+#: app_ui/pages/settings.py:724 app_ui/pages/settings.py:827
 msgid "Test connection"
 msgstr ""
 
-#: app_ui/pages/settings.py:702
+#: app_ui/pages/settings.py:738
 msgid "IMAP settings saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:713
+#: app_ui/pages/settings.py:749
 msgid "Read-only — no events are created or modified"
 msgstr ""
 
-#: app_ui/pages/settings.py:718
+#: app_ui/pages/settings.py:754
 msgid "Google Calendar (iCal URL)"
 msgstr ""
 
-#: app_ui/pages/settings.py:718
+#: app_ui/pages/settings.py:754
 msgid "CalDAV (Nextcloud, iCloud, …)"
 msgstr ""
 
-#: app_ui/pages/settings.py:720
+#: app_ui/pages/settings.py:756
 msgid "Connection type"
 msgstr ""
 
-#: app_ui/pages/settings.py:725
+#: app_ui/pages/settings.py:761
 msgid "Calendar 1 – iCal URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:727
+#: app_ui/pages/settings.py:763
 msgid "Calendar 2 – iCal URL (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:729
+#: app_ui/pages/settings.py:765
 msgid "Calendar 3 – iCal URL (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:734
+#: app_ui/pages/settings.py:770
 msgid ""
 "<b style='color:#a78bfa'>Google Calendar:</b> Calendar settings &rarr; "
 "[select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy"
@@ -1944,11 +1969,11 @@ msgid ""
 "password.<br>Up to 3 calendars are searched in parallel."
 msgstr ""
 
-#: app_ui/pages/settings.py:741
+#: app_ui/pages/settings.py:777
 msgid "CalDAV URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:754
+#: app_ui/pages/settings.py:790
 msgid ""
 "<b style='color:#a78bfa'>iCloud:</b> "
 "<code>https://caldav.icloud.com/</code>, app-specific password.<br><b "
@@ -1956,155 +1981,155 @@ msgid ""
 "calendar app."
 msgstr ""
 
-#: app_ui/pages/settings.py:777
+#: app_ui/pages/settings.py:813
 msgid "No URL entered"
 msgstr ""
 
-#: app_ui/pages/settings.py:781
+#: app_ui/pages/settings.py:817
 #, python-brace-format
 msgid "{n} calendars reachable"
 msgstr ""
 
-#: app_ui/pages/settings.py:807
+#: app_ui/pages/settings.py:843
 msgid "Calendar settings saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:817
+#: app_ui/pages/settings.py:853
 msgid "Sender profile"
 msgstr ""
 
-#: app_ui/pages/settings.py:818
+#: app_ui/pages/settings.py:854
 msgid "Used for letter generation (DOCX)"
 msgstr ""
 
-#: app_ui/pages/settings.py:821
+#: app_ui/pages/settings.py:857
 msgid "Full name"
 msgstr ""
 
-#: app_ui/pages/settings.py:824
+#: app_ui/pages/settings.py:860
 msgid "Company / organization (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:827
+#: app_ui/pages/settings.py:863
 msgid "Street and number"
 msgstr ""
 
-#: app_ui/pages/settings.py:836
+#: app_ui/pages/settings.py:872
 msgid "Phone (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:839
+#: app_ui/pages/settings.py:875
 msgid "Email (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:842
+#: app_ui/pages/settings.py:878
 msgid "Default closing"
 msgstr ""
 
-#: app_ui/pages/settings.py:858
+#: app_ui/pages/settings.py:894
 msgid "Sender profile saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:876
+#: app_ui/pages/settings.py:912
 msgid "PDF → Paperless: default tags"
 msgstr ""
 
-#: app_ui/pages/settings.py:877
+#: app_ui/pages/settings.py:913
 msgid "Tags, correspondent and document type for AI-generated documents"
 msgstr ""
 
-#: app_ui/pages/settings.py:881
+#: app_ui/pages/settings.py:917
 msgid "Tag: Inbox"
 msgstr ""
 
-#: app_ui/pages/settings.py:883
+#: app_ui/pages/settings.py:919
 msgid "Tag: AI-generated"
 msgstr ""
 
-#: app_ui/pages/settings.py:894
+#: app_ui/pages/settings.py:930
 msgid ""
 "Tags must exist in Paperless. Correspondent and document type are created"
 " automatically if missing."
 msgstr ""
 
-#: app_ui/pages/settings.py:903
+#: app_ui/pages/settings.py:939
 msgid "Tags saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:913 werkbank/ui/module_page.py:176
+#: app_ui/pages/settings.py:949 werkbank/ui/module_page.py:176
 msgid "AI deep research"
 msgstr ""
 
-#: app_ui/pages/settings.py:914
+#: app_ui/pages/settings.py:950
 msgid "System prompts for Planner, Splitter, Critic, Synthesizer"
 msgstr ""
 
-#: app_ui/pages/settings.py:922
+#: app_ui/pages/settings.py:958
 msgid "Token limits per role"
 msgstr ""
 
-#: app_ui/pages/settings.py:924 app_ui/pages/settings.py:943
+#: app_ui/pages/settings.py:960 app_ui/pages/settings.py:979
 msgid "Planner"
 msgstr ""
 
-#: app_ui/pages/settings.py:925 app_ui/pages/settings.py:944
+#: app_ui/pages/settings.py:961 app_ui/pages/settings.py:980
 msgid "Splitter"
 msgstr ""
 
-#: app_ui/pages/settings.py:926 app_ui/pages/settings.py:945
+#: app_ui/pages/settings.py:962 app_ui/pages/settings.py:981
 msgid "Critic"
 msgstr ""
 
-#: app_ui/pages/settings.py:927 app_ui/pages/settings.py:946
+#: app_ui/pages/settings.py:963 app_ui/pages/settings.py:982
 msgid "Synthesizer"
 msgstr ""
 
-#: app_ui/pages/settings.py:928 app_ui/pages/settings.py:947
+#: app_ui/pages/settings.py:964 app_ui/pages/settings.py:983
 msgid "Compaction"
 msgstr ""
 
-#: app_ui/pages/settings.py:929
+#: app_ui/pages/settings.py:965
 msgid "Worker"
 msgstr ""
 
-#: app_ui/pages/settings.py:955
+#: app_ui/pages/settings.py:991
 #, python-brace-format
 msgid "System prompt: {role}"
 msgstr ""
 
-#: app_ui/pages/settings.py:966
+#: app_ui/pages/settings.py:1002
 msgid "Prompt reset."
 msgstr ""
 
-#: app_ui/pages/settings.py:968
+#: app_ui/pages/settings.py:1004
 msgid "Reset to default"
 msgstr ""
 
-#: app_ui/pages/settings.py:979
+#: app_ui/pages/settings.py:1015
 msgid "Deep research settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:987
+#: app_ui/pages/settings.py:1023
 msgid "All prompts reset."
 msgstr ""
 
-#: app_ui/pages/settings.py:989
+#: app_ui/pages/settings.py:1025
 msgid "Reset all"
 msgstr ""
 
-#: app_ui/pages/settings.py:1002
+#: app_ui/pages/settings.py:1038
 msgid "Import / export settings"
 msgstr ""
 
-#: app_ui/pages/settings.py:1003
+#: app_ui/pages/settings.py:1039
 msgid "Move your personal settings to another installation"
 msgstr ""
 
-#: app_ui/pages/settings.py:1013
+#: app_ui/pages/settings.py:1049
 msgid "Include passwords and API keys"
 msgstr ""
 
-#: app_ui/pages/settings.py:1017
+#: app_ui/pages/settings.py:1053
 msgid ""
 "Without this option the export contains no secrets; on import the "
 "existing passwords and keys are kept. <b style='color:#f87171'>With it, "
@@ -2112,85 +2137,85 @@ msgid ""
 " plain text</b> — treat it like a password."
 msgstr ""
 
-#: app_ui/pages/settings.py:1025
+#: app_ui/pages/settings.py:1061
 msgid "Export string"
 msgstr ""
 
-#: app_ui/pages/settings.py:1047
+#: app_ui/pages/settings.py:1086
 msgid "Copied to clipboard."
 msgstr ""
 
-#: app_ui/pages/settings.py:1050
+#: app_ui/pages/settings.py:1089
 msgid "Create export"
 msgstr ""
 
-#: app_ui/pages/settings.py:1053
+#: app_ui/pages/settings.py:1092
 msgid "Copy"
 msgstr ""
 
-#: app_ui/pages/settings.py:1059
+#: app_ui/pages/settings.py:1098
 msgid ""
 "The copy button needs HTTPS or localhost. Otherwise select the text in "
 "the field and copy it manually."
 msgstr ""
 
-#: app_ui/pages/settings.py:1067
+#: app_ui/pages/settings.py:1106
 msgid "Paste export string here"
 msgstr ""
 
-#: app_ui/pages/settings.py:1077 app_ui/pages/settings.py:1112
+#: app_ui/pages/settings.py:1116 app_ui/pages/settings.py:1151
 #, python-brace-format
 msgid "Import failed: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:1082
+#: app_ui/pages/settings.py:1121
 msgid "The string contains no importable settings."
 msgstr ""
 
-#: app_ui/pages/settings.py:1086
+#: app_ui/pages/settings.py:1125
 msgid "Apply these settings?"
 msgstr ""
 
-#: app_ui/pages/settings.py:1094
+#: app_ui/pages/settings.py:1133
 msgid "The export contains no secrets — existing passwords and API keys are kept."
 msgstr ""
 
-#: app_ui/pages/settings.py:1100
+#: app_ui/pages/settings.py:1139
 msgid "Apply"
 msgstr ""
 
-#: app_ui/pages/settings.py:1117
+#: app_ui/pages/settings.py:1156
 msgid "Settings imported."
 msgstr ""
 
-#: app_ui/pages/settings.py:1120
+#: app_ui/pages/settings.py:1159
 msgid "Import"
 msgstr ""
 
-#: app_ui/pages/settings.py:1126
+#: app_ui/pages/settings.py:1165
 msgid ""
 "Import overwrites the sections contained in the string. Global settings "
 "(processing, tags, search, deep research) are <b>not</b> part of the "
 "export — they apply to all users."
 msgstr ""
 
-#: app_ui/pages/settings.py:1138
+#: app_ui/pages/settings.py:1177
 msgid "Vault / Obsidian synchronization"
 msgstr ""
 
-#: app_ui/pages/settings.py:1139
+#: app_ui/pages/settings.py:1178
 msgid "Where PaperlessBrain expects memory files and your notes"
 msgstr ""
 
-#: app_ui/pages/settings.py:1146
+#: app_ui/pages/settings.py:1185
 msgid "Vault directory (Obsidian vault root)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1149
+#: app_ui/pages/settings.py:1188
 msgid "Memory subfolder (Brain)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1154
+#: app_ui/pages/settings.py:1193
 msgid ""
 "<b>Obsidian / Remotely Save:</b> point synchronization at the vault "
 "directory above.<br>Exclude <code>.git/</code> client-side in Remotely "
@@ -2198,106 +2223,110 @@ msgid ""
 "server-side Git repo is not propagated to devices."
 msgstr ""
 
-#: app_ui/pages/settings.py:1163
+#: app_ui/pages/settings.py:1202
 msgid ""
 "Credentials are stored encrypted and are accessible only to your "
 "Paperless user account. The key is your current Paperless token — if you "
 "regenerate it in Paperless, you must re-enter the settings."
 msgstr ""
 
-#: services/chat_service.py:883
+#: services/chat_service.py:903
 msgid "🔍 Searching documents..."
 msgstr ""
 
-#: services/chat_service.py:884
+#: services/chat_service.py:904
 msgid "🔎 Analytical search..."
 msgstr ""
 
-#: services/chat_service.py:885
+#: services/chat_service.py:905
 msgid "📋 Loading document details..."
 msgstr ""
 
-#: services/chat_service.py:886
+#: services/chat_service.py:906
 msgid "📊 Loading table..."
 msgstr ""
 
-#: services/chat_service.py:887
+#: services/chat_service.py:907
 msgid "📄 Reading page text..."
 msgstr ""
 
-#: services/chat_service.py:888
+#: services/chat_service.py:908
 msgid "👁 Visual analysis..."
 msgstr ""
 
-#: services/chat_service.py:889
+#: services/chat_service.py:909
 msgid "🌐 Web search..."
 msgstr ""
 
-#: services/chat_service.py:890
+#: services/chat_service.py:910
 msgid "🌐 Loading web page..."
 msgstr ""
 
-#: services/chat_service.py:891
+#: services/chat_service.py:911
 msgid "🧮 Calculating..."
 msgstr ""
 
-#: services/chat_service.py:892
+#: services/chat_service.py:912
 msgid "📅 Getting date..."
 msgstr ""
 
-#: services/chat_service.py:893
+#: services/chat_service.py:913
 msgid "📌 Loading deadlines..."
 msgstr ""
 
-#: services/chat_service.py:894
+#: services/chat_service.py:914
 msgid "📌 Creating deadline..."
 msgstr ""
 
-#: services/chat_service.py:895
+#: services/chat_service.py:915
+msgid "🗒 Saving note..."
+msgstr ""
+
+#: services/chat_service.py:916
 msgid "📧 Searching emails..."
 msgstr ""
 
-#: services/chat_service.py:896
+#: services/chat_service.py:917
 msgid "📅 Searching calendar..."
 msgstr ""
 
-#: services/chat_service.py:897
+#: services/chat_service.py:918
 msgid "📝 Creating letter template..."
 msgstr ""
 
-#: services/chat_service.py:898
+#: services/chat_service.py:919
 msgid "📧 Creating email template..."
 msgstr ""
 
-#: services/chat_service.py:899
+#: services/chat_service.py:920
 msgid "🧠 Saving fact..."
 msgstr ""
 
-#: services/chat_service.py:900
+#: services/chat_service.py:921
 msgid "🧠 Searching memory..."
 msgstr ""
 
-#: services/chat_service.py:901
+#: services/chat_service.py:922
 msgid "🧠 Updating fact..."
 msgstr ""
 
-#: services/chat_service.py:902
+#: services/chat_service.py:923
 msgid "🧠 Deleting fact..."
 msgstr ""
 
-#: services/chat_service.py:903
+#: services/chat_service.py:924
 msgid "📓 Searching notes..."
 msgstr ""
 
-#: services/chat_service.py:904
+#: services/chat_service.py:925
 msgid "💾 Creating document..."
 msgstr ""
 
-#: services/chat_service.py:905
+#: services/chat_service.py:926
 msgid "⬇️ Preparing download..."
 msgstr ""
 
-#: services/chat_service.py:906
+#: services/chat_service.py:927
 msgid "⚙️ Starting deep research..."
 msgstr ""
 

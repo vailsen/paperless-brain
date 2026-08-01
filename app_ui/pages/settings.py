@@ -50,6 +50,24 @@ def theme_setting() -> None:
     ).props("outlined dark dense").classes("w-full")
 
 
+def push_text_setting() -> None:
+    """Render the "push AI text to Paperless" switch. Off by default.
+
+    Per user rather than global: it changes what lands in the shared archive,
+    so it stays the explicit choice of whoever runs the sync.
+    """
+    _ = get_translator()
+
+    def on_change(e) -> None:
+        ng_app.storage.user["push_text_to_paperless"] = bool(e.value)
+
+    ui.checkbox(
+        _("Push AI extracted text to Paperless-ngx"),
+        value=bool(ng_app.storage.user.get("push_text_to_paperless", False)),
+        on_change=on_change,
+    ).classes("text-sm text-gray-300")
+
+
 # ── Tiny UI helpers ───────────────────────────────────────────────────────────
 
 
@@ -149,6 +167,24 @@ async def settings_page() -> None:
                 _("Light or dark theme"),
             )
             theme_setting()
+
+        # ── Rückschreiben nach Paperless / push text back ─────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            _section_header(
+                "sync_alt",
+                _("Paperless-ngx write-back"),
+                _("What PaperlessBrain may write into your archive"),
+            )
+            push_text_setting()
+            _hint(
+                _(
+                    "After each sync, documents whose AI-extracted text differs from the "
+                    "text in Paperless-ngx are updated there. This improves the Paperless "
+                    "full-text search. <b style='color:#f87171'>The previous OCR text is "
+                    "overwritten and cannot be restored by Paperless-ngx.</b> Reprocessing "
+                    "a document in Paperless-ngx replaces the text with its own OCR again."
+                )
+            )
 
         # ── KI-Modelle (dynamic registry) ─────────────────────────────────────
         with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
@@ -1035,6 +1071,9 @@ async def settings_page() -> None:
                     token,
                     language=ng_app.storage.user.get("language", DEFAULT_LANG),
                     theme=ng_app.storage.user.get("theme", "dark"),
+                    push_text_to_paperless=bool(
+                        ng_app.storage.user.get("push_text_to_paperless", False)
+                    ),
                     include_secrets=bool(_export_secrets_cb.value),
                 )
                 _export_out.set_value(text)

@@ -50,12 +50,17 @@ async def run_sync(
     sidecar_service: SidecarService,
     thumbnail_service: ThumbnailService,
     llm=None,
+    push_text: bool = False,
 ) -> SyncResult:
     """Full sync: check state, ingest new, remove deleted.
 
     When an llm callable (werkbank.llm_lane.create_llm result) is given, the
     aggregated actions/deadlines are LLM-reviewed as final step so junk and
     cross-document duplicates never reach index.json.
+
+    With ``push_text``, the vision-extracted text is written back into Paperless
+    wherever it differs from the stored OCR text. Off by default — it overwrites
+    text Paperless cannot restore, so it stays an explicit choice.
     """
 
     result = await check_sync_state(paperless, chroma)
@@ -75,6 +80,11 @@ async def run_sync(
         await review_actions(
             sidecar_service.extr_path, collect_actions(sidecar_service.extr_path), llm
         )
+
+    if push_text:
+        from pipelines.text_push import push_vision_texts
+
+        await push_vision_texts(paperless, sidecar_service)
 
     sidecar_service.create_index_file()
 

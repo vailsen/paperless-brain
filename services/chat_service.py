@@ -391,6 +391,26 @@ TOOL_DEFINITIONS: list[dict] = [
         },
     },
     {
+        "name": "create_note",
+        "description": (
+            "Writes a note onto a Paperless document, saved under the signed-in user's name. Use it to record what happened with a document: 'paid on 12.05.2026', 'cancelled by phone', 'forwarded to the tax advisor'. The note is visible in Paperless-ngx and in the document details. Only call when the user actually wants something recorded — never to store your own intermediate results, and never for facts about the user (use remember_fact for those). Determine an unknown document_id via search first, and keep the note short and factual."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "document_id": {
+                    "type": "integer",
+                    "description": "Paperless document ID the note is attached to",
+                },
+                "note": {
+                    "type": "string",
+                    "description": "Note text. Short and factual, in the user's language, with a date where one is relevant (e.g. 'Paid on 12.05.2026 via bank transfer').",
+                },
+            },
+            "required": ["document_id", "note"],
+        },
+    },
+    {
         "name": "trigger_docx_generation",
         "description": (
             "Creates a DIN 5008-compliant business letter (German standard) as DOCX. ONLY call when the user EXPLICITLY wants to compose a letter (e.g. 'write a letter to …', 'draft a formal letter', 'compose an inquiry to …'). NEVER use for information search or general questions. Collect all necessary information (recipient, subject, content) before calling the tool. After the call a download dialog opens."
@@ -892,6 +912,7 @@ def _tool_label(name: str) -> str:
         "get_current_date": _("📅 Getting date..."),
         "get_actions": _("📌 Loading deadlines..."),
         "create_deadline": _("📌 Creating deadline..."),
+        "create_note": _("🗒 Saving note..."),
         "search_emails": _("📧 Searching emails..."),
         "search_calendar": _("📅 Searching calendar..."),
         "trigger_docx_generation": _("📝 Creating letter template..."),
@@ -994,6 +1015,8 @@ async def _execute_tool_inner(
         return await _tool_get_actions(inputs), []
     if name == "create_deadline":
         return await _tool_create_deadline(inputs)
+    if name == "create_note":
+        return await _tool_create_note(inputs)
     if name == "search_emails":
         return await _tool_search_emails(inputs)
     if name == "search_calendar":
@@ -2127,6 +2150,27 @@ async def _tool_remember_fact(inputs: dict) -> tuple[str, list]:
         filename_topic=inputs.get("filename_topic"),
     )
     return f"Fact stored (ID: {fact_id}).", []
+
+
+async def _tool_create_note(inputs: dict) -> tuple[str, list[DocumentResult]]:
+    doc_id = int(inputs.get("document_id", 0) or 0)
+    note = (inputs.get("note") or "").strip()
+    if not doc_id:
+        return "A document_id is required.", []
+    if not note:
+        return "The note text is empty — nothing was saved.", []
+
+    # User-scoped client on purpose: Paperless attributes the note to the owner
+    # of the token, so the superuser client would file every note under the
+    # admin account instead of the person who asked for it.
+    pl = _user_paperless()
+    try:
+        err = await pl.create_note(doc_id, note)
+    except Exception as e:
+        return f"Error saving the note on document {doc_id}: {e}", []
+    if err:
+        return f"Note on document {doc_id} not saved: {err}", []
+    return f"Note saved on document #{doc_id}.", []
 
 
 async def _tool_create_deadline(inputs: dict) -> tuple[str, list]:

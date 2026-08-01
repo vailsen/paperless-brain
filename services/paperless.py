@@ -268,6 +268,49 @@ class PaperlessClient:
         response.raise_for_status()
         return response.content
 
+    async def update_document_content(self, doc_id: int, content: str) -> None:
+        """Overwrite the OCR text Paperless stores for a document.
+
+        Paperless keeps no history of the text: the previous OCR result is gone
+        after this call, and re-running OCR (reprocess, rotate, split, merge)
+        overwrites it back. Callers must have decided that the new text is the
+        better one.
+        """
+        async with httpx.AsyncClient(headers=self.headers, timeout=60) as client:
+            resp = await client.patch(
+                f"{self.base_url}/api/documents/{doc_id}/",
+                json={"content": content},
+            )
+        resp.raise_for_status()
+
+    async def create_note(self, doc_id: int, note: str) -> str:
+        """Add a note to a document. Returns "" on success, else the error text.
+
+        Paperless attributes the note to the owner of the token in use, so this
+        must be called with the user's own client — never the superuser one.
+        Requires `change_document` on the document; Paperless answers 403 when
+        the user may only view it, and 200 with an ``error`` key when saving
+        itself fails.
+        """
+        async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
+            resp = await client.post(
+                f"{self.base_url}/api/documents/{doc_id}/notes/",
+                json={"note": note},
+            )
+        if resp.status_code == 403:
+            return "no permission to add notes to this document"
+        if resp.status_code == 404:
+            return "document not found"
+        if resp.status_code >= 400:
+            return f"HTTP {resp.status_code}"
+        try:
+            body = resp.json()
+        except ValueError:
+            return ""
+        if isinstance(body, dict) and body.get("error"):
+            return str(body["error"])
+        return ""
+
     def _get_or_create_sync(self, endpoint: str, name: str) -> int:
         """Sync helper: find entity by name or create it; returns ID."""
         import requests as _req

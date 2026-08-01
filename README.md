@@ -36,12 +36,14 @@ Paperless-ngx stores and organizes your documents. PaperlessBrain reads them —
 every page, through a vision LLM — and turns the archive into something you can
 talk to.
 
-- **Chat with your archive** — an agentic tool loop (Claude API or your local
-  Ollama models) that searches, reads, cross-references and cites your documents.
+- **Chat with your archive** — an agentic tool loop that searches, reads,
+  cross-references and cites your documents. Any Anthropic-compatible endpoint
+  (Claude, MiniMax …) or OpenAI-compatible endpoint (local Ollama, OpenAI,
+  OpenRouter, vLLM …) — you add models per user in Settings.
 - **Vision-LLM ingestion** — each page is rendered to an image and read by a
   vision model: full-text summary, tables, actions and deadlines, extracted per
-  document type. Runs entirely locally on Ollama if you want it to, or on a cloud
-  model — same picker as the chat.
+  document type. Runs entirely locally on Ollama if you want it to, or on any
+  cloud vision model — same registry as the chat.
 - **Deadlines & actions** — extracted obligations ("cancel by …", "pay until …")
   surfaced on the dashboard.
 - **Brain memory** — the assistant remembers facts about you as plain Markdown
@@ -54,6 +56,13 @@ talk to.
   synthesizes a reviewed result.
 - **Document generation** — DIN-5008 letters (German market), email drafts,
   chat-to-PDF saved back into Paperless.
+- **Notes back into Paperless** — the assistant can file a note on a document
+  under your own Paperless account ("paid on 12.05., bank transfer"), so the
+  record lives where the document lives.
+- **OCR write-back (opt-in)** — after each sync, documents whose vision-read
+  text beats what Paperless-ngx has get their text replaced there, which fixes
+  the Paperless full-text search too. Off by default; see
+  [Text write-back](#text-write-back-opt-in).
 - **Email & calendar tools** — per-user IMAP and CalDAV credentials, encrypted;
   the assistant can check mail and appointments when you ask.
 - **Web search** — via your self-hosted SearXNG instance, with full-page
@@ -93,16 +102,24 @@ hardware and models; nothing here is tied to a specific one.
 flowchart LR
     P[Paperless-ngx] <-->|REST API| B(PaperlessBrain)
     B <--> C[(ChromaDB<br/>+ JSON sidecars)]
-    B <-->|vision ingest<br/>+ local chat| O[Ollama]
-    B <-->|cloud chat<br/>optional| A[Claude API]
+    B <-->|chat + vision ingest<br/>local| O[Ollama]
+    B <-->|chat + vision ingest<br/>optional| A["Anthropic-compatible<br/>(Claude, MiniMax …)"]
+    B <-->|chat + vision ingest<br/>optional| X["OpenAI-compatible<br/>(OpenAI, OpenRouter, vLLM …)"]
     B <--> V[/"Vault (Markdown + git)"/]
     B -->|web search| S[SearXNG]
+    B <-->|mail| M[IMAP]
+    B <-->|calendar| D[CalDAV / iCal]
 ```
 
 Sync compares Paperless against the index, new documents are rendered page by
 page and read by the vision model; results live in JSON sidecars plus ChromaDB
-embeddings (`multilingual-e5` — multilingual retrieval). The chat backends
-(Claude / Ollama) share one tool set and one streaming event protocol.
+embeddings (`multilingual-e5` — multilingual retrieval). Each run ends with
+removal of deleted documents, an LLM review of the extracted deadlines, and —
+if you enabled it — the text write-back into Paperless. There are two LLM
+backends — `anthropic` and `openai_compatible` — and both take a custom
+`base_url`, so any API-compatible provider works, local or cloud. They share one
+tool set and one streaming event protocol, and the same model registry serves
+chat, deep research and vision ingestion.
 
 ## Quick start (Docker)
 
@@ -139,9 +156,10 @@ for reproducible deploys.
 | You need | Notes |
 |---|---|
 | Paperless-ngx | any recent version + a superuser API token |
-| A vision-capable model | for document ingestion — local via Ollama (e.g. a Qwen-VL-class model, can run on another machine) or a cloud model (Claude, GPT, MiniMax …). Picked in Settings > Processing |
-| Anthropic API key | optional — enables Claude as chat backend (per-user keys in Settings > AI Models) |
+| A vision-capable model | for document ingestion — local via Ollama (e.g. a Qwen-VL-class model, can run on another machine) or any cloud vision model (Claude, GPT, MiniMax …). Picked in Settings > Processing |
+| An LLM endpoint for chat | Anthropic-compatible (Claude, MiniMax …) or OpenAI-compatible (Ollama, OpenAI, OpenRouter, vLLM …) — added per user with URL + key in Settings > AI Models |
 | SearXNG | optional — enables the web-search tool |
+| IMAP mailbox / CalDAV calendar | optional — enables the mail and appointment tools (per-user credentials, encrypted) |
 | Wake-on-LAN capable GPU server | optional — see [Power management](#power-management-optional) |
 
 ## Configuration (`.env` reference)
@@ -171,7 +189,7 @@ the env value is only the initial fallback).
 | `EXTRACTION_PROFILE` | | `en` | *UI* — extraction-rule profile: `en` or `de` (see [Extraction rules](#extraction-rules)) |
 | `ARCHIVE_LANGUAGE` | | `en` | *UI* — language of AI-generated summaries (archive-level — sidecars are shared by all users) |
 | `TZ` | | system | IANA timezone for timestamps on generated documents |
-| `ANTHROPIC_API_KEY` | | empty | *UI* — global fallback key; users can store their own key |
+| `ANTHROPIC_API_KEY` | | empty | *UI* — global fallback key for Anthropic-compatible models; every other model (and each user's own key + base URL) is configured in Settings > AI Models |
 | `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` | | empty | MAC for Wake-on-LAN (empty = feature hidden) |
 | `OLLAMA_SSH_USER` | | empty | SSH user for remote shutdown of the Ollama host (empty = feature hidden). Needs passwordless sudo for `/usr/bin/shutdown`; in Docker, mount an SSH key into the container |
 | `OLLAMA_IDLE_SHUTDOWN_MINUTES` | | `30` | Idle minutes before the Ollama host is shut down |
@@ -209,6 +227,38 @@ vaults/
 
 Markdown on disk is the source of truth; ChromaDB is only the index and can
 always be rebuilt from the files.
+
+## Text write-back (opt-in)
+
+Paperless-ngx stores whatever its OCR engine produced. The vision model usually
+reads the same pages better — scans, tables, poor originals — but that text only
+lives in the sidecars here, so Paperless' own full-text search keeps hitting the
+weaker OCR.
+
+Enable **Settings > Paperless-ngx write-back > "Push AI extracted text to
+Paperless-ngx"** and every sync ends with a comparison pass: for each document
+whose sidecar text differs from the Paperless content, the sidecar text is
+PATCHed in. The comparison ignores whitespace differences, and texts under 40
+characters are treated as failed extractions and never pushed.
+
+The setting is **per user and off by default**, and it travels with the settings
+export/import.
+
+Three things to know before switching it on:
+
+- **It overwrites.** Paperless-ngx keeps no history of document text — the
+  previous OCR result is gone. Everything else about the document (title, tags,
+  correspondent, the file itself) is untouched.
+- **Paperless can overwrite it back.** Reprocess, rotate, split, merge or edit a
+  document there and its own OCR replaces the text again. The next sync pushes
+  yours back.
+- **It runs with your permissions.** The PATCH uses the signed-in user's own
+  Paperless token, not the superuser token the sync otherwise uses, so it can
+  only touch documents you may edit. Failures are counted and logged in the sync
+  log rather than aborting the run.
+
+It is idempotent: after a push both sides hold the same string, so the next sync
+finds nothing to do.
 
 ## Extraction rules
 

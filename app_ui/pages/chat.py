@@ -201,6 +201,9 @@ _TOOL_GROUPS: list[tuple[str, str, list[str]]] = [
     ("vault", "book", ["vault_search"]),
     ("deep_research", "build", ["create_kanban_task"]),
     ("create", "create", ["trigger_docx_generation", "create_email", "generate_chat_pdf"]),
+    # Separate from "create": those three only open a dialog with a draft, this
+    # one writes into Paperless straight away — worth its own switch.
+    ("document_notes", "sticky_note_2", ["create_note"]),
 ]
 _TOOL_ALWAYS_ON: set[str] = {
     "get_current_date",
@@ -488,6 +491,9 @@ async def chat():
         "vault": _("Vault"),
         "deep_research": _("Deep research"),
         "create": _("Create"),
+        # "Document notes", not "Notes": the Vault group already covers the
+        # user's own notes, these are notes on Paperless documents.
+        "document_notes": _("Document notes"),
     }
     _QUICK_CHIPS_LOCAL = [
         (_("✨ What can you do?"), _("Show me what you can do! List all your capabilities and tools.")),

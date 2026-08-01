@@ -2,8 +2,9 @@
 """Export / import of the user-scoped settings as a portable JSON string.
 
 Covers exactly what the settings page lets a user change *for themselves*:
-language and theme (``app.storage.user``) plus the encrypted credential blob
-(LLM model registry, IMAP, calendar, sender profile, dream model).
+language, theme and the Paperless write-back switch (``app.storage.user``) plus
+the encrypted credential blob (LLM model registry, IMAP, calendar, sender
+profile, dream model).
 
 Deliberately **not** covered: the werkbank settings store. Those keys are global
 — they apply to every user of the instance — so moving them around inside a
@@ -76,6 +77,7 @@ def build_export(
     *,
     language: str,
     theme: str,
+    push_text_to_paperless: bool = False,
     include_secrets: bool = False,
 ) -> str:
     """Return the settings of ``username`` as an indented JSON string."""
@@ -86,6 +88,7 @@ def build_export(
         "_secrets": bool(include_secrets),
         "language": language,
         "theme": theme,
+        "push_text_to_paperless": bool(push_text_to_paperless),
     }
     for key in _CRED_KEYS:
         if key in creds:
@@ -136,6 +139,9 @@ def describe(payload: dict, supported_languages: tuple[str, ...] | list[str]) ->
         notes.append(f"Language: {payload['language']}")
     if payload.get("theme") in _VALID_THEMES:
         notes.append(f"Theme: {payload['theme']}")
+    if isinstance(payload.get("push_text_to_paperless"), bool):
+        state = "on" if payload["push_text_to_paperless"] else "off"
+        notes.append(f"Push AI text to Paperless-ngx: {state}")
     if isinstance(payload.get("llm_models"), list):
         notes.append(f"AI models: {len(payload['llm_models'])}")
     if isinstance(payload.get("imap"), dict):
@@ -195,7 +201,8 @@ def apply_import(
     """Write the credential part of ``payload``.
 
     Returns the UI preferences the caller must write to ``app.storage.user``
-    (``language`` / ``theme``) — this module has no session context of its own.
+    (``language`` / ``theme`` / ``push_text_to_paperless``) — this module has no
+    session context of its own.
     """
     creds = load_credentials(username, token) if username and token else {}
 
@@ -213,9 +220,11 @@ def apply_import(
     if username and token:
         save_credentials(username, token, creds)
 
-    prefs: dict[str, str] = {}
+    prefs: dict[str, Any] = {}
     if payload.get("language") in supported_languages:
         prefs["language"] = payload["language"]
     if payload.get("theme") in _VALID_THEMES:
         prefs["theme"] = payload["theme"]
+    if isinstance(payload.get("push_text_to_paperless"), bool):
+        prefs["push_text_to_paperless"] = payload["push_text_to_paperless"]
     return prefs

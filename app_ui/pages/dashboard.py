@@ -772,13 +772,13 @@ window.__toggleHideAction = function(key) {{
 
         _vision = build_vision_client(_username, _token)
 
-        _log("Sync gestartet…")
+        _log("Sync started…")
         try:
             state = await check_sync_state(paperless, chroma)
             _log(
-                f"Status: {len(state.new_ids)} neu · "
-                f"{len(state.deleted_ids)} gelöscht · "
-                f"{len(state.current_ids)} aktuell"
+                f"Status: {len(state.new_ids)} new · "
+                f"{len(state.deleted_ids)} deleted · "
+                f"{len(state.current_ids)} current"
             )
 
             batch = state.new_ids
@@ -801,12 +801,12 @@ window.__toggleHideAction = function(key) {{
                 await asyncio.sleep(0)
 
             for doc_id in state.deleted_ids:
-                _log(f"Lösche #{doc_id}…")
+                _log(f"Deleting #{doc_id}…")
                 try:
                     await delete_document(
                         doc_id, chroma, sidecar_service, thumbnail_service
                     )
-                    _log(f"  ✓ #{doc_id} gelöscht")
+                    _log(f"  ✓ #{doc_id} deleted")
                     _notify(_("#{id} removed").format(id=doc_id), timeout=2000)
                 except Exception as exc:
                     _log(f"  ✗ #{doc_id}: {exc}")
@@ -819,11 +819,11 @@ window.__toggleHideAction = function(key) {{
             if outdated:
                 to_redo = outdated if reingest_limit is None else outdated[:reingest_limit]
                 _log(
-                    f"Veraltet: {len(outdated)} · neu einlesen: {len(to_redo)}"
-                    + ("" if reingest_limit is None else f" (Limit {reingest_limit})")
+                    f"Outdated: {len(outdated)} · re-ingesting: {len(to_redo)}"
+                    + ("" if reingest_limit is None else f" (limit {reingest_limit})")
                 )
                 for j, doc_id in enumerate(to_redo, 1):
-                    _log(f"Neu einlesen #{doc_id} ({j}/{len(to_redo)})…")
+                    _log(f"Re-ingesting #{doc_id} ({j}/{len(to_redo)})…")
                     try:
                         await delete_document(
                             doc_id, chroma, sidecar_service, thumbnail_service
@@ -851,28 +851,44 @@ window.__toggleHideAction = function(key) {{
                     from werkbank.llm_lane import create_llm as _mk_llm
 
                     _acts = collect_actions(sidecar_service.extr_path)
-                    _log(f"Prüfe Fristen/Aktionen ({len(_acts)} gesamt)…")
+                    _log(f"Reviewing deadlines/actions ({len(_acts)} total)…")
                     _n_rev, _n_drop = await review_actions(
                         sidecar_service.extr_path,
                         _acts,
                         _mk_llm(_review_model, _username, _token),
                     )
-                    _log(f"  ✓ {_n_rev} neu geprüft · {_n_drop} verworfen")
+                    _log(f"  ✓ {_n_rev} newly reviewed · {_n_drop} discarded")
                 else:
                     _log(
-                        "Fristen-Review übersprungen (kein Modell unter "
-                        "Einstellungen > Gedächtnis-Pflege konfiguriert)"
+                        "Deadline review skipped (no model configured under "
+                        "Settings > Memory maintenance)"
                     )
             except Exception as exc:
-                _log(f"  ✗ Fristen-Review fehlgeschlagen: {exc}")
+                _log(f"  ✗ Deadline review failed: {exc}")
+
+            # Optional final step: write the vision text back into Paperless
+            # wherever it differs from the OCR text. Uses the signed-in user's
+            # own client — the PATCH needs write permission per document, and
+            # the superuser client would edit documents they cannot see.
+            if ng_app.storage.user.get("push_text_to_paperless", False):
+                try:
+                    from pipelines.text_push import push_vision_texts
+                    from services.clients import get_session_paperless
+
+                    _n_push, _n_fail = await push_vision_texts(
+                        get_session_paperless(), sidecar_service, log=_log
+                    )
+                    _log(f"  ✓ {_n_push} text(s) pushed · {_n_fail} failed")
+                except Exception as exc:
+                    _log(f"  ✗ Text push failed: {exc}")
 
             sidecar_service.create_index_file()
             cross_ref_index.rebuild(
                 str(settings.app_path / settings.extraction_sidecar_path)
             )
-            _log("Index aktualisiert")
+            _log("Index updated")
             _refresh_outdated()
-            _log("✅ Sync abgeschlossen")
+            _log("✅ Sync complete")
             _notify(_("Sync complete"), type="positive")
 
             new_p = await _fetch_paperless_count()
@@ -880,7 +896,9 @@ window.__toggleHideAction = function(key) {{
             p_val = new_p or 0
             c_val = new_c or 0
             try:
-                last_sync_label_el.set_text(f"Letzter Sync: {_last_sync_label()}")
+                last_sync_label_el.set_text(
+                    _("Last sync: {ts}").format(ts=_last_sync_label())
+                )
                 ring_html.set_content(_ring_svg(c_val, p_val))
                 if new_p:
                     pct = int(c_val / p_val * 100) if p_val > 0 else 0
@@ -889,7 +907,7 @@ window.__toggleHideAction = function(key) {{
             except RuntimeError:
                 pass
         except Exception as exc:
-            _log(f"❌ Fehler: {exc}")
+            _log(f"❌ Error: {exc}")
             _notify(_("Sync error: {err}").format(err=exc), type="negative")
         finally:
             sync_state.is_running[0] = False
