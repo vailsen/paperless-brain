@@ -96,3 +96,46 @@ jobs:
           # GitHub Actions layer cache — keeps rebuilds fast between releases.
           cache-from: type=gha,scope=${{ matrix.variant }}
           cache-to: type=gha,scope=${{ matrix.variant }},mode=max
+
+  # A tag alone is invisible: the repo sidebar stays empty, "Watch → Releases"
+  # never fires, and /releases/latest 404s, which is what release trackers and
+  # update bots poll. This turns every published tag into an actual Release so
+  # the images are announced rather than just present.
+  github_release:
+    needs: push
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write        # required to create the release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # --generate-notes needs the history to diff against
+
+      # Deliberately NOT flagged as a prerelease, even though the versions are
+      # alphas: a prerelease is excluded from /releases/latest and loses the
+      # "Latest" badge, which is the discoverability this job exists for. The
+      # version string already says a12.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cat > notes-header.md <<EOF
+          ### Docker images
+
+          \`\`\`bash
+          docker pull ghcr.io/${{ github.repository_owner }}/paperless-brain:${TAG}
+          docker pull ghcr.io/${{ github.repository_owner }}/paperless-brain:${TAG}-lean
+          \`\`\`
+
+          \`latest\` and \`lean\` now point here. Upgrade an existing install with
+          \`docker compose pull && docker compose up -d\`.
+
+          ---
+          EOF
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file notes-header.md \
+            --generate-notes \
+            --verify-tag
