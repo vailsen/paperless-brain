@@ -124,10 +124,16 @@ chat, deep research and vision ingestion.
 ## Quick start (Docker)
 
 ```bash
-git clone https://github.com/Vailsen/paperless-brain && cd paperless-brain
-cp .env.example .env      # fill in: PAPERLESS_URL, PAPERLESS_SUPERUSER_TOKEN, STORAGE_SECRET
-docker compose up -d      # pulls the prebuilt image from GHCR (no local build)
+mkdir paperless-brain && cd paperless-brain
+BASE=https://raw.githubusercontent.com/Vailsen/paperless-brain/main
+curl -O  $BASE/docker-compose.yml
+curl -o .env $BASE/.env.example   # fill in: PAPERLESS_URL, PAPERLESS_SUPERUSER_TOKEN, STORAGE_SECRET
+docker compose up -d              # pulls the prebuilt image from GHCR (no local build)
 ```
+
+Two files, ~6 KB — the app itself is the prebuilt image, so there is nothing to
+clone. Prefer a fixed version over `main`: swap `main` for a tag such as
+`v0.2.0` in `$BASE`.
 
 Before the first start, edit the **vault mount** in `docker-compose.yml` so it
 points at the directory holding your existing Markdown notes — one subfolder per
@@ -135,10 +141,12 @@ Paperless-ngx user (`/srv/obsidian/alice` for user `alice` → mount
 `- /srv/obsidian:/mnt/vaults`). Left unchanged, the app creates an empty vault
 under `./vaults` and your real notes are never indexed.
 
-`.env.example` is the short version; `.env.example.full` documents every key.
-The clone is only for the compose file and `.env.example`; the app itself comes
-as a prebuilt image. To build from source instead, edit `docker-compose.yml`
-(swap `image:` for `build: .`).
+`.env.example` is the short version; grab
+[`.env.example.full`](https://raw.githubusercontent.com/Vailsen/paperless-brain/main/.env.example.full)
+the same way for the annotated reference with every key.
+
+To build from source instead, clone the repository and swap `image:` for
+`build: .` in `docker-compose.yml`.
 
 Open `http://localhost:8080` and log in with your **Paperless-ngx username and
 password** — users, permissions and sessions come from Paperless itself.
