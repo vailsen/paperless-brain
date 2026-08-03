@@ -1,6 +1,7 @@
 # pipelines/ingest.py
 import io
 import re
+from typing import Callable
 
 from PIL import Image
 
@@ -49,8 +50,17 @@ async def ingest_document(
     vision: VisionClient,
     sidecar_service: SidecarService,
     thumbnail_service: ThumbnailService,
+    log: Callable[[str], None] | None = None,
 ):
-    """pipeline for ingesting a paperless document by id into the vector database."""
+    """pipeline for ingesting a paperless document by id into the vector database.
+
+    ``log`` receives per-page progress. A long document is minutes of silence
+    otherwise, which is indistinguishable from a hung sync.
+    """
+
+    def _log(msg: str) -> None:
+        if log:
+            log(msg)
 
     document = await paperless.get_document(doc_id)
     doc_bytes = await paperless.download_document(doc_id)
@@ -67,6 +77,7 @@ async def ingest_document(
     for idx, image in enumerate(images):
         # with open("output.jpg", "wb") as f:
         #     f.write(image.image_bytes)
+        _log(f"    page {idx + 1}/{len(images)}…")
         try:
             extracted = await vision.analyze_document(
                 page=image,
@@ -161,6 +172,7 @@ async def ingest_document(
     all_cross_references = _unique_refs
 
     # condense page-by-page summaries into one document-level summary
+    _log("    summarizing…")
     full_summary_summarized = await vision.summarize_document(full_summary)
 
     # chunking and embedding
@@ -186,6 +198,7 @@ async def ingest_document(
     )
 
     # → ready for ChromaDB
+    _log(f"    embedding {len(chunks)} chunk(s)…")
     res = await chroma.upsert(
         ids=[f"paperless_{doc_id}_chunk_{c.chunk_index}" for c in chunks],
         documents=[c.text for c in chunks],

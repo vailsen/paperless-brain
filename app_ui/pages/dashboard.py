@@ -41,6 +41,9 @@ from services.ollama_watchdog import on_manual_shutdown, on_wol
 # ── module-level sync state (persists across page navigations) ───────────────
 
 _SYNC_LOG: list[str] = []
+# Bumped on every sync start. Connected pages compare it against what they last
+# painted, so they drop the previous run's lines instead of appending to them.
+_SYNC_RUN: list[int] = [0]
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -717,6 +720,31 @@ window.__toggleHideAction = function(key) {{
         with log_scroll:
             log_column = ui.column().classes("gap-0 p-1 w-full").style("max-width:100%;")
 
+    # The sync task outlives any single client — it keeps appending to _SYNC_LOG
+    # while the browser may be gone (tab closed, or the websocket dropped during
+    # a document that took twelve minutes). Painting is therefore pull-based:
+    # every connected page polls _SYNC_LOG and draws what it has not drawn yet,
+    # so a reconnecting page catches up instead of freezing on the last line it
+    # happened to receive.
+    _painted = {"lines": 0, "run": -1}
+
+    def _paint_log() -> None:
+        if _painted["run"] != _SYNC_RUN[0]:
+            log_column.clear()
+            _painted["lines"] = 0
+            _painted["run"] = _SYNC_RUN[0]
+        if len(_SYNC_LOG) == _painted["lines"]:
+            return
+        with log_column:
+            for entry in _SYNC_LOG[_painted["lines"]:]:
+                ui.label(entry).classes(
+                    "text-xs font-mono text-gray-300 leading-5 w-full"
+                ).style("white-space:pre-wrap; word-break:break-word;")
+        _painted["lines"] = len(_SYNC_LOG)
+        log_scroll.scroll_to(percent=1.0)
+
+    ui.timer(1.0, _paint_log)
+
     def _refresh_outdated() -> None:
         try:
             n = len(sidecar_service.outdated_ids(PROMPT_VERSION))
@@ -741,22 +769,14 @@ window.__toggleHideAction = function(key) {{
             return
         sync_state.is_running[0] = True
         _SYNC_LOG.clear()
+        _SYNC_RUN[0] += 1
         sync_btn.props("loading")
         vault_sync_btn.disable()
-        log_column.clear()
 
         def _log(msg: str) -> None:
+            # Append only — every connected page picks it up via _paint_log.
             ts = datetime.now().strftime("%H:%M:%S")
-            entry = f"[{ts}] {msg}"
-            _SYNC_LOG.append(entry)
-            try:
-                with log_column:
-                    ui.label(entry).classes(
-                        "text-xs font-mono text-gray-300 leading-5 w-full"
-                    ).style("white-space:pre-wrap; word-break:break-word;")
-                log_scroll.scroll_to(percent=1.0)
-            except RuntimeError:
-                pass  # client navigated away; entry still in _SYNC_LOG
+            _SYNC_LOG.append(f"[{ts}] {msg}")
 
         def _notify(msg: str, **kwargs) -> None:
             try:
@@ -773,6 +793,9 @@ window.__toggleHideAction = function(key) {{
         _vision = build_vision_client(_username, _token)
 
         _log("Sync started…")
+        _model = getattr(_vision, "model", "") or "?"
+        _base = getattr(_vision, "base_url", "")
+        _log(f"Ingestion model: {_model}" + (f" @ {_base}" if _base else ""))
         try:
             state = await check_sync_state(paperless, chroma)
             _log(
@@ -792,6 +815,7 @@ window.__toggleHideAction = function(key) {{
                         _vision,
                         sidecar_service,
                         thumbnail_service,
+                        log=_log,
                     )
                     _log(f"  ✓ #{doc_id}")
                     _notify(_("✓ #{id} imported").format(id=doc_id), type="positive", timeout=2000)
@@ -830,7 +854,7 @@ window.__toggleHideAction = function(key) {{
                         )
                         await ingest_document(
                             doc_id, paperless, chroma, _vision,
-                            sidecar_service, thumbnail_service,
+                            sidecar_service, thumbnail_service, log=_log,
                         )
                         _log(f"  ✓ #{doc_id}")
                     except Exception as exc:
@@ -851,7 +875,10 @@ window.__toggleHideAction = function(key) {{
                     from werkbank.llm_lane import create_llm as _mk_llm
 
                     _acts = collect_actions(sidecar_service.extr_path)
-                    _log(f"Reviewing deadlines/actions ({len(_acts)} total)…")
+                    _log(
+                        f"Reviewing deadlines/actions ({len(_acts)} total) "
+                        f"with {_review_model}…"
+                    )
                     _n_rev, _n_drop = await review_actions(
                         sidecar_service.extr_path,
                         _acts,
@@ -1176,9 +1203,7 @@ window.__toggleHideAction = function(key) {{
                 _sync_watch_timer.active = False
 
         _sync_watch_timer = ui.timer(0.5, _watch_sync_done)
-    for entry in _SYNC_LOG:
-        with log_column:
-            ui.label(entry).classes("text-xs font-mono text-gray-300 leading-5")
+    _paint_log()  # draw whatever a still-running or finished sync already logged
 
     # ── WoL / SSH shutdown ────────────────────────────────────────────────────
     _poll_timer: list = [None]
