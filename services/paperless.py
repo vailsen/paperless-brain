@@ -86,19 +86,38 @@ class PaperlessClient:
         now = time.monotonic()
         if self._maps_cache is not None and now - self._maps_ts < self._MAP_TTL:
             return self._maps_cache
-        async with httpx.AsyncClient(headers=self.headers) as client:
-            tags_resp, corr_resp, dt_resp, users_resp = await asyncio.gather(
-                client.get(f"{self.base_url}/api/tags/?page_size=1000"),
-                client.get(f"{self.base_url}/api/correspondents/?page_size=1000"),
-                client.get(f"{self.base_url}/api/document_types/?page_size=1000"),
-                client.get(f"{self.base_url}/api/users/?page_size=100"),
+        try:
+            # Explicit timeout: httpx's 5 s default is too tight for a Paperless
+            # busy with its own consumer, and a read timeout here used to abort
+            # whatever called it — including a running sync.
+            async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
+                tags_resp, corr_resp, dt_resp, users_resp = await asyncio.gather(
+                    client.get(f"{self.base_url}/api/tags/?page_size=1000"),
+                    client.get(f"{self.base_url}/api/correspondents/?page_size=1000"),
+                    client.get(f"{self.base_url}/api/document_types/?page_size=1000"),
+                    client.get(f"{self.base_url}/api/users/?page_size=100"),
+                )
+            for resp in (tags_resp, corr_resp, dt_resp, users_resp):
+                resp.raise_for_status()
+            maps = (
+                {t["id"]: t["name"] for t in tags_resp.json()["results"]},
+                {c["id"]: c["name"] for c in corr_resp.json()["results"]},
+                {d["id"]: d["name"] for d in dt_resp.json()["results"]},
+                {u["id"]: u["username"] for u in users_resp.json().get("results", [])},
             )
-        maps = (
-            {t["id"]: t["name"] for t in tags_resp.json()["results"]},
-            {c["id"]: c["name"] for c in corr_resp.json()["results"]},
-            {d["id"]: d["name"] for d in dt_resp.json()["results"]},
-            {u["id"]: u["username"] for u in users_resp.json().get("results", [])},
-        )
+        except Exception as exc:
+            # Tags/correspondents/types change rarely, so serving the previous
+            # maps past their TTL beats failing the caller. Only a client that
+            # never fetched successfully has nothing to fall back on.
+            if self._maps_cache is None:
+                raise
+            print(
+                f"[paperless] metadata map refresh failed "
+                f"({type(exc).__name__}: {exc}) — serving stale maps",
+                flush=True,
+            )
+            self._maps_ts = now  # don't hammer a struggling server every call
+            return self._maps_cache
         self._maps_cache = maps
         self._maps_ts = now
         return maps
