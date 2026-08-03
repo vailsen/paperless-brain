@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     # SearXNG
     searxng_host: str = "http://localhost:8888"
 
+    # Debug: surface raw retrieval scores on result cards and in the detail
+    # dialog. Off by default — a bare number next to a document tells a user
+    # nothing actionable and competes with the title for attention.
+    show_relevance_scores: bool = False
+
     # Vault / Obsidian-backed memory
     vault_root: Path = Path("/mnt/vaults")
     # Names a real folder inside every user's vault. Existing installs must pin

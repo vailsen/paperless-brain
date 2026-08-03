@@ -1,5 +1,4 @@
 # app_ui/layout.py
-import zlib
 
 from nicegui import app as ng_app
 from nicegui import ui
@@ -27,7 +26,8 @@ _MOBILE_HEADER_CSS = (
     # After mount Quasar replaces the tag, so this rule has no effect then.
     "q-menu{display:none!important;}"
     ".mobile-nav-btn{display:none!important;}"
-    ".nav-btn .q-icon{color:#a855f7!important;}"
+    # Nav icon colour lives in theme.py — icons inherit the label's colour and the
+    # active item is the only differentiated one.
     ".nav-btn .q-btn__content{font-size:0.875rem!important;font-weight:500!important;gap:5px!important;}"
     "@media(max-width:767px){"
     ".desktop-nav-btn{display:none!important;}"
@@ -49,25 +49,35 @@ NAV_ITEMS = [
     ("psychology", N_("Memory"), "/brain"),
 ]
 
-# Deterministic per-user accent color (stable across restarts, no config needed).
-_USER_COLOR_PALETTE = [
-    "text-blue-400",
-    "text-rose-400",
-    "text-emerald-400",
-    "text-purple-400",
-    "text-orange-400",
-    "text-cyan-400",
-]
+
+def user_icon(username: str) -> str:
+    """Icon for a user. Shape, not colour, carries the distinction.
+
+    Users used to get a deterministic hue from their name. That is identity, not
+    state, and it put a third meaning on the accent — the same purple as the
+    active nav item and the user's own message bubble. An accent that appears in
+    three unrelated roles has stopped being an accent. The admin still reads as
+    admin because the glyph differs, which also survives a greyscale screenshot.
+    """
+    return "admin_panel_settings" if username == "Superuser" else "person"
 
 
-def user_color(username: str) -> str:
-    return _USER_COLOR_PALETTE[zlib.crc32(username.encode()) % len(_USER_COLOR_PALETTE)]
+def _current_path() -> str:
+    """Path of the page being built, for the active nav marker.
+
+    ui.context is only populated inside a page handler; outside one (tests, a
+    disconnected client) no item is marked active, which is the safe default.
+    """
+    try:
+        return ui.context.client.request.url.path
+    except Exception:
+        return ""
 
 
-def user_icon_color(username: str) -> tuple[str, str]:
-    if username == "Superuser":
-        return ("admin_panel_settings", "text-yellow-400")
-    return ("person", user_color(username))
+def _is_active(nav_path: str, current: str) -> bool:
+    if nav_path == "/":
+        return current == "/"
+    return current == nav_path or current.startswith(nav_path + "/")
 
 
 def require_auth() -> bool:
@@ -106,7 +116,8 @@ def page_layout() -> None:
     _ = get_translator()
 
     username: str = ng_app.storage.user.get("paperless_user", "")
-    icon, color = user_icon_color(username) if username else ("person", "text-gray-400")
+    icon = user_icon(username) if username else "person"
+    color = "text-gray-300"
 
     with ui.header().classes(
         "bg-gray-900 border-b border-gray-700 px-4 py-2 items-center gap-4 app-header"
@@ -115,24 +126,38 @@ def page_layout() -> None:
 
         ui.space()
 
-        # Desktop nav — hidden on mobile via CSS
+        _here = _current_path()
+
+        # Desktop nav — hidden on mobile via CSS.
+        # color=None matters: ui.button defaults to color='primary', which Quasar
+        # applies to a flat button's *text and icon*. That made every resting nav
+        # glyph carry the accent, so purple meant "nav icon" as well as "active
+        # item". Without the prop the glyphs inherit the neutral ramp and only
+        # .nav-active carries the accent.
         for nav_icon, label, path in NAV_ITEMS:
             ui.button(
-                _(label), icon=nav_icon, on_click=lambda p=path: ui.navigate.to(p)
-            ).props("flat dark dense").classes("text-gray-300 hover:text-white nav-btn desktop-nav-btn")
+                _(label),
+                icon=nav_icon,
+                color=None,
+                on_click=lambda p=path: ui.navigate.to(p),
+            ).props("flat dark dense").classes(
+                "nav-btn desktop-nav-btn"
+                + (" nav-active" if _is_active(path, _here) else "")
+            )
 
         # Mobile hamburger — hidden on desktop, shown on mobile
         with ui.element("div").classes("mobile-nav-btn"):
-            _menu_btn = ui.button(icon="menu").props("flat dark dense").classes("text-gray-300")
+            _menu_btn = ui.button(icon="menu", color=None).props("flat dark dense").classes("text-gray-300")
             with ui.menu().props("dark").style(
                 "background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;min-width:180px;"
             ) as _nav_menu:
                 for _ni, _nl, _np in NAV_ITEMS:
                     with ui.element("q-item").props("clickable v-ripple dense").classes(
-                        "text-gray-200 rounded-lg"
+                        "text-gray-200 rounded-lg nav-menu-item"
+                        + (" nav-active" if _is_active(_np, _here) else "")
                     ).style("padding:8px 12px;").on("click", lambda p=_np: ui.navigate.to(p)):
                         with ui.element("q-item-section").props("avatar").style("min-width:28px;padding-right:8px;"):
-                            ui.icon(_ni, size="xs").classes("text-purple-400")
+                            ui.icon(_ni, size="xs")
                         with ui.element("q-item-section"):
                             ui.label(_(_nl)).style(
                                 "font-size:0.875rem;font-weight:500;letter-spacing:normal;"
@@ -143,7 +168,7 @@ def page_layout() -> None:
         if username:
             ui.separator().props("vertical dark").classes("mx-2 h-6 self-center")
             _user_btn = (
-                ui.button(icon=icon)
+                ui.button(icon=icon, color=None)
                 .props("flat dark dense")
                 .classes(f"{color} nav-btn")
                 .style("gap:4px;padding:4px 8px;")
@@ -175,7 +200,7 @@ def page_layout() -> None:
                         with ui.element("q-item-section").props("avatar").style(
                             "min-width:28px;padding-right:8px;"
                         ):
-                            ui.icon("settings", size="xs").classes("text-purple-400")
+                            ui.icon("settings", size="xs").classes("text-gray-400")
                         with ui.element("q-item-section"):
                             ui.label(_("Settings")).style("font-size:0.875rem;font-weight:500;")
                     with ui.element("q-item").props("clickable v-ripple dense").classes(
@@ -184,7 +209,7 @@ def page_layout() -> None:
                         with ui.element("q-item-section").props("avatar").style(
                             "min-width:28px;padding-right:8px;"
                         ):
-                            ui.icon("logout", size="xs").classes("text-red-400")
+                            ui.icon("logout", size="xs").classes("text-gray-400")
                         with ui.element("q-item-section"):
                             ui.label(_("Sign out")).style("font-size:0.875rem;font-weight:500;")
                     ui.separator().props("dark").classes("my-1")

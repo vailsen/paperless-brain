@@ -69,12 +69,17 @@ class PaperlessClient:
     """Wraps the Paperless-ngx REST API."""
 
     _MAP_TTL = 60.0  # seconds — tags/correspondents/types/users change rarely
+    # Tag colours are re-picked by hand in the Paperless UI, so they change far
+    # more rarely than the name maps and are read once per card render.
+    _TAG_COLOR_TTL = 900.0  # 15 minutes
 
     def __init__(self, base_url: str, token: str):
         self.base_url = base_url.rstrip("/")
         self.headers = {"Authorization": f"Token {token}"}
         self._maps_cache: tuple[dict, dict, dict, dict] | None = None
         self._maps_ts: float = 0.0
+        self._tag_colors: dict[str, str] | None = None
+        self._tag_colors_ts: float = 0.0
 
     async def _fetch_maps(self) -> tuple[dict, dict, dict, dict]:
         """Return (tag_map, corr_map, dt_map, user_map), cached per client for _MAP_TTL.
@@ -121,6 +126,47 @@ class PaperlessClient:
         self._maps_cache = maps
         self._maps_ts = now
         return maps
+
+    async def get_tag_colors(self) -> dict[str, str]:
+        """Return ``{tag_name: hex_colour}`` for every tag, cached for 15 minutes.
+
+        Keyed by name, not id, because that is what ``PaperlessDocument.tags``
+        carries by the time a card renders. Tags without a colour are omitted so
+        the caller can tell "no colour set" from "colour is black".
+        """
+        now = time.monotonic()
+        if self._tag_colors is not None and now - self._tag_colors_ts < self._TAG_COLOR_TTL:
+            return self._tag_colors
+        try:
+            async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
+                resp = await client.get(f"{self.base_url}/api/tags/?page_size=200")
+            resp.raise_for_status()
+            # `color` since Paperless-ngx 1.x; `colour` on older builds.
+            colors = {
+                t["name"]: (t.get("color") or t.get("colour"))
+                for t in resp.json()["results"]
+                if t.get("color") or t.get("colour")
+            }
+        except Exception as exc:
+            # Same reasoning as _fetch_maps: stale colours beat no colours, and
+            # the caller's fallback hue would visibly reshuffle every chip.
+            if self._tag_colors is None:
+                print(
+                    f"[paperless] tag colour fetch failed "
+                    f"({type(exc).__name__}: {exc}) — using fallback hues",
+                    flush=True,
+                )
+                return {}
+            self._tag_colors_ts = now
+            return self._tag_colors
+        self._tag_colors = colors
+        self._tag_colors_ts = now
+        return colors
+
+    def invalidate_tag_colors(self) -> None:
+        """Drop the tag-colour cache so the next read re-fetches. Called on manual sync."""
+        self._tag_colors = None
+        self._tag_colors_ts = 0.0
 
     async def get_user_map(self) -> dict[int, str]:
         return (await self._fetch_maps())[3]

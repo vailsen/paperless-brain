@@ -4,8 +4,10 @@ import re
 from nicegui import app as ng_app, ui
 
 from app_ui.cluster_dialog import create_cluster_dialog
-from app_ui.document_dialog import create_document_dialog, tag_color
-from app_ui.layout import page_layout, require_auth, user_color
+from app_ui.document_dialog import create_document_dialog
+from app_ui.layout import page_layout, require_auth
+from app_ui.tag_style import render_tag_chips
+from config.settings import settings
 from i18n import get_translator
 from models.result_document import DocumentResult
 from pipelines.search import search
@@ -275,7 +277,7 @@ async def browser():
                     "items-center gap-3 flex-1 bg-gray-800 rounded-xl"
                     " px-4 py-2 border-2 border-purple-600/70"
                 ):
-                    ui.icon("auto_awesome").classes("text-purple-400 text-xl flex-shrink-0")
+                    ui.icon("auto_awesome").classes("text-gray-400 text-xl flex-shrink-0")
                     semantic_input = (
                         ui.input(
                             placeholder=_("AI search — what are you looking for? e.g. 'dentist invoice 2024'...")
@@ -451,77 +453,93 @@ def _render_card(result: DocumentResult, on_eye, on_cluster=None, on_pin=None, i
                 "background:rgba(0,0,0,.55); border-radius:50%; padding:2px; z-index:1;"
             )
         with ui.column().classes("p-2 gap-1 w-full"):
-            ui.label(result.display_title).classes(
-                "font-semibold text-xs text-gray-100 leading-tight"
-            ).style(
-                "display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
-                "overflow:hidden;word-break:break-all;"
-            )
-            ui.separator().classes("my-1")
-
-            if doc.correspondent:
-                with ui.row().classes("items-center gap-1 no-wrap w-full"):
-                    ui.icon("person", size="xs").classes("text-gray-400").tooltip(
-                        _("Correspondent")
-                    )
-                    ui.label(doc.correspondent).classes(
-                        "text-xs text-gray-300 truncate"
-                    ).style("min-width:0;")
-            if doc.document_type:
-                with ui.row().classes("items-center gap-1 no-wrap w-full"):
-                    ui.icon("description", size="xs").classes("text-gray-400").tooltip(
-                        _("Document type")
-                    )
-                    ui.label(doc.document_type).classes(
-                        "text-xs text-gray-300 truncate"
-                    ).style("min-width:0;")
-
-            if doc.owner_name:
-                _owner_color = user_color(doc.owner_name)
-                with ui.row().classes("items-center gap-1 no-wrap w-full"):
-                    ui.icon("person", size="xs").classes(_owner_color).tooltip(_("Owner"))
-                    ui.label(doc.owner_name).classes(
-                        f"text-xs {_owner_color} truncate"
-                    ).style("min-width:0;")
-
-            with ui.row().classes("items-center gap-2"):
-                if result.display_date:
-                    with ui.row().classes("items-center gap-1"):
-                        ui.icon("calendar_today", size="xs").classes(
-                            "text-gray-400"
-                        ).tooltip(_("Creation date"))
-                        ui.label(result.display_date).classes("text-xs text-gray-400")
-                if doc.page_count:
-                    with ui.row().classes("items-center gap-1"):
-                        ui.icon("pages", size="xs").classes("text-gray-400").tooltip(
-                            _("Page count")
-                        )
-                        ui.label(str(doc.page_count)).classes("text-xs text-gray-400")
-
-            if result.relevance_score is not None:
-                ui.label(_("Relevance: {score:.3f}").format(score=result.relevance_score)).classes(
-                    "text-xs text-purple-400"
+            # The card body is the "open" affordance, which is what let the
+            # preview icon go. Four equally-weighted icons per card across six
+            # visible cards was 24 competing targets in one panel.
+            _body = ui.column().classes("gap-1 w-full doc-card-body")
+            _body.on("click", lambda r=result: on_eye(r))
+            with _body:
+                ui.label(result.display_title).classes(
+                    "font-semibold text-xs text-gray-100 leading-tight"
+                ).style(
+                    "display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
+                    "overflow:hidden;word-break:break-all;"
                 )
+                ui.separator().classes("my-1")
 
-            if doc.tags:
-                with ui.row().classes("flex-wrap gap-1 mt-1"):
-                    for tag in doc.tags:
-                        ui.badge(tag, color=tag_color(tag)).style(
-                            # f"background-color:{tag_color(tag)};color:white;font-size:10px;"
-                            "color:white;font-size:10px;"
+                if doc.correspondent:
+                    with ui.row().classes("items-center gap-1 no-wrap w-full"):
+                        ui.icon("person", size="xs").classes("text-gray-400").tooltip(
+                            _("Correspondent")
                         )
+                        ui.label(doc.correspondent).classes(
+                            "text-xs text-gray-300 truncate"
+                        ).style("min-width:0;")
+                if doc.document_type:
+                    with ui.row().classes("items-center gap-1 no-wrap w-full"):
+                        ui.icon("description", size="xs").classes("text-gray-400").tooltip(
+                            _("Document type")
+                        )
+                        ui.label(doc.document_type).classes(
+                            "text-xs text-gray-300 truncate"
+                        ).style("min-width:0;")
+
+                # Owner is metadata, and reads exactly like the correspondent and
+                # document-type rows above it. It used to carry a per-user hue,
+                # which spent the accent on identity.
+                if doc.owner_name:
+                    with ui.row().classes("items-center gap-1 no-wrap w-full"):
+                        ui.icon("person", size="xs").classes("text-gray-400").tooltip(
+                            _("Owner")
+                        )
+                        ui.label(doc.owner_name).classes(
+                            "text-xs text-gray-300 truncate"
+                        ).style("min-width:0;")
+
+                with ui.row().classes("items-center gap-2"):
+                    if result.display_date:
+                        with ui.row().classes("items-center gap-1"):
+                            ui.icon("calendar_today", size="xs").classes(
+                                "text-gray-400"
+                            ).tooltip(_("Creation date"))
+                            ui.label(result.display_date).classes("text-xs text-gray-400")
+                    if doc.page_count:
+                        with ui.row().classes("items-center gap-1"):
+                            ui.icon("pages", size="xs").classes("text-gray-400").tooltip(
+                                _("Page count")
+                            )
+                            ui.label(str(doc.page_count)).classes("text-xs text-gray-400")
+
+                if settings.show_relevance_scores and result.relevance is not None:
+                    ui.label(
+                        _("Relevance: {score:.0%}").format(score=result.relevance)
+                    ).classes("text-xs text-gray-400")
+
+            # Tag row = Paperless data only. Anything PaperSage derives (the
+            # action flag below) gets its own row and its own treatment.
+            # Outside _body: the +N control has its own click.
+            render_tag_chips(doc.tags)
+
+            if result.has_actions:
+                with ui.row().classes("items-center gap-1 w-full").style(
+                    "border-top:0.5px solid var(--c-border);"
+                    "margin-top:6px;padding-top:5px;"
+                ):
+                    ui.icon("bolt").classes("card-action-flag-icon").style(
+                        "font-size:13px;"
+                    )
+                    # "Action required", not "Actions": a noun does not tell the
+                    # user what is being asserted about the document.
+                    ui.label(_("Action required")).classes("card-action-flag")
 
             with ui.row().classes("items-center justify-between mt-1 w-full"):
-                with ui.row().classes("items-center gap-2"):
-                    if result.has_actions:
-                        ui.badge(_("Actions"), color="orange").classes("text-xs")
-                    ui.label(f"#{doc.id}").classes("text-xs text-gray-600")
+                ui.label(f"#{doc.id}").classes("text-xs text-gray-600")
                 with ui.row().classes("gap-0"):
                     if on_cluster and cross_ref_index.has_related(doc.id):
                         ui.button(
                             icon="hub",
                             on_click=lambda d=doc.id: on_cluster(d),
-                        ).props("flat dense dark").classes("text-purple-400").tooltip(
+                        ).props("flat dense dark").classes("card-action-btn").tooltip(
                             _("Show cross-reference cluster")
                         )
                     if on_pin:
@@ -529,19 +547,17 @@ def _render_card(result: DocumentResult, on_eye, on_cluster=None, on_pin=None, i
                             icon="push_pin",
                             on_click=lambda r=result: on_pin(r),
                         ).props("flat dense dark").classes(
-                            "text-purple-400" if is_pinned else "text-gray-400"
+                            "card-action-btn" + (" is-pinned" if is_pinned else "")
                         ).tooltip(
                             _("Pinned — click to unpin") if is_pinned else _("Pin")
                         )
-                    ui.button(
-                        icon="visibility",
-                        on_click=lambda r=result: on_eye(r),
-                    ).props("flat dense dark").classes("text-gray-400")
                     ui.button(
                         icon="download",
                         on_click=lambda url=doc.pdf_url: ui.navigate.to(
                             url, new_tab=True
                         ),
-                    ).props("flat dense dark").classes("text-gray-400")
+                    ).props("flat dense dark").classes("card-action-btn").tooltip(
+                        _("Download PDF")
+                    )
 
 

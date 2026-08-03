@@ -15,6 +15,7 @@ import app_ui.pages.dashboard  # noqa: F401
 import app_ui.pages.login  # noqa: F401
 import app_ui.pages.settings  # noqa: F401
 import werkbank.ui.module_page  # noqa: F401
+from app_ui.tag_style import refresh_tag_colors
 from config.settings import settings
 from config.version import __version__
 from services.clients import cross_ref_index
@@ -62,6 +63,10 @@ async def _start_watchdog() -> None:
     if settings.ollama_ssh_user:  # idle-shutdown watchdog only with remote-shutdown config
         asyncio.create_task(idle_watchdog())
     asyncio.create_task(_werkbank_scheduler())
+    # Card renderers read the tag colour map synchronously, so it has to be warm
+    # before the first page renders — otherwise every chip briefly shows its
+    # fallback hue and then jumps.
+    asyncio.create_task(refresh_tag_colors())
     cross_ref_index.build(str(settings.app_path / settings.extraction_sidecar_path))
 
 

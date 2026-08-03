@@ -4,7 +4,6 @@ import calendar
 import hashlib
 import html as _html
 import json
-import math
 import os
 import re
 import socket
@@ -18,6 +17,7 @@ from services.session_auth import get_session_token
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
 from app_ui.layout import page_layout, require_auth
+from app_ui.tag_style import invalidate_tag_colors, refresh_tag_colors
 from config.extraction_rules import PROMPT_VERSION
 from config.settings import settings
 from i18n import get_translator
@@ -48,32 +48,6 @@ _SYNC_RUN: list[int] = [0]
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 
-def _ring_svg(value: int, total: int, size: int = 100) -> str:
-    cx = cy = size / 2
-    r = size / 2 - 10
-    circumference = 2 * math.pi * r
-    pct = (value / total) if total > 0 else 0
-    filled = circumference * pct
-    gap = circumference - filled
-
-    if total > 0 and value < total * 0.5:
-        color = "#f59e0b"
-    elif total > 0 and value < total * 0.25:
-        color = "#ef4444"
-    else:
-        color = "#a855f7"
-
-    return (
-        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
-        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="var(--c-border)" stroke-width="8"/>'
-        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{color}" stroke-width="8"'
-        f' stroke-linecap="round"'
-        f' stroke-dasharray="{filled:.1f} {gap:.1f}"'
-        f' transform="rotate(-90 {cx} {cy})"/>'
-        f"</svg>"
-    )
-
-
 _DOW_DE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
@@ -96,12 +70,13 @@ def _month_html(year: int, month: int, day_data: dict[int, list[dict]]) -> str:
             actions = day_data.get(day, [])
             is_dl = bool(actions)
 
-            if is_today and is_dl:
-                bg = "background:#7c3aed;color:#fff;font-weight:700;"
-            elif is_today:
+            # A deadline is marked with a dot under the date, not a saturated
+            # fill. Five solid purple squares across three months drew more
+            # attention than the deadline table underneath them.
+            if is_today:
                 bg = "background:var(--c-border);color:var(--c-text);font-weight:600;"
             elif is_dl:
-                bg = "background:#581c87;color:#e9d5ff;font-weight:600;"
+                bg = "color:var(--c-text);font-weight:600;"
             else:
                 bg = "color:var(--c-text-muted);"
 
@@ -127,8 +102,12 @@ def _month_html(year: int, month: int, day_data: dict[int, list[dict]]) -> str:
                 extra = f' title="{tooltip}"{onclick}'
                 bg += cursor
 
-            style = f"width:32px;height:28px;text-align:center;font-size:.75rem;border-radius:6px;{bg}"
-            cells.append(f'<td style="{style}"{extra}>{day}</td>')
+            style = (
+                "width:32px;height:30px;text-align:center;font-size:.75rem;"
+                f"border-radius:6px;position:relative;{bg}"
+            )
+            dot = '<span class="cal-dot"></span>' if is_dl else ""
+            cells.append(f'<td style="{style}"{extra}>{day}{dot}</td>')
         rows.append(f"<tr>{''.join(cells)}</tr>")
     return (
         '<table style="border-collapse:collapse;width:100%;">'
@@ -375,13 +354,22 @@ async def dashboard():
     }
     .deadline-row td { transition: background .1s; }
     .deadline-row:hover td { background: rgba(124,58,237,0.10) !important; }
+    /* Purple is reserved for the user's own input and the active selection.
+       A document reference is neither — it is a link, so it looks like one. */
     .doc-link {
-        color: #7c3aed;
+        color: var(--c-text-2);
         cursor: pointer;
-        text-decoration: none;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        text-decoration-color: var(--c-border-strong);
         font-family: monospace;
     }
-    .doc-link:hover { color: #a78bfa; text-decoration: underline; }
+    .doc-link:hover { color: var(--c-text); text-decoration-color: currentColor; }
+    .cal-dot {
+        position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%);
+        width: 4px; height: 4px; border-radius: 50%;
+        background: var(--c-text-2); pointer-events: none;
+    }
     </style>""")
 
     with ui.element("div").style(
@@ -435,7 +423,7 @@ async def dashboard():
                     ]:
                         with ui.row().classes("items-start gap-3"):
                             ui.icon(_icon, size="sm").classes(
-                                "text-purple-400 flex-shrink-0"
+                                "text-gray-400 flex-shrink-0"
                             ).style("align-self:flex-start;margin-top:1px")
                             with (
                                 ui.column()
@@ -460,7 +448,6 @@ async def dashboard():
                     .style("min-width:260px;")
                 ):
                     with ui.row().classes("items-center gap-4 w-full flex-1"):
-                        ring_html = ui.html("").style("flex-shrink:0;")
                         with ui.column().style("gap:4px; flex:1;"):
                             with ui.row().classes("items-baseline gap-1"):
                                 sync_value = ui.label("—").style(
@@ -478,39 +465,39 @@ async def dashboard():
                     ui.separator().style("border-color:var(--c-surface); margin-top:12px; margin-bottom:8px;")
                     with ui.column().classes("gap-1 w-full"):
                         with ui.row().classes("items-center justify-between w-full"):
-                            ui.label("PAPERLESS NGX").style(
-                                "font-size:.6rem;font-weight:700;letter-spacing:.1em;"
-                                "color:var(--c-text-muted);text-transform:uppercase;"
+                            ui.label("Paperless-ngx").style(
+                                "font-size:.7rem;font-weight:600;"
+                                "color:var(--c-text-muted);"
                             )
                             with ui.row().classes("items-center gap-0"):
                                 sync_btn = (
                                     ui.button(icon="sync")
                                     .props("flat dense round size=sm")
-                                    .classes("text-purple-400")
+                                    .classes("footer-icon")
                                     .tooltip(_("Synchronize Paperless now"))
                                 )
                                 log_btn = (
                                     ui.button(icon="info")
                                     .props("flat dense round size=sm")
-                                    .classes("text-gray-500")
+                                    .classes("footer-icon")
                                     .tooltip(_("Sync log"))
                                 )
                         with ui.row().classes("items-center justify-between w-full"):
-                            ui.label("BRAIN VAULT").style(
-                                "font-size:.6rem;font-weight:700;letter-spacing:.1em;"
-                                "color:var(--c-text-muted);text-transform:uppercase;"
+                            ui.label(_("Brain vault")).style(
+                                "font-size:.7rem;font-weight:600;"
+                                "color:var(--c-text-muted);"
                             )
                             with ui.row().classes("items-center gap-0"):
                                 vault_sync_btn = (
                                     ui.button(icon="cloud_sync")
                                     .props("flat dense round size=sm")
-                                    .classes("text-teal-400")
+                                    .classes("footer-icon")
                                     .tooltip(_("Synchronize vault now"))
                                 )
                                 dream_btn = (
                                     ui.button(icon="bedtime")
                                     .props("flat dense round size=sm")
-                                    .classes("text-indigo-400")
+                                    .classes("footer-icon")
                                     .tooltip(_("Analyze and clean up memory"))
                                 )
 
@@ -593,8 +580,10 @@ async def dashboard():
                     )
                     with ui.column().style("gap:4px; flex:1; justify-content:center;"):
                         with ui.row().classes("items-end gap-3"):
+                            # A count is not a state to react to — the overdue
+                            # line below it is. Neutral keeps the emphasis there.
                             deadline_count_label = ui.label("—").style(
-                                "font-size:2.5rem;font-weight:700;color:#a855f7;"
+                                "font-size:2.5rem;font-weight:700;color:var(--c-text);"
                             )
                             with ui.column().style("gap:2px;margin-bottom:4px;"):
                                 deadline_upcoming_label = ui.label("").classes(
@@ -626,9 +615,9 @@ async def dashboard():
                 calendar_row = ui.row().style(
                     "gap:24px; flex-wrap:wrap; margin-bottom:24px;"
                 )
-                table_container = ui.element("div").style(
-                    "width:100%; overflow-y:auto; max-height:55vh;"
-                )
+                table_container = ui.element("div").classes(
+                    "deadline-table-anchor"
+                ).style("width:100%; overflow-y:auto; max-height:55vh;")
 
     # ── JS bridge (same pattern as chat.py) ──────────────────────────────────
     _doc_handler = ui.element("div").style("display:none;")
@@ -772,6 +761,10 @@ window.__toggleHideAction = function(key) {{
         _SYNC_RUN[0] += 1
         sync_btn.props("loading")
         vault_sync_btn.disable()
+        # A manual sync is the moment new or recoloured tags show up, so drop
+        # the 15-minute colour cache instead of making the user wait it out.
+        invalidate_tag_colors()
+        asyncio.create_task(refresh_tag_colors())
 
         def _log(msg: str) -> None:
             # Append only — every connected page picks it up via _paint_log.
@@ -926,7 +919,6 @@ window.__toggleHideAction = function(key) {{
                 last_sync_label_el.set_text(
                     _("Last sync: {ts}").format(ts=_last_sync_label())
                 )
-                ring_html.set_content(_ring_svg(c_val, p_val))
                 if new_p:
                     pct = int(c_val / p_val * 100) if p_val > 0 else 0
                     sync_value.set_text(f"{c_val} / {p_val}")
@@ -972,7 +964,7 @@ window.__toggleHideAction = function(key) {{
 
             ui.button(_("Start"), icon="sync", on_click=_start_sync).props(
                 "unelevated dark"
-            ).classes("text-purple-300")
+            ).classes("text-white")
 
     sync_btn.on_click(_sync_dlg.open)
     log_btn.on_click(log_dialog.open)
@@ -1380,7 +1372,6 @@ window.__toggleHideAction = function(key) {{
     # sync ring
     p = paperless_count or 0
     c = chroma_count or 0
-    ring_html.set_content(_ring_svg(c, p))
     if paperless_count is not None:
         pct = int(c / p * 100) if p > 0 else 0
         sync_value.set_text(f"{c} / {p}")
@@ -1475,13 +1466,20 @@ window.__toggleHideAction = function(key) {{
     today = date.today()
     dated = [a for a in actions if _parse_date(a.get("deadline")) is not None]
     dated.sort(key=lambda a: _parse_date(a["deadline"]))
+    # Both groups run nearest-to-today first: overdue descending (most recently
+    # missed on top), upcoming ascending. The list used to descend from the
+    # furthest future date, which put a 2064 pension date above anything
+    # actionable this month.
     overdue = list(reversed([a for a in dated if _parse_date(a["deadline"]) < today]))
-    future = list(reversed([a for a in dated if _parse_date(a["deadline"]) >= today]))
+    future = [a for a in dated if _parse_date(a["deadline"]) >= today]
 
     deadline_count_label.set_text(str(len(future)))
     deadline_upcoming_label.set_text(_("upcoming"))
     if overdue:
         deadline_overdue_label.set_text(_("{n} overdue").format(n=len(overdue)))
+        deadline_overdue_label.style("cursor:pointer;text-decoration:underline;")
+        deadline_overdue_label.tooltip(_("Show overdue deadlines only"))
+        deadline_overdue_label.on("click", lambda: _set_overdue_filter(True))
 
     # build per-day action data for calendar
     deadline_by_ym: dict[tuple, dict[int, list[dict]]] = {}
@@ -1519,10 +1517,17 @@ window.__toggleHideAction = function(key) {{
 
     render_calendar()
 
-    # deadline table — future first (asc), then overdue (desc, most recent first)
+    # Upcoming first (ascending, nearest first), then overdue (most recently
+    # missed first). Overdue outnumbers upcoming by roughly 10:1 in a real
+    # archive, so putting it on top pushes every actionable date past the page
+    # boundary — the exact failure this ordering pass set out to fix. The
+    # overdue block stays reachable below, and the counter above click-throughs
+    # straight to it.
     all_rows = future + overdue
     _PAGE_SIZE = 100
     _dl_page = [0]
+    # "Overdue only" filter, driven by the counter in the Deadlines card.
+    _overdue_only = [False]
     th_style = (
         "font-size:.65rem;color:var(--c-text-muted);text-align:left;"
         "text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;"
@@ -1532,10 +1537,30 @@ window.__toggleHideAction = function(key) {{
         raw = f"{a.get('paperless_id', '')}|{a.get('deadline', '')}|{a.get('description', '')}"
         return hashlib.md5(raw.encode()).hexdigest()[:12]
 
+    def _set_overdue_filter(on: bool) -> None:
+        _overdue_only[0] = on
+        _dl_page[0] = 0
+        if on:
+            # Scroll only when arriving from the counter above — a red number
+            # the user cannot act on is background noise, so it click-throughs
+            # to the filtered worklist. Must run BEFORE the re-render, and never
+            # on clear: the "Show all" button lives inside table_container, and
+            # clearing it deletes the slot this handler is bound to, which makes
+            # ui.run_javascript fail to resolve the client.
+            ui.run_javascript(
+                "document.querySelector('.deadline-table-anchor')"
+                "?.scrollIntoView({behavior:'smooth', block:'start'});"
+            )
+        render_deadline_table()
+
+    def _clear_overdue_filter() -> None:
+        _set_overdue_filter(False)
+
     def render_deadline_table() -> None:
-        visible_rows = [a for a in all_rows if _action_key(a) not in _hidden_keys]
-        hidden_count = len(all_rows) - len(visible_rows)
-        display_rows = all_rows if _show_hidden[0] else visible_rows
+        source_rows = overdue if _overdue_only[0] else all_rows
+        visible_rows = [a for a in source_rows if _action_key(a) not in _hidden_keys]
+        hidden_count = len(source_rows) - len(visible_rows)
+        display_rows = source_rows if _show_hidden[0] else visible_rows
 
         page = _dl_page[0]
         start = page * _PAGE_SIZE
@@ -1551,9 +1576,24 @@ window.__toggleHideAction = function(key) {{
 
         table_container.clear()
         with table_container:
-            if not all_rows:
+            if not source_rows:
                 ui.label(_("No deadlines found.")).classes("text-gray-500 text-sm p-2")
                 return
+
+            # Active "overdue only" filter strip — set by clicking the counter.
+            if _overdue_only[0]:
+                with (
+                    ui.row()
+                    .classes("items-center gap-2 px-3 py-1")
+                    .style("background:var(--c-warn-bg); border-bottom:1px solid var(--c-surface);")
+                ):
+                    ui.icon("filter_alt", size="xs").classes("card-action-flag-icon")
+                    ui.label(_("Overdue only")).classes("text-xs flex-1").style(
+                        "color:var(--c-warn);"
+                    )
+                    ui.button(_("Show all"), on_click=_clear_overdue_filter).props(
+                        "flat dark dense"
+                    ).classes("text-xs text-gray-400")
 
             # hidden-row control strip
             if hidden_count or _show_hidden[0]:
@@ -1577,6 +1617,7 @@ window.__toggleHideAction = function(key) {{
                     ).classes("text-xs text-gray-400")
 
             rows_html = ""
+            # Divider marks where upcoming ends and the overdue block starts.
             future_visible = [
                 a
                 for a in future
@@ -1588,7 +1629,11 @@ window.__toggleHideAction = function(key) {{
                 is_hidden = key in _hidden_keys
                 d = _parse_date(a["deadline"])
                 is_past = d and d < today
-                is_sep = global_i == len(future_visible) and is_past
+                is_sep = (
+                    not _overdue_only[0]
+                    and global_i == len(future_visible)
+                    and is_past
+                )
                 date_str = d.strftime("%d.%m.%Y") if d else "—"
                 date_color = (
                     "var(--c-text-muted)" if is_hidden else ("#ef4444" if is_past else "var(--c-text)")

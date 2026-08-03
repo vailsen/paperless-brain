@@ -73,7 +73,7 @@ def push_text_setting() -> None:
 
 def _section_header(icon: str, title: str, subtitle: str) -> None:
     with ui.row().classes("items-center gap-3 mb-1"):
-        ui.icon(icon, size="sm").classes("text-purple-400")
+        ui.icon(icon, size="sm").classes("text-gray-400")
         with ui.column().classes("gap-0"):
             ui.label(title).classes("text-base font-semibold text-gray-100")
             ui.label(subtitle).classes("text-xs text-gray-500")
@@ -201,7 +201,7 @@ async def settings_page() -> None:
 
             with ui.row().classes("w-full items-center justify-between mb-1"):
                 with ui.row().classes("items-center gap-3"):
-                    ui.icon("smart_toy", size="sm").classes("text-purple-400")
+                    ui.icon("smart_toy", size="sm").classes("text-gray-400")
                     with ui.column().classes("gap-0"):
                         ui.label(_("AI models")).classes("text-base font-semibold text-gray-100")
                         ui.label(_("Providers and models — order = dropdown order")).classes("text-xs text-gray-500")

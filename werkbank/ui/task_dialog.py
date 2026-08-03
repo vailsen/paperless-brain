@@ -159,6 +159,8 @@ def _synth_done_card() -> None:
     ):
         with ui.column().classes("w-full gap-1"):
             with ui.row().classes("items-center gap-1"):
+                # Green here is the same done-state vocabulary as check_circle
+                # elsewhere in this dialog — icon and label must agree.
                 ui.icon("summarize", size="xs").classes("text-green-400 flex-shrink-0")
                 ui.label(_("Synthesis")).classes("text-xs font-mono font-bold text-green-400")
             ui.label(_("Result compiled")).classes("text-xs text-gray-400 leading-snug")
@@ -717,7 +719,7 @@ def open_task_dialog(
 
             with ui.row().classes("w-full items-center justify-between mb-2"):
                 with ui.row().classes("items-center gap-2 flex-1 min-w-0"):
-                    ui.icon("auto_awesome", size="xs").classes("text-purple-400 flex-shrink-0")
+                    ui.icon("auto_awesome", size="xs").classes("text-gray-400 flex-shrink-0")
 
                     @ui.refreshable
                     def _header_title() -> None:

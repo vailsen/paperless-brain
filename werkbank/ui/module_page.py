@@ -172,7 +172,7 @@ def werkbank_page() -> None:
         # ── Header ────────────────────────────────────────────────────
         with ui.row().classes("w-full items-center justify-between mb-5"):
             with ui.row().classes("items-center gap-2"):
-                ui.icon("auto_awesome", size="md").classes("text-purple-400")
+                ui.icon("auto_awesome", size="md").classes("text-gray-400")
                 ui.label(_("AI deep research")).classes("text-2xl font-bold text-gray-100")
 
             with ui.row().classes("gap-2"):

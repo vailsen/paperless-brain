@@ -114,7 +114,7 @@ def create_cluster_dialog(
                                 )
                             if _is_root:
                                 ui.icon("hub", size="xs").classes(
-                                    "text-purple-400 flex-shrink-0"
+                                    "text-gray-400 flex-shrink-0"
                                 ).tooltip(_("Source document"))
                             ui.button(
                                 icon="push_pin",

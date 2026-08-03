@@ -13,6 +13,7 @@ import re
 
 from nicegui import ui
 
+from app_ui.tag_style import tag_chip
 from config.settings import settings
 from i18n import get_translator
 from models.result_document import DocumentResult
@@ -20,27 +21,6 @@ from services.clients import cross_ref_index, paperless, sidecar_service
 
 _PDF_CACHE = str(settings.app_path / "data" / "pdf_cache")
 os.makedirs(_PDF_CACHE, exist_ok=True)
-
-_TAG_COLORS = [
-    "#ef4444",  # red       0°
-    "#f97316",  # orange   30°
-    "#facc15",  # yellow   55°
-    "#84cc16",  # lime     85°
-    "#10b981",  # emerald 161°
-    "#06b6d4",  # cyan    192°
-    "#3b82f6",  # blue    217°
-    "#8b5cf6",  # violet  265°
-    "#d946ef",  # fuchsia 294°
-    "#ec4899",  # pink    328°
-]
-
-
-def tag_color(tag: str) -> str:
-    # zlib.crc32, not hash(): built-in str hash is salted per process, which
-    # would reshuffle every tag's color on each app restart.
-    import zlib
-
-    return _TAG_COLORS[zlib.crc32(tag.encode("utf-8")) % len(_TAG_COLORS)]
 
 
 # ── Text highlighting ─────────────────────────────────────────────────────────
@@ -373,12 +353,10 @@ def render_document_body(
                                     if doc.tags:
                                         with ui.row().classes("flex-wrap gap-1 items-center"):
                                             ui.icon("label", size="xs").classes("text-gray-400")
-                                            for _tag in doc.tags:
-                                                # color= (not .style) — the badge's default
-                                                # bg-primary class wins over inline style.
-                                                ui.badge(_tag, color=tag_color(_tag)).style(
-                                                    "color:white;font-size:10px;"
-                                                )
+                                            # No cap here: the detail view is where
+                                            # the user came to see everything.
+                                            for _tag in sorted(doc.tags):
+                                                tag_chip(_tag)
                                 with ui.element("div").classes("dl-thumb"):
                                     ui.image(f"/thumbnails/{doc.id}.jpg").style(
                                         "width:33vw;max-width:190px;"
@@ -742,35 +720,39 @@ def _render_content(
                             ui.label(result.display_date).classes(
                                 "text-xs text-gray-400"
                             )
-                    if result.relevance_score is not None:
-                        ui.badge(
-                            _("Score {score:.3f}").format(score=result.relevance_score), color="purple"
-                        ).classes("text-xs")
-                    for tag in doc.tags:
-                        ui.badge(tag, color=tag_color(tag)).style(
-                            "color:white;font-size:10px;"
-                        )
+                    # Score is PaperSage's own number, so it renders as muted
+                    # text rather than as another chip competing with the tags.
+                    if settings.show_relevance_scores and result.relevance is not None:
+                        ui.label(
+                            _("Relevance: {score:.0%}").format(score=result.relevance)
+                        ).classes("text-xs text-gray-400")
+                    for tag in sorted(doc.tags):
+                        tag_chip(tag)
             with ui.row().classes(
                 "dl-header-btns self-start mt-1 flex-shrink-0 items-center gap-1"
             ):
+                # Same treatment as the card action icons: neutral at rest,
+                # purple only for "pinned", which is an active selection.
                 if open_cluster_fn and cross_ref_index.has_related(doc.id):
                     ui.button(
                         icon="hub",
                         on_click=lambda _id=doc.id: open_cluster_fn(_id),
-                    ).props("flat dark dense").classes("text-purple-400").tooltip(_("Cross-reference cluster"))
+                    ).props("flat dark dense").classes("card-action-btn").tooltip(
+                        _("Cross-reference cluster")
+                    )
                 if pin_fn:
                     _pin_state = [is_pinned]
                     def _do_pin(ps=_pin_state, r=result):
                         pin_fn(r)
                         ps[0] = not ps[0]
                         _pin_btn.classes(
-                            remove="text-purple-400 text-gray-400",
-                            add="text-purple-400" if ps[0] else "text-gray-400",
+                            remove="is-pinned",
+                            add="is-pinned" if ps[0] else "",
                         )
                     _pin_btn = (
                         ui.button(icon="push_pin", on_click=_do_pin)
                         .props("flat dark dense")
-                        .classes("text-purple-400" if is_pinned else "text-gray-400")
+                        .classes("card-action-btn" + (" is-pinned" if is_pinned else ""))
                         .tooltip(_("Pinned — unpin") if is_pinned else _("Pin"))
                     )
                 with ui.element("div").classes("dl-pdf-btn"):

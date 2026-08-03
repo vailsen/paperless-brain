@@ -20,6 +20,10 @@ from nicegui import ui
 
 DEFAULT_THEME = "dark"
 
+# The one accent. Kept as a literal because ui.colors() writes --q-primary
+# directly and cannot take a CSS var; it must stay in step with --c-accent below.
+BRAND_PRIMARY = "#7c3aed"
+
 THEME_CSS = """
 <style>
 :root {
@@ -33,6 +37,11 @@ THEME_CSS = """
   --c-text:          #f1f5f9;
   --c-text-2:        #d1d5db;
   --c-text-muted:    #9ca3af;
+  /* Warning = "you must react to this". Reserved for genuine state (the card
+     action flag); never spent on identity or category. */
+  --c-warn:          #fbbf24;
+  --c-warn-bg:       rgba(251,191,36,0.12);
+  --c-accent:        #a855f7;
 }
 body.body--light {
   --c-bg:            #f1f5f9;
@@ -45,6 +54,9 @@ body.body--light {
   --c-text:          #0f172a;
   --c-text-2:        #334155;
   --c-text-muted:    #64748b;
+  --c-warn:          #b45309;
+  --c-warn-bg:       rgba(180,83,9,0.10);
+  --c-accent:        #7c3aed;
 }
 
 html, body, .q-page, .nicegui-content { background: var(--c-bg) !important; }
@@ -141,10 +153,81 @@ body.body--light .app-header {
   border-bottom: 1px solid var(--c-border) !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
-body.body--light .app-header .nav-btn .q-icon,
-body.body--light .app-header .q-icon { color: #7c3aed !important; }
+body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
 /* Dark header keeps its subtle elevation too */
 .app-header { box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
+/* Quasar ships `text-transform: uppercase` on .q-btn and .q-tab, so editing a
+   Python label string has no visible effect — the caps come from CSS. Undo it
+   once, globally, rather than remembering `no-caps` on every future button.
+   Section eyebrows and table headers set their own inline uppercase and are
+   unaffected: an eyebrow labels a region, a button names an action. */
+.q-btn__content, .q-tab__label { text-transform: none !important; }
+
+/* ── Visual discipline: colour encodes state, not identity ─────────────────
+   Icons inherit text colour. Tag chips are the one exception (their hue comes
+   from Paperless and enables cross-document grouping) and are styled inline by
+   app_ui/tag_style.py. Everything below is deliberately hueless. */
+
+/* Top navigation — one signal for "active", not three. The purple accent plus
+   the underline carry it; the underline alone survives greyscale and
+   colour-blindness, which is why it is not colour-only. */
+.app-header .desktop-nav-btn { color: var(--c-text-2) !important; }
+.app-header .desktop-nav-btn .q-icon { color: inherit !important; }
+.app-header .desktop-nav-btn:hover { color: var(--c-text) !important; }
+.app-header .desktop-nav-btn.nav-active,
+.app-header .desktop-nav-btn.nav-active .q-icon { color: var(--c-accent) !important; }
+.app-header .desktop-nav-btn.nav-active { box-shadow: inset 0 -2px 0 0 var(--c-accent); border-radius: 3px; }
+/* Mobile nav menu entries follow the same rule */
+.q-menu .nav-menu-item .q-icon { color: var(--c-text-muted) !important; }
+.q-menu .nav-menu-item.nav-active,
+.q-menu .nav-menu-item.nav-active .q-icon { color: var(--c-accent) !important; }
+
+/* Document card action icons: muted at rest, lifting on card hover, brightest
+   on the icon itself. Three steps so the targets stay discoverable without all
+   24 of them competing for attention at once. */
+.doc-card-body { cursor: pointer; }
+.card-action-btn .q-icon { color: var(--c-text-muted) !important; transition: color .12s; }
+.doc-card:hover .card-action-btn .q-icon { color: var(--c-text-2) !important; }
+.card-action-btn:hover .q-icon { color: var(--c-text) !important; }
+/* Pinned is an active selection — the one thing purple is still allowed to mean. */
+.card-action-btn.is-pinned .q-icon,
+.doc-card:hover .card-action-btn.is-pinned .q-icon { color: var(--c-accent) !important; }
+
+/* The action flag is system state, not a tag. With the tag row neutralised it
+   is the only saturated element on a card that has one. */
+.card-action-flag {
+  font-size: 0.65rem; font-weight: 600; letter-spacing: .01em;
+  color: var(--c-warn); background: var(--c-warn-bg);
+  border-radius: 4px; padding: 1px 6px; line-height: 1.5;
+}
+.card-action-flag-icon { color: var(--c-warn) !important; }
+
+/* Dashboard card footer icons: monochrome. The status dots stay coloured —
+   those are genuine state. */
+.dash-card .footer-icon .q-icon { color: var(--c-text-muted) !important; }
+.dash-card .footer-icon:hover .q-icon { color: var(--c-text) !important; }
+
+/* Suggestion chips: fade the right edge so the clipped chip reads as
+   "more content" rather than "broken layout". A scroll listener mirrors the
+   mask on the left once the row has left its origin, and drops it at the end
+   so the last chip is not permanently half-faded. */
+.suggestion-row {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
+          mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
+}
+.suggestion-row.scrolled {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);
+}
+.suggestion-row.at-end {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 40px, black 100%);
+          mask-image: linear-gradient(to right, transparent 0, black 40px, black 100%);
+}
+/* Everything fits — no clipped chip, so nothing to hint at. */
+.suggestion-row.no-mask { -webkit-mask-image: none; mask-image: none; }
+.suggestion-chip .q-icon { color: var(--c-text-muted) !important; font-size: 15px !important; }
+.suggestion-chip .q-btn__content { gap: 5px; }
 </style>
 """
 
@@ -157,4 +240,11 @@ def apply_theme() -> None:
     """
     theme = ng_app.storage.user.get("theme", DEFAULT_THEME)
     ui.dark_mode(theme != "light")  # True → dark (body--dark), False → light (body--light)
+    # Quasar's `primary` is the app's brand purple, not its stock blue. Without
+    # this, every ui.button() (which defaults to color='primary') picks up
+    # `.bg-primary{background:var(--q-primary)!important}` — and that !important
+    # beats the Tailwind `bg-purple-700` classes the pages set, so twenty
+    # buttons that read purple in the source rendered blue on screen. Checked
+    # checkboxes and other Quasar accents follow the same token.
+    ui.colors(primary=BRAND_PRIMARY)
     ui.add_head_html(THEME_CSS)

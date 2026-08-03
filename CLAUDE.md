@@ -520,3 +520,33 @@ Prove the full loop works before touching the rest of the app.
 **Acceptance:**
 - Count-dependent strings read correctly for n=1 and n>1 in both languages.
 - A third language can be added with only the four documented steps.
+
+---
+
+# UI visual discipline
+
+Hard invariants for anything rendered to a user. Full rationale and the phased
+work that established them: `docs/ui-polish-tasks.md`.
+
+- **Colour encodes state, not identity — with one exception.** Tag chips inherit hue from
+  Paperless because the user assigned it and it enables cross-document grouping. Everything
+  else in the UI (icons, borders, buttons, badges) is neutral unless it represents a state the
+  user must react to.
+- **Tag row = Paperless data only.** Anything PaperSage generates (action flags, ingestion
+  status, confidence) renders outside the tag row with its own treatment.
+- **One accent meaning.** Purple = the user's own input and the active selection. Nothing else.
+- **Icons inherit text colour.** No coloured icons anywhere. Active state is the only
+  differentiator in navigation.
+- **Sentence case everywhere.** No ALL CAPS labels, no emoji in UI chrome.
+
+Practical consequences:
+
+- Tag chips go through `app_ui/tag_style.py` (`render_tag_chips` / `tag_chip`), never a raw
+  `ui.badge(tag, color=...)`. The helper preserves hue and clamps saturation and lightness so
+  no tag can outshout another, caps cards at 4 chips plus a muted `+N`, and sorts
+  alphabetically so the visible four are stable across renders.
+- Theme tokens live in `app_ui/theme.py`: `--c-text` / `--c-text-2` / `--c-text-muted` for the
+  neutral ramp, `--c-accent` for the one accent meaning, `--c-warn` / `--c-warn-bg` for
+  "you must react to this". Reach for a token, not a hex.
+- Card action icons use the `card-action-btn` class (muted at rest → `--c-text-2` on card
+  hover → `--c-text` on icon hover), and `is-pinned` for the active-selection accent.

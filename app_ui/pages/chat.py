@@ -388,6 +388,14 @@ html, body { overflow: hidden !important; }
     box-shadow: 0 0 0 3px rgba(124,58,237,0.18) !important;
 }
 .chat-main-input .q-field__native { color: var(--c-text-2) !important; }
+/* The model and backend selects are not user input in the accent sense — they
+   pick a setting. Neutral border, so purple keeps meaning one thing. */
+.chat-model-sel .q-field__control:before,
+.chat-model-sel .q-field__control:after,
+.chat-backend-sel .q-field__control:before,
+.chat-backend-sel .q-field__control:after {
+    border-color: var(--c-border-strong) !important;
+}
 /* Mic button active state */
 .chat-mic-btn.mic-active { background: #450a0a !important; }
 .chat-mic-btn.mic-active .q-icon, .chat-mic-btn.mic-active i { color: #f87171 !important; }
@@ -495,16 +503,19 @@ async def chat():
         # user's own notes, these are notes on Paperless documents.
         "document_notes": _("Document notes"),
     }
+    # (icon, label, prompt). Icons come from the same Material set as the
+    # navigation — emoji in UI chrome is the most recognisable amateur tell and
+    # costs nothing to drop.
     _QUICK_CHIPS_LOCAL = [
-        (_("✨ What can you do?"), _("Show me what you can do! List all your capabilities and tools.")),
-        (_("📌 Open deadlines"), _("What open deadlines do I have?")),
-        (_("📅 Next month"), _("What's in my calendar next month?")),
-        (_("📄 New documents"), _("Show me my latest documents from the last 30 days.")),
-        (_("📧 New emails"), _("What are my latest emails?")),
-        (_("💰 Invoices"), _("Are there any open invoices or outstanding payments?")),
-        (_("✉️ Write a letter"), _("Write a letter.")),
-        (_("📧 Write an email"), _("Write an email.")),
-        (_("💾 Save chat to Paperless"), _("Create a document from the current chat and save it to Paperless.")),
+        ("auto_awesome", _("What can you do?"), _("Show me what you can do! List all your capabilities and tools.")),
+        ("event_busy", _("Open deadlines"), _("What open deadlines do I have?")),
+        ("calendar_month", _("Next month"), _("What's in my calendar next month?")),
+        ("description", _("New documents"), _("Show me my latest documents from the last 30 days.")),
+        ("mail", _("New emails"), _("What are my latest emails?")),
+        ("receipt_long", _("Invoices"), _("Are there any open invoices or outstanding payments?")),
+        ("edit_note", _("Write a letter"), _("Write a letter.")),
+        ("outgoing_mail", _("Write an email"), _("Write an email.")),
+        ("save", _("Save chat to Paperless"), _("Create a document from the current chat and save it to Paperless.")),
     ]
 
     open_document, _doc_dlg = create_document_dialog(
@@ -585,7 +596,7 @@ async def chat():
                 "height:9rem; background:#0d2137; position:relative;"
                 "display:flex; align-items:center; justify-content:center;"
             ):
-                ui.icon("article", size="xl").classes("text-blue-400 opacity-60")
+                ui.icon("article", size="xl").classes("text-gray-400 opacity-60")
                 ui.label("MD").style(
                     "position:absolute; top:8px; left:8px; font-size:0.6rem;"
                     "background:#1e3a5f; color:#93c5fd; border-radius:3px; padding:1px 5px;"
@@ -625,9 +636,14 @@ async def chat():
                 "height:9rem; background:#1a0a2e; position:relative;"
                 "display:flex; align-items:center; justify-content:center;"
             ):
-                ui.icon("psychology", size="xl").classes("text-purple-400 opacity-70")
-                ui.label("🧠").style(
-                    "position:absolute; top:8px; left:8px; font-size:0.85rem;"
+                ui.icon("psychology", size="xl").classes("text-gray-400 opacity-70")
+                # Corner badge matching the vault card's "MD", not an emoji: a
+                # colour glyph next to a monochrome icon reads as a mistake.
+                ui.label(_("Memory")).style(
+                    "position:absolute; top:8px; left:8px; font-size:0.6rem;"
+                    "background:var(--c-surface); color:var(--c-text-muted);"
+                    "border-radius:3px; padding:1px 5px;"
+                    "font-family:monospace; letter-spacing:1px;"
                 )
                 if fact.confidence < 1.0:
                     ui.label(f"{fact.confidence:.0%}").style(
@@ -686,7 +702,7 @@ async def chat():
                             "align-items:center; justify-content:center;"
                         ):
                             ui.icon("public", size="lg").classes(
-                                "text-teal-400 opacity-60"
+                                "text-gray-400 opacity-60"
                             )
                     with ui.column().classes("gap-1").style(
                         "flex:1; min-width:0; padding:10px 12px;"
@@ -701,7 +717,7 @@ async def chat():
                         with ui.row().classes("items-center gap-2 no-wrap").style(
                             "min-width:0;"
                         ):
-                            ui.icon("language", size="xs").classes("text-teal-600")
+                            ui.icon("language", size="xs").classes("text-gray-500")
                             ui.label(domain).classes(
                                 "text-xs text-teal-500 truncate"
                             ).style("font-family:monospace; font-size:0.65rem;")
@@ -1211,7 +1227,7 @@ async def chat():
             "border-bottom:1px solid #1e2a3a;"
             "align-items:center; padding:0 8px 0 12px; gap:6px;"
         ):
-            ui.icon("forum", size="xs").classes("text-purple-400")
+            ui.icon("forum", size="xs").classes("text-gray-400")
             ui.label(_("Conversations")).classes("text-sm text-gray-300 font-semibold flex-1")
             ui.button(
                 icon="close",
@@ -1246,7 +1262,7 @@ async def chat():
             "background:var(--c-surface); border-bottom:1px solid var(--c-border);"
             "align-items:center; padding:0 12px; gap:8px; flex-shrink:0;"
         ):
-            ui.icon("search", size="xs").classes("text-purple-400")
+            ui.icon("search", size="xs").classes("text-gray-400")
             ui.label(_("Search results")).classes(
                 "text-sm text-gray-300 font-semibold flex-1"
             )
@@ -1355,7 +1371,7 @@ async def chat():
                         history_toggle_btn.on_click(
                             lambda: _set_history_visible(not _s["history_visible"])
                         )
-                        ui.icon("chat", size="xs").classes("text-purple-400")
+                        ui.icon("chat", size="xs").classes("text-gray-400")
                         ui.label(_("Chat")).classes(
                             "text-gray-200 font-semibold text-sm"
                         ).style("flex-shrink:0;")
@@ -1576,7 +1592,7 @@ async def chat():
                             "padding:4px 12px;"
                         ):
                             ui.icon("push_pin", size="xs").classes(
-                                "text-purple-400 flex-shrink-0"
+                                "text-gray-400 flex-shrink-0"
                             )
                             pinned_chips_container = ui.row().classes(
                                 "flex-wrap gap-1 flex-1 items-center"
@@ -1591,22 +1607,42 @@ async def chat():
                             "height:36px;"
                         )
                     ):
-                        with ui.element("div").style(
+                        with ui.element("div").classes("suggestion-row").style(
                             "width:100%; overflow-x:auto; scrollbar-width:none;"
                             "display:flex; align-items:center; justify-content:safe center;"
                             "gap:6px; padding:4px 12px; height:100%;"
                         ):
-                            for _chip_label, _chip_text in _QUICK_CHIPS_LOCAL:
+                            for _chip_icon, _chip_label, _chip_text in _QUICK_CHIPS_LOCAL:
                                 ui.button(
                                     _chip_label,
+                                    icon=_chip_icon,
                                     on_click=lambda t=_chip_text: _send_quick(t),
                                 ).props("flat dense dark no-wrap").classes(
-                                    "text-xs text-gray-400"
+                                    "text-xs text-gray-400 suggestion-chip"
                                 ).style(
                                     "white-space:nowrap; border:1px solid var(--c-border);"
-                                    "border-radius:999px; padding:0 8px;"
+                                    "border-radius:999px; padding:0 10px 0 8px;"
                                     "height:24px; min-height:24px;"
                                 )
+                        # Mirror the fade once the row is scrolled away from its
+                        # origin, and drop it entirely at the end — otherwise the
+                        # last chip stays permanently half-faded.
+                        ui.add_head_html("""<script>
+(function bindSuggestionMask() {
+    var el = document.querySelector('.suggestion-row');
+    if (!el) { setTimeout(bindSuggestionMask, 200); return; }
+    function update() {
+        var atStart = el.scrollLeft <= 1;
+        var atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+        el.classList.toggle('no-mask', atStart && atEnd);
+        el.classList.toggle('scrolled', !atStart && !atEnd);
+        el.classList.toggle('at-end', !atStart && atEnd);
+    }
+    el.addEventListener('scroll', update, {passive: true});
+    window.addEventListener('resize', update);
+    update();
+})();
+</script>""")
 
                     # Input row
                     with (
@@ -2051,7 +2087,7 @@ window.__openVaultNote = function(noteId) {{
                                     "items-center gap-2 no-wrap w-full"
                                 ):
                                     ui.icon(icon, size="xs").classes(
-                                        "text-purple-400" if has else "text-gray-600"
+                                        "text-gray-300" if has else "text-gray-600"
                                     )
                                     ui.label(label).classes(
                                         "text-xs "
@@ -2756,7 +2792,7 @@ window.__openVaultNote = function(noteId) {{
                                     _("Download letter"),
                                     icon="download",
                                     on_click=_download_letter,
-                                ).props("dark").classes("text-purple-300")
+                                ).props("dark").classes("text-white")
 
                 _letter_dlg.open()
 
@@ -2880,7 +2916,7 @@ window.__openVaultNote = function(noteId) {{
                                     _("Open in mail app"),
                                     icon="open_in_new",
                                     on_click=_open_mailto,
-                                ).props("unelevated dark").classes("text-purple-300")
+                                ).props("unelevated dark").classes("text-white")
 
                 _email_dlg.open()
 
@@ -3008,7 +3044,7 @@ window.__openVaultNote = function(noteId) {{
                                     _("Save to Paperless"),
                                     icon="save",
                                     on_click=_do_save_pdf,
-                                ).props("unelevated dark").classes("text-purple-300")
+                                ).props("unelevated dark").classes("text-white")
 
                 _pdf_dlg.open()
 

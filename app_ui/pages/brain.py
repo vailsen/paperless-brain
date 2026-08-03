@@ -151,7 +151,7 @@ async def brain_page():
                 ).classes("text-gray-400")
                 ui.button(_("Save"), icon="save", on_click=_save_fact).props(
                     "unelevated dark"
-                ).classes("text-purple-300")
+                ).classes("text-white")
 
     # ── Deadline dialog ────────────────────────────────────────────────────────
 
@@ -211,7 +211,7 @@ async def brain_page():
                 ).classes("text-gray-400")
                 ui.button(_("Save"), icon="save", on_click=_save_deadline).props(
                     "unelevated dark"
-                ).classes("text-purple-300")
+                ).classes("text-white")
 
     def _open_add_deadline():
         _dl_edit_id[0] = None
@@ -262,7 +262,7 @@ async def brain_page():
     ):
         # Header row
         with ui.row().classes("w-full items-center gap-3"):
-            ui.icon("psychology", size="md").classes("text-purple-400")
+            ui.icon("psychology", size="md").classes("text-gray-400")
             ui.label(_("Memory")).classes("text-xl font-bold text-gray-100 flex-1")
 
         # ── Manual deadlines — own bordered card, clearly separated ──────────
@@ -271,7 +271,7 @@ async def brain_page():
             "border-radius:12px; padding:14px 16px;"
         ):
             with ui.row().classes("w-full items-center gap-3"):
-                ui.icon("event", size="sm").classes("text-purple-400")
+                ui.icon("event", size="sm").classes("text-gray-400")
                 ui.label(_("Manual deadlines")).classes(
                     "text-sm font-semibold text-gray-200 flex-1"
                 )
@@ -282,13 +282,13 @@ async def brain_page():
 
         # ── Facts section header (own add button) ───────────────────────────
         with ui.row().classes("w-full items-center gap-3 mt-2"):
-            ui.icon("lightbulb", size="sm").classes("text-purple-400")
+            ui.icon("lightbulb", size="sm").classes("text-gray-400")
             ui.label(_("Facts")).classes(
                 "text-sm font-semibold text-gray-200 flex-1"
             )
             ui.button(_("Add fact"), icon="add", on_click=_open_add).props(
                 "unelevated dark"
-            ).classes("text-purple-300")
+            ).classes("text-white")
 
         # Filter row
         with ui.row().classes("w-full items-center gap-3 flex-wrap"):
