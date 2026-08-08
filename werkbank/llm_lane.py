@@ -125,13 +125,15 @@ def _touch_watchdog(sem: asyncio.Semaphore) -> None:
 
 
 def _get_api_key(user_id: str, token: str) -> str:
-    """Resolve Anthropic API key: per-user credential → global settings fallback."""
-    if token:
-        creds = load_credentials(user_id, token)
-        key = creds.get("llm", {}).get("anthropic_api_key", "")
-        if key:
-            return key
-    return settings.anthropic_api_key
+    """Resolve the Anthropic API key from the user's stored credentials.
+
+    Only a fallback for registry entries that carry no key of their own; keys
+    belong on the model in Settings > AI Models.
+    """
+    if not token:
+        return ""
+    creds = load_credentials(user_id, token)
+    return creds.get("llm", {}).get("anthropic_api_key", "")
 
 
 def make_tool_result_message(tool_call_id: str, result_text: str, model: str) -> dict:

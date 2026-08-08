@@ -14,7 +14,6 @@ from app_ui.document_dialog import create_document_dialog
 from app_ui.layout import page_layout, require_auth
 from app_ui.pages.browser import _render_card
 from config.chat_prompts import build_system_prompt
-from config.settings import settings
 from i18n import DEFAULT_LANG, get_translator
 from models.brain_fact_result import BrainFactResult
 from models.result_document import DocumentResult
@@ -744,12 +743,14 @@ async def chat():
 })();
 </script>""")
 
-    # ── User credentials (LLM settings override .env defaults) ───────────────
+    # ── User credentials ──────────────────────────────────────────────────────
     _username = ng_app.storage.user.get("paperless_user", "")
     _token = get_session_token()
     _creds = load_credentials(_username, _token) if _username and _token else {}
     _llm = _creds.get("llm", {})
-    _api_key = _llm.get("anthropic_api_key") or settings.anthropic_api_key
+    # Fallback only for registry entries without a key of their own — keys are
+    # configured per model in Settings > AI Models.
+    _api_key = _llm.get("anthropic_api_key", "")
 
     # ── Persistent chat settings (credential store, cross-device) ────────────
     _chat_cfg: dict = _creds.get("chat_settings", {})

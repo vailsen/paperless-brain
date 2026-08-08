@@ -115,11 +115,9 @@ Sync compares Paperless against the index, new documents are rendered page by
 page and read by the vision model; results live in JSON sidecars plus ChromaDB
 embeddings (`multilingual-e5` — multilingual retrieval). Each run ends with
 removal of deleted documents, an LLM review of the extracted deadlines, and —
-if you enabled it — the text write-back into Paperless. There are two LLM
-backends — `anthropic` and `openai_compatible` — and both take a custom
-`base_url`, so any API-compatible provider works, local or cloud. They share one
-tool set and one streaming event protocol, and the same model registry serves
-chat, deep research and vision ingestion.
+if you enabled it — the text write-back into Paperless. The two LLM backends
+share one tool set and one streaming event protocol — see
+[AI models & providers](#ai-models--providers) for what you can point them at.
 
 ## Quick start (Docker)
 
@@ -165,10 +163,29 @@ for reproducible deploys.
 |---|---|
 | Paperless-ngx | any recent version + a superuser API token |
 | A vision-capable model | for document ingestion — local via Ollama (e.g. a Qwen-VL-class model, can run on another machine) or any cloud vision model (Claude, GPT, MiniMax …). Picked in Settings > Processing |
-| An LLM endpoint for chat | Anthropic-compatible (Claude, MiniMax …) or OpenAI-compatible (Ollama, OpenAI, OpenRouter, vLLM …) — added per user with URL + key in Settings > AI Models |
+| An LLM endpoint for chat | Anthropic-compatible or OpenAI-compatible — local, direct cloud provider or an AI gateway; added per user with URL + key in Settings > AI Models. See [AI models & providers](#ai-models--providers) |
 | SearXNG | optional — enables the web-search tool |
 | IMAP mailbox / CalDAV calendar | optional — enables the mail and appointment tools (per-user credentials, encrypted) |
 | Wake-on-LAN capable GPU server | optional — see [Power management](#power-management-optional) |
+
+## AI models & providers
+
+Models are added **per user** in *Settings > AI Models* — base URL, API key,
+model id. There are two backend types, `anthropic` and `openai_compatible`, and
+both take a **custom base URL**, so anything speaking either protocol works:
+
+- **Local** — Ollama, vLLM, llama.cpp, LM Studio, TGI
+- **Direct cloud** — Anthropic, OpenAI, MiniMax, or any provider with a
+  compatible endpoint
+- **AI gateways / LLM routers** — OpenRouter, Requesty, LiteLLM, Portkey,
+  Cloudflare AI Gateway and similar. Point `openai_compatible` at the gateway's
+  endpoint (e.g. `https://openrouter.ai/api/v1` or
+  `https://router.requesty.ai/v1`), use the gateway key, and set the model id in
+  whatever `provider/model` form that gateway expects.
+
+There are no hardcoded provider integrations and no API key belongs in `.env` —
+every key lives with its model in the registry. The same registry serves chat,
+deep research and vision ingestion, so a gateway model can do all three.
 
 ## Configuration (`.env` reference)
 
@@ -197,7 +214,6 @@ the env value is only the initial fallback).
 | `EXTRACTION_PROFILE` | | `en` | *UI* — extraction-rule profile: `en` or `de` (see [Extraction rules](#extraction-rules)) |
 | `ARCHIVE_LANGUAGE` | | `en` | *UI* — language of AI-generated summaries (archive-level — sidecars are shared by all users) |
 | `TZ` | | system | IANA timezone for timestamps on generated documents |
-| `ANTHROPIC_API_KEY` | | empty | *UI* — global fallback key for Anthropic-compatible models; every other model (and each user's own key + base URL) is configured in Settings > AI Models |
 | `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` | | empty | MAC for Wake-on-LAN (empty = feature hidden) |
 | `OLLAMA_SSH_USER` | | empty | SSH user for remote shutdown of the Ollama host (empty = feature hidden). Needs passwordless sudo for `/usr/bin/shutdown`; in Docker, mount an SSH key into the container |
 | `OLLAMA_IDLE_SHUTDOWN_MINUTES` | | `30` | Idle minutes before the Ollama host is shut down |

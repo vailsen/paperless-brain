@@ -504,9 +504,6 @@ def build_vision_client(username: str = "", token: str = "") -> VisionClient:
     api_key = entry.get("api_key") or ""
 
     if entry.get("backend") == "anthropic":
-        if not api_key:
-            from config.settings import settings
-            api_key = settings.anthropic_api_key  # same global fallback the chat uses
         return AnthropicVisionClient(model=model, api_key=api_key, base_url=base_url)
 
     if not base_url:

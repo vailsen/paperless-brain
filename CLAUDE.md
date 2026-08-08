@@ -54,7 +54,10 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
   never read them — those use per-user models with their own `base_url`.
   `OLLAMA_SERVER` additionally names the host the WoL/shutdown buttons control;
   without it that is inferred from the first local-lane model in the registry.
-- `ANTHROPIC_API_KEY` (optional) — global fallback key; chat models are managed per user in the UI (Settings > AI Models, `services/model_registry.py`)
+- No provider API key belongs in `.env`. Every chat/research/vision model is managed
+  per user in the UI (Settings > AI Models, `services/model_registry.py`) with its own
+  backend (`anthropic` / `openai_compatible`), base URL, key and model id — which is
+  what makes AI gateways (OpenRouter, Requesty, LiteLLM, Portkey …) work with no code.
 - `SEARXNG_HOST` — self-hosted SearXNG instance
 - `STORAGE_SECRET` — NiceGUI session secret
 

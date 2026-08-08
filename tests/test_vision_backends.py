@@ -252,14 +252,11 @@ def test_anthropic_entry_routes_to_the_anthropic_client(monkeypatch, registry):
     assert client.model == "claude-x"
 
 
-def test_anthropic_entry_without_a_key_uses_the_env_fallback(monkeypatch, registry):
-    """Same fallback the chat uses when a user stored no key of their own."""
-    from config.settings import settings
-
-    monkeypatch.setattr(settings, "anthropic_api_key", "sk-env", raising=False)
+def test_anthropic_entry_without_a_key_gets_no_key(monkeypatch, registry):
+    """There is no global key any more — the registry entry is the only source."""
     registry["C"] = {"name": "C", "backend": "anthropic", "model": "m", "api_key": ""}
     _stub_name(monkeypatch, "C")
-    assert V.build_vision_client("bob", "tok")._api_key == "sk-env"
+    assert V.build_vision_client("bob", "tok")._api_key == ""
 
 
 def test_openai_compatible_entry_routes_with_its_own_base_url(monkeypatch, registry):

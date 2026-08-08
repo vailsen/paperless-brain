@@ -35,9 +35,6 @@ class Settings(BaseSettings):
     # TZ env var). Empty = system local time.
     tz: str = ""
 
-    # Global Anthropic API key fallback (per-user keys via Einstellungen > KI-Modelle)
-    anthropic_api_key: str = ""
-
     # Wake-on-LAN / remote shutdown of the Ollama host (empty = feature disabled)
     ollama_host_lan_mac_address_wol: str = ""
     ollama_ssh_user: str = ""
