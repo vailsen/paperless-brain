@@ -58,7 +58,27 @@ class Settings(BaseSettings):
     # Names a real folder inside every user's vault. Existing installs must pin
     # their old value in .env — changing this orphans already-written memory files.
     brain_subfolder: str = "PaperlessBrain Memory"
+    # Voice memos. Same warning as above: names a real folder, changing it
+    # orphans already-written memos.
+    memo_subfolder: str = "PaperlessBrain Memos"
     vault_sync_cooldown_s: int = 3
+
+    # Voice memos — transcription service (OpenAI-compatible /v1/audio/transcriptions).
+    # Empty whisper_url = feature hidden everywhere. Not shipped with the app; see
+    # docs/voice-memos-tasks.md for setup options.
+    whisper_url: str = ""
+    whisper_api_key: str = ""
+    whisper_model: str = "whisper-1"
+    whisper_language: str = ""
+    # Hard caps on what the upload route accepts. A stuck recording must not
+    # post a huge blob, and transcription is CPU work worth bounding.
+    memo_max_upload_mb: int = 25
+    memo_max_seconds: int = 300
+    # Conversation mode records a meeting, not a thought — the memo caps would
+    # cut it off mid-sentence. The transcription service has its own upload
+    # limit; keep this at or below it (hwdsl2/whisper-server: WHISPER_MAX_UPLOAD_MB).
+    conversation_max_upload_mb: int = 200
+    conversation_max_seconds: int = 3600
 
     # NiceGui
     storage_secret: str

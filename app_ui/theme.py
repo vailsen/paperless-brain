@@ -203,6 +203,39 @@ body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
 }
 .card-action-flag-icon { color: var(--c-warn) !important; }
 
+/* Voice memo. The record button is neutral at rest like every other icon; while
+   recording it carries --c-warn, because "your microphone is live" is exactly
+   the kind of state the user must react to. The pulse is the only motion. */
+.memo-record-btn { background: var(--c-surface-2) !important; }
+.memo-record-btn .q-icon { color: var(--c-text-2) !important; transition: color .12s; }
+.memo-record-btn:hover .q-icon { color: var(--c-text) !important; }
+.memo-record-btn.memo-recording { background: var(--c-warn-bg) !important; }
+.memo-record-btn.memo-recording .q-icon { color: var(--c-warn) !important; }
+.memo-record-btn.memo-recording { animation: memo-pulse 1.4s ease-in-out infinite; }
+@keyframes memo-pulse { 0%,100% { opacity: 1; } 50% { opacity: .62; } }
+@media (prefers-reduced-motion: reduce) { .memo-record-btn.memo-recording { animation: none; } }
+/* Locked (swiped up): still live, so still --c-warn, but the pulse stops and a
+   ring takes over — the button is now a stop button waiting for a tap, not a
+   thumb that must stay put. */
+.memo-record-btn.memo-locked { animation: none; box-shadow: 0 0 0 2px var(--c-warn); }
+/* Nothing on this button should start a text selection or a scroll: the whole
+   vertical drag belongs to the swipe-to-lock gesture. */
+.memo-record-btn { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+/* A transcribed conversation is far longer than a memo, so the card needs a
+   ceiling: without one the autogrow textarea grows the dialog past the viewport
+   and the Save/Discard row ends up off-screen. The card is already a flex
+   column (.nicegui-card), so capping its height and letting exactly one child
+   scroll is enough — everything else keeps its natural size and stays visible. */
+/* dvh second so it wins where supported: on mobile `vh` ignores the browser's
+   collapsing toolbar, which is exactly where the buttons went missing. */
+.memo-card { max-height: 88vh; max-height: 88dvh; overflow: hidden; }
+.memo-card > * { flex-shrink: 0; }
+/* `flex: 0 1 auto` not `1 1 0`: basis auto keeps a short memo at its natural
+   height (no empty gap above the buttons), while still shrinking and scrolling
+   once the card hits its ceiling. min-height:0 is what permits that shrink. */
+.memo-card > .memo-text-scroll { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+
 /* Dashboard card footer icons: monochrome. The status dots stay coloured —
    those are genuine state. */
 .dash-card .footer-icon .q-icon { color: var(--c-text-muted) !important; }

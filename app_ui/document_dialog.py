@@ -409,8 +409,11 @@ def render_document_body(
                                 )
                                 for _a in _actions[:5]:
                                     _certain = "●" if _a.get("deadline_certain") else "○"
-                                    _dl = _a.get("deadline", "—")
-                                    _desc = _a.get("description", "") or ""
+                                    # `or`, not a dict default: action_dedupe writes
+                                    # an explicit None for a dateless action, and
+                                    # `.get(k, "—")` would render the literal "None".
+                                    _dl = _a.get("deadline") or "—"
+                                    _desc = _a.get("description") or ""
                                     with ui.row().classes("items-start gap-2 no-wrap"):
                                         ui.label(_certain).classes("text-gray-400 text-xs flex-shrink-0 mt-0.5")
                                         ui.label(f"{_dl} — {_desc}").classes(
@@ -488,8 +491,8 @@ def render_document_body(
                                         ],
                                         rows=[
                                             {
-                                                "desc": a.get("description", ""),
-                                                "deadline": a.get("deadline", ""),
+                                                "desc": a.get("description") or "",
+                                                "deadline": a.get("deadline") or "—",
                                                 "certain": _("Yes")
                                                 if a.get("deadline_certain")
                                                 else _("No"),

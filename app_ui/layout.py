@@ -164,6 +164,14 @@ def page_layout() -> None:
                             )
             _menu_btn.on_click(_nav_menu.open)
 
+        # ── Voice memo quick capture ─────────────────────────────────────────
+        # Reachable from every page on purpose: a memo is not a chat turn, and
+        # capture has to work wherever the user happens to be.
+        if username:
+            from app_ui.memo_dialog import memo_button
+
+            memo_button()
+
         # ── Logged-in user dropdown (Settings + Logout) ──────────────────────
         if username:
             ui.separator().props("vertical dark").classes("mx-2 h-6 self-center")

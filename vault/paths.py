@@ -37,15 +37,61 @@ def brain_path(username: str) -> Path:
     return vault_path(username) / settings.brain_subfolder
 
 
+def memo_path(username: str) -> Path:
+    """Voice-memo subfolder. Deliberately NOT under brain_subfolder — memos are
+    the user's own notes and belong in the chunked `vault` collection, not the
+    agent-curated `brain` one."""
+    return vault_path(username) / settings.memo_subfolder
+
+
 def git_dir_path(username: str) -> Path:
     """Local git metadata dir — kept off the vault mount to avoid mmap issues on WebDAV/FUSE."""
     return settings.app_path / "data" / "vault_git" / username
 
 
+def ensure_vault_dir(path: Path) -> None:
+    """Create a directory inside the vault mount (idempotent).
+
+    ``mkdir`` is not the same on a bind-mounted / FUSE-backed vault as it is on
+    a local disk: when the directory is already there but was created by another
+    uid (WebDAV server, host side of the mount, unprivileged-LXC id mapping),
+    the kernel answers EPERM instead of EEXIST, and ``exists()`` can report
+    False when the mount refuses the ``stat``. So the existence check happens
+    *after* the failure, not before it, and only a genuinely missing directory
+    is reported as an error — with the mount named, since that is what has to be
+    fixed.
+    """
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        return
+    except OSError as exc:
+        if path.is_dir():
+            return
+        raise OSError(
+            f"cannot create {path} — check the permissions of the vault mount "
+            f"({settings.vault_root}) for the user running PaperlessBrain: {exc}"
+        ) from exc
+    align_vault_perms(path, mode=VAULT_DIR_MODE)
+
+
+def ensure_git_dir(username: str) -> None:
+    """Local git metadata dir. Lives outside the vault mount, so a plain mkdir."""
+    git_dir_path(username).mkdir(parents=True, exist_ok=True)
+
+
 def ensure_user_dirs(username: str) -> None:
     """Create vault + brain subdirectory and local git dir for the user (idempotent)."""
-    brain = brain_path(username)
-    if not brain.exists():
-        brain.mkdir(parents=True, exist_ok=True)
-        align_vault_perms(brain, mode=VAULT_DIR_MODE)
-    git_dir_path(username).mkdir(parents=True, exist_ok=True)
+    ensure_vault_dir(brain_path(username))
+    ensure_git_dir(username)
+
+
+def ensure_memo_dir(username: str) -> None:
+    """Create the memo subfolder and the local git dir (idempotent).
+
+    Deliberately does *not* touch the brain subfolder: a voice memo is a vault
+    note and has no business failing because the agent's memory folder cannot be
+    created. `parents=True` covers the vault root for a first-time user.
+    """
+    ensure_vault_dir(memo_path(username))
+    ensure_git_dir(username)

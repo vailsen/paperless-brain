@@ -68,6 +68,108 @@ def push_text_setting() -> None:
     ).classes("text-sm text-gray-300")
 
 
+def voice_memo_setting(username: str = "", token: str = "") -> None:
+    """Voice-memo section. Inert with an explanation when no service is set up.
+
+    Greyed out rather than hidden: a user who never sees the section cannot
+    discover that the feature exists or what it would take to switch it on.
+    """
+    _ = get_translator()
+    from app_ui.memo_dialog import memo_configured, set_memo_enabled
+
+    configured = memo_configured()
+
+    _section_header(
+        "mic",
+        _("Voice memos"),
+        _("Speak a memo; it is filed into your vault as Markdown"),
+    )
+
+    if not configured:
+        with ui.element("div").style("opacity:.55; pointer-events:none;"):
+            ui.checkbox(_("Enable voice memos"), value=False).classes(
+                "text-sm text-gray-300"
+            )
+        _hint(
+            _(
+                "No transcription service is configured, so this feature is off. "
+                "PaperlessBrain does not ship one — point <code>WHISPER_URL</code> in "
+                "your <code>.env</code> at any service with an OpenAI-compatible "
+                "<code>/v1/audio/transcriptions</code> endpoint (for example a "
+                "self-hosted Whisper container), optionally with "
+                "<code>WHISPER_API_KEY</code>, <code>WHISPER_MODEL</code> and "
+                "<code>WHISPER_LANGUAGE</code>, then restart. "
+                "<b>Ollama cannot do transcription</b> — it needs its own service. "
+                "Recording also requires the app to be reachable over HTTPS or "
+                "localhost; browsers block microphone access otherwise."
+            )
+        )
+        return
+
+    ui.checkbox(
+        _("Enable voice memos"),
+        value=bool(ng_app.storage.user.get("voice_memos_enabled", True)),
+        on_change=lambda e: set_memo_enabled(e.value),
+    ).classes("text-sm text-gray-300")
+    _hint(
+        _(
+            "A microphone button appears in the header. Hold the record button and "
+            "speak — or swipe up while holding to lock the recording and stop it "
+            "with a tap. The recording is transcribed and tidied up by your "
+            "selected AI model, and you review the text before anything is saved. "
+            "Memos are stored as "
+            "Markdown files in the <code>{folder}</code> folder of your vault and "
+            "are searchable in chat. Switch the dialog to <b>Conversation</b> to "
+            "transcribe a recorded dialog as speaker turns — that needs a "
+            "transcription service with speaker diarization. "
+            "Reload the page after changing this."
+        ).format(folder=settings.memo_subfolder)
+    )
+
+    if not (username and token):
+        return
+
+    from services.credential_store import load_credentials as _lc_memo
+    from services.credential_store import save_credentials as _sc_memo
+    from services.model_registry import get_models as _get_models_memo
+
+    _memo_creds = _lc_memo(username, token)
+    _cur_memo_model = _memo_creds.get("memo_model", "")
+    _memo_opts = {
+        m["name"]: m["name"]
+        for m in _get_models_memo(username, token)
+        if m.get("enabled", True)
+    }
+    _memo_sel = (
+        ui.select(
+            _memo_opts,
+            label=_("Model for memo cleanup"),
+            value=_cur_memo_model if _cur_memo_model in _memo_opts else None,
+        )
+        .props("outlined dark dense clearable")
+        .classes("w-full mt-3")
+    )
+    _hint(
+        _(
+            "Rewrites the raw dictation into readable Markdown and names it. "
+            "This is a short, strictly formatted job, so a small local model is "
+            "usually enough — it does not have to be your chat model. "
+            "<b>Without a model here the chat model is used; without that, the raw "
+            "transcript is filed and the topic is taken from its first words.</b>"
+        )
+    )
+
+    def _save_memo_model() -> None:
+        c = _lc_memo(username, token)
+        c["memo_model"] = _memo_sel.value or ""
+        _sc_memo(username, token, c)
+        ui.notify(_("Saved."), type="positive")
+
+    ui.button(_("Save"), icon="save", on_click=_save_memo_model).props(
+        "unelevated dark dense"
+    ).classes("bg-purple-700 text-white mt-3")
+
+
 # ── Tiny UI helpers ───────────────────────────────────────────────────────────
 
 
@@ -186,6 +288,10 @@ async def settings_page() -> None:
                 )
             )
 
+        # ── Sprachmemos / voice memos ─────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+            voice_memo_setting(username, token)
+
         # ── KI-Modelle (dynamic registry) ─────────────────────────────────────
         with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
             from services.model_registry import get_models, save_models, new_model
@@ -273,9 +379,31 @@ async def settings_page() -> None:
                             _think_init = "true" if _think_val is True else ("false" if _think_val is False else "auto")
                             f_think = ui.select(
                                 {"auto": _("Auto (model default)"), "true": _("Thinking ON"), "false": _("Thinking OFF")},
-                                label=_("Thinking mode (Qwen3 / DeepSeek-R)"),
+                                label=_("Thinking mode"),
                                 value=_think_init,
                             ).props("outlined dark dense").classes("w-full mt-2")
+                            ui.label(
+                                _(
+                                    "\"Auto\" leaves the decision to the model — Claude then never "
+                                    "thinks, and other models only sometimes. Set it explicitly to "
+                                    "decide yourself."
+                                )
+                            ).classes("text-xs text-gray-500 mt-1")
+                            f_thinking_budget = (
+                                ui.number(
+                                    label=_("Thinking budget in tokens (Anthropic backend, 0 = 4096)"),
+                                    value=int(edit_model.get("thinking_budget", 0)) if is_edit else 0,
+                                    min=0, step=1024, format="%.0f",
+                                )
+                                .props("outlined dark dense")
+                                .classes("w-full mt-2")
+                            )
+                            ui.label(
+                                _(
+                                    "With thinking ON the Anthropic backend runs at temperature 1 — "
+                                    "the API allows no other value."
+                                )
+                            ).classes("text-xs text-gray-500 mt-1")
                             ui.label(
                                 _("⚠ Qwen3 thinking-loop risk at temp. < 0.5 — recommended: ≥ 0.6")
                             ).classes("text-xs text-yellow-500 mt-1")
@@ -299,6 +427,7 @@ async def settings_page() -> None:
                                     "temperature": float(f_temperature.value or 0.3),
                                     "max_output_tokens": int(f_max_output.value or 0),
                                     "think": True if f_think.value == "true" else (False if f_think.value == "false" else None),
+                                    "thinking_budget": int(f_thinking_budget.value or 0),
                                     "enabled":          True,
                                 }
                                 fresh = get_models(username, token)
@@ -1073,6 +1202,9 @@ async def settings_page() -> None:
                     theme=ng_app.storage.user.get("theme", "dark"),
                     push_text_to_paperless=bool(
                         ng_app.storage.user.get("push_text_to_paperless", False)
+                    ),
+                    voice_memos_enabled=bool(
+                        ng_app.storage.user.get("voice_memos_enabled", True)
                     ),
                     include_secrets=bool(_export_secrets_cb.value),
                 )

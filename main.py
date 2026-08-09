@@ -14,6 +14,7 @@ import app_ui.pages.chat  # noqa: F401
 import app_ui.pages.dashboard  # noqa: F401
 import app_ui.pages.login  # noqa: F401
 import app_ui.pages.settings  # noqa: F401
+import app_ui.memo_routes  # noqa: F401  — registers POST /api/memo/transcribe
 import werkbank.ui.module_page  # noqa: F401
 from app_ui.tag_style import refresh_tag_colors
 from config.settings import settings

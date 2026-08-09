@@ -787,14 +787,16 @@ async def chat():
 
     _reg_backends: dict = {}
     for _rm in _reg_models:
+        _think_cfg = _rm.get("think")  # None=auto, True/False=explicit
         if _rm.get("backend") == "anthropic":
             _reg_backends[_rm["name"]] = ClaudeChatBackend(
                 api_key=_rm.get("api_key") or _api_key,
                 model=_rm["model"],
                 base_url=_rm.get("base_url", ""),
+                think=bool(_think_cfg) if _think_cfg is not None else None,
+                thinking_budget=int(_rm.get("thinking_budget") or 0),
             )
         else:
-            _think_cfg = _rm.get("think")  # None=auto, True/False=explicit
             _reg_backends[_rm["name"]] = OpenAICompatibleChatBackend(
                 base_url=_rm.get("base_url", ""),
                 api_key=_rm.get("api_key", ""),
@@ -1751,6 +1753,28 @@ async def chat():
 })();
 </script>""")
 
+    # Whisper beats the browser's Web Speech API by a wide margin on German
+    # dictation, so it takes over the mic whenever it is configured. Web Speech
+    # stays as the fallback. The interaction differs: Web Speech streams interim
+    # words while you talk, Whisper shows nothing until you release the button
+    # and the round trip returns.
+    from app_ui.memo_dialog import memo_enabled as _memo_enabled
+    from app_ui.memo_routes import TRANSCRIBE_PATH as _TRANSCRIBE_PATH
+    from config.settings import settings as _settings
+
+    _mic_labels = {
+        "recording": _("Recording — release to stop"),
+        "working": _("Transcribing …"),
+        "failed": _("Transcription failed."),
+        "denied": _("Microphone access was denied."),
+    }
+    ui.add_head_html(f"""<script>
+window.__pbWhisperMic = {json.dumps(bool(_memo_enabled()))};
+window.__pbWhisperEndpoint = {json.dumps(_TRANSCRIBE_PATH)};
+window.__pbMicLabels = {json.dumps(_mic_labels)};
+window.__pbMicMaxMs = {_settings.memo_max_seconds * 1000};
+</script>""")
+
     ui.add_head_html("""<script>
 (function initMicInput() {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1764,9 +1788,77 @@ async def chat():
         setter.call(ta, value);
         ta.dispatchEvent(new Event('input', { bubbles: true }));
     }
+    function getIcon(b) { return b.querySelector('.q-icon, i'); }
+
+    // ── Whisper: hold to record, transcribe server-side on release ───────────
+    // The chat mic deliberately inserts the RAW transcript. The user is
+    // composing their own message; running it through the memo rewrite would
+    // put words in their mouth.
+    function initWhisper(btn) {
+        var L = window.__pbMicLabels || {};
+        var recorder = null, chunks = [], stream = null, timer = null, busy = false;
+        var baseText = '';
+
+        function reset(iconName) {
+            btn.classList.remove('mic-active');
+            var ic = getIcon(btn);
+            if (ic) ic.textContent = iconName || 'mic';
+        }
+        function stop() {
+            if (timer) { clearTimeout(timer); timer = null; }
+            if (recorder && recorder.state === 'recording') recorder.stop();
+        }
+        async function start(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (busy || (recorder && recorder.state === 'recording')) return;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({audio: true});
+            } catch (err) { reset(); return; }
+            var ta = getTextarea();
+            baseText = ta ? ta.value : '';
+            if (baseText && !baseText.endsWith(' ')) baseText += ' ';
+            chunks = [];
+            recorder = new MediaRecorder(stream);
+            recorder.ondataavailable = function(ev) {
+                if (ev.data && ev.data.size) chunks.push(ev.data);
+            };
+            recorder.onstop = async function() {
+                stream.getTracks().forEach(function(t) { t.stop(); });
+                if (!chunks.length) { reset(); return; }
+                busy = true;
+                reset('hourglass_empty');
+                var fd = new FormData();
+                fd.append('audio', new Blob(chunks, {type: recorder.mimeType || 'audio/webm'}), 'dictation.webm');
+                try {
+                    var resp = await fetch(window.__pbWhisperEndpoint, {
+                        method: 'POST', body: fd, credentials: 'same-origin'
+                    });
+                    var data = await resp.json().catch(function() { return {}; });
+                    var ta2 = getTextarea();
+                    if (resp.ok && data.text && ta2) setVueValue(ta2, baseText + data.text);
+                } catch (err) { /* transcript lost, typed text untouched */ }
+                busy = false;
+                reset();
+            };
+            recorder.start();
+            btn.classList.add('mic-active');
+            var ic = getIcon(btn);
+            if (ic) ic.textContent = 'mic_none';
+            timer = setTimeout(stop, window.__pbMicMaxMs || 300000);
+        }
+        btn.addEventListener('pointerdown', start);
+        btn.addEventListener('pointerup', stop);
+        btn.addEventListener('pointercancel', stop);
+        btn.addEventListener('pointerleave', stop);
+        btn.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    }
+
     function waitForBtn() {
         var btn = getMicBtn();
         if (!btn) { setTimeout(waitForBtn, 200); return; }
+        var canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+        if (window.__pbWhisperMic && canRecord) { initWhisper(btn); return; }
         if (!SR) { btn.style.display = 'none'; return; }
         var recognition = new SR();
         recognition.lang = 'de-DE';
@@ -1780,7 +1872,6 @@ async def chat():
             var ta = getTextarea();
             if (ta) setVueValue(ta, baseText + t);
         };
-        function getIcon(b) { return b.querySelector('.q-icon, i'); }
         function stopListening() {
             listening = false;
             var b = getMicBtn();

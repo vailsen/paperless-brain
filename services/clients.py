@@ -8,6 +8,7 @@ from services.sidecar_service import SidecarService
 from services.thumbnail_service import ThumbnailService
 from services.vision import OllamaVisionClient
 from vault.brain_writer import VaultBrainWriter
+from vault.memo_writer import VaultMemoWriter
 
 # Superuser client — used for sync / ingestion / admin operations
 paperless = PaperlessClient(
@@ -56,6 +57,7 @@ vault_chroma = ChromaClient(
 )
 
 vault_brain_writer = VaultBrainWriter(brain_chroma=brain._chroma)
+vault_memo_writer = VaultMemoWriter(vault_chroma=vault_chroma)
 
 thumbnail_service = ThumbnailService(
     paperless_client=paperless,

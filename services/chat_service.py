@@ -2562,7 +2562,15 @@ def _block_to_dict(block) -> dict:
             "input": block.input,
         }
     if block.type == "thinking":
-        return {"type": "thinking", "thinking": block.thinking}
+        # The signature must survive the round trip. When a thinking block is
+        # replayed next to a tool_use block the API verifies it, and rejects the
+        # request outright if it is missing.
+        out: dict = {"type": "thinking", "thinking": block.thinking}
+        if sig := getattr(block, "signature", None):
+            out["signature"] = sig
+        return out
+    if block.type == "redacted_thinking":
+        return {"type": "redacted_thinking", "data": block.data}
     return {"type": block.type}
 
 
@@ -2601,9 +2609,22 @@ def _claude_ctx_window(model: str, override: int = 0) -> int:
     return 200_000
 
 
+# Anthropic's floor for `budget_tokens`; anything smaller is rejected.
+MIN_THINKING_BUDGET = 1024
+DEFAULT_THINKING_BUDGET = 4096
+# Headroom for the answer on top of the thinking budget — max_tokens covers both.
+_ANSWER_HEADROOM = 8_000
+
+
 class ClaudeChatBackend:
     def __init__(
-        self, api_key: str, model: str, base_url: str = "", context_window: int = 0
+        self,
+        api_key: str,
+        model: str,
+        base_url: str = "",
+        context_window: int = 0,
+        think: bool | None = None,
+        thinking_budget: int = 0,
     ):
         import anthropic
 
@@ -2613,6 +2634,27 @@ class ClaudeChatBackend:
         self.client = anthropic.AsyncAnthropic(**kwargs)
         self.model = model
         self.context_window = _claude_ctx_window(model, context_window)
+        # None = say nothing and let the model/endpoint decide. That is what the
+        # backend did before this option existed: Claude then never thinks, and
+        # a MiniMax-style endpoint thinks whenever it feels like it — which is
+        # exactly the "thinks only sometimes" behaviour the flag exists to fix.
+        self.think = think
+        self.thinking_budget = max(thinking_budget or DEFAULT_THINKING_BUDGET, MIN_THINKING_BUDGET)
+
+    def _thinking_params(self, temperature: float) -> tuple[dict, float, int]:
+        """Return (extra kwargs, effective temperature, max_tokens)."""
+        max_tokens = 12_000
+        if self.think is None:
+            return {}, temperature, max_tokens
+        if not self.think:
+            return {"thinking": {"type": "disabled"}}, temperature, max_tokens
+        # max_tokens must exceed budget_tokens, and extended thinking only runs
+        # at temperature 1 — the API rejects any other value instead of clamping.
+        return (
+            {"thinking": {"type": "enabled", "budget_tokens": self.thinking_budget}},
+            1.0,
+            max(max_tokens, self.thinking_budget + _ANSWER_HEADROOM),
+        )
 
     async def run_turn(
         self,
@@ -2631,6 +2673,7 @@ class ClaudeChatBackend:
         ]
         working = list(messages)
         usage = 0
+        extra_kwargs, temperature, max_tokens = self._thinking_params(temperature)
 
         for _i in range(max_iterations):
             yield IterationEvent(_i + 1)
@@ -2649,8 +2692,9 @@ class ClaudeChatBackend:
                 system=system_blocks,
                 messages=_with_cache_marker(working),
                 tools=active_tools,
-                max_tokens=12_000,
+                max_tokens=max_tokens,
                 temperature=temperature,
+                **extra_kwargs,
             ) as stream:
                 async for event in stream:
                     if event.type != "content_block_delta":

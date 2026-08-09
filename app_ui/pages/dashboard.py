@@ -85,7 +85,7 @@ def _month_html(year: int, month: int, day_data: dict[int, list[dict]]) -> str:
                 # tooltip: concatenate action descriptions
                 tooltip_lines = []
                 for a in actions[:5]:
-                    desc = a.get("description", "")
+                    desc = a.get("description") or ""
                     if len(desc) > 60:
                         desc = desc[:57] + "…"
                     tooltip_lines.append(desc)
@@ -1640,7 +1640,7 @@ window.__toggleHideAction = function(key) {{
                 )
                 certain = "●" if a.get("deadline_certain") else "○"
                 certain_title = _("Certain") if a.get("deadline_certain") else _("Uncertain")
-                desc = a.get("description", "")
+                desc = a.get("description") or ""
                 if len(desc) > 90:
                     desc = desc[:87] + "…"
                 doc_id = a.get("paperless_id", "")

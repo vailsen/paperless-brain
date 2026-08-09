@@ -30,7 +30,14 @@ SCHEMA_VERSION = 1
 REDACTED = "__OMITTED__"
 
 #: Credential keys carried by the export, in the order they are written.
-_CRED_KEYS = ("llm_models", "imap", "calendar", "sender_profile", "dream_model")
+_CRED_KEYS = (
+    "llm_models",
+    "imap",
+    "calendar",
+    "sender_profile",
+    "dream_model",
+    "memo_model",
+)
 
 _VALID_THEMES = ("dark", "light")
 
@@ -78,6 +85,7 @@ def build_export(
     language: str,
     theme: str,
     push_text_to_paperless: bool = False,
+    voice_memos_enabled: bool = True,
     include_secrets: bool = False,
 ) -> str:
     """Return the settings of ``username`` as an indented JSON string."""
@@ -89,6 +97,7 @@ def build_export(
         "language": language,
         "theme": theme,
         "push_text_to_paperless": bool(push_text_to_paperless),
+        "voice_memos_enabled": bool(voice_memos_enabled),
     }
     for key in _CRED_KEYS:
         if key in creds:
@@ -142,6 +151,9 @@ def describe(payload: dict, supported_languages: tuple[str, ...] | list[str]) ->
     if isinstance(payload.get("push_text_to_paperless"), bool):
         state = "on" if payload["push_text_to_paperless"] else "off"
         notes.append(f"Push AI text to Paperless-ngx: {state}")
+    if isinstance(payload.get("voice_memos_enabled"), bool):
+        state = "on" if payload["voice_memos_enabled"] else "off"
+        notes.append(f"Voice memos: {state}")
     if isinstance(payload.get("llm_models"), list):
         notes.append(f"AI models: {len(payload['llm_models'])}")
     if isinstance(payload.get("imap"), dict):
@@ -152,6 +164,8 @@ def describe(payload: dict, supported_languages: tuple[str, ...] | list[str]) ->
         notes.append("Sender profile")
     if payload.get("dream_model"):
         notes.append(f"Memory maintenance model: {payload['dream_model']}")
+    if payload.get("memo_model"):
+        notes.append(f"Memo cleanup model: {payload['memo_model']}")
     return notes
 
 
@@ -216,6 +230,8 @@ def apply_import(
         creds["sender_profile"] = payload["sender_profile"]
     if isinstance(payload.get("dream_model"), str):
         creds["dream_model"] = payload["dream_model"]
+    if isinstance(payload.get("memo_model"), str):
+        creds["memo_model"] = payload["memo_model"]
 
     if username and token:
         save_credentials(username, token, creds)
@@ -227,4 +243,6 @@ def apply_import(
         prefs["theme"] = payload["theme"]
     if isinstance(payload.get("push_text_to_paperless"), bool):
         prefs["push_text_to_paperless"] = payload["push_text_to_paperless"]
+    if isinstance(payload.get("voice_memos_enabled"), bool):
+        prefs["voice_memos_enabled"] = payload["voice_memos_enabled"]
     return prefs

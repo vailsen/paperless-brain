@@ -218,6 +218,38 @@ Bauplan: `docs/werkbank-tasks.md`
 - The WebDAV endpoint Remotely Save targets **must serve the same directory** PaperSage mounts.
 - Atomic writes (temp + rename) within the mount. Ignore `*.conflict.md`.
 
+## Voice memos
+
+Full plan and rationale: `docs/voice-memos-tasks.md`.
+
+- **The memo button is the routing decision.** Memo capture never goes through tool
+  selection — no `create_memo` tool, no trigger phrase. `remember_fact`, `create_deadline`
+  and "note to myself" are near-synonymous at the language level, so nothing in
+  `TOOL_DEFINITIONS` may compete with them.
+- **One memo = one file** in `MEMO_SUBFOLDER`, named `YYYY-MM-DD HHMM Topic.md`. Never an
+  append-only journal: `vault/sync.py` re-embeds *every* chunk of a changed file, so appending
+  would re-embed the whole history each time.
+- **Memos are vault notes, not brain facts.** Outside `BRAIN_SUBFOLDER`, chunked, in the
+  `vault` collection, found by `vault_search`.
+- **`vault/memo_writer.py` indexes inline** (write → embed → commit). Do not delegate to
+  `sync_user()`: it diffs against HEAD and commits last, so an already-committed file is
+  invisible to it.
+- **Whisper hallucinates on silence** — it returns a confident stock phrase, not "". The
+  guard in `services/memo_service.looks_like_silence()` is what stops an accidental press
+  from filing a convincing memo about nothing. An `if not text` check is not sufficient.
+- **Transcription is bring-your-own-endpoint** (`WHISPER_URL`, OpenAI-compatible). No bundled
+  model, no new runtime dependency. Empty URL = feature hidden everywhere.
+- The chat mic prefers Whisper when configured and falls back to the Web Speech API. It
+  inserts the **raw** transcript — only the memo path runs the rewrite.
+- **Speaker labels come from the transcription service, never from the model.** Conversation
+  mode asks for `response_format=verbose_json` and reads the per-segment `speaker` field;
+  a service without a diarizer returns no such field and the transcript degrades to plain
+  text. Never ask an LLM to attribute turns it was not given — that is fabrication, and the
+  rewrite prompts forbid it.
+- **Conversation mode needs its own prompt.** `REWRITE_SYSTEM` restructures into bullets and
+  tables, which destroys who-said-what; `CONVERSATION_SYSTEM` preserves turn order and never
+  merges speakers. A single detected speaker drops the labels entirely.
+
 ## Tools & UI
 
 - Brain **read** tools (`brain_search`) stay byte-identical. New `vault_search` mirrors them.
