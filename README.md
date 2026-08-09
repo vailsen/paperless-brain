@@ -172,6 +172,7 @@ for reproducible deploys.
 | SearXNG | optional — enables the web-search tool |
 | IMAP mailbox / CalDAV calendar | optional — enables the mail and appointment tools (per-user credentials, encrypted) |
 | Wake-on-LAN capable GPU server | optional — see [Power management](#power-management-optional) |
+| A speech-to-text service | optional — enables voice memos. Anything with an OpenAI-compatible `/v1/audio/transcriptions` endpoint; CPU is enough. Add speaker diarization and you get conversation transcripts. See [Voice memos](#voice-memos-optional) |
 
 ## AI models & providers
 
@@ -291,26 +292,36 @@ call you already captured. And with no microphone at all (or no HTTPS) you can
 simply type the memo. All three routes end in the same review-then-file step.
 
 It is **not** a chat feature. Pressing the button is what tells the app you mean
-a memo, so nothing has to guess whether "erinner mich dran…" was meant as a
-memory, a deadline or a note to yourself.
+a memo, so nothing has to guess whether "remind me to…" was meant as a memory, a
+deadline or a note to yourself.
 
 **You need a transcription service.** PaperlessBrain doesn't ship one — no
 bundled model, no extra dependency. Anything with an OpenAI-compatible
 `/v1/audio/transcriptions` endpoint works:
 
-| Option | Notes |
-|---|---|
-| [hwdsl2/docker-whisper](https://github.com/hwdsl2/docker-whisper) | faster-whisper in one container, API key generated for you, CPU and CUDA images |
-| [Speaches](https://github.com/speaches-ai/speaches) | loads models on demand, also does TTS; no auth by default |
-| [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | no container needed; run `whisper-server --inference-path /v1/audio/transcriptions --convert` |
-| Groq / OpenAI | hosted; your dictation leaves the house |
+| Option | Notes | Speaker labels |
+|---|---|---|
+| [hwdsl2/docker-whisper](https://github.com/hwdsl2/docker-whisper) | faster-whisper in one container, API key generated for you, CPU and CUDA images | yes — set `WHISPER_DIARIZATION=true` |
+| [Speaches](https://github.com/speaches-ai/speaches) | loads models on demand, also does TTS; no auth by default | no |
+| [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | no container needed; run `whisper-server --inference-path /v1/audio/transcriptions --convert` | no |
+| Groq / OpenAI | hosted; your dictation leaves the house | no |
+
+The last column is what conversation mode needs. Without it everything still
+works — you get an ordinary unlabelled transcript.
 
 ```bash
-WHISPER_URL=http://127.0.0.1:9000/v1    # empty = feature hidden everywhere
+WHISPER_URL=http://127.0.0.1:9000/v1      # empty = feature hidden everywhere
 WHISPER_API_KEY=
-WHISPER_MODEL=whisper-1
-WHISPER_LANGUAGE=de                     # empty = auto-detect
+WHISPER_MODEL=large-v3-turbo              # what this project runs; see below
+WHISPER_LANGUAGE=de                       # empty = auto-detect
 ```
+
+`large-v3-turbo` is the model this project runs day to day: near large-v3
+accuracy at a fraction of the cost, and good enough on German that it rarely
+needs correcting. Use it if your service can load it. The code default is
+`whisper-1` instead, because that is OpenAI's model id and the safe answer for a
+hosted endpoint — and most self-hosted servers ignore the field entirely and
+serve whatever they already loaded, so it does no harm there.
 
 Then switch it on in **Settings > Voice memos** (on by default once the URL is
 set). When it's configured, the chat mic switches to the same service too —
