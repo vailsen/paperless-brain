@@ -290,9 +290,36 @@ html, body { overflow: hidden !important; }
 .chat-md h2 { font-size: 0.95rem; }
 .chat-md h3 { font-size: 0.875rem; }
 .chat-md blockquote { border-left: 3px solid #6d28d9; padding-left: 0.75rem; color: var(--c-text-muted); margin: 0.4rem 0; }
-.chat-md table { border-collapse: collapse; width: 100%; margin: 0.4rem 0; font-size: 0.8em; }
-.chat-md th { background: var(--c-border); color: var(--c-text-muted); padding: 4px 8px; text-align: left; }
+/* A wide table scrolls inside the bubble instead of stretching it. `display:
+   block` makes the table its own scroll container; `width: max-content` lets
+   the columns keep their natural width inside it, and `max-width: 100%` is what
+   stops the bubble from growing. Narrow tables still fill the bubble via the
+   min-width. Cells keep their table display, so the layout is unaffected. */
+.chat-md table {
+  display: block; overflow-x: auto; width: max-content; max-width: 100%; min-width: 100%;
+  border-collapse: collapse; margin: 0.4rem 0; font-size: 0.8em;
+}
+.chat-md th { background: var(--c-border); color: var(--c-text-muted); padding: 4px 8px; text-align: left; white-space: nowrap; }
 .chat-md td { border-top: 1px solid var(--c-border); padding: 4px 8px; color: var(--c-text-2); }
+/* Cells opt out of the bubble's `overflow-wrap: anywhere`. With it, a cell's
+   min-content width is one character, so the auto table layout squeezes a
+   narrow column until "Karlsruhe" reads as five stacked pairs of letters.
+   Word-level wrapping keeps each column at least as wide as its longest word.
+
+   The floor is what stops a column from being sized by its *header* — "Ort"
+   is three characters, and inside a bubble the table is laid out at min-content,
+   so the data underneath got whatever the heading needed. Measured at 390px on a
+   five-column table: 4rem still wrapped "1.240,00 EUR" and "2026-03-14" onto two
+   lines, 6rem put every value on one line, and beyond that only the horizontal
+   scroll grew (509px at 6rem, 640px at 8rem). Long prose in a cell still wraps
+   — the floor is a minimum, not a fixed width. */
+.chat-md td, .chat-md th { overflow-wrap: normal; word-break: normal; min-width: 6rem; }
+/* The bubble itself must never be the thing that scrolls the page sideways.
+   `min-width: 0` is the load-bearing part: a flex item's automatic minimum size
+   is its content, and in CSS min-width beats max-width — so without this the
+   bubble's `max-width: 85%` loses against a max-content-wide table and the
+   whole bubble grows past the screen. The bubble carries the same override. */
+.chat-md { max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
 /* Chat history left drawer — always available (desktop + mobile) */
 .chat-history-drawer {
     --hist-w: 252px;
@@ -442,6 +469,26 @@ html, body { overflow: hidden !important; }
    so it grows to max-content (two 208px cards side by side) and overflows the
    narrow mobile drawer, clipping expansions/cards on the right. Cap it. */
 .chat-results-scroll .q-scrollarea__content { max-width: 100%; }
+/* Same trap, message list: without the cap the content box grows to the
+   max-content width of the widest thing in the conversation — one wide table
+   and every bubble's `max-width: 85%` is suddenly 85% of something far larger
+   than the screen. The whole list then scrolls sideways instead of the table
+   scrolling inside its bubble, which is why nothing appeared to stick out. */
+.chat-messages-scroll .q-scrollarea__content { max-width: 100%; width: 100%; }
+/* Phone: reclaim the horizontal space the desktop proportions waste. Three
+   things eat into a 390px screen — the list's 16px gutters, the 15% the bubble
+   gives back for the left/right alignment, and 14px of inner padding a side.
+   Trimmed together they hand ~48px (roughly 17%) back to the content, which is
+   the difference between a table column fitting and not. The bubbles keep a
+   visible offset so who-said-what still reads at a glance. Desktop is
+   unchanged. `!important` because every bubble carries these inline. */
+@media (max-width: 767px) {
+    .chat-messages-list { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+    .chat-bubble, .chat-bubble-wrap { max-width: 92% !important; }
+    .chat-bubble, .chat-bubble-wrap > div {
+        padding-left: 10px !important; padding-right: 10px !important;
+    }
+}
 /* Results panel accordion sections */
 .chat-results-exp {
     border: 1px solid var(--c-border); border-radius: 8px;
@@ -854,8 +901,9 @@ async def chat():
     def _welcome_msg() -> None:
         with ui.row().classes("justify-start w-full"):
             ui.html(
-                '<div style="background:var(--c-surface);border-radius:0 12px 12px 12px;'
-                'padding:10px 14px;max-width:85%;font-size:0.875rem;color:var(--c-text-2);">'
+                '<div class="chat-bubble" style="background:var(--c-surface);'
+                'border-radius:0 12px 12px 12px;'
+                'padding:10px 14px;max-width:85%;min-width:0;font-size:0.875rem;color:var(--c-text-2);">'
                 + _(
                     "Hello! I am your document assistant. I can search and read documents and answer general questions. What would you like to know?"
                 )
@@ -874,12 +922,12 @@ async def chat():
                     f"{_html.escape(msg['content'])}"
                     f"</div>",
                     sanitize=False,
-                ).style("max-width:85%;")
+                ).classes("chat-bubble-wrap").style("max-width:85%;min-width:0;")
         else:
             with ui.row().classes("justify-start w-full"):
-                with ui.element("div").style(
+                with ui.element("div").classes("chat-bubble").style(
                     "background:var(--c-surface);border-radius:0 12px 12px 12px;"
-                    "padding:10px 14px;max-width:85%;font-size:0.875rem;color:var(--c-text-2);"
+                    "padding:10px 14px;max-width:85%;min-width:0;font-size:0.875rem;color:var(--c-text-2);"
                 ):
                     ui.markdown(
                         _inject_doc_links(msg["content"]), sanitize=False, extras=_MD_EXTRAS
@@ -1151,9 +1199,9 @@ async def chat():
 
         with messages_container:
             with ui.row().classes("justify-start w-full"):
-                with ui.element("div").style(
+                with ui.element("div").classes("chat-bubble").style(
                     "background:var(--c-surface-3); border-radius:0 12px 12px 12px;"
-                    "padding:10px 14px; max-width:85%; font-size:0.875rem; color:var(--c-text-2);"
+                    "padding:10px 14px; max-width:85%;min-width:0; font-size:0.875rem; color:var(--c-text-2);"
                     "border-left:3px solid #6d28d9; display:flex; flex-direction:column; gap:6px;"
                 ):
                     with ui.row().classes("items-center gap-2"):
@@ -1187,9 +1235,9 @@ async def chat():
                 messages_container.clear()
                 with messages_container:
                     with ui.row().classes("justify-start w-full"):
-                        with ui.element("div").style(
+                        with ui.element("div").classes("chat-bubble").style(
                             "background:var(--c-surface-3); border-radius:0 12px 12px 12px;"
-                            "padding:10px 14px; max-width:85%; font-size:0.875rem; color:var(--c-text-2);"
+                            "padding:10px 14px; max-width:85%;min-width:0; font-size:0.875rem; color:var(--c-text-2);"
                             "border-left:3px solid #6d28d9;"
                         ):
                             ui.label(_("🗜 Compressed conversation")).classes(
@@ -1437,11 +1485,15 @@ async def chat():
                         )
 
                     # Messages scroll area
-                    messages_scroll = ui.scroll_area().style("flex:1; min-height:0;")
+                    messages_scroll = (
+                        ui.scroll_area()
+                        .classes("chat-messages-scroll")
+                        .style("flex:1; min-height:0;")
+                    )
                     with messages_scroll:
                         messages_container = (
                             ui.column()
-                            .classes("w-full gap-3 p-4 pb-2")
+                            .classes("w-full gap-3 p-4 pb-2 chat-messages-list")
                             .style("max-width:860px; margin:0 auto;")
                         )
 
@@ -1754,13 +1806,17 @@ async def chat():
 </script>""")
 
     # Whisper beats the browser's Web Speech API by a wide margin on German
-    # dictation, so it takes over the mic whenever it is configured. Web Speech
-    # stays as the fallback. The interaction differs: Web Speech streams interim
-    # words while you talk, Whisper shows nothing until you release the button
-    # and the round trip returns.
+    # dictation, so it takes the mic by default once a service is configured.
+    # The interaction differs, though — Web Speech streams interim words while
+    # you talk, Whisper shows nothing until you release the button and the round
+    # trip returns — so the user picks the engine in settings. Whichever engine
+    # is unavailable in this browser falls back to the other one.
+    from app_ui.memo_dialog import chat_mic_engine as _mic_engine
     from app_ui.memo_dialog import memo_enabled as _memo_enabled
     from app_ui.memo_routes import TRANSCRIBE_PATH as _TRANSCRIBE_PATH
     from config.settings import settings as _settings
+
+    from app_ui.memo_dialog import speech_recognition_lang as _speech_lang
 
     _mic_labels = {
         "recording": _("Recording — release to stop"),
@@ -1769,10 +1825,12 @@ async def chat():
         "denied": _("Microphone access was denied."),
     }
     ui.add_head_html(f"""<script>
-window.__pbWhisperMic = {json.dumps(bool(_memo_enabled()))};
+window.__pbWhisperAvailable = {json.dumps(bool(_memo_enabled()))};
+window.__pbWhisperMic = {json.dumps(bool(_memo_enabled()) and _mic_engine() == "whisper")};
 window.__pbWhisperEndpoint = {json.dumps(_TRANSCRIBE_PATH)};
 window.__pbMicLabels = {json.dumps(_mic_labels)};
 window.__pbMicMaxMs = {_settings.memo_max_seconds * 1000};
+window.__pbMicLang = {json.dumps(_speech_lang())};
 </script>""")
 
     ui.add_head_html("""<script>
@@ -1859,9 +1917,16 @@ window.__pbMicMaxMs = {_settings.memo_max_seconds * 1000};
         if (!btn) { setTimeout(waitForBtn, 200); return; }
         var canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
         if (window.__pbWhisperMic && canRecord) { initWhisper(btn); return; }
-        if (!SR) { btn.style.display = 'none'; return; }
+        // Preference says Web Speech, but this browser has none (Firefox, and
+        // every browser outside a secure context). Whisper is better than no
+        // mic at all.
+        if (!SR) {
+            if (window.__pbWhisperAvailable && canRecord) { initWhisper(btn); return; }
+            btn.style.display = 'none';
+            return;
+        }
         var recognition = new SR();
-        recognition.lang = 'de-DE';
+        recognition.lang = window.__pbMicLang || 'en-US';
         recognition.continuous = false;
         recognition.interimResults = true;
         var listening = false;
@@ -2273,7 +2338,7 @@ window.__openVaultNote = function(noteId) {{
                     f"{_html.escape(text)}"
                     f"</div>",
                     sanitize=False,
-                ).style("max-width:85%;")
+                ).classes("chat-bubble-wrap").style("max-width:85%;min-width:0;")
 
         _s["messages"].append({"role": "user", "content": text})
         await _scroll_bottom()
@@ -2331,9 +2396,9 @@ window.__openVaultNote = function(noteId) {{
 
         with messages_container:
             with ui.row().classes("justify-start w-full"):
-                with ui.element("div").style(
+                with ui.element("div").classes("chat-bubble").style(
                     "background:var(--c-surface);border-radius:0 12px 12px 12px;"
-                    "padding:10px 14px;max-width:85%;font-size:0.875rem;color:var(--c-text-2);"
+                    "padding:10px 14px;max-width:85%;min-width:0;font-size:0.875rem;color:var(--c-text-2);"
                     "display:flex;flex-direction:column;gap:6px;"
                 ) as b:
                     bubble[0] = b

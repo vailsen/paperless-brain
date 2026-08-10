@@ -235,3 +235,49 @@ def test_blank_segments_are_dropped(monkeypatch, configured):
     ])
     # Only one speaker actually said anything → no labels.
     assert out == "Echter Inhalt."
+
+
+# ── Per-user dictation language ───────────────────────────────────────────────
+# WHISPER_LANGUAGE is the installation's default; the language a user speaks is
+# theirs. The override has to reach the request, and "auto" has to mean "detect"
+# rather than being sent as a language code the API does not know.
+
+
+def test_language_argument_overrides_the_env_default(monkeypatch, configured):
+    monkeypatch.setattr(settings, "whisper_language", "de", raising=False)
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.content
+        return httpx.Response(200, json={"text": "ok ok ok"})
+
+    _mock_transport(monkeypatch, handler)
+    _run(T.transcribe(b"x", "memo.webm", "audio/webm", language="fr"))
+    assert b'name="language"\r\n\r\nfr' in seen["body"]
+    assert b'name="language"\r\n\r\nde' not in seen["body"]
+
+
+def test_auto_omits_the_language_field_entirely(monkeypatch, configured):
+    monkeypatch.setattr(settings, "whisper_language", "de", raising=False)
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.content
+        return httpx.Response(200, json={"text": "ok ok ok"})
+
+    _mock_transport(monkeypatch, handler)
+    _run(T.transcribe(b"x", "memo.webm", "audio/webm", language="auto"))
+    assert b'name="language"' not in seen["body"]
+
+
+def test_no_language_argument_keeps_the_env_default(monkeypatch, configured):
+    monkeypatch.setattr(settings, "whisper_language", "de", raising=False)
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.content
+        return httpx.Response(200, json={"text": "ok ok ok"})
+
+    _mock_transport(monkeypatch, handler)
+    _run(T.transcribe(b"x", "memo.webm", "audio/webm"))
+    assert b'name="language"\r\n\r\nde' in seen["body"]

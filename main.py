@@ -25,8 +25,9 @@ from werkbank.repository import init_db as _werkbank_init_db
 from werkbank.scheduler import run_scheduler as _werkbank_scheduler
 
 core.sio.eio.max_http_buffer_size = 16 * 1024 * 1024  # 16 MB for HTTP polling fallback
-# Note: NiceGUI 3.x derives ping_interval/ping_timeout from reconnect_timeout automatically.
-# reconnect_timeout=30 → ping_interval=24s, ping_timeout=12s (safe under nginx proxy_read_timeout)
+# NiceGUI 3.x derives ping_interval/ping_timeout from reconnect_timeout at startup.
+# We do not want that coupling — see `_keep_pings_short()` below, which pins the
+# keep-alive to 25s/20s (safe under nginx proxy_read_timeout) regardless.
 
 
 def _check_vault_root() -> None:
@@ -55,6 +56,24 @@ def _check_vault_root() -> None:
             f"          Memory writes will fail. Check ownership and permissions.",
             flush=True,
         )
+
+
+@app.on_startup
+def _keep_pings_short() -> None:
+    """Decouple the socket keep-alive from `reconnect_timeout`.
+
+    NiceGUI derives `ping_interval = 0.8 * reconnect_timeout` at startup, so
+    raising the reconnect window to survive a backgrounded PWA would also push
+    the keep-alive past nginx's `proxy_read_timeout` and have the proxy cut
+    every idle socket. The two settings answer different questions — how often
+    to prove the socket is alive, and how long to hold a client's UI after it
+    goes quiet — so this pins the first and leaves the second long.
+
+    Registered as a startup handler on purpose: NiceGUI assigns its derived
+    values before it invokes these, so anything set at import time is lost.
+    """
+    core.sio.eio.ping_interval = 25
+    core.sio.eio.ping_timeout = 20
 
 
 @app.on_startup
@@ -114,5 +133,13 @@ ui.run(
     port=settings.port,
     proxy_headers=True,
     forwarded_allow_ips="*",
-    reconnect_timeout=30,
+    # How long the server keeps a client's UI alive after its socket goes quiet.
+    # A PWA that gets switched away from on a phone is suspended, not closed:
+    # the tab is intact, only the websocket dies. At 30s the server had already
+    # dropped the client by the time the user came back, and NiceGUI's only
+    # answer to a missing client is a full page reload — losing the half-typed
+    # message, the open document, the streaming answer. Five minutes covers a
+    # normal "check something else and come back". `_keep_pings_short()` keeps
+    # the keep-alive independent of this number.
+    reconnect_timeout=300,
 )

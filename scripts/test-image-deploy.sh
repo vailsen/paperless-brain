@@ -53,6 +53,13 @@ echo "==> Building $IMAGE"
 # The +"..." form keeps `set -u` happy when no --lean was passed (empty array).
 docker build ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"} -t "$IMAGE" .
 
+# The build just moved the :dev tag off the previous image, so that one is now
+# dangling here as well. Same rule as on the target: dangling only, never `-a`.
+# This is a machine-wide prune — it clears untagged leftovers from other builds
+# too, which is what dangling means and what the reclaimed size will reflect.
+echo "==> Pruning superseded local images"
+docker image prune -f | sed 's/^/    /'
+
 # zstd is roughly three times faster than gzip on a multi-GB image layer set and
 # is present on most modern distros; gzip -1 is the portable fallback. The
 # receiving side has to match, so the decompressor is chosen in the same branch.
@@ -77,6 +84,13 @@ services:
 EOF
 
 ssh "$DEPLOY_TARGET" "cd '$DEPLOY_REMOTE_DIR' && docker compose -f docker-compose.yml -f '$OVERLAY' up -d"
+
+# Every deploy moves the :dev tag, which leaves the previous build behind as an
+# untagged image — multiple GB each on a box that has no reason to keep them.
+# Dangling only, never `-a`: that would also drop the published GHCR image,
+# which is exactly what the revert path needs to still be there.
+echo "==> Pruning superseded images on the target"
+ssh "$DEPLOY_TARGET" "docker image prune -f" | sed 's/^/    /'
 
 echo
 echo "==> Test build is live on $DEPLOY_TARGET"

@@ -75,7 +75,14 @@ def voice_memo_setting(username: str = "", token: str = "") -> None:
     discover that the feature exists or what it would take to switch it on.
     """
     _ = get_translator()
-    from app_ui.memo_dialog import memo_configured, set_memo_enabled
+    from app_ui.memo_dialog import (
+        DICTATION_LANGUAGES,
+        chat_mic_engine,
+        memo_configured,
+        set_chat_mic_engine,
+        set_dictation_language,
+        set_memo_enabled,
+    )
 
     configured = memo_configured()
 
@@ -124,6 +131,46 @@ def voice_memo_setting(username: str = "", token: str = "") -> None:
             "transcription service with speaker diarization. "
             "Reload the page after changing this."
         ).format(folder=settings.memo_subfolder)
+    )
+
+    ui.select(
+        options={"": _("Server default"), **DICTATION_LANGUAGES},
+        value=ng_app.storage.user.get("dictation_language", ""),
+        label=_("Dictation language"),
+        on_change=lambda e: set_dictation_language(e.value),
+    ).props("outlined dark dense").classes("w-full mt-3")
+    _hint(
+        _(
+            "The language you <b>speak</b> — independent of the interface "
+            "language, since dictating German into an English interface is a "
+            "normal combination. Applies to both engines: it is sent to the "
+            "transcription service and it sets the browser's recognition "
+            "language, which otherwise defaults to English and drops every "
+            "German word. <i>Server default</i> uses "
+            "<code>WHISPER_LANGUAGE</code> from the installation's "
+            "<code>.env</code> (currently: <code>{lang}</code>). "
+            "Reload the page after changing this."
+        ).format(lang=settings.whisper_language or "auto")
+    )
+
+    ui.select(
+        options={"whisper": _("Transcription service"), "browser": _("Browser dictation")},
+        value=chat_mic_engine(),
+        label=_("Microphone in chat"),
+        on_change=lambda e: set_chat_mic_engine(e.value),
+    ).props("outlined dark dense").classes("w-full mt-3")
+    _hint(
+        _(
+            "Which engine the microphone button in the chat input uses. The "
+            "<b>transcription service</b> recognises far better, especially for "
+            "names and numbers, but shows nothing until you release the button "
+            "and the recording has been sent off. <b>Browser dictation</b> (Web "
+            "Speech API) writes along while you speak and needs no round trip, "
+            "but is noticeably less accurate — and Firefox does not offer it at "
+            "all, in which case the transcription service is used anyway. "
+            "Either way the chat mic inserts your words unchanged; only memos "
+            "are tidied up by AI. Reload the page after changing this."
+        )
     )
 
     if not (username and token):
@@ -249,11 +296,47 @@ async def settings_page() -> None:
 
     saved_cal_mode = "ical" if (_saved_ical_urls[0] or cal_cfg.get("ical_url")) else ("caldav" if cal_cfg.get("url") else "ical")
 
-    with ui.column().classes("w-full max-w-2xl mx-auto p-6 gap-8"):
-        ui.label(_("Settings")).classes("text-xl font-bold text-gray-100")
+    with ui.column().classes("w-full max-w-2xl mx-auto p-6 gap-3"):
+        ui.label(_("Settings")).classes("text-xl font-bold text-gray-100 mb-1")
+
+        # ── Sections ──────────────────────────────────────────────────────────
+        # Fifteen cards in one column put everything equally far away. The
+        # groups are created here, up front; `_card()` then parents each card
+        # into its group. Since a NiceGUI element's parent is fixed when it is
+        # created, the sections below keep their original build order and code —
+        # only the `with` line changes.
+        _groups: dict[str, ui.expansion] = {}
+
+        def _group(key: str, icon: str, title: str, subtitle: str, opened: bool = False) -> None:
+            _groups[key] = (
+                ui.expansion(
+                    title, caption=subtitle, icon=icon, group="settings", value=opened
+                )
+                .props('expand-separator header-class="settings-group-header"')
+                .classes("w-full settings-group")
+            )
+
+        def _card(group: str) -> ui.card:
+            with _groups[group]:
+                return ui.card().classes(
+                    "w-full bg-gray-800 border border-gray-700 p-5 gap-0 mt-3"
+                )
+
+        _group("general", "tune", _("General"), _("Language and appearance"), opened=True)
+        _group("ai", "smart_toy", _("AI"), _("Models, providers and deep research"))
+        _group("docs", "description", _("Documents"), _("Processing, write-back and tags"))
+        _group(
+            "memory",
+            "psychology",
+            _("Search & memory"),
+            _("Thresholds, memory maintenance and vault"),
+        )
+        _group("voice", "mic", _("Voice"), _("Voice memos and dictation"))
+        _group("connect", "hub", _("Connections"), _("Email, calendar and sender profile"))
+        _group("data", "backup", _("Backup"), _("Import and export your settings"))
 
         # ── Sprache / Language ─────────────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("general"):
             _section_header(
                 "translate",
                 _("Language"),
@@ -262,7 +345,7 @@ async def settings_page() -> None:
             language_setting()
 
         # ── Erscheinungsbild / Theme ───────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("general"):
             _section_header(
                 "dark_mode",
                 _("Appearance"),
@@ -271,7 +354,7 @@ async def settings_page() -> None:
             theme_setting()
 
         # ── Rückschreiben nach Paperless / push text back ─────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("docs"):
             _section_header(
                 "sync_alt",
                 _("Paperless-ngx write-back"),
@@ -289,11 +372,11 @@ async def settings_page() -> None:
             )
 
         # ── Sprachmemos / voice memos ─────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("voice"):
             voice_memo_setting(username, token)
 
         # ── KI-Modelle (dynamic registry) ─────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("ai"):
             from services.model_registry import get_models, save_models, new_model
 
             _BACKEND_LABEL = {
@@ -473,6 +556,11 @@ async def settings_page() -> None:
                   .model-item-top{display:contents;}
                   .model-item-bottom{display:contents;}
                 }
+                /* A flex item's default min-width is its content, so a long
+                   model id widens the row until the card overflows the phone.
+                   The ellipsis on the labels only takes effect once every
+                   ancestor is allowed to shrink below that. */
+                .model-item, .model-item-top, .model-item-bottom { min-width:0; max-width:100%; }
                 </style>""")
                 with ui.column().classes("w-full gap-1"):
                     for i, m in enumerate(models):
@@ -514,12 +602,18 @@ async def settings_page() -> None:
                             # ── Row 2 on mobile: name + model id + buttons ───
                             with ui.element("div").classes("flex items-center gap-2 flex-1 min-w-0 model-item-bottom"):
                                 # Name + model id
+                                # `w-full` is what makes the ellipsis work at all:
+                                # ui.column() is a flex column with
+                                # `align-items: flex-start`, so a label inside it
+                                # is sized to its own content. Without an explicit
+                                # width there is nothing to truncate against, and a
+                                # long model name walks straight out of the card.
                                 with ui.column().classes("flex-1 gap-0 min-w-0"):
                                     ui.label(m.get("name", "")).classes(
-                                        "text-sm font-semibold text-gray-200"
+                                        "w-full text-sm font-semibold text-gray-200"
                                     ).style("overflow:hidden;white-space:nowrap;text-overflow:ellipsis")
                                     ui.label(m.get("model", "")).classes(
-                                        "text-xs text-gray-500 font-mono"
+                                        "w-full text-xs text-gray-500 font-mono"
                                     ).style("overflow:hidden;white-space:nowrap;text-overflow:ellipsis")
 
                                 # Edit / delete (inside row-2 div)
@@ -547,7 +641,7 @@ async def settings_page() -> None:
             )
 
         # ── Verarbeitung neuer Dokumente ──────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("docs"):
             from werkbank import settings_store as _ws
             from services.model_registry import get_models as _get_models
 
@@ -690,7 +784,7 @@ async def settings_page() -> None:
             ).classes("bg-purple-700 text-white")
 
         # ── Suche & Gedächtnis-Schwellenwerte ─────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("memory"):
             from werkbank import settings_store as _ws_search
 
             _section_header(
@@ -746,7 +840,7 @@ async def settings_page() -> None:
             ).classes("bg-purple-700 text-white")
 
         # ── Gedächtnis-Pflege (Träumen) ───────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("memory"):
             _section_header(
                 "bedtime",
                 _("Memory maintenance (dreaming)"),
@@ -794,7 +888,7 @@ async def settings_page() -> None:
             ).classes("bg-purple-700 text-white mt-3")
 
         # ── IMAP ──────────────────────────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("connect"):
             _section_header(
                 "email",
                 _("Email (IMAP)"),
@@ -871,7 +965,7 @@ async def settings_page() -> None:
                 ).classes("bg-purple-700 text-white")
 
         # ── Calendar ──────────────────────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("connect"):
             _section_header(
                 "calendar_month",
                 _("Calendar"),
@@ -976,7 +1070,7 @@ async def settings_page() -> None:
                 ).classes("bg-purple-700 text-white")
 
         # ── Absender-Profil ───────────────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("connect"):
             _section_header(
                 "person",
                 _("Sender profile"),
@@ -1027,7 +1121,7 @@ async def settings_page() -> None:
             ).classes("bg-purple-700 text-white mt-2")
 
         # ── PDF → Paperless: Standard-Tags ───────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("docs"):
             from werkbank.settings_store import (
                 get_tag_inbox as _get_tag_inbox,
                 get_tag_ai_generated as _get_tag_ai,
@@ -1072,7 +1166,7 @@ async def settings_page() -> None:
             ).classes("bg-purple-700 text-white")
 
         # ── KI-Tiefenrecherche ───────────────────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("ai"):
             _section_header(
                 "auto_awesome",
                 _("AI deep research"),
@@ -1159,7 +1253,7 @@ async def settings_page() -> None:
                 ).classes("bg-purple-700 text-white")
 
         # ── Import / Export ───────────────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("data"):
             from services import settings_transfer as _st
 
             _section_header(
@@ -1301,7 +1395,7 @@ async def settings_page() -> None:
             )
 
         # ── Vault / Obsidian ──────────────────────────────────────────────────
-        with ui.card().classes("w-full bg-gray-800 border border-gray-700 p-5 gap-0"):
+        with _card("memory"):
             from vault.paths import vault_path as _vault_path, brain_path as _brain_path
 
             _section_header(
@@ -1314,11 +1408,13 @@ async def settings_page() -> None:
             _bp = str(_brain_path(username)) if username else str(settings.vault_root / "<username>" / settings.brain_subfolder)
 
             with ui.column().classes("gap-1 mb-3"):
+                # `break-all`: a path has no spaces, so without it the label is
+                # one unbreakable word that pushes the card off a phone screen.
                 ui.label(_("Vault directory (Obsidian vault root)")).classes("text-xs text-gray-500 uppercase tracking-wide mt-1")
-                ui.label(_vp).classes("text-sm font-mono text-gray-300 bg-gray-900 rounded px-3 py-1.5 select-all")
+                ui.label(_vp).classes("w-full break-all text-sm font-mono text-gray-300 bg-gray-900 rounded px-3 py-1.5 select-all")
 
                 ui.label(_("Memory subfolder (Brain)")).classes("text-xs text-gray-500 uppercase tracking-wide mt-2")
-                ui.label(_bp).classes("text-sm font-mono text-gray-300 bg-gray-900 rounded px-3 py-1.5 select-all")
+                ui.label(_bp).classes("w-full break-all text-sm font-mono text-gray-300 bg-gray-900 rounded px-3 py-1.5 select-all")
 
             _hint(
                 _(

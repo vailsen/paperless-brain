@@ -261,6 +261,32 @@ body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
 .suggestion-row.no-mask { -webkit-mask-image: none; mask-image: none; }
 .suggestion-chip .q-icon { color: var(--c-text-muted) !important; font-size: 15px !important; }
 .suggestion-chip .q-btn__content { gap: 5px; }
+
+/* Settings groups: the collapsed header is the whole page at a glance, so it
+   reads as a bar, not as a list row. Icons stay neutral like everywhere else —
+   they name the group, they do not signal state. */
+.settings-group-header {
+  background: var(--c-surface) !important;
+  border: 1px solid var(--c-border) !important;
+  border-radius: 8px;
+  color: var(--c-text) !important;
+  min-height: 60px;
+}
+.settings-group-header .q-icon { color: var(--c-text-2) !important; }
+.settings-group-header .q-item__label { font-weight: 600; }
+.settings-group-header .q-item__label--caption { color: var(--c-text-muted) !important; font-weight: 400; }
+/* Open: square off the bottom so the header and its contents read as one block. */
+.settings-group.q-expansion-item--expanded .settings-group-header,
+.settings-group .q-expansion-item--expanded .settings-group-header {
+  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+}
+.settings-group .q-expansion-item__content { padding-bottom: 0.25rem; }
+/* Nothing inside a settings card may widen it past the viewport. Monospace
+   strings are the usual offender — paths, URLs and model ids have no spaces,
+   so a browser treats each as one unbreakable word. */
+.settings-group .q-card { max-width: 100%; min-width: 0; }
+.settings-group code,
+.settings-group .font-mono { overflow-wrap: anywhere; }
 </style>
 """
 

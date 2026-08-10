@@ -42,12 +42,13 @@ def transcribes(monkeypatch, configured):
     """Return whatever the test puts in `box`, recording the call arguments."""
     box = {"text": "This is a real dictated memo with enough words.", "seen": {}}
 
-    async def fake(data, *, filename, content_type, diarize=False):
+    async def fake(data, *, filename, content_type, diarize=False, language=None):
         box["seen"] = {
             "data": data,
             "filename": filename,
             "content_type": content_type,
             "diarize": diarize,
+            "language": language,
         }
         return box["text"]
 
@@ -117,7 +118,7 @@ def test_rewrite_returns_topic_text_and_raw_transcript(monkeypatch, transcribes)
 
 
 def test_transcription_failure_becomes_actionable_message(monkeypatch, configured):
-    async def boom(data, *, filename, content_type, diarize=False):
+    async def boom(data, *, filename, content_type, diarize=False, language=None):
         raise transcription.TranscriptionError("Whisper endpoint refused the API key.")
 
     monkeypatch.setattr(transcription, "transcribe", boom)
@@ -168,3 +169,37 @@ def test_conversation_mode_selects_the_dialog_prompt(monkeypatch, transcribes):
     assert seen["conversation"] is True
     _call(rewrite=True, conversation=False)
     assert seen["conversation"] is False
+
+
+# ── Rewrite as its own phase ──────────────────────────────────────────────────
+# The recorder transcribes first, flips the status line, then asks for the
+# rewrite. That only works if the second phase stands on its own — with the same
+# auth check, and without the audio it no longer has.
+
+
+def test_rewrite_phase_rejects_anonymous_caller():
+    with pytest.raises(R.MemoInputError) as exc:
+        _run(R.rewrite_payload("a transcript", username="", token="tok"))
+    assert exc.value.status == 401
+
+
+def test_rewrite_phase_rejects_empty_transcript():
+    with pytest.raises(R.MemoInputError) as exc:
+        _run(R.rewrite_payload("   ", username="alice", token="tok"))
+    assert exc.value.status == 400
+
+
+def test_rewrite_phase_returns_topic_text_and_transcript(monkeypatch):
+    monkeypatch.setattr(R, "_memo_model", lambda u, t: "some-model")
+
+    async def fake_rewrite(text, *, model, user_id, token, conversation=False):
+        return "Car insurance", "- cleaned up"
+
+    monkeypatch.setattr(R.memo_service, "rewrite_dictation", fake_rewrite)
+
+    out = _run(R.rewrite_payload("raw words", username="alice", token="tok"))
+    assert out == {
+        "topic": "Car insurance",
+        "text": "- cleaned up",
+        "transcript": "raw words",
+    }

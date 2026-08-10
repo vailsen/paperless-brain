@@ -28,6 +28,7 @@ from services.session_auth import get_session_token
 _log = logging.getLogger(__name__)
 
 TRANSCRIBE_PATH = "/api/memo/transcribe"
+REWRITE_PATH = "/api/memo/rewrite"
 
 
 class MemoInputError(Exception):
@@ -84,6 +85,7 @@ async def transcribe_payload(
     username: str,
     token: str,
     conversation: bool = False,
+    language: str | None = None,
 ) -> dict:
     """Audio bytes → ``{"text": …}``, or ``{"topic", "text", "transcript"}``.
 
@@ -110,6 +112,7 @@ async def transcribe_payload(
             filename=filename,
             content_type=content_type,
             diarize=conversation,
+            language=language,
         )
     except transcription.TranscriptionError as exc:
         raise MemoInputError(502, str(exc)) from exc
@@ -125,15 +128,41 @@ async def transcribe_payload(
     if not rewrite:
         return {"text": text}
 
+    return await rewrite_payload(
+        text, username=username, token=token, conversation=conversation
+    )
+
+
+async def rewrite_payload(
+    text: str,
+    *,
+    username: str,
+    token: str,
+    conversation: bool = False,
+) -> dict:
+    """Transcript → ``{"topic", "text", "transcript"}``.
+
+    Split out from the transcription so the UI can tell the two phases apart:
+    waiting on Whisper and waiting on the model are different waits, and a
+    status line that says "Transcribing …" through both of them is a lie.
+
+    Raises ``MemoInputError`` for anything the user can act on.
+    """
+    if not username:
+        raise MemoInputError(401, "Not signed in.")
+    raw = (text or "").strip()
+    if not raw:
+        raise MemoInputError(400, "There is nothing to tidy up.")
+
     model = _memo_model(username, token)
     if not model:
         # Without a model the rewrite degrades to the raw transcript and a topic
         # cut from its first words — visibly worse, and nothing in the UI says why.
         _log.warning("no memo model configured for %s — filing the raw transcript", username)
     topic, cleaned = await memo_service.rewrite_dictation(
-        text, model=model, user_id=username, token=token, conversation=conversation
+        raw, model=model, user_id=username, token=token, conversation=conversation
     )
-    return {"topic": topic, "text": cleaned, "transcript": text}
+    return {"topic": topic, "text": cleaned, "transcript": raw}
 
 
 @ng_app.post(TRANSCRIBE_PATH)
@@ -143,11 +172,14 @@ async def transcribe_audio(
     mode: str = "memo",
 ) -> JSONResponse:
     """Transcribe an uploaded recording. Optionally clean it up into a memo."""
+    from app_ui.memo_dialog import dictation_language
+
     try:
         username = ng_app.storage.user.get("paperless_user", "")
         token = get_session_token()
+        language = dictation_language()
     except Exception:  # no session context at all
-        username, token = "", ""
+        username, token, language = "", "", None
 
     try:
         payload = await transcribe_payload(
@@ -158,6 +190,32 @@ async def transcribe_audio(
             username=username,
             token=token,
             conversation=(mode == "conversation"),
+            language=language,
+        )
+    except MemoInputError as exc:
+        return _error(exc.status, exc.message)
+    return JSONResponse(payload)
+
+
+@ng_app.post(REWRITE_PATH)
+async def rewrite_transcript(body: dict) -> JSONResponse:
+    """Second phase of the memo path: tidy an existing transcript into a memo.
+
+    Its own route so the recorder can flip the status line the moment the
+    transcript is back and the model takes over.
+    """
+    try:
+        username = ng_app.storage.user.get("paperless_user", "")
+        token = get_session_token()
+    except Exception:  # no session context at all
+        username, token = "", ""
+
+    try:
+        payload = await rewrite_payload(
+            str(body.get("text") or ""),
+            username=username,
+            token=token,
+            conversation=(body.get("mode") == "conversation"),
         )
     except MemoInputError as exc:
         return _error(exc.status, exc.message)

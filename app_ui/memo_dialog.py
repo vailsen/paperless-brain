@@ -14,7 +14,7 @@ import json
 from nicegui import app as ng_app
 from nicegui import ui
 
-from app_ui.memo_routes import TRANSCRIBE_PATH
+from app_ui.memo_routes import REWRITE_PATH, TRANSCRIBE_PATH
 from config.settings import settings
 from i18n import get_translator
 from services import transcription
@@ -22,6 +22,8 @@ from services.clients import vault_memo_writer
 from services.session_auth import get_session_token
 
 _ENABLED_KEY = "voice_memos_enabled"
+_MIC_ENGINE_KEY = "chat_mic_engine"
+_DICTATION_LANG_KEY = "dictation_language"
 
 
 def memo_configured() -> bool:
@@ -42,6 +44,79 @@ def memo_enabled() -> bool:
 
 def set_memo_enabled(value: bool) -> None:
     ng_app.storage.user[_ENABLED_KEY] = bool(value)
+
+
+def chat_mic_engine() -> str:
+    """Which engine the chat mic uses: ``whisper`` or ``browser``.
+
+    Whisper transcribes better but only answers after the round trip; the Web
+    Speech API streams words while you talk and costs nothing. Which trade-off
+    is right is a preference, not something the server can decide — hence the
+    setting. Defaults to Whisper, which is what a configured service implies.
+    """
+    value = ng_app.storage.user.get(_MIC_ENGINE_KEY, "whisper")
+    return "browser" if value == "browser" else "whisper"
+
+
+def set_chat_mic_engine(value: str) -> None:
+    ng_app.storage.user[_MIC_ENGINE_KEY] = "browser" if value == "browser" else "whisper"
+
+
+# The language you speak is not the language you read the app in — an English
+# interface with German dictation is the normal case here, so it cannot be
+# derived from the UI language. ISO-639-1 for the transcription service, mapped
+# to BCP-47 for the Web Speech API, which insists on a region.
+DICTATION_LANGUAGES: dict[str, str] = {
+    "de": "Deutsch",
+    "en": "English",
+    "fr": "Français",
+    "es": "Español",
+    "it": "Italiano",
+    "nl": "Nederlands",
+    "pl": "Polski",
+    "pt": "Português",
+}
+
+_BCP47 = {
+    "de": "de-DE",
+    "en": "en-US",
+    "fr": "fr-FR",
+    "es": "es-ES",
+    "it": "it-IT",
+    "nl": "nl-NL",
+    "pl": "pl-PL",
+    "pt": "pt-PT",
+}
+
+
+def dictation_language() -> str:
+    """ISO-639-1 code to dictate in, or ``""`` for "let the service decide".
+
+    Order: the user's own choice, then the server's ``WHISPER_LANGUAGE``, then
+    the UI language. The server default comes before the UI language on purpose
+    — whoever set `WHISPER_LANGUAGE=de` stated which language gets spoken here,
+    and that held for the transcription service long before the browser engine
+    became selectable.
+    """
+    chosen = str(ng_app.storage.user.get(_DICTATION_LANG_KEY, "") or "").strip()
+    if chosen:
+        return chosen
+    server = (settings.whisper_language or "").strip().lower()
+    if server and server != "auto":
+        return server
+    from i18n import DEFAULT_LANG
+
+    return str(ng_app.storage.user.get("language", DEFAULT_LANG) or DEFAULT_LANG)
+
+
+def set_dictation_language(value: str | None) -> None:
+    ng_app.storage.user[_DICTATION_LANG_KEY] = (value or "").strip()
+
+
+def speech_recognition_lang() -> str:
+    """BCP-47 tag for the Web Speech API. Never empty — it has no 'auto'."""
+    code = dictation_language() or "en"
+    return _BCP47.get(code, code if "-" in code else f"{code}-{code.upper()}")
 
 
 def memo_button() -> None:
@@ -180,19 +255,32 @@ def build_memo_dialog():
     async def _on_upload(e) -> None:
         """Transcribe an already-recorded file. Goes through the same helper the
         HTTP route uses, so the size cap and the silence guard still apply."""
-        from app_ui.memo_routes import MemoInputError, transcribe_payload
+        from app_ui.memo_routes import MemoInputError, rewrite_payload, transcribe_payload
 
         upload.reset()  # otherwise the picker keeps the old file and won't re-fire
+        username = ng_app.storage.user.get("paperless_user", "")
+        token = get_session_token()
+        conversation = mode_toggle.value == "conversation"
         _set_status(_("Transcribing …"))
         try:
+            # Same two phases as the recorder, for the same reason: the wait on
+            # the model is the longer one and deserves to say so.
             payload = await transcribe_payload(
                 await e.file.read(),
                 filename=e.file.name or "memo.m4a",
                 content_type=e.file.content_type or "application/octet-stream",
-                rewrite=True,
-                username=ng_app.storage.user.get("paperless_user", ""),
-                token=get_session_token(),
-                conversation=(mode_toggle.value == "conversation"),
+                rewrite=False,
+                username=username,
+                token=token,
+                conversation=conversation,
+                language=dictation_language(),
+            )
+            _set_status(_("AI is tidying it up …"))
+            payload = await rewrite_payload(
+                payload["text"],
+                username=username,
+                token=token,
+                conversation=conversation,
             )
         except MemoInputError as exc:
             _set_status(exc.message)
@@ -269,6 +357,7 @@ def build_memo_dialog():
         "recording": _("Recording — release to stop, swipe up to lock"),
         "locked": _("Recording locked — tap to stop"),
         "working": _("Transcribing …"),
+        "polishing": _("AI is tidying it up …"),
         "denied": _("Microphone access was denied."),
         "insecure": _(
             "Recording needs a secure connection (HTTPS). "
@@ -285,6 +374,7 @@ def build_memo_dialog():
     var CONV_MAX_MS = {settings.conversation_max_seconds * 1000};
     function memoMode() {{ return window.__memoMode === 'conversation' ? 'conversation' : 'memo'; }}
     var ENDPOINT = {json.dumps(TRANSCRIBE_PATH)};
+    var REWRITE_ENDPOINT = {json.dumps(REWRITE_PATH)};
     var ELEMENT_ID = {handler.id};
     var LISTENER_ID = {json.dumps(listener_id)};
 
@@ -407,7 +497,11 @@ def build_memo_dialog():
                 // the label (it writes textContent straight into the DOM), so
                 // Python cannot clear "Transcribing …" on its way back.
                 try {{
-                    var resp = await fetch(ENDPOINT + '?rewrite=true&mode=' + memoMode(), {{
+                    // Two phases, two waits: Whisper first, then the model that
+                    // tidies the transcript up. One request for both would leave
+                    // the status line stuck on "Transcribing …" for the whole
+                    // thing, which is the longer half of it.
+                    var resp = await fetch(ENDPOINT + '?rewrite=false&mode=' + memoMode(), {{
                         method: 'POST', body: fd, credentials: 'same-origin'
                     }});
                     var data = await resp.json().catch(function() {{ return {{}}; }});
@@ -415,10 +509,21 @@ def build_memo_dialog():
                         var msg = data.error || LABELS.failed;
                         setStatus(btn, msg);
                         emit({{error: msg}});
-                    }} else {{
-                        setStatus(btn, LABELS.hold);
-                        emit(data);
+                        busy = false;
+                        return;
                     }}
+                    setStatus(btn, LABELS.polishing);
+                    var rResp = await fetch(REWRITE_ENDPOINT, {{
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify({{text: data.text, mode: memoMode()}})
+                    }});
+                    var rData = await rResp.json().catch(function() {{ return {{}}; }});
+                    setStatus(btn, LABELS.hold);
+                    // A failed rewrite must not cost the user their words: fall
+                    // back to the raw transcript rather than throwing it away.
+                    emit(rResp.ok ? rData : {{text: data.text, transcript: data.text}});
                 }} catch (err) {{
                     setStatus(btn, LABELS.failed);
                     emit({{error: LABELS.failed}});

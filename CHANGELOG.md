@@ -5,6 +5,103 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.5.0] — 2026-08-10
+
+**Voice memos get a voice of their own, and the phone gets its screen back.**
+
+Dictation is no longer wired to assumptions. The language you speak is now a
+setting rather than a guess derived from the interface language — an English UI
+with German dictation is the normal case, not an edge case — and it drives both
+the transcription service and the browser's own recogniser. Which of those two
+engines the chat microphone uses is likewise a preference: one recognises far
+better, the other writes along while you speak, and no server can decide that
+for you.
+
+The mobile pass was measured, not eyeballed. Wide markdown tables now scroll
+inside their bubble instead of dragging the conversation off-screen; long model
+names truncate instead of walking out of their card; settings are grouped into
+seven collapsible sections instead of fifteen equally distant cards. Each of
+those had a cause that reading the CSS did not reveal — a Quasar scroll area
+that sizes itself to its widest child, a flex minimum that outranks a maximum, a
+column that sizes labels to their own content — so the fixes were verified by
+rendering the real pages at 390px and measuring them.
+
+### Added
+
+- **The mic in chat can use either engine.** Settings > Voice memos now offers
+  *Transcription service* (Whisper, default) or *Browser dictation* (Web Speech
+  API) for the chat input's microphone. Whisper recognises far better but says
+  nothing until the round trip returns; Web Speech writes along while you speak.
+  Which trade-off is right is a preference, not something the server can decide.
+  Whichever engine a browser cannot provide falls back to the other one.
+
+- **Dictation language is its own setting.** The language you speak is not the
+  language you read the app in — an English interface with German dictation is a
+  normal combination, so it cannot be derived from the UI language. One setting
+  drives both engines: it is sent to the transcription service (overriding
+  `WHISPER_LANGUAGE` per user) and it sets the browser's recognition language,
+  which otherwise defaulted to English and dropped every German word.
+
+### Changed
+
+- **A PWA switched away from no longer reloads on return.** `reconnect_timeout`
+  goes from 30 s to 5 min, so a suspended phone tab reattaches to its existing
+  session instead of being rebuilt from scratch — the half-typed message, the
+  open document and the streaming answer survive. NiceGUI derives the socket
+  keep-alive from that same number, which would have pushed pings past nginx's
+  `proxy_read_timeout`; `_keep_pings_short()` in `main.py` pins them at 25 s/20 s
+  so the two settings stay independent.
+- **The memo status line names the phase it is in.** Recording, transcription
+  and the AI cleanup are three different waits; the line said "Transcribing …"
+  through the last two of them. The rewrite is now its own route
+  (`POST /api/memo/rewrite`), so the dialog flips to "AI is tidying it up …" the
+  moment the transcript is back. A failed rewrite keeps the raw transcript
+  rather than losing the recording.
+- **Settings are grouped into collapsible sections** (General, AI, Documents,
+  Search & memory, Voice memos, Connections, Backup). Fifteen cards in one
+  column put everything equally far away.
+
+### Fixed
+
+- The chat microphone's Web Speech recognition was pinned to `de-DE`. It now
+  follows the dictation-language setting (see above) rather than either a
+  hardcoded locale or the interface language.
+- **Wide markdown tables scroll inside the chat bubble** instead of stretching it
+  off-screen. Two independent causes, both fixed:
+  - Quasar's `.q-scrollarea__content` is absolutely positioned with
+    `min-width: 100%`, so the message list's content box grew to the max-content
+    width of the widest thing in the conversation. Every bubble's `max-width: 85%`
+    then resolved against *that*, and the list scrolled sideways rather than the
+    table scrolling inside its bubble — which is why nothing appeared to overflow
+    the screen. `.chat-messages-scroll .q-scrollarea__content` is now capped, the
+    same fix the results panel already had. Measured at 390px: content box
+    892px → 388px, bubble 704px → 275px.
+  - A flex item's automatic `min-width: auto` is its content width, and min-width
+    beats max-width, so the bubble's cap lost against a `max-content` table. The
+    bubbles and `.chat-md` now carry `min-width: 0`.
+- **Chat bubbles use more of a phone screen.** Below 768px the message list's
+  gutters go 16px → 8px, the bubble cap 85% → 92%, and the bubble's own side
+  padding 14px → 10px. Measured at 390px, an assistant bubble's content width
+  goes 276px → 293px and the list itself 358px → 356px of usable width with far
+  less waste around it. Both bubbles keep a visible offset, so left-aligned
+  assistant and right-aligned user still read at a glance. Desktop is unchanged.
+- **Table columns are no longer sized by their heading.** Inside a bubble the table
+  is laid out at min-content, and `.chat-md`'s `overflow-wrap: anywhere` made a
+  cell's minimum one character — so a narrow heading like "Ort" rendered
+  "Karlsruhe" as stacked pairs of letters. Cells now wrap at word boundaries with
+  a `6rem` floor. Measured at 390px on a five-column table: 4rem still broke
+  "1.240,00 EUR" over two lines, 6rem put every value on one line for 509px of
+  scroll, and 8rem only widened the scroll. Long prose in a cell still wraps.
+- **Long model names no longer walk out of their settings card.** The labels had
+  `text-overflow: ellipsis` all along, but `ui.column()` sets
+  `align-items: flex-start`, which sizes a child label to its own content — there
+  was no width to truncate against. Adding `w-full` is what makes the ellipsis
+  work. Measured on the real page at 390px: the AI models card held 442px of
+  content in 278px of card; now 236px in 236px.
+- **Long strings no longer widen settings cards on a phone.** Vault paths, model
+  ids and URLs in hints have no spaces, so a browser treats each as one
+  unbreakable word; they now wrap or ellipsise.
+
 ## [0.4.0] — 2026-08-09
 
 **Voice memos.** Hold the microphone button in the header, speak, and the
@@ -210,6 +307,7 @@ across documents at a glance.
 First semantically versioned release. See the
 [release notes](https://github.com/vailsen/paperless-brain/releases/tag/v0.2.0).
 
+[0.5.0]: https://github.com/vailsen/paperless-brain/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vailsen/paperless-brain/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/vailsen/paperless-brain/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/vailsen/paperless-brain/releases/tag/v0.2.0

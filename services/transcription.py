@@ -67,13 +67,22 @@ def _turns_from_segments(segments: list[dict]) -> str:
 
 
 async def transcribe(
-    audio: bytes, filename: str, content_type: str, diarize: bool = False
+    audio: bytes,
+    filename: str,
+    content_type: str,
+    diarize: bool = False,
+    language: str | None = None,
 ) -> str:
     """POST the recording, return the transcript text.
 
     The audio is forwarded exactly as the browser recorded it (usually
     webm/opus). Every service listed above runs the upload through ffmpeg, so
     no client-side transcoding is needed.
+
+    ``language`` (ISO-639-1) overrides the server-wide ``WHISPER_LANGUAGE`` for
+    this one request — the language a user speaks is a per-user fact, while the
+    env var is only the installation's default. Pass ``"auto"`` to force
+    detection even when a default is configured.
 
     With ``diarize`` the transcript comes back as ``**Speaker 1:** …`` turns.
     That needs ``response_format=verbose_json``: speaker labels live on the
@@ -90,8 +99,11 @@ async def transcribe(
         headers["Authorization"] = f"Bearer {settings.whisper_api_key}"
 
     data = {"model": settings.whisper_model or "whisper-1"}
-    if settings.whisper_language:
-        data["language"] = settings.whisper_language
+    lang = (language or "").strip() or settings.whisper_language
+    # "auto" is not a language the API knows — omitting the field is how you ask
+    # Whisper to detect one.
+    if lang and lang.strip().lower() != "auto":
+        data["language"] = lang
     if diarize:
         data["response_format"] = "verbose_json"
 

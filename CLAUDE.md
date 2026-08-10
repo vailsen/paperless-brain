@@ -239,8 +239,21 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
   from filing a convincing memo about nothing. An `if not text` check is not sufficient.
 - **Transcription is bring-your-own-endpoint** (`WHISPER_URL`, OpenAI-compatible). No bundled
   model, no new runtime dependency. Empty URL = feature hidden everywhere.
-- The chat mic prefers Whisper when configured and falls back to the Web Speech API. It
-  inserts the **raw** transcript — only the memo path runs the rewrite.
+- **Dictation language is a user preference, never derived from the UI language**
+  (`app.storage.user["dictation_language"]`, ISO-639-1, `""` = fall back to
+  `WHISPER_LANGUAGE`, then the UI language). Speaking German into an English
+  interface is the normal case. One setting feeds both engines: `transcribe(…,
+  language=…)` overrides the env default per request, and `speech_recognition_lang()`
+  maps it to the BCP-47 tag the Web Speech API demands.
+- The chat mic engine is a **user preference** (`app.storage.user["chat_mic_engine"]`,
+  `whisper` | `browser`, default `whisper`), because the two differ in kind, not only in
+  quality: Web Speech streams interim words, Whisper answers only after the round trip.
+  Whichever engine the browser cannot provide falls back to the other. Either way the chat
+  mic inserts the **raw** transcript — only the memo path runs the rewrite.
+- **Transcription and rewrite are separate phases with separate routes**
+  (`/api/memo/transcribe`, `/api/memo/rewrite`). Not for the server's sake — so the status
+  line can say which of the two waits the user is in. One request for both would leave it
+  on "Transcribing …" through the longer half.
 - **Speaker labels come from the transcription service, never from the model.** Conversation
   mode asks for `response_format=verbose_json` and reads the per-segment `speaker` field;
   a service without a diarizer returns no such field and the transcript degrades to plain
@@ -573,6 +586,31 @@ work that established them: `docs/ui-polish-tasks.md`.
 - **Icons inherit text colour.** No coloured icons anywhere. Active state is the only
   differentiator in navigation.
 - **Sentence case everywhere.** No ALL CAPS labels, no emoji in UI chrome.
+- **Nothing may scroll the page sideways on a phone.** Wide content — markdown tables,
+  code blocks, model lists — scrolls inside its own container. Monospace strings (paths,
+  URLs, model ids) have no spaces, so a browser treats each as one unbreakable word: give
+  them `break-all` / `overflow-wrap: anywhere`.
+
+  Two NiceGUI-specific traps make truncation silently do nothing:
+
+  - **`ui.column()` sets `align-items: flex-start`**, so a child label is sized to its own
+    content. `text-overflow: ellipsis` has nothing to truncate against and the label walks
+    out of its card. **Add `w-full` to any label inside a `ui.column()` that must
+    ellipsise** — `min-w-0` on the ancestors is not enough on its own.
+  - **A flex item's automatic `min-width: auto` beats `max-width`.** A `max-width: 85%`
+    bubble still grows past the screen around a `max-content` table until the item also
+    gets `min-width: 0`. Both the chat bubbles and `.chat-md` carry it.
+  - **Every `ui.scroll_area()` holding variable-width content needs
+    `.q-scrollarea__content { max-width: 100% }`.** Quasar positions that box absolutely
+    with `min-width: 100%`, so it shrink-to-fits to max-content: one wide table and the
+    whole list grows and scrolls sideways, taking every percentage width inside it along.
+    `.chat-results-scroll` and `.chat-messages-scroll` both carry the cap. A page that
+    scrolls sideways *inside* a scroll area looks fine at the viewport edge — absence of
+    overflow past the screen is not evidence the layout is contained.
+
+  Verify layout claims by measuring, not by reading CSS: serve the page with auth stubbed
+  and drive it with Playwright at a 390px viewport (both traps above passed review and a
+  hand-built replica, and were caught only by measuring the real page).
 
 Practical consequences:
 
