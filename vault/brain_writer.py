@@ -4,10 +4,21 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from config.settings import settings
+from vault.context import embed_text, path_metadata
 from vault.frontmatter import read, sanitize_tags as _sanitize_tags, write
 from vault.git_wrapper import _git, commit, ensure_repo
 from vault.locks import get_user_lock
 from vault.paths import brain_path, ensure_user_dirs, vault_path
+
+
+def _brain_embed_text(text: str, rel: Path) -> str:
+    """Fact text with its context header, brain-subfolder prefix stripped."""
+    return embed_text(text, rel, strip_prefix=settings.brain_subfolder)
+
+
+def _brain_path_metadata(rel: Path) -> dict:
+    return path_metadata(rel, strip_prefix=settings.brain_subfolder)
 
 
 def _slug(text: str) -> str:
@@ -82,7 +93,12 @@ class VaultBrainWriter:
             await self._c.upsert(
                 ids=[pbrain_id],
                 documents=[text],
+                # Same header as vault/sync.py builds, so a fact written by the
+                # agent and the same fact re-embedded by a later reindex land in
+                # the same place in vector space.
+                embed_documents=[_brain_embed_text(text, rel)],
                 metadatas=[{
+                    **_brain_path_metadata(rel),
                     "pbrain_id": pbrain_id,
                     "path": str(rel),
                     "user": user,
@@ -140,7 +156,9 @@ class VaultBrainWriter:
             await self._c.upsert(
                 ids=[pbrain_id],
                 documents=[text],
+                embed_documents=[_brain_embed_text(text, rel)],
                 metadatas=[{
+                    **_brain_path_metadata(rel),
                     "pbrain_id": pbrain_id,
                     "path": str(rel),
                     "user": user,
@@ -190,6 +208,9 @@ class VaultBrainWriter:
             update_kwargs: dict = {"ids": [pbrain_id], "metadatas": [new_meta]}
             if text is not None:
                 update_kwargs["documents"] = [body]
+                update_kwargs["embed_documents"] = [
+                    _brain_embed_text(body, Path(path_str))
+                ]
             await self._c.update(**update_kwargs)
 
             _git(vp, "add", str(abs_path))
@@ -214,6 +235,7 @@ class VaultBrainWriter:
             await self._c.update(
                 ids=[pbrain_id],
                 documents=[new_text],
+                embed_documents=[_brain_embed_text(new_text, Path(path_str))],
                 metadatas=[{"updated": fm["updated"]}],
             )
             _git(vp, "add", str(abs_path))

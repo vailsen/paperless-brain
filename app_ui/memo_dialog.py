@@ -14,7 +14,7 @@ import json
 from nicegui import app as ng_app
 from nicegui import ui
 
-from app_ui.memo_routes import REWRITE_PATH, TRANSCRIBE_PATH
+from app_ui.memo_routes import QUICK_PATH, REWRITE_PATH, TRANSCRIBE_PATH
 from config.settings import settings
 from i18n import get_translator
 from services import transcription
@@ -125,9 +125,50 @@ def memo_button() -> None:
         return
     _ = get_translator()
     dialog = build_memo_dialog()
-    ui.button(icon="mic", color=None, on_click=dialog.open).props(
+
+    def _open() -> None:
+        # The dialog outlives any single memo, so it is cleared on the way in as
+        # well as on the way out — see the `hide` handler in build_memo_dialog().
+        dialog.reset_memo()
+        dialog.open()
+
+    ui.button(icon="mic", color=None, on_click=_open).props(
         "flat dark dense"
     ).classes("nav-btn memo-nav-btn").tooltip(_("Voice memo"))
+    _quick_memo_notices()
+
+
+def _quick_memo_notices() -> None:
+    """Show the outcome of background memos, wherever the user ended up.
+
+    A quick memo deliberately outlives the page that started it, so its result
+    cannot be delivered by the request that started it either. The server queues
+    a notice per user and every connected page drains it.
+    """
+    _ = get_translator()
+
+    def _drain() -> None:
+        from app_ui.memo_routes import pop_notices
+
+        username = ng_app.storage.user.get("paperless_user", "")
+        if not username:
+            return
+        for notice in pop_notices(username):
+            kind = notice.get("kind")
+            if kind == "ok":
+                ui.notify(
+                    _("Memo saved as {name}").format(name=notice.get("message", "")),
+                    type="positive",
+                )
+            else:
+                ui.notify(
+                    notice.get("message", ""),
+                    type="negative" if kind == "error" else "warning",
+                    timeout=0 if kind == "error" else None,
+                    close_button=True,
+                )
+
+    ui.timer(4.0, _drain)
 
 
 def build_memo_dialog():
@@ -156,14 +197,45 @@ def build_memo_dialog():
 
         # ── Recording control ────────────────────────────────────────────────
         with ui.column().classes("w-full items-center gap-2"):
-            rec_btn = (
-                ui.button(icon="mic")
-                .props("round unelevated size=lg")
-                .classes("memo-record-btn")
-            )
+            # Two buttons of equal weight rather than a mode switch: the choice
+            # between reviewing a memo and firing it off belongs to the single
+            # recording being made, and a sticky toggle is a hidden state the
+            # user finds out about only afterwards.
+            with ui.row().classes("items-center justify-center gap-6"):
+                with ui.column().classes("items-center gap-1"):
+                    rec_btn = (
+                        ui.button(icon="mic")
+                        .props("round unelevated size=lg")
+                        .classes("memo-record-btn")
+                    )
+                    ui.label(_("With review")).classes("text-xs").style(
+                        "color:var(--c-text-muted);"
+                    )
+                with ui.column().classes("items-center gap-1"):
+                    (
+                        ui.button(icon="bolt")
+                        .props("round unelevated size=lg")
+                        .classes("memo-record-btn memo-quick-btn")
+                    )
+                    ui.label(_("Quick memo")).classes("text-xs").style(
+                        "color:var(--c-text-muted);"
+                    )
+                # Shown only while recording — JS owns its visibility, because
+                # only JS knows whether the recorder is running.
+                (
+                    ui.button(icon="close")
+                    .props("round flat size=md")
+                    .classes("memo-cancel-btn")
+                    .style("display:none;color:var(--c-text-2);")
+                    .tooltip(_("Discard recording"))
+                )
+
             status = ui.label(_("Hold to record, swipe up to lock")).classes(
                 "text-sm text-center"
             ).style("color:var(--c-text-muted);")
+            ui.label(
+                _("With review: check the text before saving. Quick memo: filed automatically.")
+            ).classes("text-xs text-center").style("color:var(--c-text-muted);")
 
             # Same destination, different source: an already-recorded file goes
             # through the identical transcribe → rewrite → review path.
@@ -293,13 +365,32 @@ def build_memo_dialog():
         _reset_status()
         _apply_payload(payload)
 
-    def _reset_and_close() -> None:
+    def _reset() -> None:
         state["transcript"] = ""
         topic_input.value = ""
         text_area.value = ""
+        # The explicit update() is what actually empties the fields. Assigning a
+        # value that equals Python's copy is a no-op — nothing is sent — and by
+        # the time the dialog is reopened Python already holds "" from the reset
+        # that ran on close, while the browser still shows the old text. Same
+        # divergence as the status line (see _reset_status), opposite direction:
+        # there the DOM was ahead of Python, here Python is ahead of the DOM.
+        # update() re-sends the props regardless of change detection.
+        topic_input.update()
+        text_area.update()
         upload.reset()
         _reset_status()
+
+    def _reset_and_close() -> None:
+        _reset()
         dialog.close()
+
+    # Belt and braces against the state leak: `Discard` is not the only way out
+    # of the dialog — Escape and a click on the overlay close it too, and those
+    # never reached _reset_and_close(), so the next open still showed the old
+    # transcript. The dialog's value tracks open/closed, so this catches every
+    # way of closing it, including the ones Quasar handles by itself.
+    dialog.on_value_change(lambda e: _reset() if not e.value else None)
 
     async def _save() -> None:
         text = (text_area.value or "").strip()
@@ -344,7 +435,21 @@ def build_memo_dialog():
 
         # The status line is left to the recorder script — see _reset_status().
         if err := payload.get("error"):
-            ui.notify(err, type="negative")
+            # "Nothing was recognised" is the guard working, not a breakage —
+            # a red error toast for a mis-tap reads as though something broke.
+            ui.notify(err, type="warning" if payload.get("soft") else "negative")
+            return
+
+        # Cancelled mid-recording: no transcription ran, nothing to fold in.
+        if payload.get("cancelled"):
+            _reset_and_close()
+            return
+
+        # Quick memo: the server has the audio and the dialog's job is done.
+        # Closing here rather than in JS keeps the reset and the close together.
+        if payload.get("quick"):
+            ui.notify(_("Memo is being filed in the background …"), type="info")
+            _reset_and_close()
             return
 
         _apply_payload(payload)
@@ -365,6 +470,8 @@ def build_memo_dialog():
         ),
         "failed": _("Transcription failed."),
         "tooLong": _("The recording is too long."),
+        "sending": _("Filing in the background …"),
+        "cancelled": _("Recording discarded."),
     }
 
     ui.add_head_html(f"""<script>
@@ -375,6 +482,7 @@ def build_memo_dialog():
     function memoMode() {{ return window.__memoMode === 'conversation' ? 'conversation' : 'memo'; }}
     var ENDPOINT = {json.dumps(TRANSCRIBE_PATH)};
     var REWRITE_ENDPOINT = {json.dumps(REWRITE_PATH)};
+    var QUICK_ENDPOINT = {json.dumps(QUICK_PATH)};
     var ELEMENT_ID = {handler.id};
     var LISTENER_ID = {json.dumps(listener_id)};
 
@@ -405,7 +513,9 @@ def build_memo_dialog():
     }}
 
     function waitForBtn() {{
-        var btn = document.querySelector('.memo-record-btn');
+        var btn = document.querySelector('.memo-record-btn:not(.memo-quick-btn)');
+        var quickBtn = document.querySelector('.memo-quick-btn');
+        var cancelBtn = document.querySelector('.memo-cancel-btn');
         if (!btn) {{ setTimeout(waitForBtn, 200); return; }}
         if (btn.dataset.memoInit) return;
         btn.dataset.memoInit = '1';
@@ -413,26 +523,65 @@ def build_memo_dialog():
         // getUserMedia only exists in a secure context (HTTPS or localhost).
         // Say so up front rather than failing on the first press.
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {{
-            btn.disabled = true;
-            btn.style.opacity = '0.4';
+            [btn, quickBtn].forEach(function(b) {{
+                if (!b) return;
+                b.disabled = true;
+                b.style.opacity = '0.4';
+            }});
             setStatus(btn, LABELS.insecure);
             return;
         }}
 
         var recorder = null, chunks = [], stream = null, timer = null, busy = false;
+        // Which of the two buttons started this recording, and whether the user
+        // pulled the plug on it. `cancelled` is read in onstop — that is the one
+        // place that decides between uploading the audio and dropping it.
+        // `activeBtn` is the button under the finger: every bit of recording
+        // feedback (pressed state, lock, the stop glyph) has to land on THAT
+        // button. Addressing `btn` directly meant a locked quick memo lit up the
+        // mic button instead, so the stop icon appeared on a button that was not
+        // recording anything.
+        var quick = false, cancelled = false, activeBtn = btn;
+
+        function showCancel(on) {{
+            if (cancelBtn) cancelBtn.style.display = on ? '' : 'none';
+        }}
         // Swipe-to-lock: drag up past LOCK_DIST px while holding and the
         // recording keeps running after the finger lifts, WhatsApp-style. The
         // next tap stops it.
         var LOCK_DIST = 48;
         var locked = false, startY = 0, starting = false, releasedEarly = false, gesture = false;
 
+        // Both buttons are restored, not just the active one: a recording can
+        // end from a timeout or an error, and a stale stop glyph on the other
+        // button would be a button that lies about what it does.
+        function resetButtons() {{
+            [[btn, 'mic'], [quickBtn, 'bolt']].forEach(function(pair) {{
+                if (!pair[0]) return;
+                pair[0].classList.remove('memo-locked', 'memo-recording');
+                setIcon(pair[0], pair[1]);
+            }});
+        }}
+
         function stop() {{
             if (timer) {{ clearTimeout(timer); timer = null; }}
             locked = false;
-            btn.classList.remove('memo-locked');
-            setIcon(btn, 'mic');
+            resetButtons();
+            showCancel(false);
             if (starting) releasedEarly = true;   // stop as soon as it has started
             if (recorder && recorder.state === 'recording') recorder.stop();
+        }}
+
+        // Abort: stop the recorder, throw the audio away, transcribe nothing.
+        // The flag is set before stop() so onstop sees it — MediaRecorder fires
+        // it asynchronously and there is no other way to tell the two apart.
+        function cancel() {{
+            if (!recorder && !starting) return;
+            cancelled = true;
+            chunks = [];
+            stop();
+            setStatus(btn, LABELS.cancelled);
+            emit({{cancelled: true}});
         }}
 
         function release() {{
@@ -449,23 +598,29 @@ def build_memo_dialog():
             if (locked || !gesture) return;
             if (startY - e.clientY < LOCK_DIST) return;
             locked = true;
-            btn.classList.add('memo-locked');
-            setIcon(btn, 'stop');
-            setStatus(btn, LABELS.locked);
+            // The button under the finger, not `btn`: locking a quick memo used
+            // to put the stop glyph on the mic button, which then looked like
+            // the control for a recording it had not started.
+            activeBtn.classList.add('memo-locked');
+            setIcon(activeBtn, 'stop');
+            setStatus(activeBtn, LABELS.locked);
         }}
 
-        async function start(e) {{
+        async function start(e, isQuick) {{
             e.preventDefault();
             // While locked the button is a stop button — the tap that stops it
             // must not open a second recording.
             if (locked) {{ stop(); return; }}
             if (busy || (recorder && recorder.state === 'recording')) return;
+            quick = !!isQuick;
+            cancelled = false;
             startY = e.clientY;
             gesture = true;
             // Without capture the pointer leaves the button a few pixels into
             // the swipe and the move events stop arriving, so locking could
             // never trigger.
-            try {{ btn.setPointerCapture(e.pointerId); }} catch (err) {{}}
+            activeBtn = isQuick && quickBtn ? quickBtn : btn;
+            try {{ activeBtn.setPointerCapture(e.pointerId); }} catch (err) {{}}
             // getUserMedia is async and may sit behind a permission prompt. A
             // release during that window has nothing to stop yet, so remember it.
             starting = true;
@@ -485,14 +640,43 @@ def build_memo_dialog():
                 if (ev.data && ev.data.size) chunks.push(ev.data);
             }};
             recorder.onstop = async function() {{
-                btn.classList.remove('memo-recording');
+                resetButtons();
+                showCancel(false);
                 stream.getTracks().forEach(function(t) {{ t.stop(); }});
+                // Cancelled: the audio never leaves the browser.
+                if (cancelled) {{ chunks = []; cancelled = false; return; }}
                 if (!chunks.length) {{ setStatus(btn, LABELS.hold); return; }}
                 busy = true;
                 setStatus(btn, LABELS.working);
                 var blob = new Blob(chunks, {{type: recorder.mimeType || 'audio/webm'}});
                 var fd = new FormData();
                 fd.append('audio', blob, 'memo.webm');
+
+                // Quick memo: hand the bytes over and stop caring. The server
+                // answers 202 before it starts transcribing, so the dialog can
+                // close while the work runs on — which is the whole point, and
+                // why the upload cannot live on the page's lifetime.
+                if (quick) {{
+                    setStatus(btn, LABELS.sending);
+                    try {{
+                        var qResp = await fetch(QUICK_ENDPOINT + '?mode=' + memoMode(), {{
+                            method: 'POST', body: fd, credentials: 'same-origin'
+                        }});
+                        var qData = await qResp.json().catch(function() {{ return {{}}; }});
+                        setStatus(btn, LABELS.hold);
+                        // 422 means the recording held nothing, which is a
+                        // mis-tap and not a failure — flagged so Python can
+                        // warn rather than raise a red error.
+                        emit(qResp.ok
+                            ? {{quick: true}}
+                            : {{error: qData.error || LABELS.failed, soft: qResp.status === 422}});
+                    }} catch (err) {{
+                        setStatus(btn, LABELS.failed);
+                        emit({{error: LABELS.failed}});
+                    }}
+                    busy = false;
+                    return;
+                }}
                 // Every branch below must set the status again: this script owns
                 // the label (it writes textContent straight into the DOM), so
                 // Python cannot clear "Transcribing …" on its way back.
@@ -508,7 +692,7 @@ def build_memo_dialog():
                     if (!resp.ok) {{
                         var msg = data.error || LABELS.failed;
                         setStatus(btn, msg);
-                        emit({{error: msg}});
+                        emit({{error: msg, soft: resp.status === 422}});
                         busy = false;
                         return;
                     }}
@@ -531,7 +715,8 @@ def build_memo_dialog():
                 busy = false;
             }};
             recorder.start();
-            btn.classList.add('memo-recording');
+            activeBtn.classList.add('memo-recording');
+            showCancel(true);
             setStatus(btn, LABELS.recording);
             // Hard stop so a stuck press cannot record forever. Read at start,
             // not at module load: the mode can change between recordings.
@@ -542,14 +727,33 @@ def build_memo_dialog():
             else if (locked) setStatus(btn, LABELS.locked);
         }}
 
-        btn.addEventListener('pointerdown', start);
-        btn.addEventListener('pointermove', drag);
-        btn.addEventListener('pointerup', release);
-        btn.addEventListener('pointercancel', release);
-        // No 'pointerleave': the pointer is captured for the whole gesture, so
-        // leaving the button is the swipe, not the end of the recording.
-        // Holding a button normally starts a text selection / context menu
-        btn.addEventListener('contextmenu', function(e) {{ e.preventDefault(); }});
+        // Both buttons drive the same recorder — only the flag differs, so a
+        // recording cannot be started on one and finished on the other.
+        [[btn, false], [quickBtn, true]].forEach(function(pair) {{
+            var el = pair[0], isQuick = pair[1];
+            if (!el) return;
+            el.addEventListener('pointerdown', function(e) {{ start(e, isQuick); }});
+            el.addEventListener('pointermove', drag);
+            el.addEventListener('pointerup', release);
+            el.addEventListener('pointercancel', release);
+            // No 'pointerleave': the pointer is captured for the whole gesture,
+            // so leaving the button is the swipe, not the end of the recording.
+            // Holding a button normally starts a text selection / context menu
+            el.addEventListener('contextmenu', function(e) {{ e.preventDefault(); }});
+        }});
+
+        if (cancelBtn) cancelBtn.addEventListener('click', function(e) {{
+            e.preventDefault();
+            e.stopPropagation();
+            cancel();
+        }});
+
+        // Escape closes the dialog on its own, which would leave the recorder
+        // running with nowhere to report back to. Abort it first.
+        document.addEventListener('keydown', function(e) {{
+            if (e.key !== 'Escape') return;
+            if (recorder && recorder.state === 'recording') cancel();
+        }});
     }}
     waitForBtn();
     document.addEventListener('click', function() {{ setTimeout(waitForBtn, 50); }});
@@ -557,4 +761,7 @@ def build_memo_dialog():
 </script>""")
 
     status.classes("memo-status")
+    # Exposed so the header button can clear the form before showing it. The
+    # dialog is built once per page load and reused for every memo after that.
+    dialog.reset_memo = _reset
     return dialog

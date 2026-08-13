@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 from vault.chunker import chunk_vault_file
+from vault.context import embed_text, path_metadata
 from vault.frontmatter import write
 from vault.git_wrapper import _git, commit, ensure_repo
 from vault.locks import get_user_lock
@@ -103,15 +104,15 @@ class VaultMemoWriter:
             rel = filename.relative_to(vp)
             note_name = filename.stem
             for chunk in chunk_vault_file(text):
-                # Mirrors vault/sync.py: the filename and heading breadcrumb are
-                # embedded alongside the body so a query on the topic matches,
-                # while the stored snippet stays clean.
-                context = " › ".join(filter(None, [note_name, chunk.heading_path]))
+                # Mirrors vault/sync.py: folder, filename and heading breadcrumb
+                # are embedded alongside the body so a query on the topic (or on
+                # "memo") matches, while the stored snippet stays clean.
                 await self._c.upsert(
                     ids=[f"{pbrain_id}:{chunk.chunk_index}"],
                     documents=[chunk.text],
-                    embed_documents=[f"{context}\n\n{chunk.text}" if context else chunk.text],
+                    embed_documents=[embed_text(chunk.text, rel, chunk.heading_path)],
                     metadatas=[{
+                        **path_metadata(rel),
                         "pbrain_id": pbrain_id,
                         "path": str(rel),
                         "note_name": note_name,

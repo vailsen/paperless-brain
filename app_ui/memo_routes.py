@@ -14,6 +14,7 @@ code path with the HTTP route — including the size cap and the silence guard,
 which are the two things that must never be skipped.
 """
 
+import asyncio
 import logging
 
 from fastapi import UploadFile
@@ -29,6 +30,7 @@ _log = logging.getLogger(__name__)
 
 TRANSCRIBE_PATH = "/api/memo/transcribe"
 REWRITE_PATH = "/api/memo/rewrite"
+QUICK_PATH = "/api/memo/quick"
 
 
 class MemoInputError(Exception):
@@ -46,6 +48,25 @@ class MemoInputError(Exception):
 
 def _error(status: int, message: str) -> JSONResponse:
     return JSONResponse({"error": message}, status_code=status)
+
+
+# 422 is the "there was nothing in that recording" status throughout this
+# module. It is the one failure that is the user's to fix and the only one that
+# is not worth a stack trace in the log.
+NOTHING_RECOGNISED = "Nothing was recognised in the recording."
+
+
+def _failure_for(data: bytes, message: str) -> tuple[int, str]:
+    """Status and message for a transcription that did not come back.
+
+    On a few seconds of audio the difference between "the service is down" and
+    "you recorded nothing" is invisible to the user and the remedy is the same,
+    so the short case gets the plainer message. A failure on a long recording
+    keeps the real error — that one is worth knowing about.
+    """
+    if len(data) < memo_service.SHORT_AUDIO_BYTES:
+        return 422, NOTHING_RECOGNISED
+    return 502, message
 
 
 def _memo_model(username: str, token: str) -> str:
@@ -105,6 +126,11 @@ async def transcribe_payload(
     limit_mb = upload_limit_mb(conversation)
     if len(data) > limit_mb * 1024 * 1024:
         raise MemoInputError(413, f"The recording exceeds {limit_mb} MB.")
+    # A mis-tap never reaches the transcription service: there is nothing in it
+    # to transcribe, and some services answer a stub recording with a 500 that
+    # would reach the user as an alarming error about a service that is fine.
+    if memo_service.is_too_short_for_speech(data):
+        raise MemoInputError(422, NOTHING_RECOGNISED)
 
     try:
         text = await transcription.transcribe(
@@ -115,15 +141,24 @@ async def transcribe_payload(
             language=language,
         )
     except transcription.TranscriptionError as exc:
-        raise MemoInputError(502, str(exc)) from exc
+        raise MemoInputError(*_failure_for(data, str(exc))) from exc
     except Exception as exc:  # never leak a stack trace to the browser
         _log.exception("transcription failed")
-        raise MemoInputError(502, "Transcription failed.") from exc
+        raise MemoInputError(*_failure_for(data, "Transcription failed.")) from exc
 
     # Whisper answers non-speech with a confident stock phrase rather than an
     # empty string, so this cannot be an `if not text` check.
     if memo_service.looks_like_silence(text):
-        raise MemoInputError(422, "Nothing was recognised in the recording.")
+        raise MemoInputError(422, NOTHING_RECOGNISED)
+    # The other, worse failure: pages of fluent invented text from a recording
+    # that held nothing. Logged in full, because unlike a stock phrase this one
+    # is worth being able to inspect after the fact.
+    if memo_service.looks_like_hallucination(text, len(data)):
+        _log.warning(
+            "discarding a %d-char transcript from %d bytes of audio for %s: %r",
+            len(text), len(data), username, text[:300],
+        )
+        raise MemoInputError(422, NOTHING_RECOGNISED)
 
     if not rewrite:
         return {"text": text}
@@ -195,6 +230,136 @@ async def transcribe_audio(
     except MemoInputError as exc:
         return _error(exc.status, exc.message)
     return JSONResponse(payload)
+
+
+# ── Quick memo: fire and forget ───────────────────────────────────────────────
+#
+# The dialog closes the moment the recording stops and the rest happens here.
+# Three consequences shape this code:
+#
+# * The work must NOT be tied to the client. A task started from a page dies
+#   when the user navigates away or the PWA is backgrounded — which is precisely
+#   when a fire-and-forget memo is used. So it runs as an app-level task and
+#   keeps everything it needs (bytes, user, token) as plain arguments.
+# * It must be serialized. Local inference is one GPU; three quick memos in a
+#   row would otherwise queue up inside Ollama and time out.
+# * A failure must be visible, and the audio is never written to disk. Parking
+#   the recording was meant to make a failure recoverable, but it silently
+#   accumulated the user's voice in a folder nobody looks at, and the path in
+#   the notice was noise to the only person who ever read it. The audio is
+#   dropped and the notice says what went wrong.
+
+_quick_lane = asyncio.Semaphore(1)
+_quick_tasks: set[asyncio.Task] = set()
+_notices: dict[str, list[dict]] = {}
+
+
+def _push_notice(username: str, kind: str, message: str) -> None:
+    """Queue a message for the user's next connected page."""
+    _notices.setdefault(username, []).append({"kind": kind, "message": message})
+
+
+def pop_notices(username: str) -> list[dict]:
+    """Take everything queued for `username`. Drained by the header poller."""
+    return _notices.pop(username, [])
+
+
+async def _process_quick_memo(
+    data: bytes,
+    *,
+    filename: str,
+    content_type: str,
+    username: str,
+    token: str,
+    conversation: bool,
+    language: str | None,
+) -> None:
+    async with _quick_lane:
+        try:
+            payload = await transcribe_payload(
+                data,
+                filename=filename,
+                content_type=content_type,
+                rewrite=True,
+                username=username,
+                token=token,
+                conversation=conversation,
+                language=language,
+            )
+        except MemoInputError as exc:
+            # A 422 is the guard doing its job, not a lost memo — there was
+            # nothing in that recording worth telling the user about twice.
+            kind = "warning" if exc.status == 422 else "error"
+            _push_notice(username, kind, exc.message)
+            return
+        except Exception:
+            _log.exception("quick memo failed for %s", username)
+            _push_notice(
+                username, "error", "The memo could not be transcribed."
+            )
+            return
+
+        from services.clients import vault_memo_writer
+
+        try:
+            _memo_id, rel = await vault_memo_writer.create_memo(
+                payload["text"], username, topic=payload.get("topic", "")
+            )
+        except Exception:
+            _log.exception("quick memo could not be filed for %s", username)
+            _push_notice(username, "error", "The memo could not be saved.")
+            return
+        _push_notice(username, "ok", rel.split("/")[-1])
+
+
+@ng_app.post(QUICK_PATH)
+async def quick_memo(audio: UploadFile, mode: str = "memo") -> JSONResponse:
+    """Accept a recording and answer immediately; file it in the background."""
+    from app_ui.memo_dialog import dictation_language
+
+    try:
+        username = ng_app.storage.user.get("paperless_user", "")
+        token = get_session_token()
+        language = dictation_language()
+    except Exception:
+        username, token, language = "", "", None
+
+    if not username:
+        return _error(401, "Not signed in.")
+    if not transcription.is_configured():
+        return _error(503, "No transcription service configured.")
+
+    data = await audio.read()
+    if not data:
+        return _error(400, "The recording is empty.")
+    conversation = mode == "conversation"
+    limit_mb = upload_limit_mb(conversation)
+    # Checked here rather than in the task: a size rejection is the one failure
+    # the caller is still around to be told about.
+    if len(data) > limit_mb * 1024 * 1024:
+        return _error(413, f"The recording exceeds {limit_mb} MB.")
+    # Answered here rather than as a background notice: a mis-tap is caught
+    # before the dialog closes, so the user is told straight away instead of
+    # getting a warning toast seconds later about a memo they never made.
+    if memo_service.is_too_short_for_speech(data):
+        return _error(422, NOTHING_RECOGNISED)
+
+    task = asyncio.create_task(
+        _process_quick_memo(
+            data,
+            filename=audio.filename or "memo.webm",
+            content_type=audio.content_type or "application/octet-stream",
+            username=username,
+            token=token,
+            conversation=conversation,
+            language=language,
+        )
+    )
+    # asyncio only keeps a weak reference to running tasks — without this the
+    # memo can be garbage-collected mid-transcription.
+    _quick_tasks.add(task)
+    task.add_done_callback(_quick_tasks.discard)
+    return JSONResponse({"queued": True}, status_code=202)
 
 
 @ng_app.post(REWRITE_PATH)

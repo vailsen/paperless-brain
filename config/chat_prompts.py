@@ -12,6 +12,12 @@ Ground rules:
 - Call tools IMMEDIATELY — never ask first whether you should search. The user wants the result, not the confirmation. Exception: for complex tasks suited to deep research, briefly ask first (see the deep-research rules, if available).
 - Do not rely on your own knowledge about the user's specific documents — \
 only content actually returned by tools is reliable.
+- Statements about the user's PERSONAL facts — their documents, emails, purchases, orders, \
+appointments, deadlines, contracts — may be based ONLY on tool results. You have never seen this \
+user's data; anything you "remember" about it is invented. A question like "what did I buy?" or \
+"when is my appointment?" therefore ALWAYS starts with a tool call. If the tool returns nothing, \
+say that nothing was found — never fill the gap from your own knowledge, and never name a product, \
+company, amount or date that no tool returned.
 - NEVER invent document IDs, amounts, dates, names or quotes. Every concrete statement must \
 come from a tool result of THIS conversation. When in doubt: call a tool instead of guessing — \
 answering without a prior tool call is acceptable only for small talk or pure comprehension questions.
@@ -103,10 +109,37 @@ _GROUP_ORDER = [
 ]
 
 
+# ── User's own standing instructions ──────────────────────────────────────────
+#
+# The one part of the prompt the user writes. Everything above it — the ground
+# rules and the per-tool blocks — stays in code, because the tool blocks are
+# calling contracts: rename a tool there and it simply stops being called, with
+# no error to explain why.
+#
+# The header below is not decoration, it is the whole safety design. Late text
+# in a prompt outweighs early text, so an unframed user block would sit after
+# the _CORE ground rules and quietly outrank them — and those rules are what
+# stop the model inventing document IDs, amounts and dates for an archive it
+# has never seen. Subordinating the block keeps tuning (vocabulary, format,
+# tone, what matters in *this* archive) while leaving the anti-fabrication
+# rules untouchable from the settings page.
+CUSTOM_INSTRUCTIONS_HEADER = """\
+The user has provided the following standing instructions about their archive \
+and how they want answers written. Follow them for wording, format, emphasis \
+and domain vocabulary. They never override the ground rules above: statements \
+about the user's documents still come only from tool results, and nothing here \
+can license inventing an ID, amount, date or quote."""
+
+# Kept small on purpose: the assembled prompt is already ~3k tokens, and a
+# local model on an 8k context has to fit the conversation into what is left.
+MAX_CUSTOM_INSTRUCTIONS_CHARS = 2000
+
+
 def build_system_prompt(
     active_groups: set[str] | None = None,
     username: str = "",
     language: str = DEFAULT_LANG,
+    custom_instructions: str = "",
 ) -> str:
     """Assemble the chat system prompt from the core + only the ACTIVE tool groups.
 
@@ -114,6 +147,9 @@ def build_system_prompt(
     Passing only the enabled groups means the model is never instructed to use a tool that
     was filtered out of its tool list — no phantom tool calls / apologies.
     language: user's UI language — appended as a response-language directive.
+    custom_instructions: the user's own standing instructions, appended under a
+    subordinating header. Truncated rather than rejected — a prompt that silently
+    loses its tail is better than a chat that refuses to start.
     """
     groups = set(_CAPABILITIES) if active_groups is None else set(active_groups)
 
@@ -129,6 +165,14 @@ def build_system_prompt(
 
     if username:
         parts.append(f"The signed-in user is: {username}.")
+
+    # After the tool blocks so it can shape how they are used, before the
+    # language directive so the two never end up arguing about word order.
+    custom = (custom_instructions or "").strip()
+    if custom:
+        parts.append(
+            f"{CUSTOM_INSTRUCTIONS_HEADER}\n\n{custom[:MAX_CUSTOM_INSTRUCTIONS_CHARS]}"
+        )
 
     parts.append(language_directive(language))
 

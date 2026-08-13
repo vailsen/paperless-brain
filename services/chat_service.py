@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import html as _html_lib
 import json
 import logging
 import os
 import re
+import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import AsyncGenerator
@@ -582,7 +584,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "search_emails",
         "description": (
-            "Searches the user's emails via IMAP (inbox and sent mail). Use when the user asks about an email, order, booking confirmation or correspondence. Requires a configured IMAP account (settings). On Gmail all parameters run as native Gmail search (fast, precise). For sent emails (e.g. 'when did I write/send X'): set to_addr. For 'latest/newest email': leave all fields empty, set max_results=1 — returns the newest email without filtering. IMPORTANT: NEVER reference emails with #N (e.g. '#3', '#15') — that syntax is reserved exclusively for Paperless documents and would open wrong documents. Instead use 'email 3', 'the third email', '[E3]' or similar."
+            "Searches the user's emails via IMAP (inbox and sent mail). Use when the user asks about an email, order, booking confirmation or correspondence. Requires a configured IMAP account (settings). On Gmail all parameters run as native Gmail search (fast, precise). For sent emails (e.g. 'when did I write/send X'): set to_addr. For 'latest/newest email': leave all fields empty, set max_results=1 — returns the newest email without filtering. The default search ALREADY covers every folder (all mail) — 'folder' only narrows it down. If a search returns nothing, do NOT guess folder names: retry with a shorter or different search term, or with from_addr. IMPORTANT: NEVER reference emails with #N (e.g. '#3', '#15') — that syntax is reserved exclusively for Paperless documents and would open wrong documents. Instead use 'email 3', 'the third email', '[E3]' or similar."
         ),
         "input_schema": {
             "type": "object",
@@ -633,13 +635,13 @@ TOOL_DEFINITIONS: list[dict] = [
                 "folder": {
                     "type": "string",
                     "description": (
-                        "Search a specific IMAP folder (e.g. 'INBOX', 'Archive', '\"Sent Items\"'). Default: automatic selection (All Mail / INBOX). Use when emails are suspected to be in another folder."
+                        "Restrict the search to one IMAP folder, in plain text exactly as 'list_folders_only' printed it (e.g. 'INBOX', 'Archive', 'Bestellvorgänge'). Default (recommended): omit — all mail is searched anyway."
                     ),
                 },
                 "list_folders_only": {
                     "type": "boolean",
                     "description": (
-                        "List all available IMAP folders (no search). Use when it is unclear where emails are stored or which folder name is correct."
+                        "List all available IMAP folders (no search). Only useful to restrict a search that already works — it is never the fix for a search that found nothing."
                     ),
                 },
             },
@@ -1791,9 +1793,89 @@ async def _tool_web_search(inputs: dict) -> tuple[str, list[WebSearchResult]]:
                         engine=(h.get("engine") or ""),
                     )
                 )
+        await _fill_preview_images(web_results)
         return "\n".join(lines), web_results
     except Exception as e:
         return f"Web search failed: {e}", []
+
+
+# ── Preview images ────────────────────────────────────────────────────────────
+#
+# SearXNG only passes `img_src` through when the answering engine supplies one,
+# and which engines answer varies per query — hence the "sometimes all,
+# sometimes none, usually some" the result list used to show. The policy is:
+# every card gets a picture or the same placeholder, never a gap.
+#
+# Filling the blanks means fetching the target page, which tells that site
+# someone searched for it. So it is limited to the first few results (the ones
+# actually looked at), reads only the page head, and caches per URL.
+
+_OG_IMAGE_TOP_N = 5
+_OG_IMAGE_HEAD_BYTES = 65_536
+_OG_IMAGE_CACHE: dict[str, str] = {}
+_OG_IMAGE_CACHE_MAX = 512
+
+_OG_IMAGE_RE = re.compile(
+    r"""<meta[^>]+(?:property|name)\s*=\s*["'](?:og:image(?::secure_url)?|twitter:image)["']"""
+    r"""[^>]+content\s*=\s*["']([^"']+)["']""",
+    re.IGNORECASE,
+)
+# Same tag with the attributes the other way round — both orders occur in the
+# wild and a single-order regex silently misses half of them.
+_OG_IMAGE_RE_REVERSED = re.compile(
+    r"""<meta[^>]+content\s*=\s*["']([^"']+)["'][^>]+(?:property|name)\s*=\s*"""
+    r"""["'](?:og:image(?::secure_url)?|twitter:image)["']""",
+    re.IGNORECASE,
+)
+
+
+async def _og_image(url: str) -> str:
+    """Best-effort og:image URL for a page. '' when there is none."""
+    if url in _OG_IMAGE_CACHE:
+        return _OG_IMAGE_CACHE[url]
+    found = ""
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=3.0, read=4.0, write=3.0, pool=3.0),
+            follow_redirects=True,
+        ) as client:
+            async with client.stream(
+                "GET", url, headers={"Accept": "text/html", "Range": f"bytes=0-{_OG_IMAGE_HEAD_BYTES}"}
+            ) as resp:
+                if resp.status_code >= 400 or "html" not in resp.headers.get("content-type", ""):
+                    raise ValueError("not an HTML page")
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in resp.aiter_bytes():
+                    chunks.append(chunk)
+                    size += len(chunk)
+                    # The tag lives in <head>; reading the whole page would cost
+                    # far more than the picture is worth.
+                    if size >= _OG_IMAGE_HEAD_BYTES:
+                        break
+        html = b"".join(chunks).decode("utf-8", errors="replace")
+        m = _OG_IMAGE_RE.search(html) or _OG_IMAGE_RE_REVERSED.search(html)
+        if m:
+            found = urllib.parse.urljoin(url, _html_lib.unescape(m.group(1).strip()))
+    except Exception:
+        found = ""
+    if len(_OG_IMAGE_CACHE) >= _OG_IMAGE_CACHE_MAX:
+        _OG_IMAGE_CACHE.clear()          # crude, but this is a decoration cache
+    _OG_IMAGE_CACHE[url] = found
+    return found
+
+
+async def _fill_preview_images(results: list) -> None:
+    """Fetch missing preview images for the first few results, in parallel."""
+    targets = [r for r in results[:_OG_IMAGE_TOP_N] if not r.img_src and r.url]
+    if not targets:
+        return
+    images = await asyncio.gather(
+        *(_og_image(r.url) for r in targets), return_exceptions=True
+    )
+    for result, image in zip(targets, images):
+        if isinstance(image, str) and image:
+            result.img_src = image
 
 
 async def _trafilatura_fetch(url: str) -> str | None:
@@ -2044,6 +2126,16 @@ async def _tool_search_emails(inputs: dict) -> tuple[str, list]:
         f"Email search: \'{label}' — {len(results)} hits{pagination} (folder: {folder_used})",
         "IMPORTANT: emails have no document IDs. Never use #N notation for email references.\n",
     ]
+    # Said outright, not left in the folder label: these hits answer a WIDER
+    # query than the one that was asked, so the model must not present them as
+    # matches for the original term.
+    if fallback := data.get("fallback"):
+        lines.insert(
+            1,
+            f"NOTE: no email contains '{label}'. The hits below come from a broader "
+            f"search for '{fallback}' and may be unrelated — check each one before "
+            f"citing it, and say so if none of them actually match.",
+        )
     for i, r in enumerate(results, offset + 1):
         lines.append(f"[E{i}] {r.get('date', '')} | From: {r.get('from', '')}")
         lines.append(f"   Subject: {r.get('subject', '')}")
@@ -2881,6 +2973,77 @@ def _is_thinking_model(model: str) -> bool:
     return any(k in _lower for k in ("qwen3", "qwen-3", "deepseek-r", "qwq"))
 
 
+# ── Tool-use guard ────────────────────────────────────────────────────────────
+#
+# Some models answer a question about the user's own documents, mail or
+# purchases straight out of their weights — inventing an answer that reads
+# exactly like a real one ("You bought the Pediro Pro 2.0"). The cheap defence
+# is a heuristic on the *request*: a first-person question about a personal
+# fact cannot be answered without a tool, so if the model produced no tool call
+# at all, ask once more with tool use required.
+#
+# Deliberately not a hallucination detector and not an LLM judge — this looks at
+# the question, never at the answer, and costs one regex.
+
+_PERSONAL_MARKERS = re.compile(
+    # German possessives spelled out rather than `mein\w*`: that would also
+    # match the verb ("was meinst du?"), which is not a personal fact at all.
+    r"\b(mein|meine|meinen|meinem|meiner|meines|bei\s+mir)\b"
+    # German puts the participle at the end ("den ich gekauft habe"), so the
+    # pronoun and the verb are not adjacent — hence the bounded window.
+    r"|\bich\b.{0,40}?\b(hab|habe|hatte|bin|war|bekam|kaufte|gekauft|bestellt"
+    r"|bezahlt|erhalten|geschrieben|geschickt|abgeschlossen)\b"
+    r"|\b(my|mine)\b"
+    r"|\b(did|do|does)\s+i\b"
+    r"|\bi\s+(have|had|bought|got|ordered|paid|received|sent|wrote)\b",
+    re.IGNORECASE,
+)
+
+# General-knowledge questions must not trip the guard: "What is a torque
+# wrench?" needs no tool, and forcing one would waste a turn and a search.
+_GENERAL_QUESTION = re.compile(
+    r"^\s*(was ist|was sind|wie funktioniert|wie viel wiegt|erkläre|erklär|"
+    r"what is|what are|how does|how do|explain|define)\b",
+    re.IGNORECASE,
+)
+
+
+def _needs_tool_use(text: str) -> bool:
+    """True when the question is about the user's own data.
+
+    Such a question is unanswerable from model weights by construction: the
+    model has never seen this user's mail, invoices or calendar.
+    """
+    if not text or _GENERAL_QUESTION.match(text):
+        return False
+    return bool(_PERSONAL_MARKERS.search(text))
+
+
+def _last_user_text(messages: list[dict]) -> str:
+    """Plain text of the most recent user message ('' if there is none)."""
+    for msg in reversed(messages):
+        if msg.get("role") != "user":
+            continue
+        content = msg.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return " ".join(
+                part.get("text", "")
+                for part in content
+                if isinstance(part, dict) and part.get("type") == "text"
+            )
+    return ""
+
+
+_TOOL_REMINDER = (
+    "Reminder: statements about this user's documents, emails, purchases, "
+    "appointments or other personal facts may only be based on tool results. "
+    "Use a tool now. If it returns nothing, say that nothing was found — never "
+    "fill the gap from your own knowledge."
+)
+
+
 class OpenAICompatibleChatBackend:
     def __init__(
         self,
@@ -2889,6 +3052,9 @@ class OpenAICompatibleChatBackend:
         model: str,
         max_output_tokens: int | None = None,
         think: bool | None = None,
+        supports_tools: bool = True,
+        tool_choice_mode: str = "auto",
+        force_tool_first_turn: bool = False,
     ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -2897,6 +3063,13 @@ class OpenAICompatibleChatBackend:
         # Default 16 384 prevents runaway thinking models from blocking forever.
         self.max_output_tokens = max_output_tokens or 16_384
         self.think = think  # None=model-default, True/False=explicit override
+        # Per-model tool behaviour. "OpenAI-compatible" is a claim, not a
+        # guarantee: some gateways drop `tools` unless `tool_choice` is set,
+        # some models never call one, and a model that cannot use tools is
+        # better off not being offered them than answering from memory.
+        self.supports_tools = supports_tools
+        self.tool_choice_mode = tool_choice_mode or "auto"
+        self.force_tool_first_turn = force_tool_first_turn
         self.context_window = 0
         self._ctx_authoritative = False
 
@@ -2925,12 +3098,20 @@ class OpenAICompatibleChatBackend:
     ) -> AsyncGenerator[ChatEvent, None]:
         await self._ensure_ctx()
         _tools_list = tools if tools is not None else TOOL_DEFINITIONS
+        if not self.supports_tools:
+            _tools_list = []
         active_tools = _to_ollama_tools(_tools_list)
         _allowed_tool_names: set[str] = {t["name"] for t in _tools_list}
         working = [{"role": "system", "content": system}] + list(messages)
         headers: dict = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+
+        # Guard state, for the whole turn: at most one forced retry, so a model
+        # that refuses to call tools costs one extra request, not a loop.
+        guard_applies = bool(active_tools) and _needs_tool_use(_last_user_text(messages))
+        force_tools = guard_applies and self.force_tool_first_turn
+        guard_retried = False
 
         prompt_tokens = 0
         for _i in range(max_iterations):
@@ -2940,12 +3121,17 @@ class OpenAICompatibleChatBackend:
             payload: dict = {
                 "model": self.model,
                 "messages": working,
-                "tools": active_tools,
                 "stream": True,
                 "stream_options": {"include_usage": True},
                 "temperature": temperature,
                 "max_tokens": self.max_output_tokens,
             }
+            if active_tools:
+                payload["tools"] = active_tools
+                # Sent explicitly: several gateways ignore `tools` entirely
+                # unless `tool_choice` is present, which looks exactly like a
+                # model that chose not to call anything.
+                payload["tool_choice"] = "required" if force_tools else self.tool_choice_mode
             if self.think is not None:
                 payload["think"] = self.think
 
@@ -3093,13 +3279,33 @@ class OpenAICompatibleChatBackend:
                     yield ThinkingEvent(text=extra_thinking)
 
             if not raw_tool_calls:
+                # The model answered a question about the user's own data
+                # without looking anything up — so whatever it said, it made up.
+                # Ask once more, with tool use required.
+                if guard_applies and not guard_retried:
+                    guard_retried = True
+                    force_tools = True
+                    _log.info(
+                        "Tool-use guard: %s answered a personal question with no "
+                        "tool call — retrying with tool_choice=required",
+                        self.model,
+                    )
+                    working.append({"role": "system", "content": _TOOL_REMINDER})
+                    continue
                 if content:
                     yield TextTokenEvent(content)
                 yield DoneEvent(
                     input_tokens=prompt_tokens, context_window=self.context_window
                 )
                 return
-            elif content:
+
+            # A tool ran, so the answer will be grounded: release the guard, and
+            # above all stop forcing tool use — otherwise the model could never
+            # produce the final answer it now has the material for.
+            guard_applies = False
+            force_tools = False
+
+            if content:
                 # intermediate narration between tool calls — treat as thinking
                 yield ThinkingEvent(text=content)
 

@@ -72,6 +72,24 @@ def test_language_directive_names_the_language_and_date_format():
     assert "DD.MM.YYYY" in directive
 
 
+def test_language_directive_lets_the_user_choose_the_language():
+    """The UI language is the fallback, not an override.
+
+    Writing German to an English interface is the normal case, and a model that
+    follows instructions literally must not be told to answer in English anyway.
+    """
+    directive = i18n.language_directive("en")
+    assert "Respond in the language the user writes to you in" in directive
+    assert "Always respond in" not in directive
+
+
+def test_language_directive_still_ignores_document_language():
+    """The half of the old rule that was right: a German invoice inside an
+    English session is still answered in the session's language."""
+    directive = i18n.language_directive("en")
+    assert "Never switch language because a document" in directive
+
+
 def test_language_directive_falls_back_for_unknown_code():
     assert i18n.language_directive("klingon") == i18n.language_directive(i18n.DEFAULT_LANG)
 

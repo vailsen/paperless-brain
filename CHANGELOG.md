@@ -5,6 +5,162 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.6.0] — 2026-08-13
+
+**Search that finds the mail, memory that knows where it lives, and a model
+that admits what it does not know.**
+
+The email tool could not find a German word. Not "found it late" — never, for
+any query containing an umlaut, since the feature shipped. The cause turned out
+to be smaller than any theory about Gmail's index: `imaplib` encodes string
+command arguments as ASCII, so the query raised `UnicodeEncodeError` *inside the
+library* and the surrounding `except` reported it as "no emails found". The
+query never reached the server at all.
+
+Vault and brain retrieval now embed where a note lives, not only what it says. A
+chunk reading "change the brake pads" is ambiguous alone and unambiguous under
+`To-Dos/Car.md`, so the folder and heading breadcrumb go into the vector — in
+one short line, because a long header would drown out the chunk it is meant to
+disambiguate.
+
+And a model asked "what did I buy?" that answers without calling a tool did not
+remember anything; it invented it. Models can now be marked per entry as unable
+to use tools at all, or as required to reach for one when the question is about
+the user's own data.
+
+### Added
+
+- **Standing chat instructions.** Settings > AI > Chat instructions is a
+  per-user text box appended to every chat system prompt — for describing your
+  archive (what is in it, your correspondents, how your reference numbers look)
+  and how you want answers written. Capped at 2000 characters with a live
+  counter, because the assembled prompt is already ~3k tokens and a local model
+  has to fit the conversation into what is left.
+
+  Deliberately additive only: the per-tool-group blocks stay in code, since they
+  are calling contracts and a renamed tool there stops being called with no
+  error to explain why. The block is also subordinated to the ground rules
+  rather than merely appended — later prompt text outweighs earlier text, so an
+  unframed user block would quietly outrank the rules that stop the assistant
+  inventing document IDs, amounts and dates.
+
+- **Per-model tool flags.** "OpenAI-compatible" describes the wire format, not
+  the behaviour behind it. Each model in Settings > AI models now carries
+  *Model can use tools* (off = never offered any, shown as a "no tools" badge)
+  and *Require a tool for personal questions*. The second one drives a guard
+  that inspects the question, never the answer: a question about the user's own
+  mail, invoices or calendar is unanswerable from model weights by construction,
+  so the turn is retried once with `tool_choice: required`. At most one forced
+  retry per turn — a model that refuses costs one extra request, not a loop.
+
+- **Context-aware embedding for vault and brain.** `vault/context.py` prepends a
+  one-line header — `[To-Dos] Car › Brakes` — to every chunk before embedding,
+  and puts folder, filename and title into metadata where they can be filtered
+  and cited without touching the vector. The same schema for both collections,
+  or a distance from `brain` stops being comparable to a distance from `vault`.
+  Brain writes by the agent build the identical header, so a fact written now
+  and the same fact re-embedded by a later reindex land in the same place.
+
+- **Reindex on embedding-schema change.** `EMBEDDING_SCHEMA_VERSION` is recorded
+  per user and compared on sync; a mismatch forces one full rebuild, then marks
+  itself current so it does not run again. Also available as a manual button
+  with per-file progress.
+
+- **Preview images on web results.** SearXNG only passes `img_src` through when
+  the answering engine supplies one, which is why cards were sometimes all
+  illustrated and sometimes none. The top results now get their `og:image`
+  fetched in parallel; every card ends with a picture or the same placeholder,
+  never a gap.
+
+- **`scripts/imap_debug.py`** — runs one search against a real account with the
+  IMAP traffic visible. The email path has no other way to be checked end to
+  end: credentials are encrypted per user, the server is remote, and the
+  interesting failures are invisible from the outside.
+
+### Changed
+
+- **The response language follows the user, not the interface.** The old
+  directive said "always respond in *X*, regardless of…", which conflated two
+  different rules. Keeping a German invoice from dragging the reply into German
+  is right; overriding the language the *user* writes in is not — a German
+  question in an English interface is the normal case here. Models that follow
+  instructions literally obeyed the old wording and answered German questions in
+  English, while looser ones ignored it and did the sensible thing. The
+  instruction was at fault, not the models. Documents still get no vote.
+
+- **Voice memo audio is never written to disk.** Failed recordings used to be
+  parked under `data/memo_failed/` and the path named in the error. It was meant
+  to make a failure recoverable; in practice it accumulated the user's voice in
+  a folder nobody looks at and put a filesystem path in front of the one person
+  who could not use it. The audio is dropped and the notice says what went wrong.
+
+- **"Max. tool calls" is now "Max. model rounds".** It always capped agentic loop
+  iterations, and one iteration can fire several tool calls in parallel, so 40
+  meant 40 model round-trips and potentially far more calls. The chat badge shows
+  both: `search · 3/40 · 7 calls`.
+
+- **Gmail accounts are detected by capability, not hostname.** `X-GM-EXT-1` in
+  CAPABILITY rather than "does the host contain 'gmail'", so custom-domain
+  Google Workspace accounts get Google's own index too.
+
+### Fixed
+
+- **Email search found nothing for any query containing an umlaut.** `imaplib`
+  encodes str command arguments as ASCII (`IMAP4._encoding`), so the query
+  raised `UnicodeEncodeError` inside the library on all three paths — X-GM-RAW,
+  `SEARCH CHARSET UTF-8` and the ASCII fallback — and the surrounding `except`
+  made it indistinguishable from an empty result. Criteria are now built as text
+  and handed to `search()` as bytes with `CHARSET UTF-8`.
+
+  Two further faults surfaced on the first live run and are fixed as well: Gmail
+  answers `OK` to 8-bit inside quotes and then matches nothing, so non-ASCII is
+  sent as an IMAP literal — the only form RFC 3501 defines for it; and results
+  came back oldest-first, so a search for a recent order returned mail from 2011.
+
+- **Folder names with umlauts could not be selected.** IMAP carries them in
+  modified UTF-7, so `Bestellvorgänge` arrives as `Bestellvorg&AOQ-nge`. Names
+  are decoded at the tool boundary and re-encoded before `SELECT`: the model
+  never sees the encoded form and never has to produce it.
+
+- **Mail bodies lost the words that were being searched for.** Payloads are now
+  decoded through quoted-printable/base64 (`Drehmomentschl=C3=BCssel` matched
+  nothing), and HTML bodies are flattened keeping `<img alt>` text and link
+  slugs — shop mails carry the full product name there long after the visible
+  subject has been truncated.
+
+- **Whisper's invented transcripts are discarded.** A short recording of silence
+  came back as a fluent, structured slab of memorised broadcast boilerplate —
+  the stock-phrase list cannot catch those, since they are long and never the
+  same twice. The guard is arithmetic instead: speech has a maximum rate, so a
+  recording only holds so many characters. Both constants are slack (12 kbps
+  assumed against the 24–64 browsers write; 25 chars/s against fast speech at
+  ~20), so a real 30-second memo comes out about four times under budget while
+  the 1200-character transcript from under two seconds of audio was ten times
+  over it.
+
+- **A mis-tapped memo button reads as "nothing was recognised", not an error.**
+  Recordings too small to hold speech never reach the transcription service, and
+  a service failure on a few seconds of audio reports the plain message rather
+  than the raw 500 — the two are indistinguishable from where the user sits and
+  the remedy is the same. A failure on a longer recording keeps the real error.
+
+- **The memo dialog kept its old text after saving.** NiceGUI sends nothing when
+  an assigned value equals its Python-side copy, and the reset that runs on close
+  had already set it to `""` while the browser still showed the transcript — so
+  the reset on reopen was a silent no-op. Reproduced and fixed against the real
+  dialog under Playwright.
+
+- **Tool calls went missing from the thinking log.** The label was written onto
+  the last existing entry, so several tool calls in one iteration overwrote each
+  other and only the last survived; a tool call arriving before any thinking text
+  was dropped entirely. The trace dialog had them all along, which is what made
+  the two disagree.
+
+- **Chat settings reset themselves on "New chat".** Tool group toggles and the
+  iteration cap were reset to defaults while the settings panel kept rendering
+  the user's values — so the next conversation silently ran with 16 rounds and
+  the default tool set no matter what was on screen.
+
 ## [0.5.0] — 2026-08-10
 
 **Voice memos get a voice of their own, and the phone gets its screen back.**
@@ -307,6 +463,7 @@ across documents at a glance.
 First semantically versioned release. See the
 [release notes](https://github.com/vailsen/paperless-brain/releases/tag/v0.2.0).
 
+[0.6.0]: https://github.com/vailsen/paperless-brain/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/vailsen/paperless-brain/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vailsen/paperless-brain/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/vailsen/paperless-brain/compare/v0.2.0...v0.3.0

@@ -6,6 +6,7 @@ import asyncio
 from nicegui import app as ng_app, ui
 
 from app_ui.layout import page_layout, require_auth
+from config.chat_prompts import MAX_CUSTOM_INSTRUCTIONS_CHARS
 from config.settings import settings
 from i18n import DEFAULT_LANG, SUPPORTED_LANGUAGES, get_translator
 from services.credential_store import load_credentials, save_credentials
@@ -491,6 +492,36 @@ async def settings_page() -> None:
                                 _("⚠ Qwen3 thinking-loop risk at temp. < 0.5 — recommended: ≥ 0.6")
                             ).classes("text-xs text-yellow-500 mt-1")
 
+                            # ── Tool use ─────────────────────────────────────
+                            # "OpenAI-compatible" says nothing about whether a
+                            # model actually calls tools. A model that answers a
+                            # question about the user's own mail from its
+                            # weights invents an answer that reads exactly like
+                            # a real one, so this is worth its own control.
+                            f_supports_tools = ui.switch(
+                                _("Model can use tools"),
+                                value=bool(edit_model.get("supports_tools", True)) if is_edit else True,
+                            ).props("dark").classes("mt-3")
+                            ui.label(
+                                _(
+                                    "Off: this model is never offered tools. Use for models that "
+                                    "cannot call them reliably — better a model that says it does "
+                                    "not know than one that invents an answer."
+                                )
+                            ).classes("text-xs text-gray-500 mt-1")
+
+                            f_force_tool = ui.switch(
+                                _("Require a tool for personal questions"),
+                                value=bool(edit_model.get("force_tool_first_turn", False)) if is_edit else False,
+                            ).props("dark").classes("mt-2")
+                            ui.label(
+                                _(
+                                    "For questions about your own documents, emails or purchases, "
+                                    "the first request already demands a tool call. Switch on for "
+                                    "models that answer such questions from memory."
+                                )
+                            ).classes("text-xs text-gray-500 mt-1")
+
                             _update_base_url_placeholder()
                             f_backend.on_value_change(lambda _: _update_base_url_placeholder())
 
@@ -511,6 +542,8 @@ async def settings_page() -> None:
                                     "max_output_tokens": int(f_max_output.value or 0),
                                     "think": True if f_think.value == "true" else (False if f_think.value == "false" else None),
                                     "thinking_budget": int(f_thinking_budget.value or 0),
+                                    "supports_tools":        bool(f_supports_tools.value),
+                                    "force_tool_first_turn": bool(f_force_tool.value),
                                     "enabled":          True,
                                 }
                                 fresh = get_models(username, token)
@@ -598,6 +631,18 @@ async def settings_page() -> None:
                                 ui.label(_("local") if lane == "local" else "API").classes(
                                     "text-xs text-gray-600 flex-shrink-0"
                                 )
+
+                                # A model without tools cannot see any of the
+                                # user's data. Saying so here beats letting it
+                                # answer plausibly and wrongly in chat.
+                                if not m.get("supports_tools", True):
+                                    ui.label(_("no tools")).classes(
+                                        "text-xs flex-shrink-0 px-1.5 rounded"
+                                    ).style(
+                                        "color:var(--c-warn);background:var(--c-warn-bg);"
+                                    ).tooltip(
+                                        _("Limited — cannot search documents, emails or notes.")
+                                    )
 
                             # ── Row 2 on mobile: name + model id + buttons ───
                             with ui.element("div").classes("flex items-center gap-2 flex-1 min-w-0 model-item-bottom"):
@@ -1165,6 +1210,93 @@ async def settings_page() -> None:
                 "unelevated dark dense"
             ).classes("bg-purple-700 text-white")
 
+        # ── Eigene Chat-Anweisungen / custom instructions ─────────────────────
+        with _card("ai"):
+            _section_header(
+                "edit_note",
+                _("Chat instructions"),
+                _("Standing instructions added to every chat"),
+            )
+
+            _chat_settings_cfg: dict = creds.get("chat_settings", {})
+            _ci_box = (
+                ui.textarea(
+                    label=_("Your instructions"),
+                    placeholder=_(
+                        "Example: My archive is mostly invoices from tradespeople. "
+                        "Invoice numbers look like RE-2026-0142. Answer briefly and "
+                        "put amounts in a table."
+                    ),
+                    value=_chat_settings_cfg.get("custom_instructions", ""),
+                )
+                .props("outlined dark autogrow")
+                .classes("w-full")
+                .style("min-height:120px;")
+            )
+            _ci_count = ui.label("").classes("text-xs text-gray-500 mt-1 self-end")
+
+            def _update_ci_count() -> None:
+                used = len(_ci_box.value or "")
+                _ci_count.set_text(
+                    _("{used} / {max} characters").format(
+                        used=used, max=MAX_CUSTOM_INSTRUCTIONS_CHARS
+                    )
+                )
+                # Over the cap the tail is dropped at prompt-assembly time, so
+                # the counter has to say so before the user discovers it by
+                # wondering why the last paragraph is being ignored.
+                _ci_count.classes(
+                    remove="text-gray-500 text-red-400",
+                    add="text-red-400" if used > MAX_CUSTOM_INSTRUCTIONS_CHARS
+                    else "text-gray-500",
+                )
+
+            _update_ci_count()
+            _ci_box.on_value_change(lambda _e: _update_ci_count())
+
+            _hint(
+                _(
+                    "Added to the end of the chat system prompt, so it applies to every "
+                    "conversation. Good for describing your archive — the kinds of "
+                    "documents in it, your correspondents, how your reference numbers "
+                    "look — and for how you want answers written. It cannot switch tools "
+                    "on or off, and it cannot override the rules that keep the assistant "
+                    "from inventing document IDs, amounts or dates."
+                )
+            )
+
+            def _save_custom_instructions() -> None:
+                text = (_ci_box.value or "").strip()
+                fresh = load_credentials(username, token)
+                chat_cfg = fresh.setdefault("chat_settings", {})
+                chat_cfg["custom_instructions"] = text
+                save_credentials(username, token, fresh)
+                if len(text) > MAX_CUSTOM_INSTRUCTIONS_CHARS:
+                    ui.notify(
+                        _(
+                            "Saved, but only the first {max} characters are sent to the model."
+                        ).format(max=MAX_CUSTOM_INSTRUCTIONS_CHARS),
+                        type="warning",
+                    )
+                else:
+                    ui.notify(_("Instructions saved."), type="positive")
+
+            def _clear_custom_instructions() -> None:
+                _ci_box.value = ""
+                # Same divergence trap as the memo dialog: assigning a value
+                # equal to Python's copy sends nothing to the browser.
+                _ci_box.update()
+                _update_ci_count()
+                _save_custom_instructions()
+
+            with ui.row().classes("w-full justify-end gap-2 mt-1"):
+                ui.button(_("Clear"), icon="clear", on_click=_clear_custom_instructions).props(
+                    "flat dark dense"
+                ).classes("text-gray-400")
+                ui.button(_("Save"), icon="save", on_click=_save_custom_instructions).props(
+                    "unelevated dark dense"
+                ).classes("bg-purple-700 text-white")
+
         # ── KI-Tiefenrecherche ───────────────────────────────────────────────────────
         with _card("ai"):
             _section_header(
@@ -1419,6 +1551,53 @@ async def settings_page() -> None:
             _hint(
                 _(
                     "<b>Obsidian / Remotely Save:</b> point synchronization at the vault directory above.<br>Exclude <code>.git/</code> client-side in Remotely Save (Settings → Remotely Save → exclude list: <code>.git</code>) so the server-side Git repo is not propagated to devices."
+                )
+            )
+
+            # ── Force reindex ─────────────────────────────────────────────────
+            # A schema change reindexes on its own; this is for the other case —
+            # an index that is suspect and needs to be rebuilt on demand.
+            reindex_status = ui.label("").classes("text-xs text-gray-400 mt-2")
+
+            async def _force_reindex() -> None:
+                if not username:
+                    ui.notify(_("Not signed in."), type="negative")
+                    return
+                from vault.sync import reindex_user
+
+                reindex_btn.disable()
+                reindex_status.set_text(_("Reindexing vault …"))
+
+                def _progress(done: int, total: int) -> None:
+                    reindex_status.set_text(
+                        _("Reindexing vault … {done} of {total} files").format(
+                            done=done, total=total
+                        )
+                    )
+
+                try:
+                    count = await reindex_user(username, progress=_progress)
+                except Exception as exc:
+                    reindex_status.set_text("")
+                    ui.notify(
+                        _("Reindexing failed: {err}").format(err=exc), type="negative"
+                    )
+                    return
+                finally:
+                    reindex_btn.enable()
+                # TODO i18n-plural
+                reindex_status.set_text(
+                    _("{n} files reindexed.").format(n=count)
+                )
+                ui.notify(_("Vault reindexed."), type="positive")
+
+            with ui.row().classes("items-center gap-2 mt-2"):
+                reindex_btn = ui.button(
+                    _("Reindex vault"), icon="refresh", on_click=_force_reindex
+                ).props("flat dense")
+            _hint(
+                _(
+                    "Deletes this user's entries in both collections and embeds every Markdown file again. Runs automatically after an update that changes the embedding format; use it manually when search results look wrong."
                 )
             )
 

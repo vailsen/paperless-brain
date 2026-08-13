@@ -10,7 +10,18 @@ Each model config stored in encrypted credentials under key "llm_models":
         "api_key":  str,   # API key (stored encrypted)
         "lane":     "local" | "api",
         "enabled":  bool,
+
+        # Tool behaviour (openai_compatible only, all optional):
+        "supports_tools":        bool,  # False = never offer tools to this model
+        "force_tool_first_turn": bool,  # require a tool on personal questions
     }
+
+"OpenAI-compatible" describes the wire format, not the behaviour behind it. Some
+deployments drop `tools` unless `tool_choice` is set, some models never emit a
+tool call however they are asked, and a model that answers a question about the
+user's own mail from its weights is worse than one that says it cannot. Hence
+per-model flags rather than one global assumption — see the tool-use guard in
+`services/chat_service.py`.
 """
 
 from __future__ import annotations
@@ -59,4 +70,19 @@ def new_model(
         "api_key":  api_key,
         "lane":     lane,
         "enabled":  True,
+        "supports_tools":        True,
+        "force_tool_first_turn": False,
+    }
+
+
+def tool_config(model: dict) -> dict:
+    """Tool flags of a stored model config, with defaults for older entries.
+
+    Kept here rather than at the call site so a model saved before these flags
+    existed behaves exactly as it did before: tools on, nothing forced.
+    """
+    return {
+        "supports_tools": bool(model.get("supports_tools", True)),
+        "force_tool_first_turn": bool(model.get("force_tool_first_turn", False)),
+        "tool_choice_mode": str(model.get("tool_choice_mode") or "auto"),
     }

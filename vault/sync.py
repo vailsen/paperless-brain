@@ -1,11 +1,13 @@
 import json
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
 from config.settings import settings
 from vault.chunker import chunk_vault_file
+from vault.context import EMBEDDING_SCHEMA_VERSION, embed_text, path_metadata
 from vault.frontmatter import (
     ensure_pbrain_id,
     get_id as fm_get_id,
@@ -102,30 +104,65 @@ def _backfill_dont_ingest(username: str, vp: Path) -> None:
         pass
 
 
+# The old psage_id -> pbrain_id migration marker. Its mere existence meant
+# "schema is current", which only worked for exactly one schema change. Kept so
+# an installation that already ran it is treated as schema version 1 rather than
+# reindexing again for no reason.
 _PBRAIN_MIGRATION_MARKER = ".pbrain_id_migrated"
+_SCHEMA_MARKER = ".embedding_schema_version"
 
 
-def _needs_pbrain_migration(username: str) -> bool:
-    return not (git_dir_path(username) / _PBRAIN_MIGRATION_MARKER).exists()
-
-
-def _mark_pbrain_migrated(username: str) -> None:
-    marker = git_dir_path(username) / _PBRAIN_MIGRATION_MARKER
+def _recorded_schema_version(username: str) -> int:
+    """Schema version the user's index was last built with. 0 = never."""
+    marker = git_dir_path(username) / _SCHEMA_MARKER
     try:
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text("done", encoding="utf-8")
+        return int(marker.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        pass
+    return 1 if (git_dir_path(username) / _PBRAIN_MIGRATION_MARKER).exists() else 0
+
+
+def _needs_reindex(username: str) -> bool:
+    return _recorded_schema_version(username) < EMBEDDING_SCHEMA_VERSION
+
+
+def _mark_schema_current(username: str) -> None:
+    """Record the schema version *and* the legacy marker.
+
+    Writing both keeps a downgrade to an older build from re-running the
+    pbrain_id migration on an index that has long since been migrated.
+    """
+    try:
+        d = git_dir_path(username)
+        d.mkdir(parents=True, exist_ok=True)
+        (d / _SCHEMA_MARKER).write_text(str(EMBEDDING_SCHEMA_VERSION), encoding="utf-8")
+        (d / _PBRAIN_MIGRATION_MARKER).write_text("done", encoding="utf-8")
     except Exception:
         pass
 
 
-async def _reindex_user(username: str, vp: Path, brain_chroma, vault_chroma) -> None:
+async def _reindex_user(
+    username: str,
+    vp: Path,
+    brain_chroma,
+    vault_chroma,
+    progress: Callable[[int, int], None] | None = None,
+) -> int:
     """Wipe the user's Chroma entries and re-embed every .md from scratch.
 
-    Used by the psage_id -> pbrain_id migration: the id metadata key and the
-    embedded text both change, so a clean rebuild is simpler and safer than an
-    in-place update. Reprocessing each file also lazily migrates its frontmatter
-    key via ensure_pbrain_id(). Committing afterwards records those rewrites so
-    the next diff-based sync does not re-embed them.
+    Runs whenever the recorded embedding schema is older than
+    EMBEDDING_SCHEMA_VERSION: both the embedded text and the metadata change
+    with it, so old and new vectors are not comparable and an incremental update
+    would leave the index half in each schema. Reprocessing each file also
+    lazily migrates its frontmatter id key via ensure_pbrain_id(). Committing
+    afterwards records those rewrites so the next diff-based sync does not
+    re-embed them.
+
+    Nothing else has to be reset for the change detection: it diffs against
+    HEAD and commits last, so this commit *is* the new bookmark.
+
+    Returns the number of files processed. `progress(done, total)` is called
+    after each file so a UI can show how far along a full reindex is.
     """
     for col in (brain_chroma, vault_chroma):
         try:
@@ -133,17 +170,47 @@ async def _reindex_user(username: str, vp: Path, brain_chroma, vault_chroma) -> 
         except Exception as e:
             _log.warning("reindex wipe failed for %s: %s", username, e)
 
-    for p in sorted(vp.rglob("*.md")):
+    files = [
+        p for p in sorted(vp.rglob("*.md")) if not p.name.endswith(".conflict.md")
+    ]
+    total = len(files)
+    for done, p in enumerate(files, 1):
         rel = p.relative_to(vp)
-        if p.name.endswith(".conflict.md"):
-            continue
         try:
             await _embed_file(username, vp, rel, brain_chroma, vault_chroma)
         except Exception as e:
             _log.warning("reindex embed failed for %s: %s", rel, e)
+        if progress:
+            try:
+                progress(done, total)
+            except Exception:  # a UI callback must never break the reindex
+                _log.debug("reindex progress callback failed", exc_info=True)
 
     _git(vp, "add", "-A")
-    commit(vp, "pbrain: migrate id key + reindex")
+    commit(vp, f"pbrain: reindex (embedding schema v{EMBEDDING_SCHEMA_VERSION})")
+    return total
+
+
+async def reindex_user(
+    username: str, progress: Callable[[int, int], None] | None = None
+) -> int:
+    """Force a full reindex for one user. Returns the number of files processed.
+
+    The manual counterpart to the automatic schema-version trigger — for the
+    "Reindex vault" action in settings, and for when the index is suspect.
+    Takes the same per-user lock as sync_user(), so it cannot interleave with a
+    sync or an agent brain write.
+    """
+    from services.clients import brain as brain_svc, vault_chroma
+
+    async with get_user_lock(username):
+        vp = vault_path(username)
+        ensure_user_dirs(username)
+        ensure_repo(vp)
+        count = await _reindex_user(username, vp, brain_svc._chroma, vault_chroma, progress)
+        _mark_schema_current(username)
+        _last_sync[username] = time.monotonic()
+        return count
 
 
 async def _do_sync(username: str) -> None:
@@ -157,13 +224,18 @@ async def _do_sync(username: str) -> None:
 
     brain_chroma = brain_svc._chroma
 
-    # One-time migration: rename the frontmatter/Chroma id key psage_id -> pbrain_id
-    # and re-embed with title/heading context. Guarded by a marker in the local
-    # git dir; idempotent (frontmatter migration is a no-op once done). Runs a
-    # full reindex, so it supersedes the diff path for this turn.
-    if not is_fresh and _needs_pbrain_migration(username):
+    # Embedding schema changed since this user's index was built (or it predates
+    # the version marker) → rebuild it from scratch. Guarded by a marker in the
+    # local git dir; runs a full reindex, so it supersedes the diff path for
+    # this turn. Idempotent: the frontmatter rewrites it performs are no-ops the
+    # second time around.
+    if not is_fresh and _needs_reindex(username):
+        _log.info(
+            "vault: embedding schema v%s < v%s for %s — full reindex",
+            _recorded_schema_version(username), EMBEDDING_SCHEMA_VERSION, username,
+        )
         await _reindex_user(username, vp, brain_chroma, vault_chroma)
-        _mark_pbrain_migrated(username)
+        _mark_schema_current(username)
         return
 
     if is_fresh:
@@ -200,9 +272,9 @@ async def _do_sync(username: str) -> None:
 
     commit(vp, f"pbrain sync {datetime.utcnow().isoformat()[:19]}Z")
 
-    # Files just processed here already carry pbrain_id (fresh installs, or a
-    # vault that had no legacy keys), so the one-time reindex is unnecessary.
-    _mark_pbrain_migrated(username)
+    # Everything just processed was embedded with the current schema (fresh
+    # install, or a vault whose files all changed), so no reindex is owed.
+    _mark_schema_current(username)
 
 
 async def _process_change(
@@ -288,7 +360,15 @@ async def _embed_file(
             await brain_chroma.upsert(
                 ids=[pbrain_id],
                 documents=[body],
+                # The fact's own filename is its title ("Torque wrench VANPO"),
+                # and it is often the only place the subject is named outright.
+                # The brain subfolder is stripped: it is on every single fact, so
+                # keeping it would add a token that cannot discriminate anything.
+                embed_documents=[
+                    embed_text(body, rel_path, strip_prefix=settings.brain_subfolder)
+                ],
                 metadatas=[{
+                    **path_metadata(rel_path, strip_prefix=settings.brain_subfolder),
                     "pbrain_id": pbrain_id,
                     "path": str(rel_path),
                     "user": username,
@@ -329,18 +409,20 @@ async def _embed_file(
             except Exception:
                 pass
             for chunk in chunks:
-                # Embed the note title + heading breadcrumb alongside the body so
-                # a query on a title word (e.g. "backlog") matches — the raw
-                # chunk.text alone never carries the filename. The stored snippet
-                # stays clean (chunk.text); only the embedded vector sees the
-                # prefix. See ChromaClient.upsert(embed_documents=...).
-                context = " › ".join(filter(None, [note_name, chunk.heading_path]))
-                embed_text = f"{context}\n\n{chunk.text}" if context else chunk.text
+                # Embed the folder, note title and heading breadcrumb alongside
+                # the body: the raw chunk.text carries none of them, and the
+                # folder is what separates "Bremsen" under To-Dos from the same
+                # word in an archived invoice. The stored snippet stays clean
+                # (chunk.text); only the vector sees the header. See
+                # ChromaClient.upsert(embed_documents=...) and vault/context.py.
                 await vault_chroma.upsert(
                     ids=[f"{pbrain_id}:{chunk.chunk_index}"],
                     documents=[chunk.text],
-                    embed_documents=[embed_text],
+                    embed_documents=[
+                        embed_text(chunk.text, rel_path, chunk.heading_path)
+                    ],
                     metadatas=[{
+                        **path_metadata(rel_path),
                         "pbrain_id": pbrain_id,
                         "path": str(rel_path),
                         "note_name": note_name,

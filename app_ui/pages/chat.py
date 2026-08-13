@@ -3,6 +3,7 @@
 import asyncio
 import html as _html
 import json
+import logging
 import re
 import urllib.parse
 
@@ -20,6 +21,8 @@ from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
 from services import sync_state
 from services.session_auth import get_session_token
+
+_log = logging.getLogger(__name__)
 
 # ui.markdown default extras + LaTeX ($$...$$ → MathML via latex2mathml)
 _MD_EXTRAS = ["fenced-code-blocks", "tables", "latex"]
@@ -732,23 +735,27 @@ async def chat():
                 "border:1px solid var(--c-border);"
             ):
                 with ui.row().classes("w-full gap-0 no-wrap items-stretch"):
-                    if img:
-                        ui.html(
-                            f'<img src="{_html.escape(img, quote=True)}" '
-                            f'style="width:96px; min-height:96px; height:100%;'
-                            f'object-fit:cover; flex-shrink:0; display:block;" '
-                            f'loading="lazy" '
-                            f"onerror=\"this.style.display='none'\">",
-                            sanitize=False,
-                        ).style("flex-shrink:0; align-self:stretch;")
-                    else:
-                        with ui.element("div").style(
-                            "width:96px; min-height:96px; flex-shrink:0;"
-                            "background:#062a22; display:flex;"
-                            "align-items:center; justify-content:center;"
-                        ):
-                            ui.icon("public", size="lg").classes(
-                                "text-gray-400 opacity-60"
+                    # The tile is always there and always 96px wide, whether or
+                    # not an image exists or loads. The placeholder sits behind
+                    # the image rather than instead of it, so a broken URL
+                    # falls back to the globe instead of collapsing the tile and
+                    # shifting every card in the list.
+                    with ui.element("div").style(
+                        "width:96px; min-height:96px; flex-shrink:0; position:relative;"
+                        "background:#062a22; display:flex;"
+                        "align-items:center; justify-content:center;"
+                    ):
+                        ui.icon("public", size="lg").classes(
+                            "text-gray-400 opacity-60"
+                        )
+                        if img:
+                            ui.html(
+                                f'<img src="{_html.escape(img, quote=True)}" '
+                                f'style="position:absolute; inset:0; width:100%;'
+                                f'height:100%; object-fit:cover; display:block;" '
+                                f'loading="lazy" '
+                                f"onerror=\"this.style.display='none'\">",
+                                sanitize=False,
                             )
                     with ui.column().classes("gap-1").style(
                         "flex:1; min-width:0; padding:10px 12px;"
@@ -802,6 +809,23 @@ async def chat():
     # ── Persistent chat settings (credential store, cross-device) ────────────
     _chat_cfg: dict = _creds.get("chat_settings", {})
 
+    def _custom_instructions() -> str:
+        """The user's standing instructions, re-read from the credential store.
+
+        Not taken from `_chat_cfg`: that is a snapshot from page load, and this
+        one setting is edited on the Settings page rather than in the chat's own
+        panel. Without the re-read, changing it would only take effect after the
+        chat page was rebuilt — which looks like the setting being ignored.
+        """
+        if not _username or not _token:
+            return ""
+        try:
+            fresh = load_credentials(_username, _token)
+        except Exception:  # a broken credential file must not block the chat
+            _log.warning("could not re-read custom instructions", exc_info=True)
+            return ""
+        return (fresh.get("chat_settings") or {}).get("custom_instructions", "")
+
     def _save_chat_settings() -> None:
         if not _username or not _token:
             return
@@ -844,12 +868,15 @@ async def chat():
                 thinking_budget=int(_rm.get("thinking_budget") or 0),
             )
         else:
+            from services.model_registry import tool_config as _tool_config
+
             _reg_backends[_rm["name"]] = OpenAICompatibleChatBackend(
                 base_url=_rm.get("base_url", ""),
                 api_key=_rm.get("api_key", ""),
                 model=_rm["model"],
                 max_output_tokens=int(_rm.get("max_output_tokens") or 0) or None,
                 think=bool(_think_cfg) if _think_cfg is not None else None,
+                **_tool_config(_rm),
             )
 
     _initial_temperature = float(
@@ -1142,8 +1169,10 @@ async def chat():
         _s["context_window"] = 0
         _s["current_ctx_tokens"] = 0
         _s["conv_id"] = None
-        _s["tool_prefs"] = dict(_TOOL_GROUP_DEFAULTS)
-        _s["max_iterations"] = 16
+        # Tool prefs and the iteration cap are persisted user settings, not
+        # conversation state. Resetting them here desynced _s from the settings
+        # widgets, which keep rendering the user's value while the run silently
+        # falls back to the defaults.
         ng_app.storage.user.pop("chat_history", None)
         ng_app.storage.user.pop("chat_token_count", None)
         ng_app.storage.user.pop("chat_context_window", None)
@@ -1610,7 +1639,10 @@ async def chat():
                                 )
                                 with ui.row().classes("items-center gap-6 flex-wrap"):
                                     with ui.row().classes("items-center gap-2"):
-                                        ui.label(_("Max. tool calls")).classes("text-xs text-gray-500")
+                                        # Caps agentic loop iterations, not tool
+                                        # calls — one iteration can fire several
+                                        # tool calls in parallel.
+                                        ui.label(_("Max. model rounds")).classes("text-xs text-gray-500")
                                         _max_iter_input = (
                                             ui.number(
                                                 value=_s["max_iterations"], min=1, max=64, step=1
@@ -2475,6 +2507,9 @@ window.__openVaultNote = function(noteId) {{
             _thinking_details_el.style(remove="display:none")
 
         _iter = [1]
+        _tool_calls = [0]  # actual tool invocations, ≥ _iter when calls run in parallel
+        # TODO i18n-plural
+        _calls_lbl = _("{n} calls")
         _tool_trace: list[dict] = []
         _pending_docx: list = [None]  # DocxRequestEvent params if triggered
         _pending_email: list = [None]  # EmailRequestEvent params if triggered
@@ -2502,7 +2537,12 @@ window.__openVaultNote = function(noteId) {{
         _lang = ng_app.storage.user.get("language", DEFAULT_LANG)
         # Build the prompt from only the ACTIVE tool groups — the model is never
         # told to use a tool that was filtered out of its tool list.
-        _system = build_system_prompt(_active_groups(), _username, _lang)
+        _system = build_system_prompt(
+            _active_groups(),
+            _username,
+            _lang,
+            custom_instructions=_custom_instructions(),
+        )
 
         try:
             async for event in backend.run_turn(
@@ -2531,12 +2571,20 @@ window.__openVaultNote = function(noteId) {{
                     _iter[0] = event.iteration
 
                 elif isinstance(event, ToolCallEvent):
-                    if thinking_chunks[0]:
-                        thinking_chunks[0][-1]["iter_label"] = _fmt_tool_call_label(
-                            event.label, event.tool_input, _iter[0]
-                        )
-                        if _s["show_thinking"]:
-                            _update_thinking()
+                    _tool_calls[0] += 1
+                    # One iteration can emit several tool calls (parallel tool
+                    # use). Writing the label onto the last chunk dropped every
+                    # call but the last, and an empty chunk list dropped the
+                    # call entirely — so attach to a free chunk or make one.
+                    _label = _fmt_tool_call_label(
+                        event.label, event.tool_input, _iter[0]
+                    )
+                    if thinking_chunks[0] and not thinking_chunks[0][-1]["iter_label"]:
+                        thinking_chunks[0][-1]["iter_label"] = _label
+                    else:
+                        thinking_chunks[0].append({"text": "", "iter_label": _label})
+                    if _s["show_thinking"]:
+                        _update_thinking()
                     _tool_trace.append(
                         {
                             "iter": _iter[0],
@@ -2549,6 +2597,7 @@ window.__openVaultNote = function(noteId) {{
                     status_badge[0].set_content(
                         f'<span style="font-size:0.72rem;color:#a78bfa;font-family:inherit;">'
                         f"{event.label} · {_iter[0]}/{_s['max_iterations']}"
+                        f" · {_calls_lbl.format(n=_tool_calls[0])}"
                         f"</span>"
                     )
                     status_badge[0].style("display:block;")

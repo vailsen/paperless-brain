@@ -39,11 +39,32 @@ def language_name(lang: str) -> str:
 
 
 def language_directive(lang: str) -> str:
-    """Response-language sentence appended to system prompts."""
+    """Response-language sentence appended to system prompts.
+
+    Two different things used to be conflated under "always respond in X".
+
+    The part worth keeping is that a **document** must not change the reply
+    language: a German invoice answered in German inside an English UI is a bug,
+    and the same goes for a tool result or a web page.
+
+    The part that was wrong is that the **user's own** language was overridden
+    too. Writing German to an English UI is the normal case here — the interface
+    language is a preference about the interface, not a declaration of what the
+    user speaks. Obedient models (Nemotron, Muse Glimmer) followed the old
+    wording literally and answered German questions in English; Qwen ignored it
+    and did the sensible thing. The instruction was at fault, not the models.
+
+    So: the user's language wins, the UI language is the fallback when their
+    message does not settle it (a one-word reply, a bare document number), and
+    documents still never get a vote.
+    """
     meta = LANGUAGE_META.get(lang) or LANGUAGE_META[DEFAULT_LANG]
     return (
-        f"Always respond in {meta['name']}, regardless of the language of "
-        f"documents or tool results. Use the date format {meta['date_format']}."
+        f"Respond in the language the user writes to you in. When their message "
+        f"does not make that clear, respond in {meta['name']}. Never switch "
+        f"language because a document, tool result or web page is in another "
+        f"language — those do not decide how you answer. "
+        f"Use the date format {meta['date_format']}."
     )
 
 

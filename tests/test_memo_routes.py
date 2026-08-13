@@ -28,7 +28,9 @@ def _call(**kw):
         "token": "tok",
     }
     params.update(kw)
-    data = params.pop("data", b"audio-bytes")
+    # Comfortably past both byte thresholds, so a test that is about something
+    # else is not caught by the short-recording guard.
+    data = params.pop("data", b"x" * (64 * 1024))
     return _run(R.transcribe_payload(data, **params))
 
 
@@ -126,6 +128,101 @@ def test_transcription_failure_becomes_actionable_message(monkeypatch, configure
         _call()
     assert exc.value.status == 502
     assert "API key" in exc.value.message
+
+
+# ── Short recordings ──────────────────────────────────────────────────────────
+#
+# A mis-tap is the common case for a button held for a fraction of a second,
+# and it must read as "nothing was understood" rather than as a broken service.
+
+
+def test_a_mis_tap_never_reaches_the_service(monkeypatch, configured):
+    """Too small to hold speech — so there is nothing to ask the service about."""
+    called = []
+
+    async def fake(data, **kw):
+        called.append(data)
+        return "text"
+
+    monkeypatch.setattr(transcription, "transcribe", fake)
+    with pytest.raises(R.MemoInputError) as exc:
+        _call(data=b"x" * 500)
+    assert exc.value.status == 422
+    assert exc.value.message == R.NOTHING_RECOGNISED
+    assert not called
+
+
+def test_a_service_error_on_a_short_clip_reads_as_nothing_recognised(
+    monkeypatch, configured
+):
+    """The 500 some services answer a near-empty clip with is not an outage."""
+    async def boom(data, *, filename, content_type, diarize=False, language=None):
+        raise transcription.TranscriptionError(
+            "The transcription service returned an error (500)."
+        )
+
+    monkeypatch.setattr(transcription, "transcribe", boom)
+    with pytest.raises(R.MemoInputError) as exc:
+        _call(data=b"x" * (8 * 1024))
+    assert exc.value.status == 422
+    assert exc.value.message == R.NOTHING_RECOGNISED
+    # The service's own wording must not survive — that is the scary part.
+    assert "500" not in exc.value.message
+
+
+def test_a_wall_of_invented_text_from_a_short_clip_is_discarded(transcribes):
+    """The real thing: Whisper returning memorised broadcast boilerplate.
+
+    Verbatim from a test recording of roughly two seconds of silence. It is
+    fluent, structured and entirely invented — nothing in the stock-phrase list
+    can catch it, only the arithmetic can.
+    """
+    transcribes["text"] = (
+        "Referenznummer der zugrunde liegenden Richtlinie: UH-RL-2018-04. "
+        "Ansprechpartner für Rückfragen ist die Untertitelredaktion BR, Kontakt "
+        "über den üblichen Verteiler.\n\n"
+        "1. Format: VTT-Datei, UTF-8-Kodierung.\n"
+        "2. Maximale Zeilenlänge: 42 Zeichen pro Zeile.\n"
+        "3. Maximale Dauer pro Cue: 6 Sekunden.\n"
+        "4. Mindestdauer pro Cue: 1 Sekunde.\n"
+        "5. Gap zwischen Cues: mindestens 4 Frames, ca. 160 ms bei 25 fps.\n"
+        "6. Position: Standard ist Bottom-Center.\n"
+        "7. Schriftsprache: durchgehend deutsche Rechtschreibung.\n"
+        "8. Sprecherwechsel im Off-Text mit zwei Gedankenstrichen kennzeichnen.\n"
+    )
+    with pytest.raises(R.MemoInputError) as exc:
+        _call(data=b"x" * (8 * 1024))
+    assert exc.value.status == 422
+    assert exc.value.message == R.NOTHING_RECOGNISED
+
+
+def test_a_normal_memo_is_not_mistaken_for_a_hallucination(transcribes):
+    """The guard must have real headroom or it eats genuine memos."""
+    # ~30s of speech: about 450 characters, from ~120 KB of webm at 32 kbps.
+    transcribes["text"] = "Ich muss morgen die Bremsbeläge wechseln lassen. " * 9
+    out = _call(rewrite=False, data=b"x" * (120 * 1024))
+    assert out["text"] == transcribes["text"]
+
+
+def test_a_long_dictation_is_kept(transcribes):
+    """A five-minute memo produces a lot of text, and all of it is real."""
+    transcribes["text"] = "Das ist ein ganz normaler diktierter Satz. " * 100
+    out = _call(rewrite=False, data=b"x" * (1200 * 1024))
+    assert out["text"] == transcribes["text"]
+
+
+def test_a_service_error_on_a_real_recording_keeps_the_real_error(
+    monkeypatch, configured
+):
+    """An outage during a long memo is worth knowing about."""
+    async def boom(data, *, filename, content_type, diarize=False, language=None):
+        raise transcription.TranscriptionError("The transcription service timed out.")
+
+    monkeypatch.setattr(transcription, "transcribe", boom)
+    with pytest.raises(R.MemoInputError) as exc:
+        _call(data=b"x" * (200 * 1024))
+    assert exc.value.status == 502
+    assert "timed out" in exc.value.message
 
 
 # ── Conversation mode ─────────────────────────────────────────────────────────

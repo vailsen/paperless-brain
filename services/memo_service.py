@@ -36,6 +36,64 @@ _HALLUCINATIONS = {
 # Below this, a "transcript" is noise rather than a memo.
 MIN_TRANSCRIPT_CHARS = 12
 
+# Byte thresholds on the recording itself, checked before the upload.
+#
+# MediaRecorder writes webm/opus at roughly 4-6 KB per second plus about a
+# kilobyte of container header, so a real one-word memo still lands well above
+# MIN_AUDIO_BYTES. What falls below it is a mis-tap that stopped the recorder
+# almost as soon as it started — there is no speech in there to find, and some
+# transcription services answer such a stub with a 500 rather than an empty
+# transcript, which would otherwise surface as a scary service error.
+MIN_AUDIO_BYTES = 2048
+
+# A few seconds of audio. A transcription failure on this little material is
+# reported to the user as "nothing was recognised" rather than as a service
+# outage: the two are indistinguishable from where they sit, and the useful
+# advice ("say it again, properly this time") is the same. Longer recordings
+# keep the real error, because there an outage is worth knowing about.
+SHORT_AUDIO_BYTES = 24 * 1024
+
+
+def is_too_short_for_speech(data: bytes) -> bool:
+    """True when a recording is too small to contain any speech at all."""
+    return len(data) < MIN_AUDIO_BYTES
+
+
+# Whisper's other failure mode on silence: instead of a short stock phrase it
+# regurgitates a slab of memorised training data — broadcast subtitle rules,
+# licence boilerplate, a podcast outro — hundreds of words long, fluent, and
+# completely invented. `_HALLUCINATIONS` cannot catch those: they are long,
+# they are never the same twice, and they read like a genuine document.
+#
+# What gives them away is arithmetic. Speech has a maximum rate, so a recording
+# only holds so many characters no matter what comes back. Two deliberately
+# slack constants keep this from ever rejecting a real memo:
+#
+# * The bitrate assumed for the audio is far below what any browser actually
+#   writes (browsers use 24-64 kbps; this assumes 12), so the duration estimate
+#   errs long, which errs towards accepting.
+# * The rate ceiling is above even fast speech (~20 chars/s), so the character
+#   budget errs high for that duration too.
+#
+# A real 30-second memo comes out around four times under the budget. The
+# hallucination that prompted this guard was 1200 characters from under two
+# seconds of audio — about ten times over it.
+ASSUMED_BYTES_PER_SECOND = 1500
+MAX_CHARS_PER_SECOND = 25
+
+
+def looks_like_hallucination(transcript: str, audio_bytes: int) -> bool:
+    """True when the transcript is far longer than the audio could have held.
+
+    Only catches the impossible, never the merely talkative — see the budget
+    above. Long recordings get a correspondingly large budget, so this is a
+    guard on mis-taps and dead air, not a general-purpose plausibility check.
+    """
+    if audio_bytes <= 0:
+        return False
+    budget = (audio_bytes / ASSUMED_BYTES_PER_SECOND) * MAX_CHARS_PER_SECOND
+    return len(transcript.strip()) > budget
+
 
 REWRITE_SYSTEM = """\
 You clean up dictated personal memos. You are not an assistant and you never \

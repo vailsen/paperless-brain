@@ -126,13 +126,23 @@ class ChromaClient:
         ids: list[str],
         documents: list[str] | None = None,
         metadatas: list[dict] | None = None,
+        embed_documents: list[str] | None = None,
     ) -> None:
-        """Update existing documents or their metadata."""
+        """Update existing documents or their metadata.
+
+        ``embed_documents`` mirrors ``upsert``: the stored text stays the clean
+        document while the vector is computed from the context-prefixed variant.
+        Without it an edited note would silently lose the header its neighbours
+        still carry, and be embedded slightly differently from its own reindexed
+        version.
+        """
         kwargs: dict[str, Any] = {"ids": ids}
         if documents:
             kwargs["documents"] = documents
         if metadatas:
             kwargs["metadatas"] = metadatas
+        if embed_documents is not None:
+            kwargs["embeddings"] = await asyncio.to_thread(self.ef, embed_documents)
         await asyncio.to_thread(self.collection.update, **kwargs)
 
     async def delete(
