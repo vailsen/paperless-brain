@@ -234,6 +234,20 @@ async def run_task(
     if not task:
         return
 
+    # ── Vault sync before any retrieval this run ─────────────────────
+    # Workers reach for vault_search and brain_search, and the note editor
+    # writes files without indexing them (the next sync does that). Without
+    # this the run would read whatever the last chat turn happened to index —
+    # a note written minutes ago would be invisible to the task started to act
+    # on it. Same contract as the chat turn: force=True, exactly once per run,
+    # and never fatal — a broken vault must not take the task down with it.
+    try:
+        from vault.sync import sync_user
+
+        await sync_user(user_id, force=True)
+    except Exception as exc:
+        print(f"[orchestrator] vault sync failed: {exc}")
+
     # ── Split: create sub-task DAG on first run (not on resume) ──────
     if not repository.get_subtasks(task_id, user_id):
         await _split_task(task, user_id, model, token)

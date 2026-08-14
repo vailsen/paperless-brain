@@ -265,11 +265,40 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
 
 ## Tools & UI
 
+- **The agent may write its own memory; the user's notes are read-only to it.** There is no
+  tool that creates, edits, renames or deletes a vault note, and there must not be one — a
+  `vault_write` would sit next to `remember_fact` in meaning ("note that down" is ambiguous
+  between them) and a wrong pick rewrites the user's own To-Dos. Because nothing enforces
+  this at the tool layer, the model only knows it from wording: `vault_search`'s description
+  and the `vault` prompt block both say read-only and forbid offering to write, and
+  `tests/test_tool_store_boundaries.py` pins that. Keep the three stores distinct in any new
+  tool text: Paperless documents (`create_note` = a comment on a document), the agent's
+  memory (`remember_fact` / `update_brain_fact` / `delete_brain_fact`), the user's notes
+  (`vault_search`, read).
 - Brain **read** tools (`brain_search`) stay byte-identical. New `vault_search` mirrors them.
 - Brain **write** tools keep their signatures but are re-implemented on the file+git+embed
   primitive (no direct Chroma upsert).
-- Remove the old Chroma-direct memory UI; replace with a slim **file-backed** brain viewer
-  (brain only). The vault knowledge base is managed in Obsidian, not in the UI.
+- The Chroma-direct memory UI is gone. `/brain` is a **file-backed note explorer** over the
+  whole vault (`app_ui/pages/brain.py`): tree, CodeMirror markdown editor, Obsidian-style
+  properties panel. Obsidian stays supported; it is no longer the only way to edit a note.
+  What the editor may not become:
+  - **It writes files and nothing else** — no Chroma call, no git commit. Indexing stays with
+    `sync_user()`, which runs at the start of every chat turn, so an edit is always indexed
+    before the retrieval that needs it and an editing session costs one commit, not one per
+    keystroke. The dirty working tree is the pending queue (`git status --porcelain` feeds
+    the "not indexed yet" dot; never `diff_name_status`, which stages).
+  - **Frontmatter goes through `vault/note_text.py`, never `frontmatter.write`.** The latter
+    re-dumps the whole YAML block, so with autosave merely opening a note would rewrite its
+    comments, key order and scalar formatting. Invariant: a save with no edits produces
+    byte-identical bytes.
+  - **`pbrain_id` is never minted by the UI.** `sync._embed_file` assigns it under the same
+    lock; a second identity path is exactly what this subsystem must not have.
+  - **Every path goes through `vault.notes.resolve`** — the one place traversal and symlink
+    escape are rejected. The page never builds a `Path`.
+  - **Concurrent edits are resolved by hash, not by hope.** `save_note` compares a sha256 of
+    the file under `get_user_lock` and three-way merges on mismatch; only a genuine overlap
+    reaches the user. The lock also serialises against sync's `git add -A` … `commit` window,
+    where a write would otherwise be committed without ever being embedded.
 
 ## Embedding
 

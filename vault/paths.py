@@ -29,6 +29,20 @@ def align_vault_perms(target: Path, ref: Path | None = None, mode: int = VAULT_F
         pass
 
 
+def atomic_write_text(path: Path, content: str) -> None:
+    """Write text to a vault file atomically (temp file → rename, same dir).
+
+    The rename replaces the inode, so ownership/mode must be applied to the
+    *temp* file — preserving the original file's owner when overwriting.
+    ``newline=""`` disables newline translation: the caller decides the line
+    endings, which is what makes a byte-identical round trip possible.
+    """
+    tmp = path.parent / (path.name + ".tmp")
+    tmp.write_text(content, encoding="utf-8", newline="")
+    align_vault_perms(tmp, ref=path if path.exists() else None)
+    tmp.rename(path)
+
+
 def vault_path(username: str) -> Path:
     return settings.vault_root / username
 

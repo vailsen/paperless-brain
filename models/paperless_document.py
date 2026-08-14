@@ -22,4 +22,8 @@ class PaperlessDocument(BaseModel):
     created: datetime
     modified: datetime
     content: Optional[str] = None
+    # Server-side download URL, built from PAPERLESS_URL. Usable from the
+    # backend only — handing it to a browser breaks behind a reverse proxy
+    # (internal address, and no Paperless session on that origin). The UI
+    # downloads via PaperlessClient.download_document_named() instead.
     pdf_url: str

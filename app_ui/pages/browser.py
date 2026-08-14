@@ -551,11 +551,32 @@ def _render_card(result: DocumentResult, on_eye, on_cluster=None, on_pin=None, i
                         ).tooltip(
                             _("Pinned — click to unpin") if is_pinned else _("Pin")
                         )
+                    async def _download(_e=None, doc_id: int = doc.id) -> None:
+                        """Fetch server-side, hand the bytes to the browser.
+
+                        Never link the browser at `doc.pdf_url`: that is built
+                        from PAPERLESS_URL, which is how *this server* reaches
+                        Paperless — an internal address behind a reverse proxy,
+                        and one the browser holds no Paperless session for, so
+                        the link either does not resolve or answers 401. Going
+                        through the session client also means the download obeys
+                        the user's own Paperless permissions.
+                        """
+                        try:
+                            data, name = await get_session_paperless(
+                            ).download_document_named(doc_id)
+                        except Exception as exc:
+                            ui.notify(
+                                _("Download of document #{id} failed: {err}").format(
+                                    id=doc_id, err=exc
+                                ),
+                                type="negative",
+                            )
+                            return
+                        ui.download(data, name, media_type="application/octet-stream")
+
                     ui.button(
-                        icon="download",
-                        on_click=lambda url=doc.pdf_url: ui.navigate.to(
-                            url, new_tab=True
-                        ),
+                        icon="download", on_click=_download,
                     ).props("flat dense dark").classes("card-action-btn").tooltip(
                         _("Download PDF")
                     )

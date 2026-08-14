@@ -266,29 +266,9 @@ class VaultBrainWriter:
             _git(vp, "add", str(abs_path))
             commit(vp, f"pbrain brain: update_tags {pbrain_id[:8]}")
 
-    async def set_common(self, pbrain_id: str, value: bool) -> None:
-        """Update common flag in frontmatter + Chroma + commit."""
-        items = await self._c.get(ids=[pbrain_id])
-        if not items:
-            raise ValueError(f"pbrain_id not found: {pbrain_id}")
-        meta_stored = items[0].get("metadata") or {}
-        path_str = meta_stored["path"]
-        user = meta_stored["user"]
-
-        async with get_user_lock(user):
-            vp = vault_path(user)
-            ensure_repo(vp)
-            abs_path = vp / path_str
-            fm, body = read(abs_path)
-            fm["common"] = value
-            fm["updated"] = datetime.utcnow().isoformat()
-            write(abs_path, fm, body)
-            await self._c.update(
-                ids=[pbrain_id],
-                metadatas=[{"common": value, "updated": fm["updated"]}],
-            )
-            _git(vp, "add", str(abs_path))
-            commit(vp, f"pbrain brain: set_common {pbrain_id[:8]}")
+    # NOTE: set_common() lived here until the note editor replaced the fact-card
+    # UI that was its only caller. Sharing a fact is now the `common:` property
+    # in frontmatter, read back into Chroma metadata by sync (vault/sync.py).
 
     async def delete_memory(self, pbrain_id: str) -> None:
         """Resolve path → rm file → delete Chroma entry → commit."""

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-from vault.paths import align_vault_perms
+from vault.paths import atomic_write_text
 
 # Stable per-file identity key in frontmatter (and Chroma metadata). `psage_id`
 # is the pre-rebrand legacy name, still accepted on read and migrated on write.
@@ -58,20 +58,21 @@ def read(path: Path) -> tuple[dict, str]:
 
 
 def write(path: Path, meta: dict, body: str) -> None:
-    """Atomically write frontmatter + body (temp file → rename within same dir)."""
+    """Atomically write frontmatter + body.
+
+    NOTE: this re-serializes the whole YAML block, so comments, key order from
+    the source, and scalar formatting (``007``, ``2026-08-14T10:00:00``) are
+    lost. That is fine for agent writes, which build the dict themselves, but
+    NOT for editing a file a human owns — see `vault/note_text.py` for the
+    lossless path the note editor uses.
+    """
     yaml_str = yaml.dump(
         meta,
         allow_unicode=True,
         default_flow_style=False,
         sort_keys=False,
     )
-    content = f"---\n{yaml_str}---\n{body}"
-    tmp = path.parent / (path.name + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
-    # rename replaces the inode, so ownership/mode must be set on the temp
-    # file — preserve the original file's owner when overwriting
-    align_vault_perms(tmp, ref=path if path.exists() else None)
-    tmp.rename(path)
+    atomic_write_text(path, f"---\n{yaml_str}---\n{body}")
 
 
 def ensure_pbrain_id(path: Path, meta: dict) -> str:

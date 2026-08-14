@@ -90,6 +90,26 @@ def test_language_directive_still_ignores_document_language():
     assert "Never switch language because a document" in directive
 
 
+def test_language_directive_orders_the_content_translated():
+    """Not switching is only half of it.
+
+    A model that has just read a German summary answers an English question in
+    German — it is repeating what it read, not choosing a language. So the rule
+    has to say what to DO with the foreign content, not only what not to do.
+    """
+    directive = i18n.language_directive("en")
+    assert "TRANSLATE" in directive
+    assert "summaries" in directive
+
+
+def test_language_directive_exempts_names_and_quotations():
+    """Translating a correspondent's name or a quoted clause would be wrong —
+    and would break document references the user has to recognise."""
+    directive = i18n.language_directive("en")
+    assert "proper names" in directive
+    assert "quotations stay in the" in directive
+
+
 def test_language_directive_falls_back_for_unknown_code():
     assert i18n.language_directive("klingon") == i18n.language_directive(i18n.DEFAULT_LANG)
 
@@ -179,3 +199,53 @@ def test_every_supported_language_has_a_catalog_or_is_the_source():
         assert Path(f"locales/{code}/LC_MESSAGES/messages.po").exists(), (
             f"{code} is selectable in SUPPORTED_LANGUAGES but has no catalog"
         )
+
+
+# ── Answer-language detection ────────────────────────────────────────────────
+#
+# The UI language is a preference about the interface. What the user typed is
+# what decides the answer language — writing German into an English UI (or the
+# reverse) is the normal case here.
+
+
+@pytest.mark.parametrize("text", [
+    "What are the dimensions and fuel consumption values of my Ford Focus?",
+    "Show me the invoice from Vodafone",
+    "Can you list the documents from last month?",
+])
+def test_english_messages_detect_as_english_whatever_the_ui_says(text):
+    assert i18n.detect_language(text, default="de") == "en"
+
+
+@pytest.mark.parametrize("text", [
+    "Welche Maße und Verbrauchswerte hat mein Ford Focus?",
+    "Was steht in der Rechnung von Vodafone?",
+    "Zeig mir bitte die Dokumente vom letzten Monat",
+])
+def test_german_messages_detect_as_german_whatever_the_ui_says(text):
+    assert i18n.detect_language(text, default="en") == "de"
+
+
+@pytest.mark.parametrize("text", ["ok", "#42", "", "42 12", "hm"])
+def test_short_or_ambiguous_messages_fall_back_to_the_ui_language(text):
+    """A bare document number says nothing about language — and guessing from
+    it would flip the answer language mid-conversation."""
+    assert i18n.detect_language(text, default="de") == "de"
+    assert i18n.detect_language(text, default="en") == "en"
+
+
+def test_umlauts_alone_settle_it():
+    assert i18n.detect_language("Größe prüfen", default="en") == "de"
+
+
+def test_answer_language_reminder_names_the_language_and_orders_translation():
+    reminder = i18n.answer_language_reminder("en")
+    assert "English" in reminder
+    assert "translate" in reminder.lower()
+    assert "quotations keep their original" in reminder
+
+
+def test_answer_language_reminder_falls_back_for_unknown_code():
+    assert i18n.answer_language_reminder("klingon") == i18n.answer_language_reminder(
+        i18n.DEFAULT_LANG
+    )

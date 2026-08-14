@@ -155,6 +155,42 @@ def diff_name_status(vault_path: Path) -> list[FileChange]:
     return changes
 
 
+def status_porcelain(vault_path: Path) -> set[str]:
+    """Working-tree paths that differ from HEAD, without touching the index.
+
+    The mutating counterpart is diff_name_status(), which runs `git add -A`
+    first — the UI must never call that just to draw a badge. `-z` for the same
+    umlaut reason documented above, `-uall` so a new folder is reported per
+    file instead of as `?? Folder/`, `--no-optional-locks` so a read never
+    rewrites the index's stat cache. Returns an empty set when the user has no
+    repo yet: drawing a page must not initialise one as a side effect.
+    """
+    git_dir = git_dir_path(_username_from_vault(vault_path))
+    if not (git_dir / "HEAD").exists():
+        return set()
+    try:
+        raw = _git(
+            vault_path,
+            "--no-optional-locks", "status", "--porcelain=v1", "-z", "-uall",
+        )
+    except subprocess.CalledProcessError:
+        return set()
+
+    tokens = [t for t in raw.split("\0")]
+    paths: set[str] = set()
+    i = 0
+    while i < len(tokens):
+        record = tokens[i]
+        i += 1
+        if len(record) < 4:
+            continue
+        code, path = record[:2], record[3:]
+        if code[0] in ("R", "C"):
+            i += 1  # rename/copy: the source path follows as its own token
+        paths.add(path)
+    return paths
+
+
 def commit(vault_path: Path, msg: str) -> None:
     """Commit whatever is staged. No-op if nothing staged."""
     staged = _git(vault_path, "diff", "--cached", "--name-only").strip()

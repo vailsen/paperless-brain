@@ -5,6 +5,156 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.7.0] — 2026-08-14
+
+**Like Obsidian, without needing Obsidian — and an answer in the language you
+asked in.**
+
+The Memory page could edit exactly two things: agent-curated facts and manual
+deadlines. Everything else in the vault — to-do notes, memos, logs — was
+reachable only through a shell on the server or an Obsidian client mounted over
+WebDAV. Neither is something you can hand to a person with a phone.
+
+So the module became a note editor: folder tree on the left, the note on the
+right, frontmatter as typed properties above it. It is now called the **Note
+vault**, because it stopped being only the agent's memory the moment it could
+edit every note in the folder. Obsidian still works on the same directory, at
+the same time — the editor is one more client, not a new format. That claim is
+load-bearing, and it is why an untouched property is written back byte for byte
+rather than re-serialized, and why two people editing the same note merge
+instead of overwriting.
+
+The other half of this release is a language bug worth describing honestly: an
+English question about a German invoice came back in German. The rule said "do
+not switch language because of a document" — but never said what to *do* with
+the German summary the model had just read, and repeating what you read is the
+path of least resistance. Saying "translate it" was still not enough, because
+the rule sat in the system prompt while the German text sat immediately before
+the answer. It is now re-asserted after the tool results, in the language you
+actually typed in rather than the one the UI is set to.
+
+### Added
+
+- **Note explorer and editor at `/brain`.** Create, rename, move and delete
+  notes and folders; edit any `.md` in a CodeMirror markdown editor with a
+  rendered-preview toggle. Attachments (PDFs, images) are visible in the tree
+  and can be opened read-only via `GET /api/vault/file`; there is no upload.
+  `.gitignore`, `*.conflict.md`, `*.tmp` and dot-directories stay hidden.
+
+- **Reading is the default, and the editor shows only the note.** A note opens
+  rendered; the pencil switches to source. The `---` block is no longer in the
+  editor at all — it is the properties panel's job, and two editable copies of
+  the same bytes drift apart. The panel is expanded by default, since it now
+  holds the half of the note the editor does not show.
+
+- **Renamed: "Memory" → "Note vault"** (de: "Notizspeicher"), with a notes icon
+  instead of the head. The module stopped being only the agent's memory the
+  moment it could edit every note in the vault. The dashboard's module overview
+  says so too.
+
+- **The tree behaves per device.** On a desktop a click selects *and* opens —
+  both panes are on screen, so there is nothing to protect. On a phone the tree
+  is a drawer, and a tap that opened the note would close the drawer over the
+  toolbar it was aiming for; so there the first tap only selects (outlined in
+  the accent colour, with a "Selected: …" line, and the create dialogs naming
+  the target folder), and any later tap on that same node opens it — no time
+  limit, because Quasar reports a tap on the selected node as "unselect", which
+  is exactly the signal needed. A phone also lands on the tree instead of an
+  empty canvas.
+
+- **Properties panel.** Frontmatter as typed rows: `pbrain_id` shown but never
+  editable (and never *minted* here — the indexer assigns it, and a second
+  identity path is the one thing this subsystem must not grow), `dont_ingest` a
+  switch outside the brain folder, `tags` a chip input that shows you the
+  sanitised value it stored, everything else free-form, plus add/remove and an
+  "Edit YAML" escape hatch for nested maps and block scalars the row UI cannot
+  represent. `pbrain_id` is hidden from that YAML too and restored verbatim
+  afterwards: change it and the old index entry is orphaned while the note
+  re-embeds as a stranger — the escape hatch is for properties, not identity.
+
+- **Deferred indexing, visibly.** Autosave writes the file and stops there: no
+  commit, no embedding. The dirty working tree *is* the pending queue, drained
+  by the `sync_user()` that already runs at the start of every chat turn — so an
+  edit is indexed before the retrieval that needs it, and a session of edits
+  costs one commit instead of one per keystroke. A muted dot marks notes that
+  are written but not yet indexed, and "Index now" runs the sync on demand.
+
+### Changed
+
+- **The fact and deadline cards are gone.** They were a second editor for a
+  subset of the same files. Sharing a fact is now the `common:` property, a
+  manual deadline is `kind: deadline` + `due:` — both read back into Chroma by
+  sync exactly as before, so the chat tools and the dashboard are unaffected.
+  `VaultBrainWriter.set_common()` went with the UI that was its only caller.
+
+- **`vault/frontmatter.write()` is no longer the only writer.** It re-dumps the
+  whole YAML block, which is fine when an agent builds the dict and destructive
+  when a human owns the file: comments, key order and `2026-08-14T10:00:00`
+  versus `2026-08-14 10:00:00` do not survive it. With autosave that meant
+  *opening* a note would rewrite it. The new `vault/note_text.py` splits a note
+  losslessly and rewrites only the keys that changed, so a save with no edits
+  produces identical bytes.
+
+### Fixed
+
+- **An English question about a German document gets an English answer.** Two
+  fixes, because the first was not enough on its own:
+  - The rule told the model not to switch language because of a document, but
+    never said what to do with the German summary it had just read — and
+    repeating what you read is the path of least resistance. The directive now
+    orders the content **translated**, names summaries and extracted fields
+    explicitly, and exempts proper names, document titles and quotations.
+    Werkbank roles share the directive and get it too.
+  - That still lost to position: the rule sits in the system prompt, thousands
+    of tokens away, while a long German document summary lands immediately
+    before the model answers. So the answer language is now **re-asserted right
+    after the tool results**, the same recency fix the tool-use guard already
+    used. And the language is taken from **what the user typed**, not the UI
+    setting — `detect_language()` reads the message, falling back to the UI
+    language when it is too short to tell (a bare `#42` must not flip it).
+
+- **The assistant no longer offers to edit notes it cannot edit.** It has always
+  been able to write only its own memory — the user's notes are read-only to it
+  — but nothing said so, so it would helpfully propose "shall I add that to your
+  note?" and then have no way to do it. `vault_search` now states it is
+  read-only and forbids the offer, `create_note` says it comments on a
+  *Paperless document* rather than a note, and the memory tools say the memory
+  is the agent's own. The `vault` and `memory` prompt blocks draw the same line,
+  and `tests/test_tool_store_boundaries.py` fails if a future tool blurs it.
+
+- **The voice memo's Memo/Conversation switch reads as a switch again.** Both
+  halves were filled: the `color=purple` prop paints the *unselected* segments,
+  and in Quasar's own Material purple rather than the brand one, so the control
+  showed two clashing colours and no clear active state. The inactive half is
+  now outlined only, and the active one takes the accent from the theme token
+  (by rebinding `--q-primary` on the container, instead of an `!important` duel
+  with Quasar's `.bg-primary`).
+
+- **The download button on a document card works behind a reverse proxy.** It
+  sent the browser straight at `PAPERLESS_URL` — which is how *the server*
+  reaches Paperless, an internal address the browser either cannot resolve or
+  has no session for, so an outside user got "unauthorized". The card now
+  fetches server-side through the user's own session client and hands the bytes
+  to the browser, keeping the filename Paperless reports. (The PDF button in the
+  document dialog was always fine: it serves the app-relative `/pdftmp/…`.)
+
+- **A Werkbank run now syncs the vault before it starts.** Workers reach for
+  `vault_search` and `brain_search`, but nothing triggered a sync on that path —
+  a run read whatever the last chat turn happened to index, so a note written
+  minutes earlier was invisible to the task started to act on it.
+  `orchestrator.run_task()` syncs once per run, before the split, and a failing
+  sync is logged rather than taking the task down.
+
+- **Editing in two places at once no longer loses either side.** Saves compare a
+  sha256 of the file under the per-user lock; on mismatch a three-way merge runs
+  first, so sync writing `pbrain_id` into a note you are typing in is invisible
+  rather than alarming, and only a genuine overlap raises the conflict banner
+  (with a diff, and reload / overwrite / save-as-copy). An external delete is
+  caught too, and a note moved in Obsidian can be followed by its `pbrain_id`.
+  The same lock closes a narrower hole: a write landing inside sync's
+  `git add -A` … `commit` window used to be committed without ever being
+  embedded, and stayed invisible to search until the file changed again.
+
 ## [0.6.0] — 2026-08-13
 
 **Search that finds the mail, memory that knows where it lives, and a model

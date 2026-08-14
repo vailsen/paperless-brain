@@ -414,10 +414,10 @@ async def dashboard():
                             ),
                         ),
                         (
-                            "psychology",
-                            _("Memory"),
+                            "note_alt",
+                            _("Note vault"),
                             _(
-                                "The assistant's long-term memory: stored facts about you, your contracts, vehicles and preferences. The chat reads this information automatically for matching requests. Use 'Dreaming' (dashboard) to have the memory cleaned up automatically."
+                                "Your notes and the assistant's long-term memory, in one place — a file tree with a markdown editor. Write notes here or in Obsidian; edit their properties (tags, and whether a note is indexed at all). The chat searches these notes and reads the stored facts about you, your contracts and vehicles automatically. Voice memos land here too, and 'Dreaming' (dashboard) tidies up the assistant's own memory entries."
                             ),
                         ),
                     ]:

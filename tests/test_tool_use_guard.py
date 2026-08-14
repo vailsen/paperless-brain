@@ -6,6 +6,8 @@ answer: it must fire on personal questions and stay quiet on general ones, or it
 burns a request per turn for nothing.
 """
 
+from pathlib import Path
+
 import pytest
 
 from services.chat_service import _last_user_text, _needs_tool_use
@@ -85,3 +87,30 @@ def test_guard_ignores_a_tool_result_turn():
         {"role": "tool", "content": "no results"},
     ]
     assert _needs_tool_use(_last_user_text(messages))
+
+
+# ── Answer language survives the tool results ────────────────────────────────
+
+
+def test_both_backends_take_an_answer_language():
+    """The reminder is injected inside the agentic loop, so the backend has to
+    be told which language to name. Losing the parameter loses the fix without
+    breaking anything visibly."""
+    import inspect
+
+    from services.chat_service import ClaudeChatBackend, OpenAICompatibleChatBackend
+
+    for backend in (ClaudeChatBackend, OpenAICompatibleChatBackend):
+        params = inspect.signature(backend.run_turn).parameters
+        assert "answer_language" in params, backend.__name__
+        assert params["answer_language"].default == "", (
+            f"{backend.__name__}: must default to off so other callers are unaffected"
+        )
+
+
+def test_the_chat_page_passes_the_detected_language():
+    """Wiring check: the page resolves the language from the user's message and
+    hands it to the backend. A silent drop here reverts the behaviour."""
+    source = Path("app_ui/pages/chat.py").read_text(encoding="utf-8")
+    assert "detect_language(text" in source
+    assert "answer_language=_lang" in source

@@ -15,7 +15,7 @@ from app_ui.document_dialog import create_document_dialog
 from app_ui.layout import page_layout, require_auth
 from app_ui.pages.browser import _render_card
 from config.chat_prompts import build_system_prompt
-from i18n import DEFAULT_LANG, get_translator
+from i18n import DEFAULT_LANG, detect_language, get_translator
 from models.brain_fact_result import BrainFactResult
 from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
@@ -2534,7 +2534,11 @@ window.__openVaultNote = function(noteId) {{
             return
 
         _username = ng_app.storage.user.get("paperless_user") or ""
-        _lang = ng_app.storage.user.get("language", DEFAULT_LANG)
+        # The language the user actually wrote in decides the answer language;
+        # the UI language is only the fallback when the message is too short to
+        # tell. Resolved here so both the system prompt and the post-tool
+        # reminder name the same language.
+        _lang = detect_language(text, default=ng_app.storage.user.get("language", DEFAULT_LANG))
         # Build the prompt from only the ACTIVE tool groups — the model is never
         # told to use a tool that was filtered out of its tool list.
         _system = build_system_prompt(
@@ -2551,6 +2555,7 @@ window.__openVaultNote = function(noteId) {{
                 _s["temperature"],
                 tools=_active_tools(),
                 max_iterations=_s["max_iterations"],
+                answer_language=_lang,
             ):
                 if _s["stop_requested"]:
                     break

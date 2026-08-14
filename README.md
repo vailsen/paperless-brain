@@ -6,6 +6,7 @@
 
 <p align="center"><b>The brain for your <a href="https://docs.paperless-ngx.com/">Paperless-ngx</a> archive.</b><br>
 Chat with your documents, let a vision LLM read every page, never miss a deadline.<br>
+Keep your Markdown notes beside them — with a built-in editor, no Obsidian required.<br>
 Installable PWA — built for mobile and desktop.</p>
 
 <p align="center">
@@ -46,15 +47,21 @@ talk to.
 - **Deadlines & actions** — extracted obligations ("cancel by …", "pay until …")
   surfaced on the dashboard.
 - **Brain memory** — the assistant remembers facts about you as plain Markdown
-  files, embedded for recall in every conversation.
+  files, embedded for recall in every conversation. Browse and correct them in
+  the same editor as your own notes.
 - **Voice memos** — hold the mic button (or swipe up to lock it), speak, and the
   recording is transcribed, tidied into structured Markdown and filed into your
   vault after you approve it. Upload an existing audio file instead if you
   recorded it elsewhere, or switch to **conversation mode** to turn a recorded
   dialog into speaker turns. Optional; needs your own transcription service —
   see [Voice memos](#voice-memos-optional).
-- **Vault notes** — your own Markdown knowledge base, searchable in chat
-  alongside the archive. Works with any editor; Obsidian optional.
+- **Note vault — like Obsidian, without needing Obsidian** — a folder tree, a
+  markdown editor and an Obsidian-style properties panel, built into the app.
+  Write, rename, move and delete notes from the browser or your phone; the files
+  stay plain Markdown in a plain folder, so Obsidian still works on the same
+  directory if you want it. Your notes are searchable in chat alongside the
+  archive — and read-only to the assistant, which curates only its own memory.
+  See [Note vault](#note-vault).
 - **Deep research** — autonomous multi-step research, but the kicker is the data
   source: the agent researches across **your own documents** alongside the web. A
   deterministic orchestrator splits a job into sub-tasks, runs scoped agents, and
@@ -95,6 +102,10 @@ hardware and models; nothing here is tied to a specific one.
   <tr>
     <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Dashboard showing extracted deadlines and actions"><br><sub><b>Dashboard</b> — deadlines & actions extracted from every document</sub></td>
     <td width="50%"><img src="docs/screenshots/document-detail.png" alt="Document detail dialog with vision-read pages, tables and actions"><br><sub><b>Document detail</b> — vision-read pages, tables, actions, cross-references</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/note-vault.png" alt="Note vault — folder tree, markdown editor and frontmatter properties panel"><br><sub><b>Note vault</b> — tree, markdown editor and properties, no Obsidian required</sub></td>
+    <td width="50%"><img src="docs/screenshots/chat.png" alt="Chatting with the archive — the assistant searches, reads and cites documents"><br><sub><b>Chat</b> — agentic tool loop over documents, notes, mail and the web</sub></td>
   </tr>
   <tr>
     <td colspan="2"><img src="docs/screenshots/demo.gif" alt="Deep research — autonomous multi-step research module in action" width="100%"><br><sub><b>Deep research</b> — autonomous multi-step research, reviewed before persist</sub></td>
@@ -265,15 +276,55 @@ vaults/
 
 - The folder is **git-tracked by the app itself** — change detection, sync
   bookmark and audit trail in one. You don't have to touch git.
-- **Obsidian is NOT required.** Any editor works; the files are ordinary
-  Markdown with a small YAML frontmatter.
-- Optional topology for editing on other devices: point a WebDAV server at the
-  same directory and sync it with Obsidian + Remotely Save. The WebDAV server
-  must serve the *same* directory the app mounts — the app keeps the single
-  authoritative copy.
+- **Edit it in the app** — see [Note vault](#note-vault) below. No external
+  editor needed, on any device.
+- Optional topology for editing on other devices with a native app: point a
+  WebDAV server at the same directory and sync it with Obsidian + Remotely Save.
+  The WebDAV server must serve the *same* directory the app mounts — the app
+  keeps the single authoritative copy.
 
 Markdown on disk is the source of truth; ChromaDB is only the index and can
 always be rebuilt from the files.
+
+### Note vault
+
+**Like Obsidian, without needing Obsidian.** The *Note vault* module is a full
+editor for that folder: a tree on the left, the note on the right, and the
+frontmatter as typed properties above it — so a phone with a browser is enough
+to keep the vault tidy. No app to install, no device to sync, no server shell
+access to hand out.
+
+<p align="center">
+  <img src="docs/screenshots/note-vault.png" alt="Note vault — folder tree, markdown editor and frontmatter properties panel" width="820">
+</p>
+
+- **Read first, edit on demand** — a note opens rendered; the pencil switches to
+  the markdown source in a CodeMirror editor with syntax highlighting.
+- **Properties, not raw YAML** — tags as chips, `dont_ingest` as a switch, dates
+  and text as fields, plus add/remove and an "Edit YAML" escape hatch for the
+  exotic cases. Untouched keys are written back **byte for byte**: your comments,
+  key order and date formatting survive editing, because the editor splices only
+  the keys you changed instead of re-serializing the block.
+- **Autosave, no save button** — a couple of seconds after you stop typing.
+- **Create, rename, move, delete** notes and folders. Attachments (PDFs, images)
+  show in the tree and open read-only.
+- **Nothing is lost if you edit in two places.** Every save compares a hash of
+  the file on disk; if Obsidian, another tab or the indexer changed it
+  meanwhile, the two versions are merged when they touch different parts, and
+  only a real overlap raises a conflict banner with a diff and an explicit
+  choice. Delete or rename a note elsewhere and the open editor notices — it can
+  even follow a moved note by its id.
+- **Indexing is deferred on purpose** — editing writes files only; the next chat
+  message (or the *Index now* button) embeds what changed and commits it in one
+  go. A dot marks notes that are written but not yet searchable. That is why an
+  editing session costs one git commit instead of one per keystroke.
+- **Obsidian still works** on the same folder, at the same time. The app writes
+  ordinary Markdown with a small YAML frontmatter, atomically, and treats the
+  files as the source of truth — the built-in editor is one more client, not a
+  replacement format.
+
+The assistant can **read** these notes (`vault_search`) but never write them.
+Only you edit your notes; the agent curates only its own memory folder.
 
 ## Voice memos (optional)
 

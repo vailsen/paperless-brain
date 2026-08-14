@@ -46,7 +46,7 @@ NAV_ITEMS = [
     ("chat", N_("Chat"), "/chat"),
     ("auto_awesome", N_("Deep research"), "/werkbank"),
     ("grid_view", N_("Browser"), "/browser"),
-    ("psychology", N_("Memory"), "/brain"),
+    ("note_alt", N_("Note vault"), "/brain"),
 ]
 
 

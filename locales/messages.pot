@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-13 10:30+0200\n"
+"POT-Creation-Date: 2026-08-14 15:24+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -115,8 +115,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: app_ui/document_dialog.py:472 app_ui/pages/brain.py:174
-#: app_ui/pages/dashboard.py:1686
+#: app_ui/document_dialog.py:472 app_ui/pages/dashboard.py:1686
 msgid "Description"
 msgstr ""
 
@@ -221,10 +220,8 @@ msgstr ""
 msgid "Browser"
 msgstr ""
 
-#: app_ui/layout.py:49 app_ui/pages/brain.py:266 app_ui/pages/chat.py:547
-#: app_ui/pages/chat.py:691 app_ui/pages/chat.py:2197
-#: app_ui/pages/dashboard.py:418
-msgid "Memory"
+#: app_ui/layout.py:49 app_ui/pages/dashboard.py:418
+msgid "Note vault"
 msgstr ""
 
 #: app_ui/layout.py:213 app_ui/pages/settings.py:301
@@ -293,8 +290,7 @@ msgstr ""
 msgid "Discard"
 msgstr ""
 
-#: app_ui/memo_dialog.py:282 app_ui/pages/brain.py:152
-#: app_ui/pages/brain.py:212 app_ui/pages/chat.py:1163
+#: app_ui/memo_dialog.py:282 app_ui/pages/chat.py:1163
 #: app_ui/pages/settings.py:216 app_ui/pages/settings.py:563
 #: app_ui/pages/settings.py:827 app_ui/pages/settings.py:883
 #: app_ui/pages/settings.py:931 app_ui/pages/settings.py:1008
@@ -370,147 +366,264 @@ msgstr ""
 msgid "Recording discarded."
 msgstr ""
 
-#: app_ui/pages/brain.py:56
-msgid "Really delete?"
-msgstr ""
-
-#: app_ui/pages/brain.py:61 app_ui/pages/brain.py:149 app_ui/pages/brain.py:209
-#: app_ui/pages/chat.py:1156 app_ui/pages/chat.py:2995
-#: app_ui/pages/chat.py:3246 app_ui/pages/chat.py:3329
-#: app_ui/pages/dashboard.py:955 app_ui/pages/dashboard.py:1148
-#: app_ui/pages/dashboard.py:1336 app_ui/pages/settings.py:562
-#: app_ui/pages/settings.py:1494 werkbank/ui/module_page.py:93
+#: app_ui/pages/brain.py:246 app_ui/pages/brain.py:260
+#: app_ui/pages/brain.py:684 app_ui/pages/chat.py:1156
+#: app_ui/pages/chat.py:2995 app_ui/pages/chat.py:3246
+#: app_ui/pages/chat.py:3329 app_ui/pages/dashboard.py:955
+#: app_ui/pages/dashboard.py:1148 app_ui/pages/dashboard.py:1336
+#: app_ui/pages/settings.py:562 app_ui/pages/settings.py:1494
+#: werkbank/ui/module_page.py:93
 msgid "Cancel"
 msgstr ""
 
-#: app_ui/pages/brain.py:64 app_ui/pages/brain.py:424 app_ui/pages/brain.py:470
+#: app_ui/pages/brain.py:247
+msgid "OK"
+msgstr ""
+
+#: app_ui/pages/brain.py:261 app_ui/pages/brain.py:954
 #: werkbank/ui/task_dialog.py:351 werkbank/ui/task_dialog.py:687
 msgid "Delete"
 msgstr ""
 
-#: app_ui/pages/brain.py:74 app_ui/pages/brain.py:236 app_ui/pages/brain.py:289
-msgid "Add fact"
+#: app_ui/pages/brain.py:271
+msgid "Saved"
 msgstr ""
 
-#: app_ui/pages/brain.py:85
-msgid "Fact"
+#: app_ui/pages/brain.py:272
+msgid "Saving …"
 msgstr ""
 
-#: app_ui/pages/brain.py:85
-msgid "The fact in a single clear sentence…"
+#: app_ui/pages/brain.py:273
+msgid "Unsaved changes"
 msgstr ""
 
-#: app_ui/pages/brain.py:91
-msgid "Filename (topic)"
-msgstr ""
-
-#: app_ui/pages/brain.py:91
-msgid "e.g. Anna's birthday"
-msgstr ""
-
-#: app_ui/pages/brain.py:95
-msgid "Topic only — stays stable even if the content changes."
-msgstr ""
-
-#: app_ui/pages/brain.py:99 app_ui/pages/brain.py:179
-msgid "Tags (comma-separated)"
-msgstr ""
-
-#: app_ui/pages/brain.py:99
-msgid "insurance, deadline, family"
-msgstr ""
-
-#: app_ui/pages/brain.py:105 app_ui/pages/brain.py:378
-msgid "Confidence"
-msgstr ""
-
-#: app_ui/pages/brain.py:110 app_ui/pages/browser.py:350
-msgid "Doc ID"
-msgstr ""
-
-#: app_ui/pages/brain.py:115
-msgid "Page"
-msgstr ""
-
-#: app_ui/pages/brain.py:125
-msgid "Fact must not be empty."
-msgstr ""
-
-#: app_ui/pages/brain.py:161 app_ui/pages/brain.py:218
-#: app_ui/pages/brain.py:279
-msgid "Add deadline"
-msgstr ""
-
-#: app_ui/pages/brain.py:169
-msgid "Due on"
-msgstr ""
-
-#: app_ui/pages/brain.py:190
-msgid "Date and description are required."
-msgstr ""
-
-#: app_ui/pages/brain.py:227
-msgid "Edit deadline"
-msgstr ""
-
-#: app_ui/pages/brain.py:248
-msgid "Edit fact"
+#: app_ui/pages/brain.py:274
+msgid "Merged changes from disk"
 msgstr ""
 
 #: app_ui/pages/brain.py:275
-msgid "Manual deadlines"
+msgid "Reloaded — changed on disk"
 msgstr ""
 
-#: app_ui/pages/brain.py:286
-msgid "Facts"
+#: app_ui/pages/brain.py:276
+msgid "Changed on disk"
 msgstr ""
 
-#: app_ui/pages/brain.py:296
-msgid "Filter…"
+#: app_ui/pages/brain.py:277
+msgid "Properties were reformatted"
 msgstr ""
 
-#: app_ui/pages/brain.py:301
-msgid "Show shared facts from other users"
+#: app_ui/pages/brain.py:300 app_ui/pages/brain.py:980
+msgid "Not indexed yet"
 msgstr ""
 
-#: app_ui/pages/brain.py:306
-msgid "Show shared only"
+#: app_ui/pages/brain.py:348
+msgid "This note no longer exists."
 msgstr ""
 
-#: app_ui/pages/brain.py:346
-msgid "No facts found."
-msgstr ""
-
-#: app_ui/pages/brain.py:381
+#: app_ui/pages/brain.py:448
 #, python-brace-format
-msgid "Doc #{id}"
+msgid "Could not save: {err}"
 msgstr ""
 
-#: app_ui/pages/brain.py:390
-msgid "shared"
+#: app_ui/pages/brain.py:520
+msgid "The note could not be found anywhere in the vault."
 msgstr ""
 
-#: app_ui/pages/brain.py:392
+#: app_ui/pages/brain.py:529 app_ui/pages/brain.py:554
+msgid "Save as new note"
+msgstr ""
+
+#: app_ui/pages/brain.py:529 app_ui/pages/brain.py:647
+#: app_ui/pages/brain.py:822 app_ui/pages/brain.py:837
+#: app_ui/pages/brain.py:853 app_ui/pages/chat.py:2807
+#: app_ui/pages/chat.py:2850 werkbank/ui/archetype_dialog.py:79
+msgid "Name"
+msgstr ""
+
+#: app_ui/pages/brain.py:549
+msgid "This note no longer exists on disk."
+msgstr ""
+
+#: app_ui/pages/brain.py:553
+msgid "Find it"
+msgstr ""
+
+#: app_ui/pages/brain.py:558
+msgid "This note changed on disk while you were editing."
+msgstr ""
+
+#: app_ui/pages/brain.py:564
+msgid "On disk"
+msgstr ""
+
+#: app_ui/pages/brain.py:564
+msgid "Yours"
+msgstr ""
+
+#: app_ui/pages/brain.py:569
+msgid "Reload from disk"
+msgstr ""
+
+#: app_ui/pages/brain.py:570
+msgid "Save as copy"
+msgstr ""
+
+#: app_ui/pages/brain.py:571
+msgid "Overwrite"
+msgstr ""
+
+#: app_ui/pages/brain.py:647 app_ui/pages/brain.py:759
+msgid "Add property"
+msgstr ""
+
+#: app_ui/pages/brain.py:653
+msgid "That property already exists."
+msgstr ""
+
+#: app_ui/pages/brain.py:656
 #, python-brace-format
-msgid "from {user}"
+msgid "{key} is assigned automatically."
 msgstr ""
 
-#: app_ui/pages/brain.py:400 app_ui/pages/brain.py:459
+#: app_ui/pages/brain.py:671
+msgid "Edit properties as YAML"
+msgstr ""
+
+#: app_ui/pages/brain.py:679
+#, python-brace-format
+msgid "{key} is managed by PaperlessBrain and stays unchanged."
+msgstr ""
+
+#: app_ui/pages/brain.py:685 app_ui/pages/settings.py:1497
+msgid "Apply"
+msgstr ""
+
+#: app_ui/pages/brain.py:695
+#, python-brace-format
+msgid "Invalid YAML: {err}"
+msgstr ""
+
+#: app_ui/pages/brain.py:698
+msgid "Properties must be a mapping of keys to values."
+msgstr ""
+
+#: app_ui/pages/brain.py:729
+msgid "Copied"
+msgstr ""
+
+#: app_ui/pages/brain.py:735
+msgid "Assigned when indexed"
+msgstr ""
+
+#: app_ui/pages/brain.py:749
+msgid "Excluded from the search index."
+msgstr ""
+
+#: app_ui/pages/brain.py:762
+msgid "Edit YAML"
+msgstr ""
+
+#: app_ui/pages/brain.py:817
+#, python-brace-format
+msgid "{action} in {folder}"
+msgstr ""
+
+#: app_ui/pages/brain.py:818
+#, python-brace-format
+msgid "{action} in the vault root"
+msgstr ""
+
+#: app_ui/pages/brain.py:822 app_ui/pages/brain.py:945
+msgid "New note"
+msgstr ""
+
+#: app_ui/pages/brain.py:837 app_ui/pages/brain.py:948
+msgid "New folder"
+msgstr ""
+
+#: app_ui/pages/brain.py:849 app_ui/pages/brain.py:873
+msgid "Select a note or folder first."
+msgstr ""
+
+#: app_ui/pages/brain.py:853 app_ui/pages/brain.py:951
+msgid "Rename"
+msgstr ""
+
+#: app_ui/pages/brain.py:876
+#, python-brace-format
+msgid "Delete “{name}” permanently?"
+msgstr ""
+
+#: app_ui/pages/brain.py:900
+#, python-brace-format
+msgid "Indexing failed: {err}"
+msgstr ""
+
+#: app_ui/pages/brain.py:907
+msgid "Vault indexed."
+msgstr ""
+
+#: app_ui/pages/brain.py:924 app_ui/pages/brain.py:1009
 #: app_ui/pages/chat.py:3164 app_ui/pages/chat.py:3198
 #: werkbank/ui/task_dialog.py:513 werkbank/ui/task_dialog.py:543
 msgid "Edit"
 msgstr ""
 
-#: app_ui/pages/brain.py:412
-msgid "Make private"
+#: app_ui/pages/brain.py:924 app_ui/pages/chat.py:3190
+#: werkbank/ui/task_dialog.py:536
+msgid "Preview"
 msgstr ""
 
-#: app_ui/pages/brain.py:412
-msgid "Make visible to all"
+#: app_ui/pages/brain.py:940 app_ui/pages/chat.py:548
+msgid "Vault"
 msgstr ""
 
-#: app_ui/pages/brain.py:435
-msgid "No manual deadlines."
+#: app_ui/pages/brain.py:955
+msgid "Filter …"
+msgstr ""
+
+#: app_ui/pages/brain.py:962
+#, python-brace-format
+msgid "Selected: {name}"
+msgstr ""
+
+#: app_ui/pages/brain.py:965
+msgid "Tap to select, tap again to open"
+msgstr ""
+
+#: app_ui/pages/brain.py:966
+msgid "Click a note to open it"
+msgstr ""
+
+#: app_ui/pages/brain.py:987
+msgid "Index now"
+msgstr ""
+
+#: app_ui/pages/brain.py:989
+msgid ""
+"Make edited notes findable by the chat right away. Happens on its own "
+"with the next chat message."
+msgstr ""
+
+#: app_ui/pages/brain.py:1017
+msgid "Properties"
+msgstr ""
+
+#: app_ui/pages/brain.py:1055
+msgid "Attachments are read-only."
+msgstr ""
+
+#: app_ui/pages/brain.py:1059
+msgid "Open"
+msgstr ""
+
+#: app_ui/pages/brain.py:1068
+msgid "Select a note to edit it."
+msgstr ""
+
+#: app_ui/pages/brain.py:1072
+msgid "Show notes"
 msgstr ""
 
 #: app_ui/pages/browser.py:39
@@ -596,6 +709,10 @@ msgstr ""
 msgid "Title / content (full text)..."
 msgstr ""
 
+#: app_ui/pages/browser.py:350
+msgid "Doc ID"
+msgstr ""
+
 #: app_ui/pages/browser.py:353
 msgid "Direct lookup by Paperless ID (#NNN)"
 msgstr ""
@@ -632,7 +749,12 @@ msgstr ""
 msgid "Pinned — click to unpin"
 msgstr ""
 
-#: app_ui/pages/browser.py:560
+#: app_ui/pages/browser.py:570 app_ui/pages/chat.py:3364
+#, python-brace-format
+msgid "Download of document #{id} failed: {err}"
+msgstr ""
+
+#: app_ui/pages/browser.py:581
 msgid "Download PDF"
 msgstr ""
 
@@ -667,8 +789,8 @@ msgstr ""
 msgid "Visual"
 msgstr ""
 
-#: app_ui/pages/chat.py:548
-msgid "Vault"
+#: app_ui/pages/chat.py:547 app_ui/pages/chat.py:691 app_ui/pages/chat.py:2197
+msgid "Memory"
 msgstr ""
 
 #: app_ui/pages/chat.py:550 werkbank/ui/module_page.py:94
@@ -1031,11 +1153,6 @@ msgstr ""
 msgid "Sender"
 msgstr ""
 
-#: app_ui/pages/chat.py:2807 app_ui/pages/chat.py:2850
-#: werkbank/ui/archetype_dialog.py:79
-msgid "Name"
-msgstr ""
-
 #: app_ui/pages/chat.py:2812
 msgid "Company"
 msgstr ""
@@ -1135,10 +1252,6 @@ msgstr ""
 msgid "Save document to Paperless"
 msgstr ""
 
-#: app_ui/pages/chat.py:3190 werkbank/ui/task_dialog.py:536
-msgid "Preview"
-msgstr ""
-
 #: app_ui/pages/chat.py:3206
 msgid "Creating PDF…"
 msgstr ""
@@ -1185,11 +1298,6 @@ msgstr ""
 
 #: app_ui/pages/chat.py:3333
 msgid "Start task"
-msgstr ""
-
-#: app_ui/pages/chat.py:3364
-#, python-brace-format
-msgid "Download of document #{id} failed: {err}"
 msgstr ""
 
 #: app_ui/pages/chat.py:3379
@@ -1281,10 +1389,12 @@ msgstr ""
 
 #: app_ui/pages/dashboard.py:420
 msgid ""
-"The assistant's long-term memory: stored facts about you, your contracts,"
-" vehicles and preferences. The chat reads this information automatically "
-"for matching requests. Use 'Dreaming' (dashboard) to have the memory "
-"cleaned up automatically."
+"Your notes and the assistant's long-term memory, in one place — a file "
+"tree with a markdown editor. Write notes here or in Obsidian; edit their "
+"properties (tags, and whether a note is indexed at all). The chat "
+"searches these notes and reads the stored facts about you, your contracts"
+" and vehicles automatically. Voice memos land here too, and 'Dreaming' "
+"(dashboard) tidies up the assistant's own memory entries."
 msgstr ""
 
 #: app_ui/pages/dashboard.py:457
@@ -2573,10 +2683,6 @@ msgstr ""
 
 #: app_ui/pages/settings.py:1491
 msgid "The export contains no secrets — existing passwords and API keys are kept."
-msgstr ""
-
-#: app_ui/pages/settings.py:1497
-msgid "Apply"
 msgstr ""
 
 #: app_ui/pages/settings.py:1514

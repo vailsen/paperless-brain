@@ -395,7 +395,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "create_note",
         "description": (
-            "Writes a note onto a Paperless document, saved under the signed-in user's name. Use it to record what happened with a document: 'paid on 12.05.2026', 'cancelled by phone', 'forwarded to the tax advisor'. The note is visible in Paperless-ngx and in the document details. Only call when the user actually wants something recorded — never to store your own intermediate results, and never for facts about the user (use remember_fact for those). Determine an unknown document_id via search first, and keep the note short and factual."
+            "Attaches a comment to a PAPERLESS DOCUMENT (not a note in the user's vault — you cannot write vault notes at all). Requires a document_id and is visible in Paperless-ngx on that document. Use it to record what happened with a document: 'paid on 12.05.2026', 'cancelled by phone', 'forwarded to the tax advisor'. Only call when the user actually wants something recorded about a document — never to store your own intermediate results, and never for facts about the user (use remember_fact for those). Determine an unknown document_id via search first, and keep the note short and factual."
         ),
         "input_schema": {
             "type": "object",
@@ -726,7 +726,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "remember_fact",
         "description": (
-            "Stores a fact in long-term memory. Use this tool when the user explicitly tells you something, or when you draw a reliable conclusion from documents that would be useful in future conversations. Do NOT use for speculative assumptions."
+            "Stores a fact in YOUR OWN long-term memory — a separate store you curate, not the user's notes (those are read-only for you, see vault_search). Use this tool when the user explicitly tells you something, or when you draw a reliable conclusion from documents that would be useful in future conversations. This is also the right tool when the user wants something 'noted down' about themselves, their contracts or their belongings. Do NOT use for speculative assumptions."
         ),
         "input_schema": {
             "type": "object",
@@ -789,7 +789,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "update_brain_fact",
         "description": (
-            "Updates the text of an existing memory fact. Use this to correct outdated or wrong information. You get the fact ID from search_memory."
+            "Updates the text of a fact in your own long-term memory — never one of the user's notes, which you cannot modify. Use this to correct outdated or wrong information. You get the fact ID from search_memory (NOT from vault_search; a pbrain_id from a vault note is not valid here)."
         ),
         "input_schema": {
             "type": "object",
@@ -809,7 +809,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "delete_brain_fact",
         "description": (
-            "Permanently deletes an outdated or wrong memory fact. You get the fact ID from search_memory."
+            "Permanently deletes an outdated or wrong fact from your own long-term memory. It cannot delete a note of the user's — you have no tool for that. You get the fact ID from search_memory (NOT from vault_search)."
         ),
         "input_schema": {
             "type": "object",
@@ -825,7 +825,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "vault_search",
         "description": (
-            "Search the user's personal notes and knowledge documents (Obsidian vault). Two modes: (1) search via 'query' — matches both by meaning (semantic) and by note title/filename; notes whose title matches are listed first and marked '(title match)'. (2) full retrieval via 'pbrain_id' — reads all chunks of one specific note completely. Not for Paperless documents or memory facts."
+            "READ-ONLY search of the user's personal notes (Obsidian vault). These notes belong to the user: there is no tool to create, edit, append to, rename or delete one, so never offer to write anything into a note — say where it would go and let the user do it, or offer remember_fact instead. Two modes: (1) search via 'query' — matches both by meaning (semantic) and by note title/filename; notes whose title matches are listed first and marked '(title match)'. (2) full retrieval via 'pbrain_id' — reads all chunks of one specific note completely. Not for Paperless documents or memory facts."
         ),
         "input_schema": {
             "type": "object",
@@ -2755,6 +2755,7 @@ class ClaudeChatBackend:
         temperature: float = 0.7,
         tools: list[dict] | None = None,
         max_iterations: int = MAX_ITERATIONS,
+        answer_language: str = "",
     ) -> AsyncGenerator[ChatEvent, None]:
         active_tools = tools if tools is not None else TOOL_DEFINITIONS
         # Cache breakpoint at the end of the system prompt: tools + system form a
@@ -2873,6 +2874,16 @@ class ClaudeChatBackend:
                         }
                     )
 
+                # Re-assert the answer language in the same user message as the
+                # tool results (a separate one would break Anthropic's role
+                # alternation). Text blocks must follow the tool_result blocks.
+                if answer_language:
+                    from i18n import answer_language_reminder
+
+                    tool_results.append({
+                        "type": "text",
+                        "text": answer_language_reminder(answer_language),
+                    })
                 working.append({"role": "user", "content": tool_results})
                 continue
 
@@ -3095,6 +3106,7 @@ class OpenAICompatibleChatBackend:
         temperature: float = 0.7,
         tools: list[dict] | None = None,
         max_iterations: int = MAX_ITERATIONS,
+        answer_language: str = "",
     ) -> AsyncGenerator[ChatEvent, None]:
         await self._ensure_ctx()
         _tools_list = tools if tools is not None else TOOL_DEFINITIONS
@@ -3357,5 +3369,16 @@ class OpenAICompatibleChatBackend:
                         "content": result_text,
                     }
                 )
+
+            # Last thing before the model writes its answer — see
+            # answer_language_reminder(): the rule is in the system prompt, but
+            # a German document summary sitting right here outweighs it.
+            if answer_language:
+                from i18n import answer_language_reminder
+
+                working.append({
+                    "role": "system",
+                    "content": answer_language_reminder(answer_language),
+                })
 
         yield DoneEvent(input_tokens=prompt_tokens, context_window=self.context_window)

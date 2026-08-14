@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-13 10:30+0200\n"
+"POT-Creation-Date: 2026-08-14 15:24+0200\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -116,8 +116,7 @@ msgstr "Kein extrahierter Text verfügbar."
 msgid "Actions"
 msgstr "Aktionen"
 
-#: app_ui/document_dialog.py:472 app_ui/pages/brain.py:174
-#: app_ui/pages/dashboard.py:1686
+#: app_ui/document_dialog.py:472 app_ui/pages/dashboard.py:1686
 msgid "Description"
 msgstr "Beschreibung"
 
@@ -222,11 +221,9 @@ msgstr "Tiefenrecherche"
 msgid "Browser"
 msgstr "Browser"
 
-#: app_ui/layout.py:49 app_ui/pages/brain.py:266 app_ui/pages/chat.py:547
-#: app_ui/pages/chat.py:691 app_ui/pages/chat.py:2197
-#: app_ui/pages/dashboard.py:418
-msgid "Memory"
-msgstr "Gedächtnis"
+#: app_ui/layout.py:49 app_ui/pages/dashboard.py:418
+msgid "Note vault"
+msgstr "Notizspeicher"
 
 #: app_ui/layout.py:213 app_ui/pages/settings.py:301
 msgid "Settings"
@@ -265,18 +262,15 @@ msgstr "Schnellmemo"
 msgid "Discard recording"
 msgstr "Aufnahme verwerfen"
 
-#: app_ui/memo_dialog.py:233 app_ui/memo_dialog.py:294
-#: app_ui/memo_dialog.py:461
+#: app_ui/memo_dialog.py:233 app_ui/memo_dialog.py:294 app_ui/memo_dialog.py:461
 msgid "Hold to record, swipe up to lock"
 msgstr "Zum Aufnehmen halten, zum Fixieren nach oben wischen"
 
 #: app_ui/memo_dialog.py:237
-msgid ""
-"With review: check the text before saving. Quick memo: filed "
-"automatically."
+msgid "With review: check the text before saving. Quick memo: filed automatically."
 msgstr ""
-"Mit Prüfung: Text vor dem Speichern kontrollieren. Schnellmemo: wird "
-"automatisch abgelegt."
+"Mit Prüfung: Text vor dem Speichern kontrollieren. Schnellmemo: wird automatisch "
+"abgelegt."
 
 #: app_ui/memo_dialog.py:244
 msgid "Upload audio file"
@@ -291,24 +285,20 @@ msgstr "Die Datei überschreitet {n} MB."
 msgid "Topic"
 msgstr "Thema"
 
-#: app_ui/memo_dialog.py:279 werkbank/ui/task_dialog.py:391
-#: werkbank/ui/task_dialog.py:576
+#: app_ui/memo_dialog.py:279 werkbank/ui/task_dialog.py:391 werkbank/ui/task_dialog.py:576
 msgid "Discard"
 msgstr "Verwerfen"
 
-#: app_ui/memo_dialog.py:282 app_ui/pages/brain.py:152
-#: app_ui/pages/brain.py:212 app_ui/pages/chat.py:1163
-#: app_ui/pages/settings.py:216 app_ui/pages/settings.py:563
-#: app_ui/pages/settings.py:827 app_ui/pages/settings.py:883
-#: app_ui/pages/settings.py:931 app_ui/pages/settings.py:1008
-#: app_ui/pages/settings.py:1113 app_ui/pages/settings.py:1164
-#: app_ui/pages/settings.py:1209 app_ui/pages/settings.py:1296
-#: app_ui/pages/settings.py:1383 werkbank/ui/archetype_dialog.py:141
+#: app_ui/memo_dialog.py:282 app_ui/pages/chat.py:1163 app_ui/pages/settings.py:216
+#: app_ui/pages/settings.py:563 app_ui/pages/settings.py:827 app_ui/pages/settings.py:883
+#: app_ui/pages/settings.py:931 app_ui/pages/settings.py:1008 app_ui/pages/settings.py:1113
+#: app_ui/pages/settings.py:1164 app_ui/pages/settings.py:1209
+#: app_ui/pages/settings.py:1296 app_ui/pages/settings.py:1383
+#: werkbank/ui/archetype_dialog.py:141
 msgid "Save"
 msgstr "Speichern"
 
-#: app_ui/memo_dialog.py:336 app_ui/memo_dialog.py:464
-#: app_ui/pages/chat.py:1855
+#: app_ui/memo_dialog.py:336 app_ui/memo_dialog.py:464 app_ui/pages/chat.py:1855
 msgid "Transcribing …"
 msgstr "Wird transkribiert …"
 
@@ -316,8 +306,7 @@ msgstr "Wird transkribiert …"
 msgid "AI is tidying it up …"
 msgstr "KI räumt auf …"
 
-#: app_ui/memo_dialog.py:362 app_ui/memo_dialog.py:471
-#: app_ui/pages/chat.py:1856
+#: app_ui/memo_dialog.py:362 app_ui/memo_dialog.py:471 app_ui/pages/chat.py:1856
 msgid "Transcription failed."
 msgstr "Transkription fehlgeschlagen."
 
@@ -357,11 +346,11 @@ msgstr "Zugriff auf das Mikrofon wurde verweigert."
 
 #: app_ui/memo_dialog.py:468
 msgid ""
-"Recording needs a secure connection (HTTPS). Type the memo instead, or "
-"reach the app over HTTPS or localhost."
+"Recording needs a secure connection (HTTPS). Type the memo instead, or reach the app "
+"over HTTPS or localhost."
 msgstr ""
-"Aufnahmen brauchen eine sichere Verbindung (HTTPS). Tippe das Memo "
-"stattdessen ein, oder rufe die App über HTTPS oder localhost auf."
+"Aufnahmen brauchen eine sichere Verbindung (HTTPS). Tippe das Memo stattdessen ein, "
+"oder rufe die App über HTTPS oder localhost auf."
 
 #: app_ui/memo_dialog.py:472
 msgid "The recording is too long."
@@ -375,148 +364,262 @@ msgstr "Wird im Hintergrund abgelegt …"
 msgid "Recording discarded."
 msgstr "Aufnahme verworfen."
 
-#: app_ui/pages/brain.py:56
-msgid "Really delete?"
-msgstr "Wirklich löschen?"
-
-#: app_ui/pages/brain.py:61 app_ui/pages/brain.py:149 app_ui/pages/brain.py:209
-#: app_ui/pages/chat.py:1156 app_ui/pages/chat.py:2995
-#: app_ui/pages/chat.py:3246 app_ui/pages/chat.py:3329
-#: app_ui/pages/dashboard.py:955 app_ui/pages/dashboard.py:1148
+#: app_ui/pages/brain.py:246 app_ui/pages/brain.py:260 app_ui/pages/brain.py:684
+#: app_ui/pages/chat.py:1156 app_ui/pages/chat.py:2995 app_ui/pages/chat.py:3246
+#: app_ui/pages/chat.py:3329 app_ui/pages/dashboard.py:955 app_ui/pages/dashboard.py:1148
 #: app_ui/pages/dashboard.py:1336 app_ui/pages/settings.py:562
 #: app_ui/pages/settings.py:1494 werkbank/ui/module_page.py:93
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: app_ui/pages/brain.py:64 app_ui/pages/brain.py:424 app_ui/pages/brain.py:470
-#: werkbank/ui/task_dialog.py:351 werkbank/ui/task_dialog.py:687
+#: app_ui/pages/brain.py:247
+msgid "OK"
+msgstr "OK"
+
+#: app_ui/pages/brain.py:261 app_ui/pages/brain.py:954 werkbank/ui/task_dialog.py:351
+#: werkbank/ui/task_dialog.py:687
 msgid "Delete"
 msgstr "Löschen"
 
-#: app_ui/pages/brain.py:74 app_ui/pages/brain.py:236 app_ui/pages/brain.py:289
-msgid "Add fact"
-msgstr "Fakt hinzufügen"
+#: app_ui/pages/brain.py:271
+msgid "Saved"
+msgstr "Gespeichert"
 
-#: app_ui/pages/brain.py:85
-msgid "Fact"
-msgstr "Tatsache"
+#: app_ui/pages/brain.py:272
+msgid "Saving …"
+msgstr "Speichern …"
 
-#: app_ui/pages/brain.py:85
-msgid "The fact in a single clear sentence…"
-msgstr "Die Tatsache in einem klaren Satz…"
+#: app_ui/pages/brain.py:273
+msgid "Unsaved changes"
+msgstr "Nicht gespeicherte Änderungen"
 
-#: app_ui/pages/brain.py:91
-msgid "Filename (topic)"
-msgstr "Dateiname (Thema)"
-
-#: app_ui/pages/brain.py:91
-msgid "e.g. Anna's birthday"
-msgstr "z.B. Geburtstag Anna"
-
-#: app_ui/pages/brain.py:95
-msgid "Topic only — stays stable even if the content changes."
-msgstr "Nur das Thema — bleibt stabil auch wenn der Inhalt sich ändert."
-
-#: app_ui/pages/brain.py:99 app_ui/pages/brain.py:179
-msgid "Tags (comma-separated)"
-msgstr "Tags (kommagetrennt)"
-
-#: app_ui/pages/brain.py:99
-msgid "insurance, deadline, family"
-msgstr "versicherung, frist, familie"
-
-#: app_ui/pages/brain.py:105 app_ui/pages/brain.py:378
-msgid "Confidence"
-msgstr "Konfidenz"
-
-#: app_ui/pages/brain.py:110 app_ui/pages/browser.py:350
-msgid "Doc ID"
-msgstr "Dok.-ID"
-
-#: app_ui/pages/brain.py:115
-msgid "Page"
-msgstr "Seite"
-
-#: app_ui/pages/brain.py:125
-msgid "Fact must not be empty."
-msgstr "Tatsache darf nicht leer sein."
-
-#: app_ui/pages/brain.py:161 app_ui/pages/brain.py:218
-#: app_ui/pages/brain.py:279
-msgid "Add deadline"
-msgstr "Frist hinzufügen"
-
-#: app_ui/pages/brain.py:169
-msgid "Due on"
-msgstr "Fällig am"
-
-#: app_ui/pages/brain.py:190
-msgid "Date and description are required."
-msgstr "Datum und Beschreibung sind erforderlich."
-
-#: app_ui/pages/brain.py:227
-msgid "Edit deadline"
-msgstr "Frist bearbeiten"
-
-#: app_ui/pages/brain.py:248
-msgid "Edit fact"
-msgstr "Fakt bearbeiten"
+#: app_ui/pages/brain.py:274
+msgid "Merged changes from disk"
+msgstr "Änderungen von der Festplatte zusammengeführt"
 
 #: app_ui/pages/brain.py:275
-msgid "Manual deadlines"
-msgstr "Manuelle Fristen"
+msgid "Reloaded — changed on disk"
+msgstr "Neu geladen – auf der Festplatte geändert"
 
-#: app_ui/pages/brain.py:286
-msgid "Facts"
-msgstr "Fakten"
+#: app_ui/pages/brain.py:276
+msgid "Changed on disk"
+msgstr "Auf der Festplatte geändert"
 
-#: app_ui/pages/brain.py:296
-msgid "Filter…"
-msgstr "Filtern…"
+#: app_ui/pages/brain.py:277
+msgid "Properties were reformatted"
+msgstr "Eigenschaften wurden neu formatiert"
 
-#: app_ui/pages/brain.py:301
-msgid "Show shared facts from other users"
-msgstr "Gemeinsame Fakten anderer Nutzer einblenden"
+#: app_ui/pages/brain.py:300 app_ui/pages/brain.py:980
+msgid "Not indexed yet"
+msgstr "Noch nicht indiziert"
 
-#: app_ui/pages/brain.py:306
-msgid "Show shared only"
-msgstr "Nur gemeinsame anzeigen"
+#: app_ui/pages/brain.py:348
+msgid "This note no longer exists."
+msgstr "Diese Notiz existiert nicht mehr."
 
-#: app_ui/pages/brain.py:346
-msgid "No facts found."
-msgstr "Keine Fakten gefunden."
-
-#: app_ui/pages/brain.py:381
+#: app_ui/pages/brain.py:448
 #, python-brace-format
-msgid "Doc #{id}"
-msgstr "Dok. #{id}"
+msgid "Could not save: {err}"
+msgstr "Konnte nicht gespeichert werden: {err}"
 
-#: app_ui/pages/brain.py:390
-msgid "shared"
-msgstr "gemeinsam"
+#: app_ui/pages/brain.py:520
+msgid "The note could not be found anywhere in the vault."
+msgstr "Die Notiz wurde nirgends im Vault gefunden."
 
-#: app_ui/pages/brain.py:392
+#: app_ui/pages/brain.py:529 app_ui/pages/brain.py:554
+msgid "Save as new note"
+msgstr "Als neue Notiz speichern"
+
+#: app_ui/pages/brain.py:529 app_ui/pages/brain.py:647 app_ui/pages/brain.py:822
+#: app_ui/pages/brain.py:837 app_ui/pages/brain.py:853 app_ui/pages/chat.py:2807
+#: app_ui/pages/chat.py:2850 werkbank/ui/archetype_dialog.py:79
+msgid "Name"
+msgstr "Name"
+
+#: app_ui/pages/brain.py:549
+msgid "This note no longer exists on disk."
+msgstr "Diese Notiz existiert nicht mehr auf der Festplatte."
+
+#: app_ui/pages/brain.py:553
+msgid "Find it"
+msgstr "Suchen"
+
+#: app_ui/pages/brain.py:558
+msgid "This note changed on disk while you were editing."
+msgstr "Diese Notiz wurde auf der Festplatte geändert, während du sie bearbeitet hast."
+
+#: app_ui/pages/brain.py:564
+msgid "On disk"
+msgstr "Auf der Festplatte"
+
+#: app_ui/pages/brain.py:564
+msgid "Yours"
+msgstr "Deine Version"
+
+#: app_ui/pages/brain.py:569
+msgid "Reload from disk"
+msgstr "Von der Festplatte neu laden"
+
+#: app_ui/pages/brain.py:570
+msgid "Save as copy"
+msgstr "Als Kopie speichern"
+
+#: app_ui/pages/brain.py:571
+msgid "Overwrite"
+msgstr "Überschreiben"
+
+#: app_ui/pages/brain.py:647 app_ui/pages/brain.py:759
+msgid "Add property"
+msgstr "Eigenschaft hinzufügen"
+
+#: app_ui/pages/brain.py:653
+msgid "That property already exists."
+msgstr "Diese Eigenschaft existiert bereits."
+
+#: app_ui/pages/brain.py:656
 #, python-brace-format
-msgid "from {user}"
-msgstr "von {user}"
+msgid "{key} is assigned automatically."
+msgstr "{key} wird automatisch vergeben."
 
-#: app_ui/pages/brain.py:400 app_ui/pages/brain.py:459
-#: app_ui/pages/chat.py:3164 app_ui/pages/chat.py:3198
-#: werkbank/ui/task_dialog.py:513 werkbank/ui/task_dialog.py:543
+#: app_ui/pages/brain.py:671
+msgid "Edit properties as YAML"
+msgstr "Eigenschaften als YAML bearbeiten"
+
+#: app_ui/pages/brain.py:679
+#, python-brace-format
+msgid "{key} is managed by PaperlessBrain and stays unchanged."
+msgstr "{key} wird von PaperlessBrain verwaltet und bleibt unverändert."
+
+#: app_ui/pages/brain.py:685 app_ui/pages/settings.py:1497
+msgid "Apply"
+msgstr "Übernehmen"
+
+#: app_ui/pages/brain.py:695
+#, python-brace-format
+msgid "Invalid YAML: {err}"
+msgstr "Ungültiges YAML: {err}"
+
+#: app_ui/pages/brain.py:698
+msgid "Properties must be a mapping of keys to values."
+msgstr "Eigenschaften müssen eine Zuordnung von Schlüsseln zu Werten sein."
+
+#: app_ui/pages/brain.py:729
+msgid "Copied"
+msgstr "Kopiert"
+
+#: app_ui/pages/brain.py:735
+msgid "Assigned when indexed"
+msgstr "Wird beim Indizieren vergeben"
+
+#: app_ui/pages/brain.py:749
+msgid "Excluded from the search index."
+msgstr "Vom Suchindex ausgeschlossen."
+
+#: app_ui/pages/brain.py:762
+msgid "Edit YAML"
+msgstr "YAML bearbeiten"
+
+#: app_ui/pages/brain.py:817
+#, python-brace-format
+msgid "{action} in {folder}"
+msgstr "{action} in {folder}"
+
+#: app_ui/pages/brain.py:818
+#, python-brace-format
+msgid "{action} in the vault root"
+msgstr "{action} im Vault-Stammverzeichnis"
+
+#: app_ui/pages/brain.py:822 app_ui/pages/brain.py:945
+msgid "New note"
+msgstr "Neue Notiz"
+
+#: app_ui/pages/brain.py:837 app_ui/pages/brain.py:948
+msgid "New folder"
+msgstr "Neuer Ordner"
+
+#: app_ui/pages/brain.py:849 app_ui/pages/brain.py:873
+msgid "Select a note or folder first."
+msgstr "Zuerst eine Notiz oder einen Ordner auswählen."
+
+#: app_ui/pages/brain.py:853 app_ui/pages/brain.py:951
+msgid "Rename"
+msgstr "Umbenennen"
+
+#: app_ui/pages/brain.py:876
+#, python-brace-format
+msgid "Delete “{name}” permanently?"
+msgstr "„{name}“ endgültig löschen?"
+
+#: app_ui/pages/brain.py:900
+#, python-brace-format
+msgid "Indexing failed: {err}"
+msgstr "Indizierung fehlgeschlagen: {err}"
+
+#: app_ui/pages/brain.py:907
+msgid "Vault indexed."
+msgstr "Vault indiziert."
+
+#: app_ui/pages/brain.py:924 app_ui/pages/brain.py:1009 app_ui/pages/chat.py:3164
+#: app_ui/pages/chat.py:3198 werkbank/ui/task_dialog.py:513 werkbank/ui/task_dialog.py:543
 msgid "Edit"
 msgstr "Bearbeiten"
 
-#: app_ui/pages/brain.py:412
-msgid "Make private"
-msgstr "Gemeinsam aufheben"
+#: app_ui/pages/brain.py:924 app_ui/pages/chat.py:3190 werkbank/ui/task_dialog.py:536
+msgid "Preview"
+msgstr "Vorschau"
 
-#: app_ui/pages/brain.py:412
-msgid "Make visible to all"
-msgstr "Für alle sichtbar machen"
+#: app_ui/pages/brain.py:940 app_ui/pages/chat.py:548
+msgid "Vault"
+msgstr "Vault"
 
-#: app_ui/pages/brain.py:435
-msgid "No manual deadlines."
-msgstr "Keine manuellen Fristen."
+#: app_ui/pages/brain.py:955
+msgid "Filter …"
+msgstr "Filtern …"
+
+#: app_ui/pages/brain.py:962
+#, python-brace-format
+msgid "Selected: {name}"
+msgstr "Ausgewählt: {name}"
+
+#: app_ui/pages/brain.py:965
+msgid "Tap to select, tap again to open"
+msgstr "Tippen zum Auswählen, nochmal tippen zum Öffnen"
+
+#: app_ui/pages/brain.py:966
+msgid "Click a note to open it"
+msgstr "Notiz anklicken, um sie zu öffnen"
+
+#: app_ui/pages/brain.py:987
+msgid "Index now"
+msgstr "Jetzt indizieren"
+
+#: app_ui/pages/brain.py:989
+msgid ""
+"Make edited notes findable by the chat right away. Happens on its own with the next "
+"chat message."
+msgstr ""
+"Bearbeitete Notizen sofort für den Chat auffindbar machen. Passiert von selbst mit "
+"der nächsten Chat-Nachricht."
+
+#: app_ui/pages/brain.py:1017
+msgid "Properties"
+msgstr "Eigenschaften"
+
+#: app_ui/pages/brain.py:1055
+msgid "Attachments are read-only."
+msgstr "Anhänge sind schreibgeschützt."
+
+#: app_ui/pages/brain.py:1059
+msgid "Open"
+msgstr "Öffnen"
+
+#: app_ui/pages/brain.py:1068
+msgid "Select a note to edit it."
+msgstr "Notiz auswählen, um sie zu bearbeiten."
+
+#: app_ui/pages/brain.py:1072
+msgid "Show notes"
+msgstr "Notizen anzeigen"
 
 #: app_ui/pages/browser.py:39
 msgid "Exactly"
@@ -569,23 +672,21 @@ msgstr "Suchen"
 msgid "Advanced filters"
 msgstr "Erweiterte Filter"
 
-#: app_ui/pages/browser.py:313 app_ui/pages/browser.py:414
-#: werkbank/ui/module_page.py:196
+#: app_ui/pages/browser.py:313 app_ui/pages/browser.py:414 werkbank/ui/module_page.py:196
 msgid "Created"
 msgstr "Erstellt"
 
-#: app_ui/pages/browser.py:314 app_ui/pages/chat.py:3149
-#: app_ui/pages/chat.py:3276
+#: app_ui/pages/browser.py:314 app_ui/pages/chat.py:3149 app_ui/pages/chat.py:3276
 msgid "Title"
 msgstr "Titel"
 
-#: app_ui/pages/browser.py:315 app_ui/pages/browser.py:375
-#: app_ui/pages/browser.py:473 app_ui/pages/settings.py:1191
+#: app_ui/pages/browser.py:315 app_ui/pages/browser.py:375 app_ui/pages/browser.py:473
+#: app_ui/pages/settings.py:1191
 msgid "Correspondent"
 msgstr "Korrespondent"
 
-#: app_ui/pages/browser.py:316 app_ui/pages/browser.py:387
-#: app_ui/pages/browser.py:481 app_ui/pages/settings.py:1193
+#: app_ui/pages/browser.py:316 app_ui/pages/browser.py:387 app_ui/pages/browser.py:481
+#: app_ui/pages/settings.py:1193
 msgid "Document type"
 msgstr "Dokumententyp"
 
@@ -600,6 +701,10 @@ msgstr "Sortierung"
 #: app_ui/pages/browser.py:343
 msgid "Title / content (full text)..."
 msgstr "Titel / Inhalt (Volltext)..."
+
+#: app_ui/pages/browser.py:350
+msgid "Doc ID"
+msgstr "Dok.-ID"
 
 #: app_ui/pages/browser.py:353
 msgid "Direct lookup by Paperless ID (#NNN)"
@@ -637,7 +742,12 @@ msgstr "Querverweis-Cluster anzeigen"
 msgid "Pinned — click to unpin"
 msgstr "Angeheftet — klicken zum Lösen"
 
-#: app_ui/pages/browser.py:560
+#: app_ui/pages/browser.py:570 app_ui/pages/chat.py:3364
+#, python-brace-format
+msgid "Download of document #{id} failed: {err}"
+msgstr "Download von Dokument #{id} fehlgeschlagen: {err}"
+
+#: app_ui/pages/browser.py:581
 msgid "Download PDF"
 msgstr "PDF herunterladen"
 
@@ -646,8 +756,8 @@ msgstr "PDF herunterladen"
 msgid ": Doc #{id}"
 msgstr ": Dok. #{id}"
 
-#: app_ui/pages/chat.py:541 app_ui/pages/chat.py:2196
-#: app_ui/pages/dashboard.py:456 app_ui/pages/settings.py:328
+#: app_ui/pages/chat.py:541 app_ui/pages/chat.py:2196 app_ui/pages/dashboard.py:456
+#: app_ui/pages/settings.py:328
 msgid "Documents"
 msgstr "Dokumente"
 
@@ -655,8 +765,7 @@ msgstr "Dokumente"
 msgid "Email"
 msgstr "E-Mail"
 
-#: app_ui/pages/chat.py:543 app_ui/pages/dashboard.py:568
-#: app_ui/pages/settings.py:1016
+#: app_ui/pages/chat.py:543 app_ui/pages/dashboard.py:568 app_ui/pages/settings.py:1016
 msgid "Calendar"
 msgstr "Kalender"
 
@@ -672,9 +781,9 @@ msgstr "Rechnen"
 msgid "Visual"
 msgstr "Visuell"
 
-#: app_ui/pages/chat.py:548
-msgid "Vault"
-msgstr "Vault"
+#: app_ui/pages/chat.py:547 app_ui/pages/chat.py:691 app_ui/pages/chat.py:2197
+msgid "Memory"
+msgstr "Gedächtnis"
 
 #: app_ui/pages/chat.py:550 werkbank/ui/module_page.py:94
 msgid "Create"
@@ -755,8 +864,8 @@ msgstr "Chat in Paperless speichern"
 #: app_ui/pages/chat.py:567
 msgid "Create a document from the current chat and save it to Paperless."
 msgstr ""
-"Erstelle ein Dokument aus dem aktuellen Chat und speichere es in "
-"Paperless."
+"Aus dem aktuellen Chat ein Dokument erstellen und in Paperless speichern.Erstelle ein"
+" Dokument aus dem aktuellen Chat und speichere es in Paperless."
 
 #: app_ui/pages/chat.py:583
 msgid "Note"
@@ -794,8 +903,8 @@ msgid "🧠 Memory fact"
 msgstr "🧠 Gedächtnis-Fakt"
 
 #: app_ui/pages/chat.py:636 app_ui/pages/chat.py:2661 app_ui/pages/chat.py:2991
-#: app_ui/pages/chat.py:3239 app_ui/pages/chat.py:3325
-#: app_ui/pages/dashboard.py:1143 app_ui/pages/settings.py:264
+#: app_ui/pages/chat.py:3239 app_ui/pages/chat.py:3325 app_ui/pages/dashboard.py:1143
+#: app_ui/pages/settings.py:264
 #, python-brace-format
 msgid "Error: {err}"
 msgstr "Fehler: {err}"
@@ -811,11 +920,11 @@ msgstr "Suchergebnisse erscheinen hier"
 
 #: app_ui/pages/chat.py:935
 msgid ""
-"Hello! I am your document assistant. I can search and read documents and "
-"answer general questions. What would you like to know?"
+"Hello! I am your document assistant. I can search and read documents and answer "
+"general questions. What would you like to know?"
 msgstr ""
-"Hallo! Ich bin dein Dokumentenassistent. Ich kann Dokumente suchen, lesen"
-" und allgemeine Fragen beantworten. Was möchtest du wissen?"
+"Hallo! Ich bin dein Dokumentenassistent. Ich kann Dokumente suchen, lesen und "
+"allgemeine Fragen beantworten. Was möchtest du wissen?"
 
 #: app_ui/pages/chat.py:1016
 msgid "just now"
@@ -981,8 +1090,8 @@ msgstr "Websuche"
 #: app_ui/pages/chat.py:2342
 msgid "No chat model configured — add one in Settings > AI Models."
 msgstr ""
-"Kein Chat-Modell konfiguriert — bitte unter Einstellungen > KI-Modelle "
-"anlegen."
+"Kein Chat-Modell konfiguriert – füge eines unter Einstellungen > KI-Modelle "
+"hinzu.Kein Chat-Modell konfiguriert — bitte unter Einstellungen > KI-Modelle anlegen."
 
 #: app_ui/pages/chat.py:2347
 msgid "Sync is currently running — please wait"
@@ -1042,11 +1151,6 @@ msgstr "Brief erstellen"
 msgid "Sender"
 msgstr "Absender"
 
-#: app_ui/pages/chat.py:2807 app_ui/pages/chat.py:2850
-#: werkbank/ui/archetype_dialog.py:79
-msgid "Name"
-msgstr "Name"
-
 #: app_ui/pages/chat.py:2812
 msgid "Company"
 msgstr "Firma"
@@ -1055,13 +1159,11 @@ msgstr "Firma"
 msgid "Street"
 msgstr "Straße"
 
-#: app_ui/pages/chat.py:2823 app_ui/pages/chat.py:2864
-#: app_ui/pages/settings.py:1135
+#: app_ui/pages/chat.py:2823 app_ui/pages/chat.py:2864 app_ui/pages/settings.py:1135
 msgid "Postcode"
 msgstr "PLZ"
 
-#: app_ui/pages/chat.py:2828 app_ui/pages/chat.py:2870
-#: app_ui/pages/settings.py:1137
+#: app_ui/pages/chat.py:2828 app_ui/pages/chat.py:2870 app_ui/pages/settings.py:1137
 msgid "City"
 msgstr "Ort"
 
@@ -1133,8 +1235,7 @@ msgstr "Nachricht kopiert!"
 msgid "Copy message"
 msgstr "Nachricht kopieren"
 
-#: app_ui/pages/chat.py:3112 app_ui/pages/dashboard.py:1012
-#: app_ui/pages/dashboard.py:1039
+#: app_ui/pages/chat.py:3112 app_ui/pages/dashboard.py:1012 app_ui/pages/dashboard.py:1039
 msgid "Close"
 msgstr "Schließen"
 
@@ -1145,10 +1246,6 @@ msgstr "In Mail-App öffnen"
 #: app_ui/pages/chat.py:3141
 msgid "Save document to Paperless"
 msgstr "Dokument in Paperless speichern"
-
-#: app_ui/pages/chat.py:3190 werkbank/ui/task_dialog.py:536
-msgid "Preview"
-msgstr "Vorschau"
 
 #: app_ui/pages/chat.py:3206
 msgid "Creating PDF…"
@@ -1175,9 +1272,8 @@ msgstr "Tiefenrecherche starten"
 msgid "Review and adjust the task, then choose the model."
 msgstr "Prüfe und passe den Auftrag an, wähle dann das Modell."
 
-#: app_ui/pages/chat.py:3280 werkbank/ui/module_page.py:69
-#: werkbank/ui/module_page.py:195 werkbank/ui/task_dialog.py:276
-#: werkbank/ui/task_dialog.py:471
+#: app_ui/pages/chat.py:3280 werkbank/ui/module_page.py:69 werkbank/ui/module_page.py:195
+#: werkbank/ui/task_dialog.py:276 werkbank/ui/task_dialog.py:471
 msgid "Task"
 msgstr "Auftrag"
 
@@ -1197,11 +1293,6 @@ msgstr "Auftrag #{id} läuft ✓"
 #: app_ui/pages/chat.py:3333
 msgid "Start task"
 msgstr "Auftrag starten"
-
-#: app_ui/pages/chat.py:3364
-#, python-brace-format
-msgid "Download of document #{id} failed: {err}"
-msgstr "Download von Dokument #{id} fehlgeschlagen: {err}"
 
 #: app_ui/pages/chat.py:3379
 #, python-brace-format
@@ -1266,58 +1357,58 @@ msgstr "Hilfe — Modulübersicht"
 
 #: app_ui/pages/dashboard.py:399
 msgid ""
-"AI assistant with access to your document archive, your memory, the web, "
-"email and calendar. Ask questions, have documents summarized, draft "
-"letters or run research. Pick the AI model you want at the top."
+"AI assistant with access to your document archive, your memory, the web, email and "
+"calendar. Ask questions, have documents summarized, draft letters or run research. "
+"Pick the AI model you want at the top."
 msgstr ""
-"KI-Assistent mit Zugriff auf dein Dokumentenarchiv, dein Gedächtnis, Web,"
-" E-Mail und Kalender. Stelle Fragen, lass Dokumente zusammenfassen, "
-"Briefe erstellen oder Recherchen durchführen. Wähle oben das gewünschte "
-"KI-Modell."
+"KI-Assistent mit Zugriff auf dein Dokumentenarchiv, dein Gedächtnis, Web, E-Mail und "
+"Kalender. Stelle Fragen, lass Dokumente zusammenfassen, Briefe erstellen oder "
+"Recherchen durchführen. Wähle oben das gewünschte KI-Modell."
 
 #: app_ui/pages/dashboard.py:406
 msgid ""
-"Autonomous multi-step agent for complex tasks. Enter a request → the AI "
-"plans it, breaks it into sub-tasks and carries them out on its own "
-"(document research, web search, email analysis, calculations). The result"
-" is presented for review — saved only after approval. Examples: 'Create "
-"an overview of all insurance policies', 'Analyze my utility bills from "
-"the last 3 years', 'Research current funding programs for my project'."
+"Autonomous multi-step agent for complex tasks. Enter a request → the AI plans it, "
+"breaks it into sub-tasks and carries them out on its own (document research, web "
+"search, email analysis, calculations). The result is presented for review — saved "
+"only after approval. Examples: 'Create an overview of all insurance policies', "
+"'Analyze my utility bills from the last 3 years', 'Research current funding programs "
+"for my project'."
 msgstr ""
-"Autonomer Mehrschritt-Agent für komplexe Aufgaben. Auftrag eingeben → KI "
-"plant, zerlegt in Teilaufgaben und führt diese selbstständig aus "
-"(Dokumentenrecherche, Websuche, E-Mail-Analyse, Berechnungen). Ergebnis "
-"wird zur Prüfung vorgelegt — erst nach Freigabe gespeichert. Beispiele: "
-"'Erstelle eine Übersicht aller Versicherungsverträge', 'Analysiere meine "
-"Nebenkostenabrechnungen der letzten 3 Jahre', 'Recherchiere aktuelle "
-"Förderprogramme für mein Projekt'."
+"Autonomer Mehrschritt-Agent für komplexe Aufgaben. Auftrag eingeben → KI plant, "
+"zerlegt in Teilaufgaben und führt diese selbstständig aus (Dokumentenrecherche, "
+"Websuche, E-Mail-Analyse, Berechnungen). Ergebnis wird zur Prüfung vorgelegt — erst "
+"nach Freigabe gespeichert. Beispiele: 'Erstelle eine Übersicht aller "
+"Versicherungsverträge', 'Analysiere meine Nebenkostenabrechnungen der letzten 3 "
+"Jahre', 'Recherchiere aktuelle Förderprogramme für mein Projekt'."
 
 #: app_ui/pages/dashboard.py:413
 msgid ""
-"Full-screen view of the document archive (Paperless-ngx). Search by full "
-"text or semantic similarity, filter by type, correspondent, tag or date. "
-"Open documents directly, pin important ones to the dashboard or cluster "
-"similar documents via vector search. Every document you reference in chat"
-" or deep research comes from this archive."
+"Full-screen view of the document archive (Paperless-ngx). Search by full text or "
+"semantic similarity, filter by type, correspondent, tag or date. Open documents "
+"directly, pin important ones to the dashboard or cluster similar documents via vector"
+" search. Every document you reference in chat or deep research comes from this "
+"archive."
 msgstr ""
-"Vollbild-Ansicht des Dokumentenarchivs (Paperless-ngx). Suche per "
-"Volltext oder semantischer Ähnlichkeit, filtere nach Typ, Korrespondent, "
-"Tag oder Datum. Öffne Dokumente direkt, hefte wichtige ans Dashboard an "
-"oder lass ähnliche Dokumente per Vektorsuche clustern. Alle Dokumente, "
-"die du im Chat oder in der Tiefenrecherche referenzierst, kommen aus "
-"diesem Archiv."
+"Vollbild-Ansicht des Dokumentenarchivs (Paperless-ngx). Suche per Volltext oder "
+"semantischer Ähnlichkeit, filtere nach Typ, Korrespondent, Tag oder Datum. Öffne "
+"Dokumente direkt, hefte wichtige ans Dashboard an oder lass ähnliche Dokumente per "
+"Vektorsuche clustern. Alle Dokumente, die du im Chat oder in der Tiefenrecherche "
+"referenzierst, kommen aus diesem Archiv."
 
 #: app_ui/pages/dashboard.py:420
 msgid ""
-"The assistant's long-term memory: stored facts about you, your contracts,"
-" vehicles and preferences. The chat reads this information automatically "
-"for matching requests. Use 'Dreaming' (dashboard) to have the memory "
-"cleaned up automatically."
+"Your notes and the assistant's long-term memory, in one place — a file tree with a "
+"markdown editor. Write notes here or in Obsidian; edit their properties (tags, and "
+"whether a note is indexed at all). The chat searches these notes and reads the stored"
+" facts about you, your contracts and vehicles automatically. Voice memos land here "
+"too, and 'Dreaming' (dashboard) tidies up the assistant's own memory entries."
 msgstr ""
-"Langzeitgedächtnis des Assistenten: gespeicherte Fakten über dich, deine "
-"Verträge, Fahrzeuge und Präferenzen. Der Chat liest diese Infos "
-"automatisch bei passenden Anfragen. Über 'Träumen' (Dashboard) kannst du "
-"das Gedächtnis automatisch bereinigen lassen."
+"Deine Notizen und das Langzeitgedächtnis des Assistenten an einem Ort — ein Dateibaum"
+" mit Markdown-Editor. Notizen hier oder in Obsidian schreiben; Eigenschaften "
+"bearbeiten (Tags und ob eine Notiz überhaupt indiziert wird). Der Chat durchsucht "
+"diese Notizen und liest die gespeicherten Fakten über dich, deine Verträge und "
+"Fahrzeuge automatisch. Auch Sprachmemos landen hier, und „Träumen“ (Dashboard) räumt "
+"die Gedächtniseinträge des Assistenten auf."
 
 #: app_ui/pages/dashboard.py:457
 msgid "Loading..."
@@ -1420,13 +1511,13 @@ msgstr "Synchronisieren"
 
 #: app_ui/pages/dashboard.py:946
 msgid ""
-"New documents are always ingested. Additionally, outdated documents (old "
-"prompt version) are re-ingested — up to how many? Empty = all. Large "
-"numbers can take a long time."
+"New documents are always ingested. Additionally, outdated documents (old prompt "
+"version) are re-ingested — up to how many? Empty = all. Large numbers can take a long"
+" time."
 msgstr ""
-"Neue Dokumente werden immer eingelesen. Zusätzlich werden veraltete "
-"Dokumente (alte Prompt-Version) neu eingelesen — wie viele maximal? Leer "
-"= alle. Große Zahlen können lange dauern."
+"Neue Dokumente werden immer eingelesen. Zusätzlich werden veraltete Dokumente (alte "
+"Prompt-Version) neu eingelesen — wie viele maximal? Leer = alle. Große Zahlen können "
+"lange dauern."
 
 #: app_ui/pages/dashboard.py:950
 msgid "Max. re-ingests (empty = all)"
@@ -1437,12 +1528,10 @@ msgid "Start"
 msgstr "Starten"
 
 #: app_ui/pages/dashboard.py:984
-msgid ""
-"No model configured for dreaming. Please set one in Settings > Memory "
-"maintenance."
+msgid "No model configured for dreaming. Please set one in Settings > Memory maintenance."
 msgstr ""
-"Kein Modell für Träumen konfiguriert. Bitte in Einstellungen > "
-"Gedächtnis-Pflege einstellen."
+"Kein Modell für Träumen konfiguriert. Bitte in Einstellungen > Gedächtnis-Pflege "
+"einstellen."
 
 #: app_ui/pages/dashboard.py:993
 msgid "No memory entries available."
@@ -1542,12 +1631,11 @@ msgstr "Vault-Sync Fehler: {err}"
 #: app_ui/pages/dashboard.py:1209
 #, python-brace-format
 msgid ""
-"Several local models point at different hosts ({hosts}). Set "
-"OLLAMA_SERVER in .env to say which machine the power buttons control."
+"Several local models point at different hosts ({hosts}). Set OLLAMA_SERVER in .env to"
+" say which machine the power buttons control."
 msgstr ""
-"Mehrere lokale Modelle zeigen auf verschiedene Hosts ({hosts}). Setze "
-"OLLAMA_SERVER in der .env, um festzulegen, welche Maschine die Power-"
-"Buttons steuern."
+"Mehrere lokale Modelle zeigen auf verschiedene Hosts ({hosts}). Setze OLLAMA_SERVER "
+"in der .env, um festzulegen, welche Maschine die Power-Buttons steuern."
 
 #: app_ui/pages/dashboard.py:1217
 msgid "OLLAMA_HOST_LAN_MAC_ADDRESS_WOL not configured"
@@ -1612,8 +1700,7 @@ msgstr "Server wird heruntergefahren…"
 msgid "Shut down server"
 msgstr "Server herunterfahren"
 
-#: app_ui/pages/dashboard.py:1329 app_ui/pages/login.py:99
-#: app_ui/pages/settings.py:1053
+#: app_ui/pages/dashboard.py:1329 app_ui/pages/login.py:99 app_ui/pages/settings.py:1053
 msgid "Password"
 msgstr "Passwort"
 
@@ -1721,8 +1808,7 @@ msgid ""
 "PAPERLESS_SUPERUSER_TOKEN in your .env, then restart the container."
 msgstr ""
 "PAPERLESS_URL zeigt noch auf die Beispiel-Adresse. Trage sie und "
-"PAPERLESS_SUPERUSER_TOKEN in deiner .env ein und starte den Container "
-"neu."
+"PAPERLESS_SUPERUSER_TOKEN in deiner .env ein und starte den Container neu."
 
 #: app_ui/pages/login.py:96 app_ui/pages/settings.py:1050
 msgid "Username"
@@ -1738,29 +1824,29 @@ msgstr "Bitte Benutzername und Passwort eingeben."
 
 #: app_ui/pages/login.py:142
 msgid ""
-"PaperlessBrain is not configured: set PAPERLESS_URL in .env to your "
-"Paperless-ngx address and restart."
+"PaperlessBrain is not configured: set PAPERLESS_URL in .env to your Paperless-ngx "
+"address and restart."
 msgstr ""
-"PaperlessBrain ist nicht konfiguriert: Trage PAPERLESS_URL in der .env "
-"auf deine Paperless-ngx-Adresse ein und starte neu."
+"PaperlessBrain ist nicht konfiguriert: Trage PAPERLESS_URL in der .env auf deine "
+"Paperless-ngx-Adresse ein und starte neu."
 
 #: app_ui/pages/login.py:146
 #, python-brace-format
 msgid ""
-"Cannot reach Paperless-ngx at {url} — check the address, the network and "
-"whether Paperless is running."
+"Cannot reach Paperless-ngx at {url} — check the address, the network and whether "
+"Paperless is running."
 msgstr ""
-"Paperless-ngx unter {url} nicht erreichbar — prüfe Adresse, Netzwerk und "
-"ob Paperless läuft."
+"Paperless-ngx unter {url} nicht erreichbar — prüfe Adresse, Netzwerk und ob Paperless"
+" läuft."
 
 #: app_ui/pages/login.py:150
 #, python-brace-format
 msgid ""
-"Paperless-ngx answered with an error. Check its logs and that {url} is "
-"really a Paperless instance."
+"Paperless-ngx answered with an error. Check its logs and that {url} is really a "
+"Paperless instance."
 msgstr ""
-"Paperless-ngx hat mit einem Fehler geantwortet. Prüfe dessen Logs und ob "
-"{url} wirklich eine Paperless-Instanz ist."
+"Paperless-ngx hat mit einem Fehler geantwortet. Prüfe dessen Logs und ob {url} "
+"wirklich eine Paperless-Instanz ist."
 
 #: app_ui/pages/login.py:155
 msgid "Login failed. Please check your details."
@@ -1796,50 +1882,44 @@ msgstr "Sprachmemos aktivieren"
 
 #: app_ui/pages/settings.py:103
 msgid ""
-"No transcription service is configured, so this feature is off. "
-"PaperlessBrain does not ship one — point <code>WHISPER_URL</code> in your"
-" <code>.env</code> at any service with an OpenAI-compatible "
-"<code>/v1/audio/transcriptions</code> endpoint (for example a self-hosted"
-" Whisper container), optionally with <code>WHISPER_API_KEY</code>, "
-"<code>WHISPER_MODEL</code> and <code>WHISPER_LANGUAGE</code>, then "
-"restart. <b>Ollama cannot do transcription</b> — it needs its own "
-"service. Recording also requires the app to be reachable over HTTPS or "
-"localhost; browsers block microphone access otherwise."
+"No transcription service is configured, so this feature is off. PaperlessBrain does "
+"not ship one — point <code>WHISPER_URL</code> in your <code>.env</code> at any "
+"service with an OpenAI-compatible <code>/v1/audio/transcriptions</code> endpoint (for"
+" example a self-hosted Whisper container), optionally with "
+"<code>WHISPER_API_KEY</code>, <code>WHISPER_MODEL</code> and "
+"<code>WHISPER_LANGUAGE</code>, then restart. <b>Ollama cannot do transcription</b> — "
+"it needs its own service. Recording also requires the app to be reachable over HTTPS "
+"or localhost; browsers block microphone access otherwise."
 msgstr ""
-"Es ist kein Transkriptionsdienst konfiguriert, deshalb ist die Funktion "
-"aus. PaperlessBrain bringt keinen mit — trage in <code>WHISPER_URL</code>"
-" in deiner <code>.env</code> einen Dienst mit OpenAI-kompatiblem "
-"<code>/v1/audio/transcriptions</code>-Endpunkt ein (z. B. einen selbst "
-"gehosteten Whisper-Container), optional mit <code>WHISPER_API_KEY</code>,"
-" <code>WHISPER_MODEL</code> und <code>WHISPER_LANGUAGE</code>, und starte"
-" die App neu. <b>Ollama kann nicht transkribieren</b> — dafür braucht es "
-"einen eigenen Dienst. Aufnahmen setzen außerdem voraus, dass die App über"
-" HTTPS oder localhost erreichbar ist; sonst blockieren Browser den "
-"Mikrofonzugriff."
+"Es ist kein Transkriptionsdienst konfiguriert, deshalb ist die Funktion aus. "
+"PaperlessBrain bringt keinen mit — trage in <code>WHISPER_URL</code> in deiner "
+"<code>.env</code> einen Dienst mit OpenAI-kompatiblem "
+"<code>/v1/audio/transcriptions</code>-Endpunkt ein (z. B. einen selbst gehosteten "
+"Whisper-Container), optional mit <code>WHISPER_API_KEY</code>, "
+"<code>WHISPER_MODEL</code> und <code>WHISPER_LANGUAGE</code>, und starte die App neu."
+" <b>Ollama kann nicht transkribieren</b> — dafür braucht es einen eigenen Dienst. "
+"Aufnahmen setzen außerdem voraus, dass die App über HTTPS oder localhost erreichbar "
+"ist; sonst blockieren Browser den Mikrofonzugriff."
 
 #: app_ui/pages/settings.py:124
 #, python-brace-format
 msgid ""
-"A microphone button appears in the header. Hold the record button and "
-"speak — or swipe up while holding to lock the recording and stop it with "
-"a tap. The recording is transcribed and tidied up by your selected AI "
-"model, and you review the text before anything is saved. Memos are stored"
-" as Markdown files in the <code>{folder}</code> folder of your vault and "
-"are searchable in chat. Switch the dialog to <b>Conversation</b> to "
-"transcribe a recorded dialog as speaker turns — that needs a "
-"transcription service with speaker diarization. Reload the page after "
-"changing this."
+"A microphone button appears in the header. Hold the record button and speak — or "
+"swipe up while holding to lock the recording and stop it with a tap. The recording is"
+" transcribed and tidied up by your selected AI model, and you review the text before "
+"anything is saved. Memos are stored as Markdown files in the <code>{folder}</code> "
+"folder of your vault and are searchable in chat. Switch the dialog to "
+"<b>Conversation</b> to transcribe a recorded dialog as speaker turns — that needs a "
+"transcription service with speaker diarization. Reload the page after changing this."
 msgstr ""
-"Im Kopfbereich erscheint ein Mikrofon-Button. Halte den Aufnahme-Button "
-"gedrückt und sprich — oder wische beim Halten nach oben, um die Aufnahme "
-"zu fixieren und sie mit einem Tippen zu beenden. Die Aufnahme wird "
-"transkribiert und vom gewählten KI-Modell aufbereitet; du prüfst den "
-"Text, bevor etwas gespeichert wird. Memos liegen als Markdown-Dateien im "
-"Ordner <code>{folder}</code> deines Vaults und sind im Chat durchsuchbar."
-" Stelle den Dialog auf <b>Gespräch</b>, um einen aufgezeichneten Dialog "
-"mit Sprecherwechseln zu transkribieren — dafür braucht es einen "
-"Transkriptionsdienst mit Sprechertrennung. Lade die Seite nach einer "
-"Änderung neu."
+"Im Kopfbereich erscheint ein Mikrofon-Button. Halte den Aufnahme-Button gedrückt und "
+"sprich — oder wische beim Halten nach oben, um die Aufnahme zu fixieren und sie mit "
+"einem Tippen zu beenden. Die Aufnahme wird transkribiert und vom gewählten KI-Modell "
+"aufbereitet; du prüfst den Text, bevor etwas gespeichert wird. Memos liegen als "
+"Markdown-Dateien im Ordner <code>{folder}</code> deines Vaults und sind im Chat "
+"durchsuchbar. Stelle den Dialog auf <b>Gespräch</b>, um einen aufgezeichneten Dialog "
+"mit Sprecherwechseln zu transkribieren — dafür braucht es einen Transkriptionsdienst "
+"mit Sprechertrennung. Lade die Seite nach einer Änderung neu."
 
 #: app_ui/pages/settings.py:138
 msgid "Server default"
@@ -1852,22 +1932,21 @@ msgstr "Diktatsprache"
 #: app_ui/pages/settings.py:145
 #, python-brace-format
 msgid ""
-"The language you <b>speak</b> — independent of the interface language, "
-"since dictating German into an English interface is a normal combination."
-" Applies to both engines: it is sent to the transcription service and it "
-"sets the browser's recognition language, which otherwise defaults to "
-"English and drops every German word. <i>Server default</i> uses "
-"<code>WHISPER_LANGUAGE</code> from the installation's <code>.env</code> "
-"(currently: <code>{lang}</code>). Reload the page after changing this."
+"The language you <b>speak</b> — independent of the interface language, since "
+"dictating German into an English interface is a normal combination. Applies to both "
+"engines: it is sent to the transcription service and it sets the browser's "
+"recognition language, which otherwise defaults to English and drops every German "
+"word. <i>Server default</i> uses <code>WHISPER_LANGUAGE</code> from the "
+"installation's <code>.env</code> (currently: <code>{lang}</code>). Reload the page "
+"after changing this."
 msgstr ""
-"Die Sprache, die du <b>sprichst</b> — unabhängig von der "
-"Oberflächensprache, denn Deutsch in eine englische Oberfläche zu "
-"diktieren ist ein normaler Fall. Gilt für beide Engines: Sie wird an den "
-"Transkriptionsdienst geschickt und setzt die Erkennungssprache des "
-"Browsers, die sonst auf Englisch steht und jedes deutsche Wort "
-"verschluckt. <i>Server-Standard</i> verwendet "
-"<code>WHISPER_LANGUAGE</code> aus der <code>.env</code> der Installation "
-"(aktuell: <code>{lang}</code>). Nach dem Ändern die Seite neu laden."
+"Die Sprache, die du <b>sprichst</b> — unabhängig von der Oberflächensprache, denn "
+"Deutsch in eine englische Oberfläche zu diktieren ist ein normaler Fall. Gilt für "
+"beide Engines: Sie wird an den Transkriptionsdienst geschickt und setzt die "
+"Erkennungssprache des Browsers, die sonst auf Englisch steht und jedes deutsche Wort "
+"verschluckt. <i>Server-Standard</i> verwendet <code>WHISPER_LANGUAGE</code> aus der "
+"<code>.env</code> der Installation (aktuell: <code>{lang}</code>). Nach dem Ändern "
+"die Seite neu laden."
 
 #: app_ui/pages/settings.py:158
 msgid "Transcription service"
@@ -1883,25 +1962,22 @@ msgstr "Mikrofon im Chat"
 
 #: app_ui/pages/settings.py:165
 msgid ""
-"Which engine the microphone button in the chat input uses. The "
-"<b>transcription service</b> recognises far better, especially for names "
-"and numbers, but shows nothing until you release the button and the "
-"recording has been sent off. <b>Browser dictation</b> (Web Speech API) "
-"writes along while you speak and needs no round trip, but is noticeably "
-"less accurate — and Firefox does not offer it at all, in which case the "
-"transcription service is used anyway. Either way the chat mic inserts "
-"your words unchanged; only memos are tidied up by AI. Reload the page "
-"after changing this."
+"Which engine the microphone button in the chat input uses. The <b>transcription "
+"service</b> recognises far better, especially for names and numbers, but shows "
+"nothing until you release the button and the recording has been sent off. <b>Browser "
+"dictation</b> (Web Speech API) writes along while you speak and needs no round trip, "
+"but is noticeably less accurate — and Firefox does not offer it at all, in which case"
+" the transcription service is used anyway. Either way the chat mic inserts your words"
+" unchanged; only memos are tidied up by AI. Reload the page after changing this."
 msgstr ""
 "Welche Engine der Mikrofon-Knopf im Chat-Eingabefeld verwendet. Der "
-"<b>Transkriptionsdienst</b> erkennt deutlich besser, vor allem Namen und "
-"Zahlen, zeigt aber erst etwas an, wenn du den Knopf loslässt und die "
-"Aufnahme verschickt wurde. <b>Browser-Diktat</b> (Web Speech API) "
-"schreibt beim Sprechen mit und braucht keinen Roundtrip, ist aber "
-"merklich ungenauer — und Firefox bietet es gar nicht an, dann wird "
-"ohnehin der Transkriptionsdienst verwendet. In beiden Fällen fügt das "
-"Chat-Mikrofon deine Worte unverändert ein; nur Memos werden von der KI "
-"aufbereitet. Nach dem Ändern die Seite neu laden."
+"<b>Transkriptionsdienst</b> erkennt deutlich besser, vor allem Namen und Zahlen, "
+"zeigt aber erst etwas an, wenn du den Knopf loslässt und die Aufnahme verschickt "
+"wurde. <b>Browser-Diktat</b> (Web Speech API) schreibt beim Sprechen mit und braucht "
+"keinen Roundtrip, ist aber merklich ungenauer — und Firefox bietet es gar nicht an, "
+"dann wird ohnehin der Transkriptionsdienst verwendet. In beiden Fällen fügt das Chat-"
+"Mikrofon deine Worte unverändert ein; nur Memos werden von der KI aufbereitet. Nach "
+"dem Ändern die Seite neu laden."
 
 #: app_ui/pages/settings.py:194
 msgid "Model for memo cleanup"
@@ -1909,17 +1985,16 @@ msgstr "Modell für die Memo-Aufbereitung"
 
 #: app_ui/pages/settings.py:202
 msgid ""
-"Rewrites the raw dictation into readable Markdown and names it. This is a"
-" short, strictly formatted job, so a small local model is usually enough "
-"— it does not have to be your chat model. <b>Without a model here the "
-"chat model is used; without that, the raw transcript is filed and the "
-"topic is taken from its first words.</b>"
+"Rewrites the raw dictation into readable Markdown and names it. This is a short, "
+"strictly formatted job, so a small local model is usually enough — it does not have "
+"to be your chat model. <b>Without a model here the chat model is used; without that, "
+"the raw transcript is filed and the topic is taken from its first words.</b>"
 msgstr ""
-"Schreibt das rohe Diktat in lesbares Markdown um und benennt es. Das ist "
-"eine kurze, streng formatierte Aufgabe — ein kleines lokales Modell "
-"genügt dafür meist und muss nicht dein Chat-Modell sein. <b>Ohne Modell "
-"hier wird das Chat-Modell verwendet; fehlt auch das, landet das rohe "
-"Transkript im Vault und das Thema stammt aus seinen ersten Wörtern.</b>"
+"Schreibt das rohe Diktat in lesbares Markdown um und benennt es. Das ist eine kurze, "
+"streng formatierte Aufgabe — ein kleines lokales Modell genügt dafür meist und muss "
+"nicht dein Chat-Modell sein. <b>Ohne Modell hier wird das Chat-Modell verwendet; "
+"fehlt auch das, landet das rohe Transkript im Vault und das Thema stammt aus seinen "
+"ersten Wörtern.</b>"
 
 #: app_ui/pages/settings.py:214 app_ui/pages/settings.py:923
 msgid "Saved."
@@ -2003,18 +2078,17 @@ msgstr "Was PaperlessBrain in dein Archiv schreiben darf"
 
 #: app_ui/pages/settings.py:367
 msgid ""
-"After each sync, documents whose AI-extracted text differs from the text "
-"in Paperless-ngx are updated there. This improves the Paperless full-text"
-" search. <b style='color:#f87171'>The previous OCR text is overwritten "
-"and cannot be restored by Paperless-ngx.</b> Reprocessing a document in "
-"Paperless-ngx replaces the text with its own OCR again."
+"After each sync, documents whose AI-extracted text differs from the text in "
+"Paperless-ngx are updated there. This improves the Paperless full-text search. <b "
+"style='color:#f87171'>The previous OCR text is overwritten and cannot be restored by "
+"Paperless-ngx.</b> Reprocessing a document in Paperless-ngx replaces the text with "
+"its own OCR again."
 msgstr ""
-"Nach jedem Sync werden Dokumente, deren KI-extrahierter Text vom Text in "
-"Paperless-ngx abweicht, dort aktualisiert. Das verbessert die "
-"Volltextsuche von Paperless. <b style='color:#f87171'>Der bisherige OCR-"
-"Text wird überschrieben und kann von Paperless-ngx nicht "
-"wiederhergestellt werden.</b> Wird ein Dokument in Paperless-ngx neu "
-"verarbeitet, ersetzt dessen eigene OCR den Text wieder."
+"Nach jedem Sync werden Dokumente, deren KI-extrahierter Text vom Text in Paperless-"
+"ngx abweicht, dort aktualisiert. Das verbessert die Volltextsuche von Paperless. <b "
+"style='color:#f87171'>Der bisherige OCR-Text wird überschrieben und kann von "
+"Paperless-ngx nicht wiederhergestellt werden.</b> Wird ein Dokument in Paperless-ngx "
+"neu verarbeitet, ersetzt dessen eigene OCR den Text wieder."
 
 #: app_ui/pages/settings.py:384 app_ui/pages/settings.py:413
 msgid "Anthropic-compatible"
@@ -2114,12 +2188,11 @@ msgstr "Denkmodus"
 
 #: app_ui/pages/settings.py:471
 msgid ""
-"\"Auto\" leaves the decision to the model — Claude then never thinks, and"
-" other models only sometimes. Set it explicitly to decide yourself."
+"\"Auto\" leaves the decision to the model — Claude then never thinks, and other "
+"models only sometimes. Set it explicitly to decide yourself."
 msgstr ""
-"„Auto“ überlässt die Entscheidung dem Modell — Claude denkt dann nie, "
-"andere Modelle nur manchmal. Setze den Wert explizit, um selbst zu "
-"entscheiden."
+"„Auto“ überlässt die Entscheidung dem Modell — Claude denkt dann nie, andere Modelle "
+"nur manchmal. Setze den Wert explizit, um selbst zu entscheiden."
 
 #: app_ui/pages/settings.py:478
 msgid "Thinking budget in tokens (Anthropic backend, 0 = 4096)"
@@ -2127,11 +2200,11 @@ msgstr "Denk-Budget in Token (Anthropic-Backend, 0 = 4096)"
 
 #: app_ui/pages/settings.py:487
 msgid ""
-"With thinking ON the Anthropic backend runs at temperature 1 — the API "
-"allows no other value."
+"With thinking ON the Anthropic backend runs at temperature 1 — the API allows no "
+"other value."
 msgstr ""
-"Mit Denken AN läuft das Anthropic-Backend bei Temperatur 1 — die API "
-"lässt keinen anderen Wert zu."
+"Mit Denken AN läuft das Anthropic-Backend bei Temperatur 1 — die API lässt keinen "
+"anderen Wert zu."
 
 #: app_ui/pages/settings.py:492
 msgid "⚠ Qwen3 thinking-loop risk at temp. < 0.5 — recommended: ≥ 0.6"
@@ -2143,13 +2216,12 @@ msgstr "Modell kann Tools nutzen"
 
 #: app_ui/pages/settings.py:507
 msgid ""
-"Off: this model is never offered tools. Use for models that cannot call "
-"them reliably — better a model that says it does not know than one that "
-"invents an answer."
+"Off: this model is never offered tools. Use for models that cannot call them reliably"
+" — better a model that says it does not know than one that invents an answer."
 msgstr ""
-"Aus: Diesem Modell werden nie Tools angeboten. Für Modelle, die sie nicht"
-" zuverlässig aufrufen — besser ein Modell, das sagt, dass es nichts weiß,"
-" als eines, das eine Antwort erfindet."
+"Aus: Diesem Modell werden nie Tools angeboten. Für Modelle, die sie nicht zuverlässig"
+" aufrufen — besser ein Modell, das sagt, dass es nichts weiß, als eines, das eine "
+"Antwort erfindet."
 
 #: app_ui/pages/settings.py:514
 msgid "Require a tool for personal questions"
@@ -2157,13 +2229,13 @@ msgstr "Tool bei persönlichen Fragen erzwingen"
 
 #: app_ui/pages/settings.py:519
 msgid ""
-"For questions about your own documents, emails or purchases, the first "
-"request already demands a tool call. Switch on for models that answer "
-"such questions from memory."
+"For questions about your own documents, emails or purchases, the first request "
+"already demands a tool call. Switch on for models that answer such questions from "
+"memory."
 msgstr ""
-"Bei Fragen zu eigenen Dokumenten, Mails oder Käufen verlangt schon die "
-"erste Anfrage einen Tool-Aufruf. Für Modelle einschalten, die solche "
-"Fragen aus dem Gedächtnis beantworten."
+"Bei Fragen zu eigenen Dokumenten, Mails oder Käufen verlangt schon die erste Anfrage "
+"einen Tool-Aufruf. Für Modelle einschalten, die solche Fragen aus dem Gedächtnis "
+"beantworten."
 
 #: app_ui/pages/settings.py:531 werkbank/ui/archetype_dialog.py:114
 msgid "Name must not be empty."
@@ -2199,18 +2271,16 @@ msgstr "Modell gelöscht."
 
 #: app_ui/pages/settings.py:684
 msgid ""
-"Models appear in dropdowns in the configured order.<br><b>OpenAI-"
-"compatible</b>: Ollama (<code>http://host:11434/v1</code>), MiniMax, "
-"Moonshot, …<br><b>Anthropic-compatible</b>: Anthropic API, MiniMax "
-"(<code>https://api.minimaxi.chat/v1</code>) and other providers with an "
-"Anthropic-compatible endpoint."
+"Models appear in dropdowns in the configured order.<br><b>OpenAI-compatible</b>: "
+"Ollama (<code>http://host:11434/v1</code>), MiniMax, Moonshot, …<br><b>Anthropic-"
+"compatible</b>: Anthropic API, MiniMax (<code>https://api.minimaxi.chat/v1</code>) "
+"and other providers with an Anthropic-compatible endpoint."
 msgstr ""
-"Modelle werden in der eingestellten Reihenfolge in Dropdowns "
-"angezeigt.<br><b>OpenAI-kompatibel</b>: Ollama "
-"(<code>http://host:11434/v1</code>), MiniMax, Moonshot, …<br><b"
-">Anthropic-kompatibel</b>: Anthropic API, MiniMax "
-"(<code>https://api.minimaxi.chat/v1</code>) und andere Anbieter mit "
-"Anthropic-kompatiblem Endpunkt."
+"Modelle werden in der eingestellten Reihenfolge in Dropdowns angezeigt.<br><b>OpenAI-"
+"kompatibel</b>: Ollama (<code>http://host:11434/v1</code>), MiniMax, Moonshot, "
+"…<br><b>Anthropic-kompatibel</b>: Anthropic API, MiniMax "
+"(<code>https://api.minimaxi.chat/v1</code>) und andere Anbieter mit Anthropic-"
+"kompatiblem Endpunkt."
 
 #: app_ui/pages/settings.py:695
 msgid "Processing new documents"
@@ -2240,26 +2310,23 @@ msgstr "Modell-ID: {model}"
 
 #: app_ui/pages/settings.py:745
 msgid ""
-"Any model <b>with image processing</b> from <i>AI models</i> — a local "
-"one via Ollama (qwen2.5-vl, qwen3.6, llava …) or a cloud one (Claude, "
-"GPT, MiniMax …). A model without vision will fail on the first page."
+"Any model <b>with image processing</b> from <i>AI models</i> — a local one via Ollama"
+" (qwen2.5-vl, qwen3.6, llava …) or a cloud one (Claude, GPT, MiniMax …). A model "
+"without vision will fail on the first page."
 msgstr ""
-"Beliebiges Modell <b>mit Bildverarbeitung</b> aus <i>KI-Modelle</i> — "
-"lokal über Ollama (qwen2.5-vl, qwen3.6, llava …) oder in der Cloud "
-"(Claude, GPT, MiniMax …). Ein Modell ohne Vision scheitert an der ersten "
-"Seite."
+"Beliebiges Modell <b>mit Bildverarbeitung</b> aus <i>KI-Modelle</i> — lokal über "
+"Ollama (qwen2.5-vl, qwen3.6, llava …) oder in der Cloud (Claude, GPT, MiniMax …). Ein"
+" Modell ohne Vision scheitert an der ersten Seite."
 
 #: app_ui/pages/settings.py:753
 msgid "No-ingest tag"
 msgstr "Kein-Ingest-Tag"
 
 #: app_ui/pages/settings.py:757
-msgid ""
-"Documents with this Paperless tag are <b>not</b> embedded into ChromaDB "
-"during sync."
+msgid "Documents with this Paperless tag are <b>not</b> embedded into ChromaDB during sync."
 msgstr ""
-"Dokumente mit diesem Paperless-Tag werden beim Sync <b>nicht</b> in "
-"ChromaDB eingebettet."
+"Dokumente mit diesem Paperless-Tag werden beim Sync <b>nicht</b> in ChromaDB "
+"eingebettet."
 
 #: app_ui/pages/settings.py:772
 msgid "Extraction profile"
@@ -2267,18 +2334,16 @@ msgstr "Extraktions-Profil"
 
 #: app_ui/pages/settings.py:777
 msgid ""
-"Which set of per-document-type extraction prompts to use. This follows "
-"the <b>names of your document types in Paperless</b>, not the language of"
-" the documents themselves — an English invoice filed as <i>Rechnung</i> "
-"still matches the <code>de</code> rules. <code>de</code> covers ~46 "
-"German legal/administrative types, <code>en</code> ~13 common "
-"international ones."
+"Which set of per-document-type extraction prompts to use. This follows the <b>names "
+"of your document types in Paperless</b>, not the language of the documents themselves"
+" — an English invoice filed as <i>Rechnung</i> still matches the <code>de</code> "
+"rules. <code>de</code> covers ~46 German legal/administrative types, <code>en</code> "
+"~13 common international ones."
 msgstr ""
-"Welcher Satz von Extraktions-Prompts pro Dokumenttyp verwendet wird. Das "
-"richtet sich nach den <b>Namen deiner Dokumenttypen in Paperless</b>, "
-"nicht nach der Sprache der Dokumente selbst — eine englische Rechnung, "
-"die als <i>Rechnung</i> abgelegt ist, trifft weiterhin die "
-"<code>de</code>-Regeln. <code>de</code> deckt ~46 deutsche "
+"Welcher Satz von Extraktions-Prompts pro Dokumenttyp verwendet wird. Das richtet sich"
+" nach den <b>Namen deiner Dokumenttypen in Paperless</b>, nicht nach der Sprache der "
+"Dokumente selbst — eine englische Rechnung, die als <i>Rechnung</i> abgelegt ist, "
+"trifft weiterhin die <code>de</code>-Regeln. <code>de</code> deckt ~46 deutsche "
 "Rechts-/Verwaltungstypen ab, <code>en</code> ~13 gängige internationale."
 
 #: app_ui/pages/settings.py:787
@@ -2287,15 +2352,14 @@ msgstr "Sprache generierter Zusammenfassungen"
 
 #: app_ui/pages/settings.py:792
 msgid ""
-"Summaries and image descriptions are written in this language, whatever "
-"the document's own language is — that keeps every summary searchable with"
-" the same query language. The extracted page text is always kept verbatim"
-" in the original language."
+"Summaries and image descriptions are written in this language, whatever the "
+"document's own language is — that keeps every summary searchable with the same query "
+"language. The extracted page text is always kept verbatim in the original language."
 msgstr ""
-"Zusammenfassungen und Bildbeschreibungen werden in dieser Sprache "
-"verfasst, unabhängig von der Sprache des Dokuments — so bleibt jede "
-"Zusammenfassung mit derselben Suchsprache auffindbar. Der extrahierte "
-"Seitentext bleibt immer wortgetreu in der Originalsprache."
+"Zusammenfassungen und Bildbeschreibungen werden in dieser Sprache verfasst, "
+"unabhängig von der Sprache des Dokuments — so bleibt jede Zusammenfassung mit "
+"derselben Suchsprache auffindbar. Der extrahierte Seitentext bleibt immer wortgetreu "
+"in der Originalsprache."
 
 #: app_ui/pages/settings.py:805
 msgid "No model selected."
@@ -2327,13 +2391,13 @@ msgstr "Gedächtnis-Hint Ähnlichkeitsschwelle (0–1)"
 
 #: app_ui/pages/settings.py:853
 msgid ""
-"Cosine similarity: higher value = stricter filter. Distances are shown in"
-" the tool log as <code>[0.XX]</code> — a hint appears only when distance "
-"≤ <code>1 − threshold</code>."
+"Cosine similarity: higher value = stricter filter. Distances are shown in the tool "
+"log as <code>[0.XX]</code> — a hint appears only when distance ≤ <code>1 − "
+"threshold</code>."
 msgstr ""
-"Cosine-Ähnlichkeit: Höherer Wert = strengerer Filter. Distances werden im"
-" Tool-Log als <code>[0.XX]</code> angezeigt — Hint erscheint nur wenn "
-"distance ≤ <code>1 − Schwelle</code>."
+"Cosine-Ähnlichkeit: Höherer Wert = strengerer Filter. Distances werden im Tool-Log "
+"als <code>[0.XX]</code> angezeigt — Hint erscheint nur wenn distance ≤ <code>1 − "
+"Schwelle</code>."
 
 #: app_ui/pages/settings.py:858
 msgid "Memory hint window factor (≥ 1.0)"
@@ -2342,11 +2406,11 @@ msgstr "Gedächtnis-Hint Fenster-Faktor (≥ 1.0)"
 #: app_ui/pages/settings.py:864
 #, python-format
 msgid ""
-"Maximum distance relative to the best match. 1.0 = best match only; 1.5 ="
-" up to 50 % short of the best."
+"Maximum distance relative to the best match. 1.0 = best match only; 1.5 = up to 50 % "
+"short of the best."
 msgstr ""
-"Maximaler Abstand relativ zum besten Treffer. 1.0 = nur der beste "
-"Treffer; 1.5 = bis 50 % schlechter als der beste."
+"Maximaler Abstand relativ zum besten Treffer. 1.0 = nur der beste Treffer; 1.5 = bis "
+"50 % schlechter als der beste."
 
 #: app_ui/pages/settings.py:879
 msgid "Search settings saved."
@@ -2371,15 +2435,14 @@ msgstr "Modell für Gedächtnis-Bereinigung"
 
 #: app_ui/pages/settings.py:912
 msgid ""
-"Used for two things: tidying up memory entries, and reviewing the "
-"deadlines found during sync — junk and duplicates are dropped before they"
-" reach the dashboard. Can be a local or a cloud model. <b>Without a model"
-" here, deadline review is skipped.</b>"
+"Used for two things: tidying up memory entries, and reviewing the deadlines found "
+"during sync — junk and duplicates are dropped before they reach the dashboard. Can be"
+" a local or a cloud model. <b>Without a model here, deadline review is skipped.</b>"
 msgstr ""
-"Wird für zwei Dinge genutzt: Aufräumen der Gedächtnis-Einträge und Prüfen"
-" der beim Sync gefundenen Fristen — Unsinn und Duplikate werden "
-"verworfen, bevor sie im Dashboard landen. Lokales oder Cloud-Modell "
-"möglich. <b>Ohne Modell hier entfällt die Fristen-Prüfung.</b>"
+"Wird für zwei Dinge genutzt: Aufräumen der Gedächtnis-Einträge und Prüfen der beim "
+"Sync gefundenen Fristen — Unsinn und Duplikate werden verworfen, bevor sie im "
+"Dashboard landen. Lokales oder Cloud-Modell möglich. <b>Ohne Modell hier entfällt die"
+" Fristen-Prüfung.</b>"
 
 #: app_ui/pages/settings.py:927
 msgid "Applies to newly found deadlines; existing verdicts are kept."
@@ -2407,15 +2470,13 @@ msgstr "Passwort / App-Passwort"
 
 #: app_ui/pages/settings.py:970
 msgid ""
-"<b style='color:#a78bfa'>Gmail:</b> IMAP must be enabled (Gmail → "
-"Settings → Forwarding and POP/IMAP). Password = Google <b>app "
-"password</b> (2FA must be active): Google Account → Security → App "
-"passwords."
+"<b style='color:#a78bfa'>Gmail:</b> IMAP must be enabled (Gmail → Settings → "
+"Forwarding and POP/IMAP). Password = Google <b>app password</b> (2FA must be active):"
+" Google Account → Security → App passwords."
 msgstr ""
-"<b style='color:#a78bfa'>Gmail:</b> IMAP muss aktiviert sein (Gmail → "
-"Einstellungen → Weiterleitung und POP/IMAP). Passwort = Google <b>App-"
-"Passwort</b> (2FA muss aktiv sein): Google-Konto → Sicherheit → App-"
-"Passwörter."
+"<b style='color:#a78bfa'>Gmail:</b> IMAP muss aktiviert sein (Gmail → Einstellungen →"
+" Weiterleitung und POP/IMAP). Passwort = Google <b>App-Passwort</b> (2FA muss aktiv "
+"sein): Google-Konto → Sicherheit → App-Passwörter."
 
 #: app_ui/pages/settings.py:992 app_ui/pages/settings.py:1095
 msgid "Test connection"
@@ -2455,16 +2516,15 @@ msgstr "Kalender 3 – iCal-URL (optional)"
 
 #: app_ui/pages/settings.py:1038
 msgid ""
-"<b style='color:#a78bfa'>Google Calendar:</b> Calendar settings &rarr; "
-"[select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy"
-" URL.<br>The URL contains a secret token — it works without a "
-"password.<br>Up to 3 calendars are searched in parallel."
+"<b style='color:#a78bfa'>Google Calendar:</b> Calendar settings &rarr; [select "
+"calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy URL.<br>The URL "
+"contains a secret token — it works without a password.<br>Up to 3 calendars are "
+"searched in parallel."
 msgstr ""
-"<b style='color:#a78bfa'>Google Kalender:</b> Kalender-Einstellungen "
-"&rarr; [Kalender auswählen] &rarr; <i>Privatadresse im iCal-Format</i> "
-"&rarr; URL kopieren.<br>Die URL enthält ein geheimes Token — sie "
-"funktioniert ohne Passwort.<br>Bis zu 3 Kalender werden parallel "
-"durchsucht."
+"<b style='color:#a78bfa'>Google Kalender:</b> Kalender-Einstellungen &rarr; [Kalender"
+" auswählen] &rarr; <i>Privatadresse im iCal-Format</i> &rarr; URL kopieren.<br>Die "
+"URL enthält ein geheimes Token — sie funktioniert ohne Passwort.<br>Bis zu 3 Kalender"
+" werden parallel durchsucht."
 
 #: app_ui/pages/settings.py:1045
 msgid "CalDAV URL"
@@ -2472,15 +2532,13 @@ msgstr "CalDAV-URL"
 
 #: app_ui/pages/settings.py:1058
 msgid ""
-"<b style='color:#a78bfa'>iCloud:</b> "
-"<code>https://caldav.icloud.com/</code>, app-specific password.<br><b "
-"style='color:#a78bfa'>Nextcloud:</b> copy the remote URL from the "
-"calendar app."
+"<b style='color:#a78bfa'>iCloud:</b> <code>https://caldav.icloud.com/</code>, app-"
+"specific password.<br><b style='color:#a78bfa'>Nextcloud:</b> copy the remote URL "
+"from the calendar app."
 msgstr ""
-"<b style='color:#a78bfa'>iCloud:</b> "
-"<code>https://caldav.icloud.com/</code>, App-spezifisches Passwort.<br><b"
-" style='color:#a78bfa'>Nextcloud:</b> Remote-URL aus Kalender-App "
-"kopieren."
+"<b style='color:#a78bfa'>iCloud:</b> <code>https://caldav.icloud.com/</code>, App-"
+"spezifisches Passwort.<br><b style='color:#a78bfa'>Nextcloud:</b> Remote-URL aus "
+"Kalender-App kopieren."
 
 #: app_ui/pages/settings.py:1081
 msgid "No URL entered"
@@ -2549,11 +2607,11 @@ msgstr "Tag: KI-generiert"
 
 #: app_ui/pages/settings.py:1198
 msgid ""
-"Tags must exist in Paperless. Correspondent and document type are created"
-" automatically if missing."
+"Tags must exist in Paperless. Correspondent and document type are created "
+"automatically if missing."
 msgstr ""
-"Tags müssen in Paperless existieren. Korrespondent und Dokumententyp "
-"werden automatisch angelegt, falls nicht vorhanden."
+"Tags müssen in Paperless existieren. Korrespondent und Dokumententyp werden "
+"automatisch angelegt, falls nicht vorhanden."
 
 #: app_ui/pages/settings.py:1207
 msgid "Tags saved."
@@ -2573,12 +2631,11 @@ msgstr "Deine Anweisungen"
 
 #: app_ui/pages/settings.py:1226
 msgid ""
-"Example: My archive is mostly invoices from tradespeople. Invoice numbers"
-" look like RE-2026-0142. Answer briefly and put amounts in a table."
+"Example: My archive is mostly invoices from tradespeople. Invoice numbers look like "
+"RE-2026-0142. Answer briefly and put amounts in a table."
 msgstr ""
-"Beispiel: Mein Archiv besteht überwiegend aus Handwerkerrechnungen. "
-"Rechnungsnummern sehen aus wie RE-2026-0142. Antworte knapp und stelle "
-"Beträge in einer Tabelle dar."
+"Beispiel: Mein Archiv besteht überwiegend aus Handwerkerrechnungen. Rechnungsnummern "
+"sehen aus wie RE-2026-0142. Antworte knapp und stelle Beträge in einer Tabelle dar."
 
 #: app_ui/pages/settings.py:1241
 #, python-brace-format
@@ -2587,26 +2644,25 @@ msgstr "{used} / {max} Zeichen"
 
 #: app_ui/pages/settings.py:1259
 msgid ""
-"Added to the end of the chat system prompt, so it applies to every "
-"conversation. Good for describing your archive — the kinds of documents "
-"in it, your correspondents, how your reference numbers look — and for how"
-" you want answers written. It cannot switch tools on or off, and it "
-"cannot override the rules that keep the assistant from inventing document"
-" IDs, amounts or dates."
+"Added to the end of the chat system prompt, so it applies to every conversation. Good"
+" for describing your archive — the kinds of documents in it, your correspondents, how"
+" your reference numbers look — and for how you want answers written. It cannot switch"
+" tools on or off, and it cannot override the rules that keep the assistant from "
+"inventing document IDs, amounts or dates."
 msgstr ""
 "Wird an das Ende des Chat-System-Prompts angehängt und gilt damit für jede "
 "Unterhaltung. Gut geeignet, um dein Archiv zu beschreiben — welche Arten von "
-"Dokumenten darin liegen, deine Korrespondenten, wie deine Referenznummern "
-"aussehen — und wie Antworten formuliert sein sollen. Werkzeuge lassen sich "
-"damit nicht ein- oder ausschalten, und die Regeln, die den Assistenten davon "
-"abhalten, Dokument-IDs, Beträge oder Daten zu erfinden, können nicht "
-"außer Kraft gesetzt werden."
+"Dokumenten darin liegen, deine Korrespondenten, wie deine Referenznummern aussehen — "
+"und wie Antworten formuliert sein sollen. Werkzeuge lassen sich damit nicht ein- oder"
+" ausschalten, und die Regeln, die den Assistenten davon abhalten, Dokument-IDs, "
+"Beträge oder Daten zu erfinden, können nicht außer Kraft gesetzt werden."
 
 #: app_ui/pages/settings.py:1277
 #, python-brace-format
 msgid "Saved, but only the first {max} characters are sent to the model."
 msgstr ""
 "Gespeichert, aber nur die ersten {max} Zeichen werden an das Modell "
+"gesendet.Gespeichert, aber nur die ersten {max} Zeichen werden an das Modell "
 "geschickt."
 
 #: app_ui/pages/settings.py:1282
@@ -2692,16 +2748,15 @@ msgstr "Passwörter und API-Schlüssel einschließen"
 
 #: app_ui/pages/settings.py:1408
 msgid ""
-"Without this option the export contains no secrets; on import the "
-"existing passwords and keys are kept. <b style='color:#f87171'>With it, "
-"the string contains your API keys, IMAP/CalDAV passwords and iCal URLs in"
-" plain text</b> — treat it like a password."
+"Without this option the export contains no secrets; on import the existing passwords "
+"and keys are kept. <b style='color:#f87171'>With it, the string contains your API "
+"keys, IMAP/CalDAV passwords and iCal URLs in plain text</b> — treat it like a "
+"password."
 msgstr ""
-"Ohne diese Option enthält der Export keine Geheimnisse; beim Import "
-"bleiben die vorhandenen Passwörter und Schlüssel erhalten. <b "
-"style='color:#f87171'>Mit ihr steht in der Zeichenkette deine API-"
-"Schlüssel, IMAP-/CalDAV-Passwörter und iCal-URLs im Klartext</b> — "
-"behandle sie wie ein Passwort."
+"Ohne diese Option enthält der Export keine Geheimnisse; beim Import bleiben die "
+"vorhandenen Passwörter und Schlüssel erhalten. <b style='color:#f87171'>Mit ihr steht"
+" in der Zeichenkette deine API-Schlüssel, IMAP-/CalDAV-Passwörter und iCal-URLs im "
+"Klartext</b> — behandle sie wie ein Passwort."
 
 #: app_ui/pages/settings.py:1416
 msgid "Export string"
@@ -2721,11 +2776,11 @@ msgstr "Kopieren"
 
 #: app_ui/pages/settings.py:1456
 msgid ""
-"The copy button needs HTTPS or localhost. Otherwise select the text in "
-"the field and copy it manually."
+"The copy button needs HTTPS or localhost. Otherwise select the text in the field and "
+"copy it manually."
 msgstr ""
-"Der Kopieren-Knopf braucht HTTPS oder localhost. Sonst den Text im Feld "
-"markieren und von Hand kopieren."
+"Der Kopieren-Knopf braucht HTTPS oder localhost. Sonst den Text im Feld markieren und"
+" von Hand kopieren."
 
 #: app_ui/pages/settings.py:1464
 msgid "Paste export string here"
@@ -2747,12 +2802,9 @@ msgstr "Diese Einstellungen übernehmen?"
 #: app_ui/pages/settings.py:1491
 msgid "The export contains no secrets — existing passwords and API keys are kept."
 msgstr ""
-"Der Export enthält keine Geheimnisse — vorhandene Passwörter und API-"
-"Schlüssel bleiben erhalten."
-
-#: app_ui/pages/settings.py:1497
-msgid "Apply"
-msgstr "Übernehmen"
+"Der Export enthält keine Geheimnisse – vorhandene Passwörter und API-Schlüssel "
+"bleiben erhalten.Der Export enthält keine Geheimnisse — vorhandene Passwörter und "
+"API-Schlüssel bleiben erhalten."
 
 #: app_ui/pages/settings.py:1514
 msgid "Settings imported."
@@ -2764,13 +2816,13 @@ msgstr "Importieren"
 
 #: app_ui/pages/settings.py:1523
 msgid ""
-"Import overwrites the sections contained in the string. Global settings "
-"(processing, tags, search, deep research) are <b>not</b> part of the "
-"export — they apply to all users."
+"Import overwrites the sections contained in the string. Global settings (processing, "
+"tags, search, deep research) are <b>not</b> part of the export — they apply to all "
+"users."
 msgstr ""
-"Der Import überschreibt die in der Zeichenkette enthaltenen Abschnitte. "
-"Globale Einstellungen (Verarbeitung, Tags, Suche, Tiefenrecherche) sind "
-"<b>nicht</b> Teil des Exports — sie gelten für alle Nutzer."
+"Der Import überschreibt die in der Zeichenkette enthaltenen Abschnitte. Globale "
+"Einstellungen (Verarbeitung, Tags, Suche, Tiefenrecherche) sind <b>nicht</b> Teil des"
+" Exports — sie gelten für alle Nutzer."
 
 #: app_ui/pages/settings.py:1535
 msgid "Vault / Obsidian synchronization"
@@ -2790,16 +2842,15 @@ msgstr "Gedächtnis-Unterordner (Brain)"
 
 #: app_ui/pages/settings.py:1553
 msgid ""
-"<b>Obsidian / Remotely Save:</b> point synchronization at the vault "
-"directory above.<br>Exclude <code>.git/</code> client-side in Remotely "
-"Save (Settings → Remotely Save → exclude list: <code>.git</code>) so the "
-"server-side Git repo is not propagated to devices."
+"<b>Obsidian / Remotely Save:</b> point synchronization at the vault directory "
+"above.<br>Exclude <code>.git/</code> client-side in Remotely Save (Settings → "
+"Remotely Save → exclude list: <code>.git</code>) so the server-side Git repo is not "
+"propagated to devices."
 msgstr ""
-"<b>Obsidian / Remotely Save:</b> Synchronisation auf das Vault-"
-"Verzeichnis oben zeigen lassen.<br><code>.git/</code> in Remotely Save "
-"clientseitig ausschließen (Einstellungen → Remotely Save → Exclude-Liste:"
-" <code>.git</code>), damit das Server-seitige Git-Repo nicht auf Geräte "
-"propagiert wird."
+"<b>Obsidian / Remotely Save:</b> Synchronisation auf das Vault-Verzeichnis oben "
+"zeigen lassen.<br><code>.git/</code> in Remotely Save clientseitig ausschließen "
+"(Einstellungen → Remotely Save → Exclude-Liste: <code>.git</code>), damit das Server-"
+"seitige Git-Repo nicht auf Geräte propagiert wird."
 
 #: app_ui/pages/settings.py:1569
 msgid "Reindexing vault …"
@@ -2830,24 +2881,23 @@ msgstr "Vault neu indizieren"
 
 #: app_ui/pages/settings.py:1600
 msgid ""
-"Deletes this user's entries in both collections and embeds every Markdown"
-" file again. Runs automatically after an update that changes the "
-"embedding format; use it manually when search results look wrong."
+"Deletes this user's entries in both collections and embeds every Markdown file again."
+" Runs automatically after an update that changes the embedding format; use it "
+"manually when search results look wrong."
 msgstr ""
-"Löscht die Einträge dieses Nutzers in beiden Collections und bettet jede "
-"Markdown-Datei neu ein. Läuft nach einem Update, das das Embedding-Format"
-" ändert, automatisch; manuell nutzen, wenn Suchergebnisse falsch wirken."
+"Löscht die Einträge dieses Nutzers in beiden Collections und bettet jede Markdown-"
+"Datei neu ein. Läuft nach einem Update, das das Embedding-Format ändert, automatisch;"
+" manuell nutzen, wenn Suchergebnisse falsch wirken."
 
 #: app_ui/pages/settings.py:1609
 msgid ""
-"Credentials are stored encrypted and are accessible only to your "
-"Paperless user account. The key is your current Paperless token — if you "
-"regenerate it in Paperless, you must re-enter the settings."
+"Credentials are stored encrypted and are accessible only to your Paperless user "
+"account. The key is your current Paperless token — if you regenerate it in Paperless,"
+" you must re-enter the settings."
 msgstr ""
-"Zugangsdaten werden verschlüsselt gespeichert und sind nur für dein "
-"Paperless-Benutzerkonto zugänglich. Der Schlüssel ist dein aktuelles "
-"Paperless-Token — wenn du es in Paperless regenerierst, musst du die "
-"Einstellungen neu eingeben."
+"Zugangsdaten werden verschlüsselt gespeichert und sind nur für dein Paperless-"
+"Benutzerkonto zugänglich. Der Schlüssel ist dein aktuelles Paperless-Token — wenn du "
+"es in Paperless regenerierst, musst du die Einstellungen neu eingeben."
 
 #: services/chat_service.py:905
 msgid "🔍 Searching documents..."
@@ -3222,15 +3272,15 @@ msgid "Task not found."
 msgstr "Aufgabe nicht gefunden."
 
 #~ msgid ""
-#~ "Ollama model <b>with image processing</b> "
-#~ "(e.g. qwen2.5-vl, qwen3.6, llava). Must "
-#~ "be configured as an OpenAI-compatible"
-#~ " model under <i>AI models</i>."
+#~ "Ollama model <b>with image processing</b> (e.g. "
+#~ "qwen2.5-vl, qwen3.6, llava). Must be configured "
+#~ "as an OpenAI-compatible model under <i>AI "
+#~ "models</i>."
 #~ msgstr ""
-#~ "Ollama-Modell <b>mit Bildverarbeitung</b> "
-#~ "(z.B. qwen2.5-vl, qwen3.6, llava). Muss "
-#~ "im Bereich <i>KI-Modelle</i> als "
-#~ "OpenAI-kompatibles Modell konfiguriert sein."
+#~ "Ollama-Modell <b>mit Bildverarbeitung</b> (z.B. "
+#~ "qwen2.5-vl, qwen3.6, llava). Muss im Bereich "
+#~ "<i>KI-Modelle</i> als OpenAI-kompatibles Modell "
+#~ "konfiguriert sein."
 
 #~ msgid "Model for automatic cleanup of memory entries"
 #~ msgstr "Modell für automatische Bereinigung von Gedächtnis-Einträgen"
@@ -3249,4 +3299,106 @@ msgstr "Aufgabe nicht gefunden."
 
 #~ msgid "Max. tool calls"
 #~ msgstr "Max. Anzahl Toolaufrufe"
+
+#~ msgid "Really delete?"
+#~ msgstr "Wirklich löschen?"
+
+#~ msgid "Add fact"
+#~ msgstr "Fakt hinzufügen"
+
+#~ msgid "Fact"
+#~ msgstr "Tatsache"
+
+#~ msgid "The fact in a single clear sentence…"
+#~ msgstr "Die Tatsache in einem klaren Satz…"
+
+#~ msgid "Filename (topic)"
+#~ msgstr "Dateiname (Thema)"
+
+#~ msgid "e.g. Anna's birthday"
+#~ msgstr "z.B. Geburtstag Anna"
+
+#~ msgid "Topic only — stays stable even if the content changes."
+#~ msgstr "Nur das Thema — bleibt stabil auch wenn der Inhalt sich ändert."
+
+#~ msgid "Tags (comma-separated)"
+#~ msgstr "Tags (kommagetrennt)"
+
+#~ msgid "insurance, deadline, family"
+#~ msgstr "versicherung, frist, familie"
+
+#~ msgid "Confidence"
+#~ msgstr "Konfidenz"
+
+#~ msgid "Page"
+#~ msgstr "Seite"
+
+#~ msgid "Fact must not be empty."
+#~ msgstr "Tatsache darf nicht leer sein."
+
+#~ msgid "Add deadline"
+#~ msgstr "Frist hinzufügen"
+
+#~ msgid "Due on"
+#~ msgstr "Fällig am"
+
+#~ msgid "Date and description are required."
+#~ msgstr "Datum und Beschreibung sind erforderlich."
+
+#~ msgid "Edit deadline"
+#~ msgstr "Frist bearbeiten"
+
+#~ msgid "Edit fact"
+#~ msgstr "Fakt bearbeiten"
+
+#~ msgid "Manual deadlines"
+#~ msgstr "Manuelle Fristen"
+
+#~ msgid "Facts"
+#~ msgstr "Fakten"
+
+#~ msgid "Show shared facts from other users"
+#~ msgstr "Gemeinsame Fakten anderer Nutzer einblenden"
+
+#~ msgid "Show shared only"
+#~ msgstr "Nur gemeinsame anzeigen"
+
+#~ msgid "No facts found."
+#~ msgstr "Keine Fakten gefunden."
+
+#~ msgid "Doc #{id}"
+#~ msgstr "Dok. #{id}"
+
+#~ msgid "shared"
+#~ msgstr "gemeinsam"
+
+#~ msgid "from {user}"
+#~ msgstr "von {user}"
+
+#~ msgid "Make private"
+#~ msgstr "Gemeinsam aufheben"
+
+#~ msgid "Make visible to all"
+#~ msgstr "Für alle sichtbar machen"
+
+#~ msgid "No manual deadlines."
+#~ msgstr "Keine manuellen Fristen."
+
+#~ msgid "Toggle preview"
+#~ msgstr "Vorschau umschalten"
+
+#~ msgid ""
+#~ "The assistant's long-term memory: stored facts"
+#~ " about you, your contracts, vehicles and "
+#~ "preferences. The chat reads this information "
+#~ "automatically for matching requests. Use 'Dreaming'"
+#~ " (dashboard) to have the memory cleaned up"
+#~ " automatically."
+#~ msgstr ""
+#~ "Langzeitgedächtnis des Assistenten: gespeicherte Fakten"
+#~ " über dich, deine Verträge, Fahrzeuge und "
+#~ "Präferenzen. Der Chat liest diese Infos "
+#~ "automatisch bei passenden Anfragen. Über 'Träumen'"
+#~ " (Dashboard) kannst du das Gedächtnis automatisch"
+#~ " bereinigen lassen."
 

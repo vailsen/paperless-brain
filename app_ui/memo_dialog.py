@@ -177,6 +177,27 @@ def build_memo_dialog():
 
     state: dict = {"transcript": ""}
 
+    # Mode switch: one filled segment for the active mode, the other only
+    # outlined. Colour marks the active selection and nothing else, so two
+    # saturated halves would say "both are on".
+    ui.add_head_html("""<style>
+.memo-mode-toggle {
+  border: 1px solid var(--c-border); border-radius: 6px; overflow: hidden;
+  /* Quasar paints the active segment with `.bg-primary { background:
+     var(--q-primary) !important }`. Rebinding the variable on the container
+     beats that without an !important arms race — and follows the theme. */
+  --q-primary: var(--c-accent);
+}
+.memo-mode-toggle .q-btn {
+  background: transparent !important; color: var(--c-text-muted) !important;
+  font-size: 0.72rem; min-height: 26px; padding: 0 10px;
+}
+.memo-mode-toggle .q-btn:hover { color: var(--c-text-2) !important; }
+/* Quasar leaves toggle-color at "primary", so the active segment is the one
+   carrying .bg-primary — it picks up the rebound variable above. */
+.memo-mode-toggle .q-btn.bg-primary { color: #fff !important; }
+</style>""")
+
     with ui.dialog() as dialog, ui.card().classes("w-full max-w-xl gap-4 memo-card").style(
         "background:var(--c-surface); border:1px solid var(--c-border);"
     ):
@@ -186,12 +207,16 @@ def build_memo_dialog():
             )
             # Drives three things at once: speaker labels from the transcription
             # service, which rewrite prompt runs, and the length/size caps.
+            # No `color=` prop on purpose: on a QBtnToggle that paints the
+            # *unselected* segments (in Quasar's own Material purple, which is
+            # not the brand purple), so both halves end up filled with two
+            # clashing colours. Styling lives in CSS below, off theme tokens.
             mode_toggle = (
                 ui.toggle(
                     {"memo": _("Memo"), "conversation": _("Conversation")},
                     value="memo",
                 )
-                .props("dense unelevated no-caps color=purple")
+                .props("dense unelevated no-caps")
                 .classes("memo-mode-toggle")
             )
 

@@ -11,6 +11,7 @@ filename so the README picks it up with no edits.
 | `chat.png` | Chat | The archive chat with a cited answer — the hero image at the top of the README. | Static screenshot, ~820px+ wide. |
 | `dashboard.png` | Dashboard | The deadlines / actions overview populated with a few upcoming items. | |
 | `document-detail.png` | Document detail dialog | The per-document dialog open: vision-read page text, an extracted table, actions/deadlines, cross-references. | Pick a document with a table and at least one action so the extraction depth shows. |
+| `note-vault.png` | Note vault (`/brain`) | The folder tree with a note open, the Properties panel expanded (tags, `dont_ingest`), and the note rendered or in the editor. | Used twice in the README (gallery tile + the Note vault section), so one capture covers both. Pick a note with a heading and a list so the rendering shows; expand a folder so the tree does not look empty. Note that **filenames in the tree are readable** — rename or hide anything you would not publish. |
 | `demo.gif` | Deep research (recording) | A short clip of a multi-step research run — sub-tasks streaming, then the synthesized result. Full-width tile in the gallery. | See "Recording the GIF" below. Keep it ~10–15 s and under ~5 MB. |
 
 ## How to shoot

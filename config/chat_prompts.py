@@ -38,10 +38,11 @@ _CAPABILITIES: dict[str, str] = {
     "web": "Look up current information on the web",
     "calculate": "Perform calculations precisely via a calculation tool",
     "visual": "Visually analyze individual document pages (only on explicit request)",
-    "memory": "Store and retrieve facts and deadlines in long-term memory",
-    "vault": "Search the user's own notes (vault/Obsidian)",
+    "memory": "Store and retrieve facts and deadlines in your own long-term memory",
+    "vault": "Read the user's own notes (vault/Obsidian) — search only, no writing",
     "deep_research": "Start complex, multi-step tasks as an autonomous deep-research job in the background",
     "create": "Generate letters (DOCX), email templates and PDF archives in Paperless",
+    "document_notes": "Attach a comment to a Paperless document (create_note) — this writes on a DOCUMENT, never into the user's notes",
 }
 
 _BLOCKS: dict[str, str] = {
@@ -79,7 +80,9 @@ Web:
 - For time-critical questions (news, prices, current events): set time_range ('day'/'week'/'month') and pay attention to the publication dates of the hits. For international or technical topics: use language='en'.
 - For NEWS / current events set category='news' — returns real article links with dates instead of overview/home pages.""",
     "vault": """\
-Vault notes:
+Vault notes (READ-ONLY):
+- The user's notes are yours to READ, never to write. No tool creates, edits, appends to, renames or deletes a note. NEVER offer one ("shall I add that to your note?") — you cannot, and the offer is taken at face value. Instead name the note and say what to add, so the user can do it in the note editor or Obsidian, or offer remember_fact in your own memory.
+- Do not confuse the three stores: PAPERLESS documents (search, create_note = a comment on a document), YOUR memory (remember_fact / update_brain_fact / delete_brain_fact — yours to change), the USER's notes (vault_search — read-only).
 - vault_search has two modes: (1) 'query' for semantic search, (2) 'pbrain_id' to read a specific note COMPLETELY. The search results contain the pbrain_id of each note — use it with vault_search(pbrain_id=…) when you need to look at a note in detail.
 - Link ONLY notes that were actually returned by vault_search in THIS chat. Write the link EXACTLY as [title](vault:PBRAIN_ID) with the pbrain_id of PRECISELY that note from the search result. Example: [Gravel bike derailleur hanger](vault:1a2b3c4d-…).
 - NEVER reuse a pbrain_id for a different/imagined note name. If you merely MENTION or SUGGEST a note (e.g. "add that to your note travel log") that is NOT in the search results: write the name as plain text WITHOUT a link and WITHOUT a pbrain_id.
@@ -96,6 +99,7 @@ Deep research (autonomous background tasks) — mandatory rules:
 - Title: max. 6 words. Request: max. 6 sentences — only goal, context, known document IDs. No method prescriptions.""",
     "memory": """\
 Long-term memory — mandatory rules:
+- This memory is YOURS: remember_fact, update_brain_fact, delete_brain_fact and create_deadline change only your own store. They never touch the user's notes (read-only, see vault_search) and never a Paperless document (create_note is a comment on a document). When the user wants something "noted down" about themselves, their contracts or belongings, that is remember_fact — not a note and not a document comment.
 - When the user TELLS you a fact (e.g. "Anna is the daughter of...", "My car is...", "I live in..."), call remember_fact IMMEDIATELY — BEFORE the actual answer. Never wait for an explicit request.
 - When the user wants to store a DEADLINE / an APPOINTMENT / a DUE DATE (e.g. "remember as deadline …", "save as due date", "remind me about …", "the deadline for … is …"), ALWAYS call create_deadline (text + due in the format YYYY-MM-DD) — NOT remember_fact. Only ONE concrete date per deadline; with several variants (e.g. with/without tax advisor) ask the user which one to store, or take the most relevant deadline. That way it appears on the dashboard under deadlines.
 - When the user CORRECTS a statement (e.g. "That's not right", "Actually it is...", "That's wrong, ..."), first call search_memory, then correct the old fact with update_brain_fact OR call remember_fact with force=true and confidence=1.0. The corrected version MUST be stored.
@@ -105,7 +109,7 @@ Long-term memory — mandatory rules:
 # Deterministic order in which capability bullets / blocks are emitted.
 _GROUP_ORDER = [
     "documents", "visual", "calculate", "email", "calendar", "web",
-    "vault", "create", "deep_research", "memory",
+    "vault", "create", "document_notes", "deep_research", "memory",
 ]
 
 
