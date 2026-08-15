@@ -5,6 +5,43 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.7.2] — 2026-08-15
+
+**Dictation in chat sends itself.**
+
+With the transcription service selected as the chat microphone, you already
+wait for the round trip — and then the text sat in the input waiting for you to
+press send, which is a second wait for nothing. The transcript now goes straight
+to the model.
+
+That changes what the button is, so the button changed with it: press once to
+record, press again to stop. Hold-to-talk cannot survive auto-send — a finger
+sliding off the button would fire half a sentence at the model, and there is no
+unsend.
+
+### Changed
+
+- **Whisper dictation submits on its own.** Only for the transcription service:
+  browser dictation writes along while you speak, where "done" is not a moment
+  the browser can identify, so it still leaves the text for you to send.
+
+- **Click to record, click again to stop** — for the transcription service. The
+  microphone shows a stop icon while it records.
+
+- **The send button steps aside for the whole cycle**, recording and the
+  transcription wait alike, leaving the microphone as the only control: a send
+  press there can only post the half-written text the transcript is about to
+  replace. It stays put in one case — while an answer is streaming that same
+  button stops the stream, and taking that away would leave a running turn with
+  no way out.
+
+- Dictating while an answer is still streaming puts the transcript in the input
+  instead of dropping it.
+
+The chat microphone still inserts your words unchanged. The AI rewrite belongs
+to memos and stays there — it is a second model round trip on top of the slower
+half, and it has no business in a message you are composing as your own.
+
 ## [0.7.1] — 2026-08-15
 
 **A reminder in the wrong role broke every tool call on one model.**
@@ -645,6 +682,7 @@ across documents at a glance.
 First semantically versioned release. See the
 [release notes](https://github.com/vailsen/paperless-brain/releases/tag/v0.2.0).
 
+[0.7.2]: https://github.com/vailsen/paperless-brain/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/vailsen/paperless-brain/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/vailsen/paperless-brain/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/vailsen/paperless-brain/compare/v0.5.0...v0.6.0

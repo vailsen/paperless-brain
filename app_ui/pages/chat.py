@@ -1851,14 +1851,34 @@ async def chat():
     from app_ui.memo_dialog import speech_recognition_lang as _speech_lang
 
     _mic_labels = {
-        "recording": _("Recording — release to stop"),
+        "recording": _("Recording — press again to stop"),
         "working": _("Transcribing …"),
         "failed": _("Transcription failed."),
         "denied": _("Microphone access was denied."),
     }
+    # Whisper only answers after the round trip, so the user is already waiting
+    # when the text appears — making them then reach for send is a second wait
+    # for nothing. Dictation goes straight to the model. Only for this engine:
+    # Web Speech writes along while you speak, where "done" is not a moment the
+    # browser can identify.
+    def _mic_send(e) -> None:
+        text = ((e.args or "") if isinstance(e.args, str) else "").strip()
+        if not text:
+            return
+        if _s["running"]:
+            # A turn is already streaming, so this cannot be sent — but the user
+            # has spoken it and the textarea was deliberately not written to.
+            # Put it there rather than dropping it on the floor.
+            input_field.set_value(text)
+            return
+        _send_quick(text)
+
+    ui.on("chat_mic_send", _mic_send)
+
     ui.add_head_html(f"""<script>
 window.__pbWhisperAvailable = {json.dumps(bool(_memo_enabled()))};
 window.__pbWhisperMic = {json.dumps(bool(_memo_enabled()) and _mic_engine() == "whisper")};
+window.__pbMicAutoSend = {json.dumps(bool(_memo_enabled()) and _mic_engine() == "whisper")};
 window.__pbWhisperEndpoint = {json.dumps(_TRANSCRIBE_PATH)};
 window.__pbMicLabels = {json.dumps(_mic_labels)};
 window.__pbMicMaxMs = {_settings.memo_max_seconds * 1000};
@@ -1880,28 +1900,46 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
     }
     function getIcon(b) { return b.querySelector('.q-icon, i'); }
 
-    // ── Whisper: hold to record, transcribe server-side on release ───────────
+    // ── Whisper: click to record, click again to transcribe server-side ──────
     // The chat mic deliberately inserts the RAW transcript. The user is
     // composing their own message; running it through the memo rewrite would
-    // put words in their mouth.
+    // put words in their mouth — and the rewrite is a second model round trip
+    // on top of the transcription, which is the slower half already.
+    //
+    // Click-to-toggle, not hold-to-talk: with auto-send a finger sliding off
+    // the button would fire a half-sentence at the model, and there is no
+    // unsend. A second deliberate press is the stop signal.
     function initWhisper(btn) {
         var L = window.__pbMicLabels || {};
         var recorder = null, chunks = [], stream = null, timer = null, busy = false;
         var baseText = '';
 
+        // While the mic owns the input there is nothing to send: the message is
+        // still being spoken, and the transcript submits itself. A send button
+        // next to it can only post the half-written text it is about to
+        // replace, so it goes away for the whole cycle — recording and the
+        // transcribe wait alike — and comes back with the idle mic.
+        function setSendHidden(hidden) {
+            var b = document.querySelector('.chat-send-btn');
+            if (!b) return;
+            var ic = getIcon(b);
+            // Mid-turn the same button is the stop control for the stream.
+            // Hiding it would leave a running answer with no way to stop it.
+            if (hidden && ic && ic.textContent.trim() === 'stop') return;
+            b.style.display = hidden ? 'none' : '';
+        }
         function reset(iconName) {
             btn.classList.remove('mic-active');
             var ic = getIcon(btn);
             if (ic) ic.textContent = iconName || 'mic';
+            if (!iconName) setSendHidden(false);
         }
         function stop() {
             if (timer) { clearTimeout(timer); timer = null; }
             if (recorder && recorder.state === 'recording') recorder.stop();
         }
         async function start(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (busy || (recorder && recorder.state === 'recording')) return;
+            if (busy) return;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({audio: true});
             } catch (err) { reset(); return; }
@@ -1925,8 +1963,20 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                         method: 'POST', body: fd, credentials: 'same-origin'
                     });
                     var data = await resp.json().catch(function() { return {}; });
-                    var ta2 = getTextarea();
-                    if (resp.ok && data.text && ta2) setVueValue(ta2, baseText + data.text);
+                    if (resp.ok && data.text) {
+                        var full = baseText + data.text;
+                        if (window.__pbMicAutoSend) {
+                            // The transcript travels in the event, and the
+                            // textarea is left alone: writing it would race the
+                            // clear that sending performs — an input event that
+                            // lands after it puts the sent message back in the
+                            // box. The server clears whatever was typed.
+                            emitEvent('chat_mic_send', full);
+                        } else {
+                            var ta2 = getTextarea();
+                            if (ta2) setVueValue(ta2, full);
+                        }
+                    }
                 } catch (err) { /* transcript lost, typed text untouched */ }
                 busy = false;
                 reset();
@@ -1934,13 +1984,16 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
             recorder.start();
             btn.classList.add('mic-active');
             var ic = getIcon(btn);
-            if (ic) ic.textContent = 'mic_none';
+            if (ic) ic.textContent = 'stop';
+            setSendHidden(true);
             timer = setTimeout(stop, window.__pbMicMaxMs || 300000);
         }
-        btn.addEventListener('pointerdown', start);
-        btn.addEventListener('pointerup', stop);
-        btn.addEventListener('pointercancel', stop);
-        btn.addEventListener('pointerleave', stop);
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (recorder && recorder.state === 'recording') { stop(); return; }
+            start(e);
+        });
         btn.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     }
 

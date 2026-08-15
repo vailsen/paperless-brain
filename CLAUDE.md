@@ -249,7 +249,23 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
   `whisper` | `browser`, default `whisper`), because the two differ in kind, not only in
   quality: Web Speech streams interim words, Whisper answers only after the round trip.
   Whichever engine the browser cannot provide falls back to the other. Either way the chat
-  mic inserts the **raw** transcript — only the memo path runs the rewrite.
+  mic inserts the **raw** transcript — only the memo path runs the rewrite. The chat mic
+  must never call `/api/memo/rewrite`: it is a second model round trip on top of the
+  slower half, and it would put words in a message the user is composing as their own.
+- **Whisper dictation sends itself; browser dictation does not.** The user already waited
+  for the round trip, so `chat_mic_engine == "whisper"` submits the transcript the moment
+  it arrives (`__pbMicAutoSend`). Web Speech has no such moment — it streams while you
+  speak — so it leaves the text in the input. Two consequences, both load-bearing:
+  - The transcript travels in the `chat_mic_send` event, and the auto-send path **never
+    writes the textarea**. A Vue input event that lands after `do_send()`'s clear would
+    put the sent message back in the box.
+  - Whisper's mic is **click-to-toggle, not hold-to-talk**. With auto-send, a `pointerleave`
+    stop (a finger sliding off) would fire half a sentence at the model, and there is no
+    unsend.
+  - **The send button is hidden for the whole cycle** — recording and the transcribe wait —
+    leaving the mic as the only control, since a send press there can only post the text the
+    transcript is about to replace. One exception, checked at hide time: mid-turn that same
+    button is the stream's stop control, and it must never be taken away.
 - **Transcription and rewrite are separate phases with separate routes**
   (`/api/memo/transcribe`, `/api/memo/rewrite`). Not for the server's sake — so the status
   line can say which of the two waits the user is in. One request for both would leave it

@@ -164,13 +164,16 @@ def voice_memo_setting(username: str = "", token: str = "") -> None:
         _(
             "Which engine the microphone button in the chat input uses. The "
             "<b>transcription service</b> recognises far better, especially for "
-            "names and numbers, but shows nothing until you release the button "
-            "and the recording has been sent off. <b>Browser dictation</b> (Web "
-            "Speech API) writes along while you speak and needs no round trip, "
-            "but is noticeably less accurate — and Firefox does not offer it at "
-            "all, in which case the transcription service is used anyway. "
-            "Either way the chat mic inserts your words unchanged; only memos "
-            "are tidied up by AI. Reload the page after changing this."
+            "names and numbers: press once to record, press again to stop, and "
+            "the recognised text is <b>sent to the model straight away</b> — "
+            "nothing appears while you are still speaking. <b>Browser "
+            "dictation</b> (Web Speech API) writes along as you speak and needs "
+            "no round trip, so it leaves the text in the input for you to edit "
+            "and send yourself; it is noticeably less accurate, and Firefox "
+            "does not offer it at all, in which case the transcription service "
+            "is used anyway. Either way the chat mic inserts your words "
+            "unchanged; only memos are tidied up by AI. Reload the page after "
+            "changing this."
         )
     )
 
