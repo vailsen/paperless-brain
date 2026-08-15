@@ -3047,6 +3047,23 @@ def _last_user_text(messages: list[dict]) -> str:
     return ""
 
 
+def _api_error_text(body: str) -> str:
+    """Pull the human-readable message out of an OpenAI-style error body.
+
+    Both shapes are in the wild: {"error": {"message": ...}} (OpenAI, Ollama)
+    and {"error": "..."} (Ollama's native endpoint, several gateways).
+    """
+    try:
+        err = (json.loads(body) or {}).get("error")
+    except (json.JSONDecodeError, ValueError, AttributeError):
+        return body.strip()[:500]
+    if isinstance(err, dict):
+        return str(err.get("message") or err)[:500]
+    if err:
+        return str(err)[:500]
+    return body.strip()[:500]
+
+
 _TOOL_REMINDER = (
     "Reminder: statements about this user's documents, emails, purchases, "
     "appointments or other personal facts may only be based on tool results. "
@@ -3168,7 +3185,13 @@ class OpenAICompatibleChatBackend:
                 ) as resp:
                     if resp.status_code >= 400:
                         await resp.aread()
-                        resp.raise_for_status()
+                        # httpx's own message is only status + URL, which hides
+                        # the one useful part: the server says *why* it refused
+                        # (bad payload shape, model not found, context overflow).
+                        raise RuntimeError(
+                            f"{resp.status_code} from {self.base_url}: "
+                            f"{_api_error_text(resp.text)}"
+                        )
 
                     async for raw_line in resp.aiter_lines():
                         line = raw_line.strip()
@@ -3302,7 +3325,10 @@ class OpenAICompatibleChatBackend:
                         "tool call — retrying with tool_choice=required",
                         self.model,
                     )
-                    working.append({"role": "system", "content": _TOOL_REMINDER})
+                    # Role "user", not "system": Ollama's OpenAI-compatible
+                    # endpoint rejects a system message anywhere but position 0
+                    # with a 500 ("system message must be at the beginning").
+                    working.append({"role": "user", "content": _TOOL_REMINDER})
                     continue
                 if content:
                     yield TextTokenEvent(content)
@@ -3373,11 +3399,14 @@ class OpenAICompatibleChatBackend:
             # Last thing before the model writes its answer — see
             # answer_language_reminder(): the rule is in the system prompt, but
             # a German document summary sitting right here outweighs it.
+            # Role "user": Ollama's OpenAI-compatible endpoint 500s on a system
+            # message that is not the first one ("system message must be at the
+            # beginning"), so a mid-conversation reminder can never be one.
             if answer_language:
                 from i18n import answer_language_reminder
 
                 working.append({
-                    "role": "system",
+                    "role": "user",
                     "content": answer_language_reminder(answer_language),
                 })
 

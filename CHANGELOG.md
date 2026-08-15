@@ -5,6 +5,38 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.7.1] — 2026-08-15
+
+**A reminder in the wrong role broke every tool call on one model.**
+
+Two features from the last releases nudge the model after a tool has run: the
+tool-use guard, which asks again when a personal question came back with no
+lookup, and the answer-language reminder, which re-asserts the language right
+where the German document summary would otherwise win. Both were sent as a
+`system` message appended to the end of the conversation.
+
+Ollama's OpenAI-compatible endpoint answers that with
+`500 system message must be at the beginning` — but only for some models. A
+model with no chat template of its own is rendered by a built-in renderer
+selected by architecture, and the newer ones validate message order where the
+older ones accept anything. So the same request, on the same server and the same
+Ollama version, worked with one model and failed with the next. The chat itself
+looked healthy right up to the moment a tool ran.
+
+### Fixed
+
+- **Tool calls no longer 500 on models with a strict message renderer.** The
+  tool-use guard and the answer-language reminder are sent as `user` messages;
+  a mid-conversation `system` message is not portable and never was. Verified
+  against five local models, which now all accept the request that previously
+  failed on one of them.
+
+- **A rejected request reports the server's reason.** `raise_for_status()` gives
+  status and URL and drops the body, which is where the endpoint says *why* —
+  bad message order, unknown model, context overflow. The error now carries that
+  message through, for both `{"error": {"message": …}}` and `{"error": "…"}`
+  bodies.
+
 ## [0.7.0] — 2026-08-14
 
 **Like Obsidian, without needing Obsidian — and an answer in the language you
@@ -613,6 +645,8 @@ across documents at a glance.
 First semantically versioned release. See the
 [release notes](https://github.com/vailsen/paperless-brain/releases/tag/v0.2.0).
 
+[0.7.1]: https://github.com/vailsen/paperless-brain/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/vailsen/paperless-brain/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/vailsen/paperless-brain/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/vailsen/paperless-brain/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vailsen/paperless-brain/compare/v0.3.0...v0.4.0
