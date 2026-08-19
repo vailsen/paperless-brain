@@ -535,9 +535,9 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
                 "category": {
                     "type": "string",
-                    "enum": ["general", "news"],
+                    "enum": ["general", "news", "science"],
                     "description": (
-                        "'news' for news/current events — returns real article links with dates instead of overview pages. 'general' (default) for everything else. When time_range is set, 'news' is used automatically anyway."
+                        "'news' for news/current events — returns real article links with dates instead of overview pages. 'science' searches academic sources (PubMed, Crossref, OpenAlex, arXiv, Semantic Scholar) — use it for studies, case reports, measurements and anything where a peer-reviewed source is the right kind of evidence; general web search rarely surfaces these. 'general' (default) for everything else. When time_range is set, 'news' is used automatically anyway."
                     ),
                 },
             },
@@ -894,6 +894,29 @@ TOOL_DEFINITIONS: list[dict] = [
 ]
 
 
+def _parse_tool_arguments(raw: str) -> dict:
+    """Tool-call arguments from a model, repaired before they are given up on.
+
+    Local models write German into their own arguments — `query="Rechnung
+    „Milbich" 2023"` — which is not valid JSON, and the previous handling
+    replaced the entire argument object with `{}`. The tool then ran with no
+    arguments: a search for nothing, an empty answer, and nothing in any log
+    saying why. Unrepairable arguments are handed to the tool instead, which
+    rejects them visibly.
+    """
+    from werkbank.v2.models import repair_json
+
+    for candidate in (raw, repair_json(raw)):
+        try:
+            parsed = json.loads(candidate)
+        except ValueError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    _log.warning("unparseable tool arguments from the model: %s", raw[:200])
+    return {"_unparsed_arguments": raw[:500]}
+
+
 def _tool_label(name: str) -> str:
     """Translated activity-bar label for a tool call. Built at call time so the
     literals are extractable and resolve against the current user's language.
@@ -938,6 +961,16 @@ async def execute_tool(
     name: str, inputs: dict
 ) -> tuple[str, list[DocumentResult], list]:
     """Execute a tool call. Returns (text_for_llm, doc_results_for_ui, list[extra_events])."""
+    if "_unparsed_arguments" in (inputs or {}):
+        # Running the tool with the arguments dropped is what this replaces: a
+        # search with no query answers "nothing found", and the model believes it.
+        return (
+            f"Tool '{name}' was not run: its arguments were not valid JSON. "
+            "Send the call again with properly escaped arguments — a quote "
+            "inside a string value needs a backslash.",
+            [],
+            [],
+        )
     try:
         return await _execute_tool_dispatch(name, inputs)
     except NoUserContext:
@@ -1745,7 +1778,7 @@ async def _tool_web_search(inputs: dict) -> tuple[str, list[WebSearchResult]]:
         form = {"q": query, "format": "json", "language": language}
         if time_range in ("day", "week", "month", "year"):
             form["time_range"] = time_range
-        if category in ("general", "news"):
+        if category in ("general", "news", "science"):
             form["categories"] = category
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(f"{settings.searxng_host}/search", data=form)
@@ -1770,6 +1803,21 @@ async def _tool_web_search(inputs: dict) -> tuple[str, list[WebSearchResult]]:
 
         hits = data.get("results", [])[:max_results]
         if not hits and len(lines) == 1:
+            # SearXNG answers HTTP 200 with an empty result list when its
+            # upstream engines are blocked — CAPTCHAs and rate limits, which a
+            # burst of agent searches provokes. Reporting that as "nothing
+            # found" turns an outage into a finding, so it is named instead.
+            blocked = [
+                f"{name}: {reason}"
+                for name, reason in (data.get("unresponsive_engines") or [])
+            ]
+            if blocked:
+                return (
+                    f"{archive_hint}Search unavailable — every engine refused this "
+                    f"request ({'; '.join(blocked[:4])}). This is not evidence "
+                    f"that nothing exists; the search itself did not run.",
+                    [],
+                )
             return f"{archive_hint}No results found.", []
         web_results: list[WebSearchResult] = []
         for i, h in enumerate(hits, 1):
@@ -1895,18 +1943,78 @@ async def _trafilatura_fetch(url: str) -> str | None:
 
 
 async def _crawl4ai_fetch(url: str) -> str | None:
+    """Fetch through headless Chromium.
+
+    Configured to look like a browser rather than like a crawler: a real user
+    agent, navigator overrides, and waiting for the network to settle. Publishers
+    increasingly serve a JavaScript shell to anything that does not, which is how
+    a JAMA case report came back as 603 characters of "enable JavaScript".
+    """
     try:
-        from crawl4ai import AsyncWebCrawler
+        import trafilatura
+        from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
+
+        browser = BrowserConfig(
+            headless=True,
+            java_script_enabled=True,
+            user_agent_mode="random",
+            viewport_width=1280,
+            viewport_height=900,
+        )
+        run = CrawlerRunConfig(
+            cache_mode=CacheMode.BYPASS,
+            # `domcontentloaded`, not `networkidle`: measured against two
+            # publisher pages, waiting for the network to fall idle returned
+            # **zero** characters both times — ads and trackers keep a news or
+            # journal page busy forever, so the wait times out and the page is
+            # never read. With `domcontentloaded` plus a settle delay the same
+            # eplasty case report came back as 6455 readable characters.
+            wait_until="domcontentloaded",
+            page_timeout=45_000,
+            delay_before_return_html=2.0,
+            magic=True,               # cookie banners, overlays, lazy content
+            simulate_user=True,
+            override_navigator=True,
+            word_count_threshold=10,
+        )
 
         async def _run() -> str | None:
-            async with AsyncWebCrawler() as crawler:
-                result = await crawler.arun(url=url)
-                return result.markdown or None
+            async with AsyncWebCrawler(config=browser) as crawler:
+                result = await crawler.arun(url=url, config=run)
+
+            # Chromium renders, trafilatura picks the article out of it. The
+            # browser's own markdown is the *whole page* — on Wikipedia the
+            # first 8000 characters were the navigation sidebar, so the article
+            # never reached the model at all. Extracting from the rendered HTML
+            # gives the same page without the chrome.
+            html = getattr(result, "html", "") or getattr(result, "cleaned_html", "")
+            article = None
+            if html:
+                loop = asyncio.get_running_loop()
+                article = await loop.run_in_executor(
+                    None,
+                    lambda: trafilatura.extract(
+                        html, include_links=False, include_images=False
+                    ),
+                )
+
+            markdown = getattr(result, "markdown", None)
+            # 0.9 returns a MarkdownGenerationResult; older builds a string.
+            page = getattr(markdown, "fit_markdown", None) or str(markdown or "")
+
+            # The extract is better when it worked; the raw markdown is the
+            # safety net for pages trafilatura cannot parse but Chromium read.
+            if article and not _unreadable_page(article):
+                return article
+            if page and not _unreadable_page(page):
+                return page
+            return article or page or None
 
         # Hard bound — a hanging page/browser must not stall the agentic loop
         # (werkbank workers wait on this too, with the GPU idle meanwhile).
         return await asyncio.wait_for(_run(), timeout=90)
-    except Exception:
+    except Exception as exc:                                # noqa: BLE001
+        _log.debug("crawl4ai fetch failed for %s: %s", url, exc)
         return None
 
 
@@ -1917,27 +2025,87 @@ async def _tool_web_fetch_page(inputs: dict) -> tuple[str, list[DocumentResult]]
     mode = _web_fetch_mode.get()
     try:
         if mode == "crawl4ai":
+            # Browser first. Slower — seconds, not milliseconds — which is the
+            # right trade for a background research run: it reads pages that
+            # need JavaScript, and a run waits on a model for far longer anyway.
             text = await _crawl4ai_fetch(url)
             tool_used = "Crawl4AI"
+            if _unreadable_page(text or ""):
+                plain = await _trafilatura_fetch(url)
+                if plain and not _unreadable_page(plain):
+                    text, tool_used = plain, "Trafilatura (Fallback)"
         else:
             text = await _trafilatura_fetch(url)
             tool_used = "Trafilatura"
-            if not text or len(text.strip()) < 200:
+            # The trigger is *readability*, not length. A 200-character floor let
+            # a 427-character paywall stub through as if it were the article,
+            # and the browser fallback — the one thing that could have opened
+            # the page — never ran.
+            if _unreadable_page(text or ""):
                 fallback = await _crawl4ai_fetch(url)
-                if fallback and len(fallback.strip()) > len((text or "").strip()):
+                if fallback and not _unreadable_page(fallback):
+                    text = fallback
+                    tool_used = "Crawl4AI (Fallback)"
+                elif fallback and len(fallback.strip()) > len((text or "").strip()):
                     text = fallback
                     tool_used = "Crawl4AI (Fallback)"
 
         if not text:
             return f"No text content extractable from: {url}", []
+        if reason := _unreadable_page(text):
+            # A bot wall is not an empty page and must not be treated as one:
+            # the extractor returns a few hundred characters of "enable
+            # JavaScript" or a cookie banner, and an agent that is not told what
+            # happened will quote *that* as if it were the article. Observed on
+            # a JAMA case report and an eplasty case study — both exactly the
+            # source the question needed.
+            return (
+                f"Could not read {url} — {reason}. Nothing here can be quoted. "
+                f"Try another source for the same fact (for a paywalled paper: "
+                f"its PubMed or Europe PMC page), or record it as "
+                f"source_unavailable.",
+                [],
+            )
+        # A research run reads a page once and has to quote from it; 8000
+        # characters is about 1200 words and cuts most articles mid-argument.
+        # Chat keeps the smaller budget — there a human is waiting on tokens.
+        limit = 16_000 if mode == "crawl4ai" else 8_000
         truncated = (
-            "\n\n[… truncated — the page is longer, this is the first 8000 characters]"
-            if len(text) > 8000
+            f"\n\n[… truncated — the page is longer, this is the first {limit} characters]"
+            if len(text) > limit
             else ""
         )
-        return f"[{tool_used}] Content of {url}:\n\n{text[:8000]}{truncated}", []
+        return f"[{tool_used}] Content of {url}:\n\n{text[:limit]}{truncated}", []
     except Exception as e:
         return f"Web fetch failed: {e}", []
+
+
+# Phrases that mean "you are talking to a wall, not to an article".
+_BOT_WALL_MARKERS = (
+    "enable javascript", "javascript is disabled", "please enable js",
+    "checking your browser", "verify you are human", "are you a robot",
+    "access denied", "403 forbidden", "cloudflare",
+    "subscribe to continue", "sign in to continue", "purchase access",
+    "cookies to continue", "your browser is not supported",
+)
+# Below this an "article" is a banner. Real prose from a case report or a news
+# item runs into the thousands.
+MIN_READABLE_CHARS = 900
+
+
+def _unreadable_page(text: str) -> str:
+    """Why this page cannot be read, or "" if it can be."""
+    body = (text or "").strip()
+    lowered = body.lower()
+    for marker in _BOT_WALL_MARKERS:
+        if marker in lowered:
+            return f"the page returned a block page ({marker})"
+    if len(body) < MIN_READABLE_CHARS:
+        return (
+            f"only {len(body)} characters came back, which is a banner or a "
+            "paywall stub rather than the text"
+        )
+    return ""
 
 
 def _tool_calculate(inputs: dict) -> str:
@@ -3361,10 +3529,7 @@ class OpenAICompatibleChatBackend:
                 tool_name = fn.get("name", "")
                 tool_args = fn.get("arguments", {})
                 if isinstance(tool_args, str):
-                    try:
-                        tool_args = json.loads(tool_args)
-                    except json.JSONDecodeError:
-                        tool_args = {}
+                    tool_args = _parse_tool_arguments(tool_args)
 
                 if tool_name not in _allowed_tool_names:
                     working.append(

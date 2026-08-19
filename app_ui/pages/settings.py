@@ -1305,58 +1305,54 @@ async def settings_page() -> None:
             _section_header(
                 "auto_awesome",
                 _("AI deep research"),
-                _("System prompts for Planner, Splitter, Critic, Synthesizer"),
+                _("System prompts and token limits for the pipeline roles"),
             )
 
-            from werkbank import settings_store as _ws
-            from werkbank.roles import planner as _pl, splitter as _sp, critic as _cr, synthesizer as _sy
-            from werkbank import compaction as _co
+            from werkbank.v2 import prompts as _wb2p
 
-            # ── Token-Limits ──────────────────────────────────────────────
-            ui.label(_("Token limits per role")).classes("text-xs text-gray-500 uppercase tracking-wide mt-2 mb-1")
-            _token_defs = [
-                (_("Planner"),       _ws.TOKENS_PLANNER),
-                (_("Splitter"),      _ws.TOKENS_SPLITTER),
-                (_("Critic"),        _ws.TOKENS_CRITIC),
-                (_("Synthesizer"),   _ws.TOKENS_SYNTHESIZER),
-                (_("Compaction"), _ws.TOKENS_COMPACTION),
-                (_("Worker"),        _ws.TOKENS_WORKER),
-            ]
+            ui.label(
+                _("These prompts change what a role is asked. They cannot change "
+                  "what is verified — the evidence checks run in code after the "
+                  "model has answered.")
+            ).classes("text-xs mb-3").style("color:var(--c-text-muted)")
+
+            _role_labels = {
+                "briefer": _("Briefing"),
+                "planner": _("Planner"),
+                "plan_critic": _("Plan critic"),
+                "fact_critic": _("Fact critic"),
+                "contradiction_checker": _("Contradiction checker"),
+                "writer": _("Writer"),
+            }
+
+            ui.label(_("Token limits per role")).classes(
+                "text-xs text-gray-500 tracking-wide mt-2 mb-1"
+            )
             _token_inputs: dict[str, ui.number] = {}
             with ui.grid(columns=3).classes("w-full gap-2 mb-3"):
-                for _tlabel, _tkey in _token_defs:
-                    _tval = _ws.get_tokens(_tkey)
-                    _tn = ui.number(
-                        label=_tlabel, value=_tval, min=1000, step=1000, format="%.0f"
+                for _role, _rlabel in _role_labels.items():
+                    _token_inputs[_role] = ui.number(
+                        label=_rlabel, value=_wb2p.token_limit(_role),
+                        min=1000, step=1000, format="%.0f",
                     ).props("outlined dark dense").classes("w-full")
-                    _token_inputs[_tkey] = _tn
 
             ui.separator().classes("my-2")
 
-            _prompt_defs = [
-                (_("Planner"),      _ws.PROMPT_PLANNER,     _pl.DEFAULT_SYSTEM_PROMPT),
-                (_("Splitter"),     _ws.PROMPT_SPLITTER,    _sp.DEFAULT_SYSTEM_PROMPT),
-                (_("Critic"),       _ws.PROMPT_CRITIC,      _cr.DEFAULT_SYSTEM_PROMPT),
-                (_("Synthesizer"),  _ws.PROMPT_SYNTHESIZER, _sy.DEFAULT_SYSTEM_PROMPT),
-                (_("Compaction"),_ws.PROMPT_COMPACTION,  _co.DEFAULT_SYSTEM_PROMPT),
-            ]
-
             _prompt_inputs: dict[str, ui.textarea] = {}
-            for label, key, default in _prompt_defs:
-                with ui.expansion(label).classes("w-full text-gray-300").props("dark"):
-                    stored = _ws.get(key)
+            for _role, _rlabel in _role_labels.items():
+                with ui.expansion(_rlabel).classes("w-full text-gray-300").props("dark"):
                     ta = ui.textarea(
-                        label=_("System prompt: {role}").format(role=label),
-                        value=stored or default,
+                        label=_("System prompt: {role}").format(role=_rlabel),
+                        value=_wb2p.system_prompt(_role),
                     ).classes("w-full").style(
                         "min-height:140px; font-family:monospace; font-size:11px;"
                         " background:var(--c-bg); color:var(--c-text-2);"
                     ).props("dark outlined")
-                    _prompt_inputs[key] = ta
+                    _prompt_inputs[_role] = ta
 
-                    def _reset(k=key, d=default, t=ta):
-                        t.set_value(d)
-                        _ws.set_value(k, "")
+                    def _reset(r=_role, t=ta):
+                        t.set_value(_wb2p.default_text(r))
+                        _wb2p.set_override(r, "")
                         ui.notify(_("Prompt reset."), type="info")
 
                     ui.button(_("Reset to default"), icon="refresh", on_click=_reset).props(
@@ -1364,20 +1360,17 @@ async def settings_page() -> None:
                     ).classes("text-gray-500 mt-1")
 
             def _save_werkbank():
-                for key, tn in _token_inputs.items():
-                    _ws.set_value(key, str(int(tn.value or 16000)))
-                for key, ta in _prompt_inputs.items():
-                    val = ta.value.strip()
-                    default_val = next(d for _, k, d in _prompt_defs if k == key)
-                    _ws.set_value(key, val if val != default_val else "")
+                for role, tn in _token_inputs.items():
+                    _wb2p.set_token_limit(role, int(tn.value or 12000))
+                for role, ta in _prompt_inputs.items():
+                    _wb2p.set_override(role, ta.value)
                 ui.notify(_("Deep research settings saved."), type="positive")
 
             with ui.row().classes("gap-2 mt-3"):
                 def _reset_all_prompts():
-                    for key, ta in _prompt_inputs.items():
-                        default_val = next(d for _, k, d in _prompt_defs if k == key)
-                        ta.set_value(default_val)
-                        _ws.set_value(key, "")
+                    for role, ta in _prompt_inputs.items():
+                        ta.set_value(_wb2p.default_text(role))
+                        _wb2p.set_override(role, "")
                     ui.notify(_("All prompts reset."), type="info")
 
                 ui.button(_("Reset all"), icon="refresh", on_click=_reset_all_prompts).props(
@@ -1545,10 +1538,10 @@ async def settings_page() -> None:
             with ui.column().classes("gap-1 mb-3"):
                 # `break-all`: a path has no spaces, so without it the label is
                 # one unbreakable word that pushes the card off a phone screen.
-                ui.label(_("Vault directory (Obsidian vault root)")).classes("text-xs text-gray-500 uppercase tracking-wide mt-1")
+                ui.label(_("Vault directory (Obsidian vault root)")).classes("text-xs text-gray-500 tracking-wide mt-1")
                 ui.label(_vp).classes("w-full break-all text-sm font-mono text-gray-300 bg-gray-900 rounded px-3 py-1.5 select-all")
 
-                ui.label(_("Memory subfolder (Brain)")).classes("text-xs text-gray-500 uppercase tracking-wide mt-2")
+                ui.label(_("Memory subfolder (Brain)")).classes("text-xs text-gray-500 tracking-wide mt-2")
                 ui.label(_bp).classes("w-full break-all text-sm font-mono text-gray-300 bg-gray-900 rounded px-3 py-1.5 select-all")
 
             _hint(

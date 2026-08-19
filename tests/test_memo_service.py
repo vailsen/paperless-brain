@@ -114,3 +114,76 @@ def test_the_prompt_states_the_non_negotiables():
     assert "do not pad" in p                                 # no padding
     assert "table" in p and "bullet" in p                    # structure
     assert "no new claims" in p                              # no invention
+
+
+# ── A second recording continues the memo ────────────────────────────────────
+#
+# The review dialog lets the user record again. Without the memo so far, the
+# model tidies the new fragment alone and the result is stapled to the end: a
+# second heading for the same subject, a second table with the same columns,
+# facts separated from the ones they belong with.
+
+
+def _capture_rewrite(monkeypatch, reply=("Topic", "merged memo")):
+    """Record what rewrite_dictation hands the model."""
+    seen = {}
+
+    async def fake_complete(system, messages, **kw):
+        seen["system"] = system
+        seen["user"] = messages[0]["content"]
+        return {"topic": reply[0], "text": reply[1]}
+
+    import werkbank.llm_lane as lane
+    monkeypatch.setattr(lane, "complete_structured", fake_complete)
+    return seen
+
+
+def test_a_first_recording_sends_only_the_transcript(monkeypatch):
+    seen = _capture_rewrite(monkeypatch)
+    _run(M.rewrite_dictation(
+        "Milch kaufen", model="m", user_id="alice", token="t",
+    ))
+    assert seen["user"] == "Milch kaufen"
+    assert "MEMO SO FAR" not in seen["user"]
+    assert M.CONTINUATION_RULE not in seen["system"]
+
+
+def test_a_second_recording_sends_the_memo_so_far(monkeypatch):
+    seen = _capture_rewrite(monkeypatch)
+    topic, text = _run(M.rewrite_dictation(
+        "und Brot", model="m", user_id="alice", token="t",
+        previous="# Einkauf\n\n- Milch",
+    ))
+    assert "MEMO SO FAR:" in seen["user"]
+    assert "# Einkauf" in seen["user"]
+    assert "NEW DICTATION TO ADD:\nund Brot" in seen["user"]
+    # The rule that tells the model to return the whole thing merged.
+    assert M.CONTINUATION_RULE in seen["system"]
+    assert text == "merged memo"
+
+
+def test_a_failed_second_rewrite_keeps_the_earlier_half(monkeypatch):
+    """Falling back to the new fragment alone would delete reviewed text."""
+    async def boom(*a, **kw):
+        raise RuntimeError("model down")
+
+    import werkbank.llm_lane as lane
+    monkeypatch.setattr(lane, "complete_structured", boom)
+    _topic, text = _run(M.rewrite_dictation(
+        "und Brot", model="m", user_id="alice", token="t", previous="- Milch",
+    ))
+    assert "- Milch" in text and "und Brot" in text
+
+
+def test_no_model_still_keeps_both_halves(monkeypatch):
+    _topic, text = _run(M.rewrite_dictation(
+        "und Brot", model="", user_id="alice", token="t", previous="- Milch",
+    ))
+    assert "- Milch" in text and "und Brot" in text
+
+
+def test_punctuation_dictation_is_covered_by_the_prompts():
+    """Spoken "Komma"/"comma" must become a mark, in both prompt variants."""
+    for prompt in (M.REWRITE_SYSTEM, M.CONVERSATION_SYSTEM):
+        assert "Komma" in prompt and "comma" in prompt
+        assert "Doppelpunkt" in prompt

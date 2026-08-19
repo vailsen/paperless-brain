@@ -401,3 +401,64 @@ def test_quoted_printable_is_decoded_not_matched_raw():
     snippet = _body_snippet(msg)
     assert "Drehmomentschlüssel" in snippet
     assert "=C3=BC" not in snippet
+
+
+# ── One round trip instead of fifty ──────────────────────────────────────────
+
+
+class BatchIMAP:
+    """Answers a comma-separated id set in one response, like a real server."""
+
+    def __init__(self, *, batch_ok=True):
+        self.batch_ok = batch_ok
+        self.commands: list[bytes] = []
+
+    @staticmethod
+    def _message(n: int) -> bytes:
+        return (
+            f"Date: Mon, {n:02d} Jan 2020 10:00:00 +0100\r\n"
+            f"From: a@b.test\r\nSubject: mail {n}\r\n\r\nbody"
+        ).encode()
+
+    def fetch(self, eid, _cmd):
+        self.commands.append(eid)
+        ids = [i for i in eid.split(b",") if i]
+        if len(ids) > 1 and not self.batch_ok:
+            raise OSError("server dislikes sets")
+        data = []
+        for i in ids:
+            n = int(i)
+            data.append((b"%d (BODY[] {1})" % n, self._message(n)))
+        return "OK", data
+
+
+def test_a_page_of_messages_costs_one_fetch():
+    """Fifty results used to mean fifty FETCH commands. Against Gmail over a WAN
+    the round trips were most of the four and a half minutes one search took."""
+    conn = BatchIMAP()
+
+    results = _fetch_messages(conn, [b"9", b"8", b"7"], 3, detail="headers",
+                              preserve_order=True)
+
+    assert [r["subject"] for r in results] == ["mail 9", "mail 8", "mail 7"]
+    assert conn.commands == [b"9,8,7"]
+
+
+def test_a_server_that_refuses_the_set_is_slower_never_wrong():
+    conn = BatchIMAP(batch_ok=False)
+
+    results = _fetch_messages(conn, [b"9", b"8", b"7"], 3, detail="headers",
+                              preserve_order=True)
+
+    assert [r["subject"] for r in results] == ["mail 9", "mail 8", "mail 7"]
+    assert conn.commands == [b"9,8,7", b"9", b"8", b"7"]
+
+
+def test_full_detail_does_not_download_attachments():
+    """`full` keeps at most 40 000 characters of text; an unbounded BODY.PEEK[]
+    downloaded every photo and PDF in a construction thread to get there."""
+    from services.imap_service import _DETAIL_CHARS, _DETAIL_FETCH
+
+    window = int(_DETAIL_FETCH["full"].split("<0.")[1].rstrip(")>"))
+    assert window >= _DETAIL_CHARS["full"]      # the body still fits
+    assert window <= 512 * 1024                 # an attachment does not

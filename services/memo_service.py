@@ -116,7 +116,16 @@ several distinct subjects.
 filler ("äh", "also", "sozusagen"), fix obvious speech-recognition slips \
 (wrong casing of terms, a spelled-out "Nummer" that means "Nr."). But say the \
 same thing: no new claims, no interpretation, no conclusions of your own.
-5. Write in the language the dictation is in.
+5. Dictated punctuation becomes punctuation. When the transcript spells out a \
+mark — "Komma", "Punkt", "Doppelpunkt", "Semikolon", "Fragezeichen", \
+"Ausrufezeichen", "Bindestrich", "Gedankenstrich", "Klammer auf/zu", \
+"Anführungszeichen", "neue Zeile", "neuer Absatz", "Aufzählungszeichen", and \
+the English equivalents (comma, period/full stop, colon, semicolon, question \
+mark, exclamation mark, dash, open/close bracket, quote, new line, new \
+paragraph, bullet point) — write the mark itself instead of the word, and drop \
+the word. Only when it is meant as punctuation: "ein Punkt auf der Liste" and \
+"the comma is wrong here" are content and stay as they are.
+6. Write in the language the dictation is in.
 
 Then give the memo a topic: 3-5 words naming the subject, no date, no verb. It \
 becomes part of a filename, so keep it plain."""
@@ -145,7 +154,11 @@ that alternate every sentence are a transcription artefact, not the \
 conversation.
 5. If the recording is clearly one person talking (a single speaker \
 throughout), drop the labels and treat it as prose.
-6. Write in the language the conversation is in.
+6. Dictated punctuation becomes punctuation: a spoken "Komma", "Punkt", \
+"Doppelpunkt", "Fragezeichen", "neue Zeile" (or comma, period, colon, question \
+mark, new line …) is written as the mark and the word is dropped — unless it is \
+plainly meant as content.
+7. Write in the language the conversation is in.
 
 Then give the conversation a topic: 3-5 words naming the subject, no date, no \
 verb. It becomes part of a filename, so keep it plain."""
@@ -186,6 +199,17 @@ REWRITE_SCHEMA = {
 }
 
 
+CONTINUATION_RULE = """\
+
+This memo already exists and the user has just dictated more. The memo so far \
+is given first, the new dictation second. Return the COMPLETE memo — the \
+earlier part plus the new material, merged into one coherent whole. Fold the \
+new content into the structure that is already there: continue the existing \
+list or table instead of starting a second one, and put related facts next to \
+the ones they belong with. The earlier part is already tidied and may contain \
+the user's own edits — keep its wording and never drop anything from it."""
+
+
 async def rewrite_dictation(
     transcript: str,
     *,
@@ -193,6 +217,7 @@ async def rewrite_dictation(
     user_id: str,
     token: str,
     conversation: bool = False,
+    previous: str = "",
 ) -> tuple[str, str]:
     """Return (topic, text). Never raises.
 
@@ -202,17 +227,39 @@ async def rewrite_dictation(
     ``conversation`` swaps in a prompt that preserves speaker turns. The memo
     prompt actively works against a dialog — it restructures into bullets and
     tables, which destroys who-said-what.
+
+    ``previous`` is the memo as it already stands when the user records a
+    second time. Without it the model tidies the new fragment in isolation and
+    the result is stapled onto the end: a second "Einkauf" heading, a second
+    table with the same columns, facts separated from the ones they belong to.
+    With it the model returns the whole memo, so the caller REPLACES rather
+    than appends.
     """
     raw = transcript.strip()
     if not model:
-        return _fallback_topic(raw), raw
+        return _fallback_topic(raw), (f"{previous}\n\n{raw}".strip() if previous else raw)
 
     from werkbank.llm_lane import complete_structured
 
+    previous = (previous or "").strip()
+    system = CONVERSATION_SYSTEM if conversation else REWRITE_SYSTEM
+    if previous:
+        system += CONTINUATION_RULE
+        user_message = (
+            f"MEMO SO FAR:\n{previous}\n\nNEW DICTATION TO ADD:\n{raw}"
+        )
+    else:
+        user_message = raw
+
+    # Every failure path falls back to the memo so far PLUS the raw words:
+    # dropping the earlier half would delete text the user has already reviewed,
+    # which is worse than an untidy memo.
+    fallback = f"{previous}\n\n{raw}".strip() if previous else raw
+
     try:
         result = await complete_structured(
-            CONVERSATION_SYSTEM if conversation else REWRITE_SYSTEM,
-            [{"role": "user", "content": raw}],
+            system,
+            [{"role": "user", "content": user_message}],
             model=model,
             user_id=user_id,
             token=token,
@@ -223,11 +270,11 @@ async def rewrite_dictation(
         )
     except Exception as exc:
         _log.warning("memo rewrite failed, keeping raw transcript: %s", exc)
-        return _fallback_topic(raw), raw
+        return _fallback_topic(raw), fallback
 
     text = (result.get("text") or "").strip()
     topic = (result.get("topic") or "").strip()
     if not text:
         # A structurally valid response with an empty body is still a failure.
-        return topic or _fallback_topic(raw), raw
+        return topic or _fallback_topic(raw), fallback
     return topic or _fallback_topic(text), text

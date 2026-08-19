@@ -16,14 +16,14 @@ import app_ui.pages.login  # noqa: F401
 import app_ui.pages.settings  # noqa: F401
 import app_ui.memo_routes  # noqa: F401  — registers POST /api/memo/transcribe
 import app_ui.vault_routes  # noqa: F401  — registers GET /api/vault/file
-import werkbank.ui.module_page  # noqa: F401
+import werkbank.v2.ui.page  # noqa: F401  — registers /werkbank
 from app_ui.tag_style import refresh_tag_colors
 from config.settings import settings
 from config.version import __version__
 from services.clients import cross_ref_index
 from services.ollama_watchdog import idle_watchdog
 from werkbank.repository import init_db as _werkbank_init_db
-from werkbank.scheduler import run_scheduler as _werkbank_scheduler
+from werkbank.v2.store import reset_stale_runs as _werkbank_reset_runs
 
 core.sio.eio.max_http_buffer_size = 16 * 1024 * 1024  # 16 MB for HTTP polling fallback
 # NiceGUI 3.x derives ping_interval/ping_timeout from reconnect_timeout at startup.
@@ -81,9 +81,11 @@ def _keep_pings_short() -> None:
 async def _start_watchdog() -> None:
     _check_vault_root()
     _werkbank_init_db()
+    # A run interrupted by a restart is resumable, never auto-resumed:
+    # each subtask costs model calls, so restarting one is the user's call.
+    _werkbank_reset_runs()
     if settings.ollama_ssh_user:  # idle-shutdown watchdog only with remote-shutdown config
         asyncio.create_task(idle_watchdog())
-    asyncio.create_task(_werkbank_scheduler())
     # Card renderers read the tag colour map synchronously, so it has to be warm
     # before the first page renders — otherwise every chip briefly shows its
     # fallback hue and then jumps.

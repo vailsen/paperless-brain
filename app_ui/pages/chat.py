@@ -24,6 +24,10 @@ from services.session_auth import get_session_token
 
 _log = logging.getLogger(__name__)
 
+# Werkbank runs started from chat. Held module-level so the task is not
+# garbage-collected mid-run when the dialog that started it goes away.
+_wb2_runs: set[asyncio.Task] = set()
+
 # ui.markdown default extras + LaTeX ($$...$$ → MathML via latex2mathml)
 _MD_EXTRAS = ["fenced-code-blocks", "tables", "latex"]
 from services.chat_service import (
@@ -3355,27 +3359,28 @@ window.__openVaultNote = function(noteId) {{
                             _kb_status = ui.label("").classes("text-xs mt-2")
 
                             async def _start_kanban_task():
-                                from werkbank import repository as _wbr
-                                from werkbank.models import TaskStatus as _TaskStatus
-                                from werkbank.scheduler import register_token as _reg_tok
+                                from werkbank.v2 import pipeline as _wb2
+                                from werkbank.v2 import store as _wb2_store
                                 try:
-                                    _kb_status.set_text(_("Creating task…"))
+                                    _kb_status.set_text(_("Formulating the assignment…"))
                                     _kb_status.classes(add="text-gray-400", remove="text-red-400 text-green-400")
-                                    task = _wbr.create_task(
-                                        _wb_username,
-                                        _kb_request.value.strip(),
-                                        _kb_model.value,
-                                        language=ng_app.storage.user.get("language", DEFAULT_LANG),
+                                    _wb2.register_token(_wb_username, _wb_token)
+                                    # The chat LLM already reformulated the request, but the
+                                    # brief is what both critics measure the run against — it
+                                    # carries the acceptance criteria, and skipping it would
+                                    # leave the run with nothing to be held to.
+                                    _brief = await _wb2.make_brief(
+                                        _kb_request.value.strip(), _wb_username, _kb_model.value
                                     )
-                                    _wbr.update_task_title(task.id, _wb_username, _kb_title.value.strip())
-                                    # Request already reformulated by chat LLM — skip Planner,
-                                    # write it as refined_request and go straight to QUEUED.
-                                    _wbr.update_task_refined_request(
-                                        task.id, _wb_username, _kb_request.value.strip()
+                                    _run_id = _wb2.create_run(_brief, _wb_username, _kb_model.value)
+                                    _wb2_store.set_run_status(_run_id, _wb_username, "running")
+                                    # Detached: the run outlives this dialog and this page.
+                                    _task = asyncio.create_task(
+                                        _wb2.start_run(_run_id, _wb_username, _kb_model.value)
                                     )
-                                    _reg_tok(task.id, _wb_token)
-                                    _wbr.update_task_status(task.id, _wb_username, _TaskStatus.QUEUED)
-                                    _kb_status.set_text(_("Task #{id} running ✓").format(id=task.id))
+                                    _wb2_runs.add(_task)
+                                    _task.add_done_callback(_wb2_runs.discard)
+                                    _kb_status.set_text(_("Run started — open it under AI deep research."))
                                     _kb_status.classes(add="text-green-400", remove="text-gray-400 text-red-400")
                                     await asyncio.sleep(1.5)
                                     _kanban_dlg.close()

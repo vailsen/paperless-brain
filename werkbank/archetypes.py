@@ -1,4 +1,20 @@
-"""werkbank/archetypes.py — default archetypes, seeding, and resolution helpers.
+"""werkbank/archetypes.py — the shipped archetypes, seeding, and resolution.
+
+**`config/agents.yaml` is the only source of default archetypes.** The four v1
+archetypes (`retriever`, `researcher`, `secretary`, `writer`) are gone: they were
+written for the v1 worker, which answered in prose. v2 agents answer in facts
+with sources, and their prompts say so — a v1 archetype in a v2 run gets a
+generic fallback prompt with none of the evidence rules, which is precisely the
+failure the rebuild exists to remove.
+
+An unmodified v1 row is therefore deleted on the first seed after the upgrade. A
+row the user edited is *kept* and becomes an ordinary user archetype — it is
+their work, and deleting it to tidy up would be the wrong trade.
+
+Users still create and edit archetypes; what a default now means is "shipped in
+the yaml, and restorable from it at any time". The prompt of a shipped agent
+lives in a markdown file next to the code; an edited row overrides it, the same
+override-and-reset shape `werkbank/v2/prompts.py` uses for the pipeline roles.
 
 Tool names must always match the keys in services.chat_service.TOOL_DEFINITIONS.
 Tools that require a browser dialog (trigger_docx_generation, create_email,
@@ -11,43 +27,15 @@ from dataclasses import dataclass
 
 from werkbank import repository
 
-# ── Worker tool subsets ───────────────────────────────────────────────────────
-# Each list is validated at seeding time against the real TOOL_DEFINITIONS.
-
-_RETRIEVER_TOOLS = [
-    "search",
-    "search_exact",
-    "get_document_details",
-    "get_document_table",
-    "get_document_page_text",
-    "get_actions",
-    "search_memory",
-    "vault_search",
-    "calculate",
-    "get_current_date",
-]
-
-_RESEARCHER_TOOLS = [
-    "web_search",
-    "web_fetch_page",
-    "search_memory",
-    "vault_search",
-    "calculate",
-    "get_current_date",
-]
-
-_SECRETARY_TOOLS = [
-    "search_emails",
-    "search_calendar",
-    "search_memory",
-    "calculate",
-    "get_current_date",
-]
-
-_WRITER_TOOLS = [
-    "calculate",
-    "get_current_date",
-]
+# Rows seeded by v1. Deleted on first seed when still untouched — recognised by
+# the opening sentence of the prompt v1 shipped, since a user who rewrote the
+# prompt no longer matches and keeps their archetype.
+_V1_SEEDS: dict[str, str] = {
+    "retriever": "You are a precise document researcher.",
+    "researcher": "You are a thorough web researcher.",
+    "secretary": "You are a careful assistant for personal correspondence.",
+    "writer": "You are a precise editor.",
+}
 
 
 @dataclass
@@ -58,77 +46,24 @@ class _DefaultSpec:
     enabled_tools: list[str]
 
 
-_DEFAULTS: list[_DefaultSpec] = [
-    _DefaultSpec(
-        name="retriever",
-        description="Searches the document archive and memory.",
-        soul_text=(
-            "You are a precise document researcher. Your job is to find relevant "
-            "documents, facts and deadlines in the personal archive "
-            "and summarize them in a structured way.\n\n"
-            "Rules:\n"
-            "- Always search memory first (search_memory), then the document archive (search).\n"
-            "- For exact identifiers (invoice numbers, IBANs, license plates) use search_exact.\n"
-            "- Read documents in this order: get_document_details → get_document_page_text "
-            "for specific pages; get_document_table for tables (e.g. invoice line items).\n"
-            "- Use vault_search for the user's personal notes.\n"
-            "- Cite the document ID as #ID for EVERY statement — results without "
-            "a document reference are rejected. If nothing was found, write "
-            "explicitly 'not found'.\n"
-            "- If a search does not return sufficient results, rephrase the query "
-            "and search again (max. 3 attempts).\n"
-            "- Answer exclusively based on the documents found — "
-            "no assumptions from general knowledge."
-        ),
-        enabled_tools=_RETRIEVER_TOOLS,
-    ),
-    _DefaultSpec(
-        name="researcher",
-        description="Researches current information on the web.",
-        soul_text=(
-            "You are a thorough web researcher. Your job is to obtain current "
-            "information from the web and summarize it in a structured way.\n\n"
-            "Rules:\n"
-            "- Start with web_search, then read relevant pages with web_fetch_page.\n"
-            "- Use vault_search for the user's personal notes.\n"
-            "- Back every statement with its source (URL).\n"
-            "- Distinguish clearly between confirmed information and estimates."
-        ),
-        enabled_tools=_RESEARCHER_TOOLS,
-    ),
-    _DefaultSpec(
-        name="secretary",
-        description="Searches the user's emails and calendar.",
-        soul_text=(
-            "You are a careful assistant for personal correspondence. Your "
-            "job is to search the user's emails and calendar entries "
-            "and summarize the relevant findings in a structured way.\n\n"
-            "Rules:\n"
-            "- Use search_emails for correspondence, orders and confirmations. "
-            "For persons use only the last name in the sender field.\n"
-            "- Use search_calendar for appointments and deadlines; for time-range "
-            "questions set date_from/date_to instead of month names in the query.\n"
-            "- Back every statement with its source (sender + date, or event title).\n"
-            "- If nothing was found, write explicitly 'not found'."
-        ),
-        enabled_tools=_SECRETARY_TOOLS,
-    ),
-    _DefaultSpec(
-        name="writer",
-        description="Processes and structures collected results into a readable report.",
-        soul_text=(
-            "You are a precise editor. You receive fully researched information "
-            "from previous work steps as context. Your job is to combine this data "
-            "into a clear, well-structured and readable document.\n\n"
-            "Rules:\n"
-            "- Use exclusively the information from the context — no research of your own.\n"
-            "- Structure with Markdown: headings, tables, lists where useful.\n"
-            "- Summarize concisely without dropping important facts.\n"
-            "- Mark missing or uncertain data explicitly."
-        ),
-        enabled_tools=_WRITER_TOOLS,
-    ),
-]
+def _defaults() -> list[_DefaultSpec]:
+    """The shipped archetypes, read from `config/agents.yaml`.
+
+    Not a module constant: the yaml is editable without a deploy, and a cached
+    list would keep serving the version that happened to be on disk at import.
+    """
+    from werkbank.v2 import registry
+
+    specs: list[_DefaultSpec] = []
+    for agent_id, spec in registry.load_defaults().agents.items():
+        path = spec.prompt_path()
+        specs.append(_DefaultSpec(
+            name=agent_id,
+            description=spec.description.strip(),
+            soul_text=path.read_text(encoding="utf-8") if path.is_file() else "",
+            enabled_tools=list(spec.tools),
+        ))
+    return specs
 
 
 # ── Validation ────────────────────────────────────────────────────────────────
@@ -151,41 +86,39 @@ def validate_tool_subset(tools: list[str]) -> list[str]:
 
 # ── Seeding ───────────────────────────────────────────────────────────────────
 
-# Toolsets that earlier code versions seeded for default archetypes. A row whose
-# tools set-equal one of these was never customized by the user, so it is safe
-# to resync it fully (tools + soul + description) to the current default.
-_SUPERSEDED_TOOLSETS: dict[str, list[frozenset[str]]] = {
-    "retriever": [
-        frozenset({"search", "search_exact", "get_document_details",
-                   "get_document_page_text", "get_actions", "search_memory",
-                   "calculate", "get_current_date"}),
-    ],
-    "researcher": [
-        # pre-split, without vault_search
-        frozenset({"web_search", "web_fetch_page", "search_emails",
-                   "search_calendar", "search_memory", "calculate",
-                   "get_current_date"}),
-        # pre-split, with vault_search
-        frozenset({"web_search", "web_fetch_page", "search_emails",
-                   "search_calendar", "search_memory", "vault_search",
-                   "calculate", "get_current_date"}),
-    ],
-}
+
+def _drop_untouched_v1_seeds(existing: list) -> list:
+    """Remove the v1 archetypes the app itself seeded, keep the ones edited.
+
+    A v1 archetype in a v2 run is worse than no archetype: it has no prompt file,
+    so the runner falls back to a generic instruction without the evidence rules,
+    and the planner is offered an agent that looks equivalent to a tuned one.
+    A row the user rewrote is a different matter — that is their archetype, and
+    it survives as a user-defined one.
+    """
+    kept = []
+    for arch in existing:
+        opener = _V1_SEEDS.get(arch.name)
+        if opener and (arch.soul_text or "").lstrip().startswith(opener):
+            print(f"[werkbank/archetypes] removing untouched v1 archetype '{arch.name}'")
+            repository.delete_archetype(arch.id, arch.user_id)
+            continue
+        kept.append(arch)
+    return kept
 
 
 def seed_defaults_if_needed(user_id: str) -> None:
-    """Insert missing default archetypes; keep existing defaults in sync.
+    """Insert missing shipped archetypes; keep existing ones in sync.
 
-    Existing default-named archetypes:
-    - tools set-equal a superseded default toolset → full resync to the current
-      default (tools, soul_text, description) — the row was never customized.
-    - otherwise: additive tool merge only (new default tools appended,
-      user-added tools stay, nothing removed).
+    A shipped archetype that already exists is only extended, never overwritten:
+    new default tools are appended, the user's own tools and prompt stay. Putting
+    a row *back* to the shipped state is `restore_default`, and that is the
+    user's decision, not a side effect of opening the page.
     """
-    existing = repository.get_archetypes(user_id)
+    existing = _drop_untouched_v1_seeds(repository.get_archetypes(user_id))
     existing_by_name = {a.name: a for a in existing}
 
-    for spec in _DEFAULTS:
+    for spec in _defaults():
         arch = existing_by_name.get(spec.name)
         valid_tools = validate_tool_subset(spec.enabled_tools)
 
@@ -193,16 +126,6 @@ def seed_defaults_if_needed(user_id: str) -> None:
             repository.create_archetype(
                 user_id=user_id,
                 name=spec.name,
-                description=spec.description,
-                soul_text=spec.soul_text,
-                enabled_tools=valid_tools,
-            )
-            continue
-
-        if frozenset(arch.enabled_tools) in _SUPERSEDED_TOOLSETS.get(spec.name, []):
-            print(f"[werkbank/archetypes] '{spec.name}': resyncing superseded default")
-            repository.update_archetype(
-                arch.id, user_id,
                 description=spec.description,
                 soul_text=spec.soul_text,
                 enabled_tools=valid_tools,
@@ -244,3 +167,61 @@ def list_archetype_summaries(user_id: str) -> list[dict]:
         {"id": a.id, "name": a.name, "description": a.description}
         for a in repository.get_archetypes(user_id)
     ]
+
+
+# ── Restoring a default ───────────────────────────────────────────────────────
+#
+# v1 had no way back: edit a default archetype's prompt into something broken
+# and the original was gone, because the defaults only ever seeded rows that did
+# not exist yet. These two functions are that way back, and they are what the
+# archetype dialog offers.
+
+
+def default_names() -> set[str]:
+    """Archetypes that ship with the app, and can therefore be restored."""
+    return {spec.name for spec in _defaults()}
+
+
+def default_for(name: str) -> _DefaultSpec | None:
+    return next((s for s in _defaults() if s.name == name), None)
+
+
+def differs_from_default(archetype) -> bool:
+    """True when a shipped archetype has been edited — so the UI can offer a reset."""
+    spec = default_for(archetype.name)
+    if spec is None:
+        return False
+    return (
+        (archetype.soul_text or "").strip() != spec.soul_text.strip()
+        or (archetype.description or "").strip() != spec.description.strip()
+        or sorted(archetype.enabled_tools or []) != sorted(validate_tool_subset(spec.enabled_tools))
+    )
+
+
+def restore_default(name: str, user_id: str) -> bool:
+    """Put one shipped archetype back the way it came. False if it is not one.
+
+    Recreates the row when it was deleted rather than only updating: "restore"
+    has to work after the mistake people actually make.
+    """
+    spec = default_for(name)
+    if spec is None:
+        return False
+    tools = validate_tool_subset(spec.enabled_tools)
+    existing = repository.get_archetype_by_name(name, user_id)
+    if existing is None:
+        repository.create_archetype(
+            user_id=user_id, name=spec.name, description=spec.description,
+            soul_text=spec.soul_text, enabled_tools=tools,
+        )
+        return True
+    repository.update_archetype(
+        existing.id, user_id,
+        description=spec.description, soul_text=spec.soul_text, enabled_tools=tools,
+    )
+    return True
+
+
+def restore_all_defaults(user_id: str) -> int:
+    """Restore every shipped archetype. User-created ones are left untouched."""
+    return sum(1 for spec in _defaults() if restore_default(spec.name, user_id))

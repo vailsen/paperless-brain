@@ -1,0 +1,135 @@
+# Werkbank v2 — agent registry (defaults).
+#
+# Archetypes are defined by SOURCE and EPISTEMIC MODE, never by topic. No
+# "lawyer", no "financial analyst": a model cannot judge its own domain
+# competence, and a planner would then assign by topic words instead of by what
+# information is actually needed. Subject expertise comes from the subtask
+# prompt, not from the agent.
+#
+# `trust` belongs to the TOOL, not to the agent and not to the store behind it.
+# The same Paperless document yields `authoritative` when a page's text is read
+# and `derived` when the ingest summary is read — one is the document's wording,
+# the other is a model's paraphrase of it.
+#
+# This file is the DEFAULT. Users may edit archetypes in the UI; those edits
+# live in SQLite and can always be reset back to what stands here.
+
+version: 2
+
+# Which tools exist only when the user configured something. An agent whose
+# `requires` is not met does not exist for that run — and a question only it
+# could have answered becomes a gap with reason `source_unavailable`, never a
+# fallback to parametric knowledge.
+capabilities:
+  paperless: always        # the app does not run without it
+  vault: always
+  mail: creds.imap
+  calendar: creds.calendar
+  web: settings.searxng_host
+
+# Tool → trust. Read by the tool wrapper, never by a prompt.
+tool_trust:
+  search: authoritative              # chunk text of the document
+  search_exact: authoritative
+  get_document_page_text: authoritative
+  get_document_table: authoritative
+  get_document_details: derived      # ingest summary — a model's paraphrase
+  get_actions: derived               # extracted deadlines, not wording
+  vault_search: user_asserted        # the user's own note is a remembered guess
+  search_memory: user_asserted
+  search_emails: user_asserted
+  search_calendar: computed
+  web_search: external
+  web_fetch_page: external
+  calculate: computed
+  get_current_date: computed
+
+# Tools no agent may have, whatever a user configures in the UI.
+#   writes      — a research run must not change the user's data
+#   dialogs     — need a browser that a background run does not have
+#   recursion   — a Werkbank run creating Werkbank runs
+forbidden_tools:
+  - create_note
+  - create_deadline
+  - remember_fact
+  - update_brain_fact
+  - delete_brain_fact
+  - trigger_docx_generation
+  - create_email
+  - generate_chat_pdf
+  - create_kanban_task
+  - download_document
+  - view_document_page          # vision per page; page text says the same thing
+
+agents:
+  doc_researcher:
+    label: "Dokumenten-Recherche"
+    description: >-
+      Sucht in Paperless und in den eigenen Notizen. Semantische Suche und
+      Metadatenfilter sind zwei Modi desselben Agenten, damit er erst filtern
+      und dann innerhalb der Treffermenge suchen kann.
+    requires: [paperless]
+    tools:
+      - search
+      - search_exact
+      - get_document_page_text
+      - get_document_table
+      - get_document_details
+      - get_actions
+      - vault_search
+      - search_memory
+      - calculate
+      - get_current_date
+    prompt_file: prompts/agents/doc_researcher.md
+    risk: "Eine Vault-Notiz wird wie ein Dokument behandelt."
+
+  web_researcher:
+    label: "Web-Recherche"
+    description: >-
+      Sucht im Web und liest Seiten im Volltext. Zitiert nie aus einem
+      Suchsnippet — dort steht der Name, nicht der Sachverhalt.
+    requires: [web]
+    tools:
+      - web_search
+      - web_fetch_page
+      - calculate
+      - get_current_date
+    prompt_file: prompts/agents/web_researcher.md
+    risk: "Zitiert aus dem Snippet statt aus dem geholten Volltext."
+
+  comms_researcher:
+    label: "Mail & Kalender"
+    description: >-
+      Durchsucht Mail und Kalender. Beides sind zeitlich verankerte persönliche
+      Ströme, und die typischen Fragen brauchen sie gemeinsam.
+    requires: [mail]          # calendar allein reicht nicht für den Archetyp
+    tools:
+      - search_emails
+      - search_calendar
+      - calculate
+      - get_current_date
+    prompt_file: prompts/agents/comms_researcher.md
+    risk: "Locale-abhängige Gmail-Ordner ergeben ein falsches 'nichts gefunden'."
+
+  synthesizer:
+    label: "Verdichtung"
+    description: >-
+      Verdichtet die Facts vorheriger Subtasks. Kein Zugriff auf externe
+      Quellen — dadurch ist jedes Ergebnis über `derived_from` prüfbar.
+    requires: []
+    tools:
+      - calculate
+      - get_current_date
+    prompt_file: prompts/agents/synthesizer.md
+    risk: "Schmuggelt neue Aussagen ein, die in keinem Fact stehen."
+
+  contradiction_checker:
+    label: "Widerspruchsprüfung"
+    description: >-
+      Benennt Widersprüche zwischen Facts, löst sie nicht auf. Läuft genau
+      einmal am Ende über alle akzeptierten Facts.
+    requires: []
+    tools:
+      - get_current_date
+    prompt_file: prompts/agents/contradiction_checker.md
+    risk: "Glättet Widersprüche, statt sie zu benennen."

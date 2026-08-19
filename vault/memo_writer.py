@@ -84,7 +84,12 @@ class VaultMemoWriter:
             ensure_repo(vp)
             now_iso = datetime.utcnow().isoformat()
 
-            stem = ts.strftime("%Y-%m-%d %H%M")
+            # Short date, no clock: the filename is read in a narrow tree
+            # sidebar, where every character spent on the timestamp is one the
+            # topic does not get. Two memos on one day are separated by
+            # _unique_path's suffix, and `created` in the frontmatter keeps the
+            # exact time.
+            stem = ts.strftime("%y-%m-%d")
             if slug := _slug(topic or text):
                 stem = f"{stem} {slug}"
             filename = _unique_path(memo_path(user), stem)

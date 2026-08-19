@@ -296,7 +296,10 @@ def build_memo_dialog():
             text_area = (
                 ui.textarea(label=_("Memo"))
                 .props("dark outlined autogrow")
-                .classes("w-full")
+                # memo-text: the recorder script reads the current memo out of
+                # this field so a second recording is merged into it instead of
+                # being tidied on its own and stapled to the end.
+                .classes("w-full memo-text")
                 .style("min-height:160px;")
             )
 
@@ -342,10 +345,16 @@ def build_memo_dialog():
         the file upload — both produce the same {topic, text, transcript}."""
         state["transcript"] = payload.get("transcript", "")
         incoming = payload.get("text", "")
-        # Append rather than replace: a second recording continues the memo
-        # instead of destroying what is already there.
         existing = (text_area.value or "").strip()
-        text_area.value = f"{existing}\n\n{incoming}".strip() if existing else incoming
+        if payload.get("replaced"):
+            # The model was given the memo so far and returned the merged whole,
+            # so appending would duplicate everything before this recording.
+            text_area.value = incoming
+        else:
+            # No merge happened (first recording, or the rewrite fell back):
+            # append, because a second recording continues the memo rather than
+            # destroying what is already there.
+            text_area.value = f"{existing}\n\n{incoming}".strip() if existing else incoming
         if not (topic_input.value or "").strip():
             topic_input.value = payload.get("topic", "")
 
@@ -373,12 +382,15 @@ def build_memo_dialog():
                 language=dictation_language(),
             )
             _set_status(_("AI is tidying it up …"))
+            previous = (text_area.value or "").strip()
             payload = await rewrite_payload(
                 payload["text"],
                 username=username,
                 token=token,
                 conversation=conversation,
+                previous=previous,
             )
+            payload["replaced"] = bool(previous)
         except MemoInputError as exc:
             _set_status(exc.message)
             ui.notify(exc.message, type="negative")
@@ -505,6 +517,12 @@ def build_memo_dialog():
     var MEMO_MAX_MS = {settings.memo_max_seconds * 1000};
     var CONV_MAX_MS = {settings.conversation_max_seconds * 1000};
     function memoMode() {{ return window.__memoMode === 'conversation' ? 'conversation' : 'memo'; }}
+    // Read straight from the DOM: the field's Python value only catches up
+    // after a round trip, and the user may have edited it by hand since.
+    function memoSoFar() {{
+        var el = document.querySelector('.memo-text textarea');
+        return el ? (el.value || '').trim() : '';
+    }}
     var ENDPOINT = {json.dumps(TRANSCRIBE_PATH)};
     var REWRITE_ENDPOINT = {json.dumps(REWRITE_PATH)};
     var QUICK_ENDPOINT = {json.dumps(QUICK_PATH)};
@@ -726,7 +744,14 @@ def build_memo_dialog():
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: {{'Content-Type': 'application/json'}},
-                        body: JSON.stringify({{text: data.text, mode: memoMode()}})
+                        body: JSON.stringify({{
+                            text: data.text,
+                            mode: memoMode(),
+                            // What the review field already holds, so the model
+                            // merges into the memo instead of tidying this
+                            // fragment alone. Empty on the first recording.
+                            previous: memoSoFar()
+                        }})
                     }});
                     var rData = await rResp.json().catch(function() {{ return {{}}; }});
                     setStatus(btn, LABELS.hold);

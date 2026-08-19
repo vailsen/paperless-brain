@@ -3,8 +3,8 @@
 The load-bearing parts are the ones a later change could silently break:
 memos must land in the memo subfolder (not the brain one — that would route
 them into the wrong Chroma collection and skip chunking), the filename must
-carry date+time+topic, and two memos recorded in the same minute must not
-overwrite each other.
+carry the date and the topic, and two memos recorded on the same day must not
+overwrite each other (the exact time lives in `created`, not the filename).
 """
 
 import asyncio
@@ -46,21 +46,21 @@ def _memo_dir(tmp_path: Path) -> Path:
 # ── Filename ──────────────────────────────────────────────────────────────────
 
 
-def test_filename_carries_date_time_and_topic(writer, tmp_path):
+def test_filename_carries_date_and_topic(writer, tmp_path):
     _run(writer.create_memo(
         "Klempner kommt Dienstag.", "alice",
         topic="Klempner Termin", when=datetime(2026, 8, 8, 14, 32),
     ))
     files = list(_memo_dir(tmp_path).glob("*.md"))
-    assert [f.name for f in files] == ["2026-08-08 1432 Klempner Termin.md"]
+    assert [f.name for f in files] == ["26-08-08 Klempner Termin.md"]
 
 
-def test_same_minute_same_topic_does_not_overwrite(writer, tmp_path):
+def test_same_day_same_topic_does_not_overwrite(writer, tmp_path):
     when = datetime(2026, 8, 8, 14, 32)
     for text in ("Erste Notiz.", "Zweite Notiz."):
         _run(writer.create_memo(text, "alice", topic="Klempner", when=when))
     names = sorted(f.name for f in _memo_dir(tmp_path).glob("*.md"))
-    assert names == ["2026-08-08 1432 Klempner-1.md", "2026-08-08 1432 Klempner.md"]
+    assert names == ["26-08-08 Klempner-1.md", "26-08-08 Klempner.md"]
 
 
 def test_topic_falls_back_to_the_text(writer, tmp_path):
@@ -68,7 +68,7 @@ def test_topic_falls_back_to_the_text(writer, tmp_path):
         "Gebäudeversicherung prüfen.", "alice", when=datetime(2026, 8, 8, 9, 5)
     ))
     (f,) = list(_memo_dir(tmp_path).glob("*.md"))
-    assert f.name.startswith("2026-08-08 0905 Gebäudeversicherung")
+    assert f.name.startswith("26-08-08 Gebäudeversicherung")
 
 
 @pytest.mark.parametrize("raw", ["a/b:c*d?", 'e"f<g>h', "i|j#k^l[m]n"])

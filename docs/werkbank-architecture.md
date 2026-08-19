@@ -1,347 +1,575 @@
-# KI-Werkbank — Architektur-Spezifikation
+# KI-Werkbank v2 — Architektur & Umsetzung
 
-Autonomes Agenten-Modul für PaperSage. Nimmt ein Ziel ("Goal") entgegen, zerlegt
-es selbstständig in Teilaufgaben, arbeitet diese mit lokalen oder API-Modellen ab
-und legt das Ergebnis nach Freigabe als PDF in Paperless ab.
+> **Maßgebliches Dokument.** Umsetzungsstand und Reihenfolge:
+> `werkbank-tasks.md`. Bestandsaufnahme, Tool-Inventar und die Zuordnung der
+> Tools auf die Archetypen: `werkbank-v2-findings.md`. Das laufende v1 ist in
+> `werkbank-v1-legacy.md` beschrieben und bleibt bis Phase 7 in Betrieb.
+>
+> Zwei Punkte sind gegenüber dem Erstentwurf präzisiert, beide begründet in den
+> Findings: die Trust-Stufe von Paperless-Ergebnissen hängt vom *Tool* ab (eine
+> Sidecar-Zusammenfassung ist `derived`, kein Wortlaut), und der PLANNER
+> bekommt eine siebte Regel für Vergleichsaufgaben.
 
-Dieses Dokument ist die Quelle der Wahrheit für die Implementierung. Es hält die
-**Entscheidungen und ihre Begründungen** fest — besonders die, die man aus dem
-Code allein nicht ablesen kann.
+Überarbeitung des Multi-Agent-Workflows. Ziel ist nicht mehr Durchsatz, sondern
+**belegbare Wahrhaftigkeit**: jede Aussage im Endbericht ist entweder auf eine
+abgerufene Quelle rückführbar, aus anderen Facts abgeleitet, oder explizit als
+Lücke markiert.
 
----
+Leitsatz für alle folgenden Entscheidungen:
 
-## 1. Zweck und bewusste Abgrenzung
-
-**Ist:** Ein Auftragssystem, das mehrstufige Recherche-/Analyse-Aufgaben über die
-vorhandene Dokumentenbasis (Paperless/Chroma), das Gedächtnis (brain-Collection)
-und das Web (SearXNG/Crawl4AI als Tools) autonom abarbeitet und ein reviewbares
-Markdown-/PDF-Ergebnis produziert.
-
-**Ist ausdrücklich NICHT:** Eine zweite Wahrheitsquelle, die Web-Recherche-Ergebnisse
-ungeprüft in den `documents`-Index kippt. Abgeleitete Inhalte landen erst nach
-**manueller Freigabe** in Paperless (und damit ggf. später im RAG-Index). Bis dahin
-sind sie Quarantäne-Material. Das schützt die Verlässlichkeit des Dokumenten-Gehirns.
-
----
-
-## 2. Kernprinzipien (nicht verhandelbar)
-
-1. **Der Orchestrator ist deterministischer Python-Code, kein LLM.** Er steuert
-   Reihenfolge, Status, Retries, Fehlerbehandlung. Die kognitive Arbeit passiert
-   nur *innerhalb* der Rollen. Das LLM dirigiert sich niemals selbst.
-
-2. **Scoped Prompts + Tool-Subsets pro Rolle.** Kein Agent bekommt alle Tools.
-   Tool-Überladung degradiert lokale Modelle. Jeder Worker erhält nur die Tools
-   seines Archetyps.
-
-3. **Isolierte Kontexte + Kompaktierung.** Jeder Sub-Task läuft in frischem, kurzem
-   Kontext. Nachgelagerte Tasks sehen nur die *kompaktierten Summaries* der
-   Abhängigkeiten, nie deren rohe Tool-Outputs. Das ist der Hebel, der lokale
-   Modelle über lange Ketten trägt.
-
-4. **Review-vor-Persist.** Das Ergebnis ist erst `COMPLETED`, wenn der Nutzer es
-   freigegeben hat. Davor: `AWAITING_REVIEW`.
-
-5. **User-Scoping auf jeder Query.** User A darf nie Daten von User B sehen.
-   Jede Tabelle trägt `user_id`, jede Repository-Query filtert darauf.
+> Ehrlichkeit entsteht nicht durch Prompt-Anweisungen, sondern dadurch, dass das
+> Schema einen Platz für "weiß ich nicht" hat und deterministischer Code prüft,
+> was das LLM behauptet.
 
 ---
 
-## 3. Die Pipeline
+## 1. Pipeline
 
 ```
-Goal (User)
-  └─ Planner (LLM, System-Rolle) ──► umformulierter Goal
-       └─ TRIAGE: User reviewt/editiert den Text ──► GO
-            └─ Splitter (LLM, System-Rolle) ──► Sub-Tasks (DAG)
-                 └─ Orchestrator (Python) — Ready-Set-Walk:
-                      für jeden ausführbaren Sub-Task:
-                        Worker (LLM, Archetyp) ──► raw result
-                          └─ Python-Prechecks  (deterministisch)
-                          └─ Critic (LLM, System-Rolle)  ──► ok / redo
-                          └─ Kompaktierung (LLM)  ──► compacted result
-                 └─ Synthesizer (LLM, System-Rolle) ──► finales .md
-                      └─ AWAITING_REVIEW: User reviewt/editiert .md ──► Freigabe
-                           └─ Export: .md → PDF → Paperless (Tags aus Settings)
-                                └─ COMPLETED
+USER
+ │
+ ├─ BRIEFER ──────────────► Brief (goal, criteria, depth_budget, assumptions)
+ │
+ ├─ USER CONFIRM ─────────► Bestätigung / Korrektur (UI)
+ │
+ ├─ PLANNER ──────────────► DAG aus Subtasks (Agent + Abhängigkeiten)
+ │
+ ├─ PLAN_CRITIC ──────────► accept | revise (max. 1 Revision)
+ │
+ ├─ SCHEDULER ────────────► Level-weise Ausführung gegen Semaphore
+ │   │
+ │   └─ pro Subtask:
+ │        RUNNER ─────────► SubtaskResult (facts[], gaps[], narrative)
+ │        DET_CHECKS ─────► deterministisch, nicht überstimmbar
+ │        FACT_CRITIC ────► accept | revise | unresolvable
+ │        └─ bei revise: zurück an RUNNER (max. depth_budget.max_revisions)
+ │
+ ├─ CONTRADICTION_CHECK ──► einmalig über alle Facts
+ │
+ └─ WRITER ───────────────► Bericht (Claims nur aus Facts, Reflexion aus Daten)
 ```
 
----
+Reformulierer und Auftragsplaner der alten Version sind zu **BRIEFER**
+zusammengefasst; Auftragsplaner und Zuweiser zu **PLANNER**. Begründung: jede
+Umformulierungsstufe ist eine Gelegenheit für semantische Drift ohne
+Erkennungsmechanismus. Wer Aspekte identifiziert, muss ohnehin wissen, womit sie
+beantwortet würden.
 
-## 4. Rollen vs. Archetypen (wichtige Trennung)
-
-**System-Rollen** — feste Pipeline-Bestandteile. Ihre Prompts liegen in den
-**Settings** (admin-tunebar), nicht im Archetypen-CRUD:
-- **Planner** — formuliert den Nutzer-Goal in einen präziseren Arbeitsauftrag um.
-- **Splitter** — zerlegt den Goal in Sub-Tasks; weist jedem einen Archetyp zu.
-  Bekommt dafür die Liste der verfügbaren Archetypen (Name + Kurzbeschreibung).
-- **Critic** — prüft ein Sub-Task-Ergebnis gegen seine `success_criteria`. Nur als
-  Groundedness-/Vollständigkeits-Gate verstehen, nicht als Geschmacks-TÜV. Ein
-  gleichstarkes Modell ist ein schwacher Gutachter — entsprechend gewichten.
-- **Synthesizer** — verdichtet alle (auch fehlgeschlagene) Teilergebnisse zum
-  finalen Markdown. Bekommt typischerweise KEINE Tools.
-
-**Worker-Archetypen** — das ist der Nutzer-CRUD. In SQLite gespeichert, pro User.
-Felder: Name, Kurzbeschreibung, Soul-Text (System-Prompt), aktivierte Tools
-(Subset der vorhandenen Chat-Agent-Tools).
-- **Defaults (in Code, beim ersten Laden in die User-Rows geseedet):**
-  - `retriever` — durchsucht Dokumentenbasis + Gedächtnis (rag_search, brain_search, get_doc_details)
-  - `researcher` — recherchiert im Web (web_search, fetch_content)
-- Nutzer kann Defaults editieren und weitere anlegen → alles als SQLite-Rows.
+**Invariante:** Der Originalwortlaut des Users wird verbatim durch die gesamte
+Pipeline getragen (`original_request`) und liegt im Kontext beider Critics. Der
+Brief ist additiv, nicht ersetzend.
 
 ---
 
-## 5. Nebenläufigkeitsmodell
+## 2. Rollen
 
-Die **lokale Ollama-Instanz ist die serialisierende Ressource**, nicht "ein Task
-global". Tasks mit eigenem Claude-API-Key laufen gegen Anthropic und blockieren die
-GPU nicht.
+### 2.1 BRIEFER
 
-**Lanes über asyncio-Semaphoren, eine pro Backend:**
-- lokal: `Semaphore(1)` — nur einer berührt Ollama gleichzeitig
-- api: `Semaphore(N)` — mehrere parallel (Anthropic-Limits beachten)
-
-Jeder LLM-Call `await`et die Semaphore seines Backends. Der Orchestrator weiß von
-Nebenläufigkeit nichts — die Lane steckt im injizierten LLM-Callable.
-
-- **v1:** Nebenläufigkeit nur *zwischen* Tasks. Sub-Tasks eines Tasks laufen seriell
-  in topologischer Reihenfolge.
-- **v2 (später):** unabhängige DAG-Zweige eines API-Tasks parallel.
-
-Das UI muss den Wartezustand ehrlich zeigen ("Position 2 in der Warteschlange"),
-wenn ein lokaler Task läuft und weitere lokale Tasks warten.
-
----
-
-## 6. Status-Lebenszyklus
-
-```
-DRAFT ─(User: Start)─► TRIAGE ─(User: bestätigt Text)─► QUEUED
-  ─► RUNNING ⇄ PAUSED
-  ─► AWAITING_REVIEW ─(User: Freigabe)─► COMPLETED
-                                       ╲─► FAILED
-```
-
-- **DRAFT** — angelegt, nicht gestartet (Default; Nutzer muss aktiv starten).
-- **TRIAGE** — Planner hat umformuliert; Nutzer kann den Auftragstext anpassen.
-- **QUEUED** — bestätigt, wartet auf den Worker.
-- **RUNNING** — in Bearbeitung.
-- **PAUSED** — durch Stop pausiert (nach aktuellem Sub-Task; resumebar).
-- **AWAITING_REVIEW** — Synthese fertig, .md liegt vor, wartet auf Freigabe.
-- **COMPLETED** — freigegeben und in Paperless abgelegt.
-- **FAILED** — Abbruch (z.B. Splitter nach Retries kaputt, oder harter Fehler).
-
----
-
-## 7. Persistenz — SQLite (WAL-Modus)
-
-Begründung: Kanban-Daten sind strukturierte relationale Daten ohne Ähnlichkeits-
-bezug. Chroma (Vektorstore) ist dafür das falsche Werkzeug. Chroma bleibt für
-Dokument-/Brain-Vektoren. SQLite im WAL-Modus erlaubt gleichzeitigen Reader (UI)
-und Writer (Worker).
-
-```sql
--- Worker-Archetypen (pro User, Defaults werden geseedet)
-agent_archetypes(
-  id, user_id, name, description, soul_text,
-  enabled_tools JSON,            -- Liste von Tool-Namen aus der Tool-Registry
-  created_at, updated_at
-)
-
--- Aufträge
-agent_tasks(
-  id, user_id, original_request, refined_request,
-  status,                        -- siehe Lebenszyklus
-  model,                         -- gewähltes Modell (mappt auf Backend/Lane)
-  result_md, paperless_id, paperless_url,
-  created_at, updated_at
-)
-
--- Teilaufgaben
-agent_subtasks(
-  id, task_id FK, archetype_id FK, user_id,   -- user_id denormalisiert: Defense-in-Depth
-  instruction, success_criteria,
-  status,                        -- TODO / RUNNING / DONE / FAILED
-  depends_on JSON,               -- Liste von Sub-Task-IDs (DAG-Kanten)
-  order_index,                   -- stabile Anzeigereihenfolge gleichrangiger Tasks
-  result_raw, result_compacted,
-  critic_verdict, retry_count,
-  created_at, updated_at,
-  started_at, finished_at        -- getrennt von updated_at: Fortschritt + Debugging
-)
-```
-
-`user_id` auf `agent_subtasks` ist bewusst denormalisiert (statt nur per Join über
-`agent_tasks`): zweiter Schutzwall gegen Datenlecks + schlankere Polling-Queries.
-
----
-
-## 8. Splitter-Vertrag (heikelste Schnittstelle)
-
-### Ausgabe-Schema
+Ein Call. Erzeugt den `Brief` und ersetzt die reine Prosa-Reformulierung.
 
 ```json
 {
-  "subtasks": [
-    {
-      "ref": "s1",
-      "instruction": "Selbstständige, konkrete Anweisung ...",
-      "archetype": "retriever",
-      "success_criteria": "Kurzes prüfbares Kriterium.",
-      "depends_on": []
-    },
-    {
-      "ref": "s2",
-      "instruction": "...",
-      "archetype": "synthesizer",
-      "success_criteria": "...",
-      "depends_on": ["s1"]
-    }
-  ]
+  "original_request": "wörtlich, unverändert",
+  "goal": "Was am Ende beantwortet sein muss",
+  "out_of_scope": ["explizit nicht Teil der Aufgabe"],
+  "deliverable_format": "Bericht | Tabelle | Liste | Zusammenfassung",
+  "assumptions": ["Annahme, die die Aufgabe verengt oder auslegt"],
+  "acceptance_criteria": [
+    "nennt alle Fristen mit Datum und Quelldokument",
+    "unterscheidet vertraglich fixierte von gesetzlichen Fristen"
+  ],
+  "depth_budget": "standard"
 }
 ```
 
-- **`ref`** sind temporäre lokale IDs. Der Splitter kennt keine DB-IDs. `depends_on`
-  referenziert nur `ref`s. Der Code remappt nach dem Insert auf echte DB-IDs.
-- `order_index` wird aus der Array-Position abgeleitet, nicht vom LLM verlangt.
+**`acceptance_criteria` sind der wichtigste Hebel des gesamten Systems.** Ohne
+vorregistrierte Kriterien erfindet der FactCritic den Maßstab post-hoc und
+besteht immer — das ist Standardverhalten von LLM-Self-Evaluation, kein
+Randfall.
 
-### Generierungs-Constraint (größter Robustheits-Hebel)
+Constraint im Prompt: jedes Kriterium beginnt mit einem Verb und benennt ein
+prüfbares Artefakt. Nicht-prüfbare Kriterien ("umfassende Antwort") lehnt der
+PLAN_CRITIC ab.
 
-Bei lokalem Modell: **Ollamas `format`-Parameter mit JSON-Schema** zwingt strukturell
-valide Ausgabe. Bei Claude: Tool-Use mit erzwungenem Schema. Das verhindert die
-meisten Parse-Fehler, *bevor* sie entstehen. Die Validierung bleibt trotzdem nötig
-(erzwingt nur Syntax, nicht Semantik).
+**`depth_budget` ist ein Enum, kein Freitext** — das LLM hat kein Gefühl für
+Laufzeit- und Tokenkosten. Im Bestätigungsdialog vom User änderbar:
 
-### Deterministische Validierung (in dieser Reihenfolge)
+| Wert | max_subtasks | max_revisions | plan_critic |
+|---|---|---|---|
+| `quick` | 3 | 0 | übersprungen |
+| `standard` | 8 | 1 | ja |
+| `deep` | 20 | 2 | zwingend |
 
-1. JSON extrahieren (Code-Fences strippen — lokale Modelle wrappen gern in ```json).
-2. `json.loads` mit try/except.
-3. `subtasks` ist nicht-leere Liste, Länge ≤ `MAX_SUBTASKS` (z.B. 15).
-4. Pro Sub-Task: Pflichtfelder vorhanden + Typen korrekt; `instruction` nicht leer.
-5. `ref`-Eindeutigkeit.
-6. Archetyp existiert in der User-Liste → sonst Fallback auf `retriever` + Warnung.
-7. Referenzielle Integrität: jede `depends_on`-Ref existiert; keine Selbst-Abhängigkeit.
-8. Azyklizität: topologischer Sort muss durchlaufen (sonst Zyklus → invalid).
+Damit ist das Complexity-Gate erledigt; ein separater Mechanismus entfällt.
 
-### Repair- und Fallback-Strategie
+### 2.2 USER CONFIRM
 
-- **Retry mit Feedback** (Cap 2): kaputter Output + Fehlermeldung zurück an den Splitter.
-- **Degradierungs-Fallback**: Wenn weiter kaputt, den umformulierten Goal als *einen*
-  Sub-Task (Archetyp `researcher`) behandeln. Einstufige Bearbeitung ist besser als FAILED.
+UI-Schritt, kein LLM-Call. Prominent darzustellen sind `assumptions` und
+`acceptance_criteria` — die Reformulierung verengt Aufgaben still, das ist die
+häufigste Fehlerquelle. `depth_budget` als Dropdown editierbar.
 
-### Remapping (Temp-Ref → DB-ID)
+### 2.3 PLANNER
 
-In topologischer Reihenfolge inserten (Eltern zuerst), `ref→id`-Map bauen, zweiter
-Durchlauf schreibt `depends_on` von Refs auf echte IDs um.
+Erzeugt den vollständigen DAG in einem Call: Subtasks, Agent-Zuweisung,
+Abhängigkeiten.
+
+**Zuweisungsregeln — wörtlich in den Prompt:**
+
+1. **Genau ein Agent pro Subtask.** Braucht eine Frage zwei Agenten, wird sie
+   gesplittet und ein `synthesizer` nachgeschaltet.
+2. **Kein Subtask ohne Agent.** Ausnahme: `synthesizer` und
+   `contradiction_checker`, deren Input Facts sind.
+3. **Nicht verfügbare Tools existieren nicht.** Die Registry wird zur Laufzeit
+   nach User-Konfiguration gefiltert. Ist eine Frage nur mit einem fehlenden
+   Tool beantwortbar → `gaps`-Eintrag mit `reason: "source_unavailable"`. Kein
+   Ausweichen auf Parameterwissen.
+4. **Jeder Subtask trägt eigene `acceptance_criteria`**, abgeleitet aus dem
+   Brief. Ein Subtask ohne Kriterium ist nicht planbar.
+5. **`contradiction_checker` läuft genau einmal am Ende**, nie pro Subtask.
+6. Jedes Brief-Kriterium muss von mindestens einem Subtask adressiert werden
+   (`covers_criteria: [0, 2]`).
+
+### 2.4 PLAN_CRITIC
+
+Regeln 1–6 sind **mechanisch verifizierbar und laufen als Code**, nicht als
+Prompt. Dem LLM bleibt genau eine Frage, die echtes Urteil braucht:
+
+> Welches Abnahmekriterium wird durch die zugewiesenen Agenten **nicht**
+> hinreichend abgedeckt?
+
+Erzwungenes Verdict pro Kriterium: `covered` / `partial` / `uncovered` + die
+Subtask-IDs als Beleg. Kein Freitext-Gesamturteil. Max. 1 Replanning-Runde,
+danach läuft der Plan wie er ist (die Schwäche landet in der Reflexion).
+
+### 2.5 RUNNER
+
+Führt einen Subtask mit genau einem Agenten aus. Priorität: Richtigkeit,
+Halluzinationsverbot, Benennung von Unbeantwortbarem.
+
+Bei `depends_on` bekommt der Runner **nur die `facts` der Vorgänger**, nie deren
+`narrative` oder Rohtranskripte. Nebeneffekt: der Kontextverbrauch bleibt auch
+bei tiefen DAGs beherrschbar.
+
+### 2.6 FACT_CRITIC
+
+Läuft auf demselben Modell wie der Runner (nur ein Modell verfügbar). Die
+Gegenmaßnahmen gegen Self-Approval-Bias tragen deshalb die volle Last:
+
+- **Deterministische Checks laufen zuerst und sind nicht überstimmbar** (§4).
+- **Der Critic sieht das `narrative` des Runners nicht.** Input ist
+  ausschließlich: Frage, `acceptance_criteria`, Fact-Liste, Rohsnippets der
+  Quellen. Die Begründungskette des Runners ist der Haupttransportweg für
+  "klingt überzeugend, also stimmt es".
+- **Frage auf Mangel präsupponiert.** Nicht "ist das korrekt?", sondern pro
+  Fact: *"Welcher Teil des Belegzitats stützt diese Aussage nicht?"* Bei
+  identischem Modell ist das der wirksamste Einzelhebel.
+- `temperature: 0.1` (Runner darf höher).
+- Erzwungenes Verdict pro Abnahmekriterium: `met` / `partial` / `unmet` + Fact-IDs.
+  **Ein Kriterium ohne referenzierte Fact-ID ist automatisch `unmet`.**
+- Bei `kind != "statement"` (Tabellen, Listen): stichprobenartige Prüfung
+  einzelner Zellen gegen die Quellen.
+
+**Der FactCritic recherchiert nicht selbst.** Sonst bewertet er in der nächsten
+Runde seine eigene Arbeit und die Provenienz geht verloren. Erlaubte Outputs:
+
+- `accept`
+- `revise` + konkrete, prüfbare Mängelliste → zurück an den Runner
+- `unresolvable` → Subtask endet, landet sichtbar im Bericht
+
+**Revisions-Cap aus `depth_budget`.** Ohne Cap gibt es Ping-Pong, und der
+Bericht kann nie sagen "nicht beantwortbar" — was die gewünschte Ehrlichkeit
+technisch unmöglich machen würde.
+
+### 2.7 CONTRADICTION_CHECKER
+
+Pflicht-Pass am Ende über alle akzeptierten Facts. Kein Tool-Zugriff. Setzt
+`contradicts`-Referenzen. Separat vom Synthesizer, weil seine Prompt-Haltung
+adversarisch ist und er nicht gleichzeitig konsolidieren soll.
+
+Besonders relevant: `authoritative` vs. `user_asserted` (§5) — veraltete eigene
+Notizen gegen echte Dokumente. Das ist praktisch der wertvollste Output des
+gesamten Systems.
+
+### 2.8 WRITER
+
+Zwei harte Regeln:
+
+1. **Keine neuen Claims.** Jeder Absatz trägt Fact-Marker `[st3.f1]`. Absätze
+   ohne Marker werden automatisch geflaggt.
+2. **Die Selbstreflexion wird aus Daten generiert, nicht vom LLM erfunden.**
+
+Der Reflexionsabschnitt wird von Code aus dem Run-State gebaut:
+
+- Anzahl `unresolvable`-Subtasks (mit Frage)
+- alle offenen `gaps` mit `reason`
+- alle `contradicts`-Paare
+- Facts mit `evidence: "model_knowledge"`
+- Subtasks am Revisions-Cap
+- Kriterien mit Verdict `partial` / `unmet`
+- Verteilung nach `source_trust`
+
+Das LLM darf diesen Block kommentieren, aber nicht kürzen oder umschreiben.
+Deterministische Ehrlichkeit schlägt performte Ehrlichkeit — sonst schreibt das
+Modell drei wohlklingende Sätze über "Limitationen dieser Analyse" und
+verschweigt, dass Subtask 4 nichts gefunden hat.
+
+**Berichtsstruktur:** Titel · Auftraggeber · Modell · Datum · Dauer →
+Inhaltsverzeichnis → Aufgabenstellung (Original + Brief) → Subtask-Übersicht mit
+Agenten → Bericht → **Selbstreflexion (generiert)** → Quellenverzeichnis mit
+`source_trust`-Kennzeichnung.
 
 ---
 
-## 9. Ausführungs-Mechanik
+## 3. Datenmodell
 
-### Ready-Set-Scheduling (DAG, subsummiert lineare Kette)
+Prosa bleibt erhalten, aber **abgeleitet**: Facts sind das zitierfähige
+Substrat, `narrative` darf ausschließlich Fact-IDs referenzieren. Sonst schreibt
+der Writer Prosa aus Prosa aus Prosa.
 
-Ein Sub-Task ist *ready*, wenn alle seine `depends_on` auf `DONE` stehen. Der
-Orchestrator-Loop: nimm ready Sub-Tasks → führe aus → wiederhole, bis alle
-`DONE`/`FAILED`. Bei reiner Kette = serielle Reihenfolge. Kinder warten auf die
-kompaktierten Ergebnisse ihrer Eltern.
+### 3.1 SubtaskResult
 
-### Pro Sub-Task
+```json
+{
+  "subtask_id": "st3",
+  "revision": 2,
+  "status": "ok | partial | unresolvable",
+  "question": "Welche Fristen ergeben sich aus dem Mietvertrag?",
+  "acceptance_criteria": ["nennt jede Frist mit Datum und Quelldokument"],
+  "covers_criteria": [0, 2],
+  "depends_on": ["st1"],
+  "agent": "doc_researcher",
+  "sources_restrict": null,
+  "model": "qwen3:32b",
+  "started_at": "2026-08-17T09:12:03Z",
+  "finished_at": "2026-08-17T09:13:05Z",
+  "duration_s": 62,
 
+  "facts": [ /* siehe 3.2 */ ],
+
+  "gaps": [
+    {
+      "question": "Gibt es eine Nebenabrede zur Frist?",
+      "reason": "not_found | source_unavailable | ambiguous | conflicting",
+      "suggested_source": "comms"
+    }
+  ],
+
+  "narrative": "Fließtext, darf nur [st3.f1]-Referenzen enthalten",
+
+  "self_check": {
+    "claims_without_source": 0,
+    "sources_fetched": 4,
+    "tool_calls": 6
+  }
+}
 ```
-Worker.run(instruction, dep_results) ──► raw
-  └─ prechecks(raw)                       # deterministisch: nicht leer? Quelle? Länge?
-       ├─ fail ─► retry (bis Cap) ─► immer noch fail ─► FAILED (Teilinfo-Policy)
-       └─ pass ─► Critic.run(task, raw)   # ok / redo
-                    ├─ redo (bis Cap)
-                    └─ ok ─► compact(raw) ─► result_compacted ─► DONE
+
+`self_check` wird **von Code befüllt, nie vom LLM.** Ein Runner, dessen Facts
+alle `model_knowledge` ohne Quelle sind, obwohl Tools verfügbar waren, wird
+deterministisch abgelehnt — das ist der Minimax-Bug (Antwort ohne Tool-Nutzung),
+hier strukturell erschlagen statt per Prompt bekämpft.
+
+### 3.2 Fact
+
+```json
+{
+  "id": "st3.f1",
+  "kind": "statement | table | list | excerpt | figure",
+  "claim": "Aussage. Darf Markdown enthalten, auch Tabellen.",
+  "evidence": "quote | computed | derived | model_knowledge | none",
+  "expression": "1240 + 890 + 2100",
+  "sources": [
+    {
+      "id": "s7",
+      "type": "paperless | vault | web | email | calendar | note",
+      "trust": "authoritative | user_asserted | external | computed | model",
+      "ref": "doc:1423#p2",
+      "retrieved_at": "2026-08-17T09:12:40Z",
+      "quote": "wörtliches Belegzitat aus dem abgerufenen Text",
+      "query": "correspondent=Stadtwerke&created__year=2025",
+      "hits": 17
+    }
+  ],
+  "derived_from": ["st1.f4"],
+  "contradicts": ["st2.f9"],
+  "confidence": "high | medium | low"
+}
 ```
 
-### Failed-Policy
+**Was gegenüber dem ursprünglichen Entwurf geändert wurde und warum:**
 
-Scheitert ein Sub-Task nach Retries: als `FAILED` markieren, Platzhalter-Ergebnis
-("keine belastbaren Daten ermittelt") setzen, **weitermachen**. Der Synthesizer
-bekommt die Lücke mit und vermerkt sie im finalen Dokument. Kein Gesamt-Abbruch.
+- **`certainty: 0.9` → `evidence` + abgeleitete `confidence`.** Numerische
+  LLM-Confidence ist nicht kalibriert; praktisch alles landet zwischen 0.85 und
+  0.95 und ist nicht prüfbar. `evidence` ist an etwas Überprüfbares gebunden.
+  **`confidence` wird im Code aus `evidence` und `source_trust` abgeleitet — das
+  LLM wird nicht danach gefragt.**
+- **`source: "…"` → Objekt mit `quote`.** Das wörtliche Belegzitat ist der
+  einzige *deterministische* Anti-Halluzinations-Check, den es gibt:
+  Fuzzy-Match gegen den tatsächlich abgerufenen Text. Kein Match → Fact wird
+  programmatisch verworfen, ohne LLM-Urteil.
+- **`fact_id` global eindeutig** (`st3.f1` statt `1`) — sonst kann der Writer
+  nicht subtask-übergreifend referenzieren.
+- **`gaps` als First-Class-Feld.** Zentral: gibt es keinen gebahnten Weg für
+  "weiß ich nicht", nimmt das Modell den Weg zu "ja".
+- **`contradicts`** — ohne das wählt der Writer bei widersprüchlichen Quellen
+  still eine aus.
+- **`kind`** — Facts dürfen lang sein (Markdown-Tabellen etc.).
 
-### Stop / Resume (geschenkt durch Persistenz)
+### 3.3 Atomarität
 
-"Stop" = pausieren *nach* dem aktuellen Sub-Task (kein hartes Kill mitten im
-LLM-Call). "Resume" = beim ersten Sub-Task mit Status ≠ `DONE` weitermachen. Möglich,
-weil jedes Sub-Task-Ergebnis in SQLite persistiert wird. Übersteht auch Neustarts.
+Die Regel lautet nicht mehr "Einzeiler", sondern:
+
+> Ein Fact ist die kleinste Einheit, die **als Ganzes** akzeptiert oder verworfen
+> werden kann.
+
+Eine Tabelle aus einer Quelle = ein Fact. Eine Tabelle aus fünf Quellen = ein
+`derived` Fact mit vollständiger `derived_from`-Liste, erzeugt vom
+`synthesizer`, nicht vom Researcher.
+
+Bei `kind != "statement"` greift Quote-Matching pro Zelle nicht sinnvoll — dann
+ist `evidence: "derived"` oder `"computed"` Pflicht und die Quellenliste muss
+vollständig sein.
+
+### 3.4 Berechnete Werte
+
+Jedes `calculate`-Ergebnis erzeugt einen Fact mit `evidence: "computed"`,
+gefülltem `expression` und `derived_from` auf die Eingangswerte. Damit ist im
+Bericht nachvollziehbar, welche Zahl gemessen und welche gerechnet wurde — und
+der Check kann die Arithmetik deterministisch nachrechnen, ganz ohne LLM.
+
+Analog bei Paperless-Filterabfragen: kein Belegzitat möglich, daher sind
+`query` und `hits` Pflicht.
 
 ---
 
-## 10. Modulstruktur
+## 4. Deterministische Checks
 
+Laufen **vor** dem FactCritic und sind von ihm nicht überstimmbar. Sie
+erschlagen genau die Fehlerklasse, bei der Selbstbewertung am unzuverlässigsten
+ist.
+
+| # | Check | Fehlverhalten |
+|---|---|---|
+| D1 | JSON-Schema-Validierung | Retry (max. 2), dann `unresolvable` |
+| D2 | `evidence: "quote"` → Fuzzy-Match ≥ 0.90 gegen abgerufenen Text | Fact verwerfen |
+| D3 | `evidence: "computed"` → `expression` vorhanden **und** nachrechenbar, **oder** `query` + `hits` vorhanden | Fact verwerfen |
+| D4 | `evidence: "derived"` → `derived_from` nicht leer, alle IDs existieren | Fact verwerfen |
+| D5 | Tools waren verfügbar, aber `tool_calls == 0` | Subtask ablehnen, Revision erzwingen |
+| D6 | `narrative` referenziert nur existierende Fact-IDs | unbekannte Marker strippen, Absatz flaggen |
+| D7 | `sources_restrict` verletzt | Fact verwerfen |
+| D8 | Alle Facts verworfen und `gaps` leer | Subtask → `unresolvable` |
+| D9 | Writer-Absatz ohne Fact-Marker | flaggen, in Reflexion listen |
+
+Der abgerufene Rohtext jedes Tool-Calls wird pro Subtask zwischengespeichert,
+sonst ist D2 nicht durchführbar.
+
+---
+
+## 5. Quellen-Vertrauensstufen
+
+`source_trust` wird **vom aufrufenden Code gesetzt**, abgeleitet aus dem Tool,
+das den Treffer geliefert hat. Nie vom LLM, und vom Agenten nicht
+überschreibbar.
+
+| Stufe | Bedeutung | Quellen |
+|---|---|---|
+| `authoritative` | echtes Dokument, unabhängig vom User entstanden | Paperless-Dokumente |
+| `user_asserted` | vom User oder Umfeld behauptet, unverifiziert | Vault-Notizen, eigene Mails, Kalendereinträge, Paperless-Notizen |
+| `external` | Dritte, Aktualität und Bias unklar | Websuche |
+| `computed` | aus Metadaten oder Arithmetik berechnet | Paperless-Filter, calculate |
+| `model` | Parameterwissen ohne Beleg | LLM selbst |
+
+Der Unterschied zwischen `authoritative` und `user_asserted` ist der, den Nutzer
+am ehesten übersehen: eine Vault-Notiz "Kündigungsfrist 3 Monate" ist kein
+Beleg, sondern eine Erinnerung an eine Vermutung. Ein Bericht, der beides gleich
+behandelt, ist unehrlich — auch wenn jeder Einzelschritt sauber war.
+
+**Regel:** Ein `authoritative`-Fact und ein widersprechender
+`user_asserted`-Fact ergeben zwingend einen `contradicts`-Eintrag, keinen
+stillen Vorrang.
+
+---
+
+## 6. Agenten-Registry
+
+Archetypen definieren sich über **Quelle und epistemischen Modus, niemals über
+Thema.** Kein "Jurist", kein "Finanzanalyst" — das Modell kann seine eigene
+Fachkompetenz nicht einschätzen, und der Planer würde nach Themenwörtern statt
+nach Informationsbedarf zuweisen. Fachlichkeit kommt über den Subtask-Prompt.
+
+`current_date` (inkl. Wochentag und KW) wird in **jeden** Prompt injiziert und
+ist kein Agent.
+
+`calculate` ist ein **Tool für alle Agenten**, kein eigener Agent. Ein
+Rechner-Agent würde nur bedeuten, dass Zahlen den Kontext wechseln — das erzeugt
+Fehler, statt sie zu verhindern.
+
+| ID | Tools | Trust | Kernrisiko |
+|---|---|---|---|
+| `doc_researcher` | Paperless semantisch + Metadatenfilter, Notizen, Vault-Suche, calculate | `authoritative` / `user_asserted` / `computed` | Vault-Notiz wird als Faktum behandelt |
+| `web_researcher` | SearXNG + Fetch (trafilatura/Crawl4AI), calculate | `external` | zitiert aus Snippet statt Volltext |
+| `comms_researcher` | IMAP/Gmail, CalDAV, calculate | `user_asserted` | Locale-Ordner → falsches "nichts gefunden" |
+| `synthesizer` | keine externen — nur Facts, calculate | `derived` | schmuggelt neue Claims ein |
+| `contradiction_checker` | keine — nur Facts | `derived` | glättet Widersprüche |
+
+### 6.1 doc_researcher
+
+Semantische Suche und Metadatenfilter sind zwei Modi desselben Tools. Ein Agent
+kann damit auch das Naheliegende: erst filtern, dann semantisch innerhalb der
+Treffermenge suchen. Getrennte Agenten hätten das nie zusammengebaut.
+
+Bei jeder Dokumentensuche wird **automatisch eine semantische Vault-Suche
+mitgefeuert** und in die Ergebnisse gespielt — genau dort entstehen die
+Widersprüche, die sichtbar werden sollen.
+
+Der Unterschied zwischen Paperless und Vault liegt nicht im Agenten, sondern in
+`source_trust` (§5), gesetzt vom Code.
+
+Subtask-Flag `sources_restrict: ["paperless"]` schaltet die Vault-Beimischung
+ab — für rechtlich oder finanziell heikle Fragen.
+
+### 6.2 web_researcher
+
+Zwei Pflichtregeln:
+
+- Zitate ausschließlich aus **gefetchtem Volltext**, nie aus SearXNG-Snippets.
+- `retrieved_at` ist Pflicht. Zwingt den Writer zu korrekten Aktualitätsangaben
+  statt "laut aktuellen Informationen".
+
+### 6.3 comms_researcher
+
+E-Mail und Kalender sind beide zeitlich verankerte persönliche Streams, und die
+typischen Fragen brauchen sie gemeinsam ("Wann haben wir den Termin vereinbart,
+und steht er im Kalender?"). Getrennt hätte jede solche Frage einen
+Synthesizer-Subtask erzwungen.
+
+Prompt-Hinweise (keine Architekturfragen, aber bekannte Fehlerquellen):
+
+- Gmail-Ordner sind locale-abhängig (`[Google Mail]/Alle Nachrichten`) →
+  SPECIAL-USE `\All`-Flag zur Discovery, modified UTF-7 beachten.
+- Bei `X-GM-EXT-1` in CAPABILITY: `SEARCH X-GM-RAW`.
+- Serientermine und Zeitzonen explizit auflösen, bevor ein Fact entsteht.
+
+### 6.4 synthesizer / contradiction_checker
+
+Kein Zugriff auf externe Quellen, nur auf Facts vorheriger Subtasks. Dadurch
+deterministisch prüfbar (D4). Sie sind das Ventil für Fragen, die mehrere
+Quellen bräuchten: statt eines Multi-Source-Agenten (Provenienz wird matschig,
+Quote-Matching unmöglich) baut der Planer zwei Researcher plus einen
+Synthesizer.
+
+### 6.5 Registry-Format
+
+**YAML mit Laufzeit-Filterung**, nicht als Python-Konstante — bei ~40 Nutzern
+mit je eigener Tool-Verfügbarkeit (Mail, Kalender, Web optional) muss die
+Registry pro User gefiltert werden, und die Prompt-Fragmente sollen ohne Deploy
+editierbar sein.
+
+```yaml
+# config/agents.yaml
+agents:
+  doc_researcher:
+    label: "Dokumenten-Recherche"
+    tools: [paperless_semantic, paperless_filter, paperless_notes, vault_search, calculate]
+    requires: [paperless]          # Agent entfällt, wenn nicht konfiguriert
+    default_trust:
+      paperless_semantic: authoritative
+      paperless_filter: computed
+      paperless_notes: user_asserted
+      vault_search: user_asserted
+    prompt_file: prompts/agents/doc_researcher.md
 ```
-werkbank/
-├── __init__.py
-├── models.py           # dataclasses + Status-Enum, KEINE Logik
-├── repository.py        # einzige SQLite-Schicht (CRUD, WAL, immer user-scoped)
-├── schema.sql
-├── roles/               # je eine stateless Klasse mit async def run(...)
-│   ├── planner.py
-│   ├── splitter.py      # + Validierung, oder validation.py separat
-│   ├── worker.py
-│   ├── critic.py
-│   └── synthesizer.py
-├── orchestrator.py      # deterministische State-Machine für EINEN Task
-├── scheduler.py         # Worker-Loop: zieht QUEUED Tasks, managt Lanes
-├── llm_lane.py          # Backend-Semaphoren (lokal=1, api=N)
-├── compaction.py
-├── prechecks.py
-├── archetypes.py        # Default-Archetypen + Auflösung/Seeding
-├── export.py            # .md-Assembly + MD→PDF + Paperless-Upload
-└── ui/
-    ├── module_page.py     # Header-Modul: user-gescopte Tabelle + Buttons
-    ├── task_dialog.py     # Board (Triage → To-Do → In Bearbeitung → Abgeschlossen);
-    │                       # weicht der Ergebnisansicht bei AWAITING_REVIEW
-    └── archetype_dialog.py # Archetypen-CRUD (Name, Beschreibung, Soul-Text, Tool-Toggles)
+
+Der PLANNER bekommt die **gefilterte** Registry als Teil seines Prompts.
+
+---
+
+## 7. Scheduler
+
+Ein Modell für alles, entweder lokal oder Cloud — kein Routing im Plan,
+`backend` existiert nicht im Subtask-Schema.
+
+```python
+CONCURRENCY = {"local": 2, "cloud": 6}   # local: VRAM-gebunden (RTX 5090)
 ```
 
-Designregeln:
-- Rollen sind stateless, bekommen alles injiziert (LLM-Callable, Tool-Subset,
-  Eingaben) → isoliert testbar.
-- Orchestrator ruft nie selbst ein LLM, nur Rollen.
-- Repository ist die einzige Stelle mit SQL.
-- `models.py` enthält nur Daten, keine Logik.
+Level-weise Abarbeitung des DAG: alle Subtasks mit erfüllten `depends_on` gehen
+gegen eine `asyncio.Semaphore`. Bei lokalem Backend faktisch serielle
+Abarbeitung mit Doppelspur — bei komplexen Aufgaben akzeptabel.
+
+Persistenz in SQLite (WAL), analog zur bestehenden Werkbank: Run, Subtask,
+Fact, CriticVerdict. Der Run muss nach Neustart fortsetzbar sein; abgeschlossene
+Subtasks werden nicht erneut ausgeführt.
 
 ---
 
-## 11. Wiederverwendung bestehender PaperSage-Komponenten
+## 8. Umsetzungsphasen
 
-NICHT neu bauen — anbinden:
-- **LLM-Client** (Ollama + Anthropic) → von den Rollen über `llm_lane` genutzt.
-- **Tool-Registry** → Archetypen referenzieren Tool-Subsets per Namen. Tools müssen
-  eine stabile, benannte Liste sein.
-- **Chroma-Zugriff** (rag_search, brain_search) → über die Tools.
-- **Paperless-Client** → in `export.py` für den Upload.
-- **Embedding-Service** (intfloat/multilingual-e5-large-instruct, **mit Instruct-
-  Prefixes!**) → falls Sub-Tasks Retrieval machen.
-- **Auth/User-Kontext** → `user_id` für das Scoping.
-- **Settings** → System-Rollen-Prompts, Default-Tags (Posteingang + ai-generated),
-  verfügbare Modelle, per-User verschlüsselter Claude-API-Key (vorhandene
-  verschlüsselte Datei pro User).
+Jede Phase ist end-to-end verifizierbar. `/clear` zwischen den Phasen.
+
+### Phase 1 — Datenmodell und deterministische Checks
+
+Kein LLM. Pydantic-Modelle für `Brief`, `Subtask`, `SubtaskResult`, `Fact`,
+`Source`, `Gap`, `CriticVerdict`. Checks D1–D9 als reine Funktionen.
+SQLite-Schema + Migration.
+
+*Akzeptanz:* Unit-Tests mit handgeschriebenen Fixtures — ein Fact mit
+manipuliertem Quote wird von D2 verworfen; `computed` ohne `expression` und ohne
+`query` wird von D3 verworfen; Arithmetik in `expression` wird nachgerechnet;
+`derived_from` mit unbekannter ID scheitert an D4.
+
+### Phase 2 — BRIEFER + Bestätigungs-UI
+
+*Akzeptanz:* Drei reale Aufgaben ergeben valide Briefs; `depth_budget` ist ein
+Enum-Wert; jedes `acceptance_criterion` beginnt mit einem Verb; die UI zeigt
+`assumptions` prominent und erlaubt Korrektur; `original_request` bleibt
+unverändert im State.
+
+### Phase 3 — Registry + PLANNER + PLAN_CRITIC
+
+*Akzeptanz:* Bei deaktiviertem Mail-Tool taucht `comms_researcher` weder in der
+Registry noch im Plan auf, und eine nur per Mail beantwortbare Frage erzeugt
+`gaps.reason = "source_unavailable"`; Regeln 1–6 werden als Code geprüft, nicht
+als Prompt; der DAG ist zyklenfrei; jedes Brief-Kriterium ist von mindestens
+einem Subtask abgedeckt.
+
+### Phase 4 — Ein Runner (`doc_researcher`) + FACT_CRITIC + Loop
+
+*Akzeptanz:* Ein Subtask erzeugt schema-valide Facts mit echten Belegzitaten,
+die D2 bestehen; ein absichtlich unbeantwortbarer Subtask ("Was steht im nicht
+existierenden Dokument X?") endet als `unresolvable` mit `gaps`-Eintrag statt
+mit erfundenem Inhalt; der Revisions-Cap greift; der Critic sieht das
+`narrative` nachweislich nicht (Prompt-Log prüfen).
+
+### Phase 5 — Scheduler + restliche Runner
+
+*Akzeptanz:* Ein Plan mit paralleler und serieller Abhängigkeit läuft korrekt;
+Concurrency-Limit wird eingehalten; ein abhängiger Subtask erhält nur Facts,
+kein `narrative`; Run überlebt einen Neustart.
+
+### Phase 6 — CONTRADICTION_CHECKER + WRITER
+
+*Akzeptanz:* Ein konstruierter Fall (Vault-Notiz widerspricht Paperless-Dokument)
+erzeugt einen `contradicts`-Eintrag und erscheint im Bericht; jeder Absatz des
+Berichts trägt Fact-Marker; die Selbstreflexion listet nachweislich alle
+`unresolvable`-Subtasks und offenen `gaps`; das Quellenverzeichnis kennzeichnet
+`source_trust`.
+
+### Phase 7 — UI-Integration
+
+Kanban-Board zeigt Subtask-Status, Revisionen, Critic-Verdicts. Fact-Marker im
+Bericht sind auf die Quelle klickbar.
 
 ---
 
-## 12. Sicherheit
+## 9. Do not
 
-- `user_id`-Filter auf JEDER Repository-Query.
-- Claude-API-Key bleibt in der vorhandenen per-User-verschlüsselten Datei, nie
-  Klartext in SQLite.
-- Web-/abgeleitete Inhalte erst nach Freigabe nach Paperless; nie automatisch in
-  den `documents`-Index.
-
----
-
-## 13. UI-Verhalten
-
-- **Modulseite:** user-gescopte Tabelle (Hauptaufgabe, Datum, Status, Paperless-ID +
-  Link). Buttons "Neue Aufgabe" und "Agenten" (Archetypen-Dialog).
-- **Task-Dialog:** horizontales Board. Steuerung oben: Start, Stop (Default Stop),
-  Löschen, Modellauswahl (aus Settings). Triage-Spalte hält den umformulierten Goal
-  (editierbar); Sub-Task-Spalten To-Do → In Bearbeitung → Abgeschlossen.
-- Bei `AWAITING_REVIEW`: Board weicht der **Ergebnisansicht** mit editierbarem
-  Markdown + "Freigeben & nach Paperless" / "Verwerfen".
-- Refresh per `ui.timer` (2–3 s) aus dem Repository. Fortschritt zeigen
-  ("Sub-Task 3 von 8"), da Läufe lange dauern (15–25 min lokal).
+- Keine numerische Confidence vom LLM abfragen.
+- Kein Agent, der zwei externe Quellen kombiniert — dafür gibt es den
+  `synthesizer`.
+- Der FactCritic recherchiert nicht und schreibt keine Facts.
+- `source_trust`, `self_check` und `confidence` werden nie vom LLM gesetzt.
+- Kein Fallback auf Parameterwissen, wenn eine Quelle fehlt — das ist ein `gap`.
+- Die generierte Selbstreflexion wird vom Writer nicht gekürzt oder umformuliert.
+- Kein Thema-basierter Agent-Archetyp.
+- Kein Retry ohne Cap.

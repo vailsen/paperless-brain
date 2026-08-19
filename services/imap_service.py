@@ -624,7 +624,12 @@ def _parse_date_for_sort(date_str: str) -> datetime:
 _DETAIL_FETCH = {
     "headers": "(RFC822.HEADER)",          # full headers, no body — always parses correctly
     "snippet": "(BODY.PEEK[]<0.16384>)",   # first 16 KB — covers long headers + body preview
-    "full":    "(BODY.PEEK[])",
+    # 256 KB, not the whole message. `full` keeps at most 40 000 characters of
+    # text (`_DETAIL_CHARS`), and an unbounded BODY.PEEK[] downloaded every
+    # attachment to get there — a construction thread with photos and PDFs cost
+    # megabytes per message and minutes per search. The text parts of a MIME
+    # message come first, so the window holds the body and drops the payload.
+    "full":    "(BODY.PEEK[]<0.262144>)",
 }
 _DETAIL_CHARS = {"headers": 0, "snippet": 300, "full": 40000}
 
@@ -669,6 +674,34 @@ def _fetch_dates_batch(conn: imaplib.IMAP4, ids: list[bytes]) -> list[tuple[byte
     return result
 
 
+def _fetch_batch(
+    conn: imaplib.IMAP4, ids: list[bytes], fetch_cmd: str
+) -> dict[bytes, bytes]:
+    """One IMAP round trip for many messages: sequence number → raw bytes.
+
+    A 50-result search used to issue 50 FETCH commands. Against Gmail over a WAN
+    the round trips, not the bytes, were most of the wait — a single search with
+    full bodies took four and a half minutes, and a research run that made eight
+    of them spent its entire budget inside IMAP.
+
+    Returns whatever came back; the caller fetches the rest one by one, so a
+    server that dislikes a set is slower, never wrong.
+    """
+    if len(ids) < 2:
+        return {}
+    out: dict[bytes, bytes] = {}
+    try:
+        _, data = conn.fetch(b",".join(ids), fetch_cmd)
+    except Exception:
+        return {}
+    for item in (data or []):
+        if not isinstance(item, tuple) or len(item) < 2 or not item[1]:
+            continue
+        if seq := re.match(rb"^(\d+)", item[0]):
+            out[seq.group(1)] = item[1]
+    return out
+
+
 def _fetch_messages(
     conn: imaplib.IMAP4,
     message_ids: list[bytes],
@@ -702,12 +735,17 @@ def _fetch_messages(
     fetch_cmd = _DETAIL_FETCH.get(detail, _DETAIL_FETCH["snippet"])
     results: list[dict] = []
     ordered_ids = message_ids if preserve_order else list(reversed(message_ids))
+    wanted = ordered_ids[:max_results]
+    batched = _fetch_batch(conn, wanted, fetch_cmd)
     for eid in ordered_ids:
         try:
-            _, msg_data = conn.fetch(eid, fetch_cmd)
-            if not msg_data or not isinstance(msg_data[0], tuple):
-                continue
-            r = _parse_one(msg_data[0][1], detail=detail)
+            raw = batched.get(eid)
+            if raw is None:
+                _, msg_data = conn.fetch(eid, fetch_cmd)
+                if not msg_data or not isinstance(msg_data[0], tuple):
+                    continue
+                raw = msg_data[0][1]
+            r = _parse_one(raw, detail=detail)
             if r:
                 results.append(r)
                 if len(results) >= max_results:

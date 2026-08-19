@@ -106,7 +106,7 @@ def test_raw_transcript_without_rewrite(transcribes):
 def test_rewrite_returns_topic_text_and_raw_transcript(monkeypatch, transcribes):
     monkeypatch.setattr(R, "_memo_model", lambda u, t: "some-model")
 
-    async def fake_rewrite(text, *, model, user_id, token, conversation=False):
+    async def fake_rewrite(text, *, model, user_id, token, conversation=False, previous=""):
         return "Car insurance", "- cleaned up\n- as markdown"
 
     monkeypatch.setattr(R.memo_service, "rewrite_dictation", fake_rewrite)
@@ -256,7 +256,7 @@ def test_conversation_mode_selects_the_dialog_prompt(monkeypatch, transcribes):
     monkeypatch.setattr(R, "_memo_model", lambda u, t: "some-model")
     seen = {}
 
-    async def fake_rewrite(text, *, model, user_id, token, conversation=False):
+    async def fake_rewrite(text, *, model, user_id, token, conversation=False, previous=""):
         seen["conversation"] = conversation
         return "Kitchen quote", text
 
@@ -289,7 +289,7 @@ def test_rewrite_phase_rejects_empty_transcript():
 def test_rewrite_phase_returns_topic_text_and_transcript(monkeypatch):
     monkeypatch.setattr(R, "_memo_model", lambda u, t: "some-model")
 
-    async def fake_rewrite(text, *, model, user_id, token, conversation=False):
+    async def fake_rewrite(text, *, model, user_id, token, conversation=False, previous=""):
         return "Car insurance", "- cleaned up"
 
     monkeypatch.setattr(R.memo_service, "rewrite_dictation", fake_rewrite)

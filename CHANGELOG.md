@@ -5,6 +5,190 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.8.0] — 2026-08-19
+
+**Deep research, rebuilt: facts with sources instead of prose.**
+
+The old research module answered in paragraphs, and a paragraph cannot be
+checked — a plausible one and a correct one look the same. A run now produces
+facts, each carrying its source, its trust level and, where it quotes, the
+verbatim text. Deterministic code verifies every quote against what the tool
+actually returned, recomputes every calculation, and drops what does not hold up
+before any model sees it. What it could not find is stated as a gap instead of
+being filled in.
+
+### Added
+
+- **A research run appears in the list the moment you start it.** Formulating
+  the assignment takes the better part of a minute, and it used to happen inside
+  an open dialog: leaving the page threw the request away. The run is now there
+  immediately, marked *briefing*, and waits for you with its brief when you come
+  back.
+
+- **Reports download as PDF**, next to the markdown export and "save to
+  Paperless" — the same rendering, just not filed in the archive.
+
+- **Deep research is rebuilt from the ground up (Werkbank v2).** The old module
+  answered in prose, and prose cannot be checked — a plausible paragraph and a
+  correct one look the same. A run now produces *facts*: each one carries its
+  source, its trust level and, where it is a quotation, the verbatim text it was
+  taken from. Deterministic code — not a second model — verifies every quote
+  against what the tool actually returned, recomputes every calculation, and
+  throws out what does not hold up. What was thrown out never reaches the report.
+
+- **"I did not find this" is now something a run can say.** Gaps are a
+  first-class part of the result, and a subtask that cannot answer its question
+  says so instead of filling the space. Every report ends with a generated block
+  naming what is missing, what rests on a single source and what contradicts
+  what — written by code, so it cannot be talked around.
+
+- **A run starts with an assignment you confirm.** The brief shows the goal, the
+  acceptance criteria the finished report is measured against, and every
+  assumption the model had to make. Wrong assumptions here are the cheapest thing
+  in the world to fix and the most expensive to discover afterwards — this is the
+  failure where a run answers the wrong question perfectly.
+
+- **Every sentence in a report can be interrogated.** The markers in the text are
+  clickable and open the fact behind them: claim, source, trust level, quotation,
+  and any fact it contradicts.
+
+- **Reports leave the module.** Download as markdown, or file into Paperless as a
+  PDF — on a button, never automatically.
+
+- **Role prompts are editable** under Settings > AI deep research, with a token
+  limit per role and a reset to the shipped text. An override changes what a role
+  is *asked*; it cannot change what is *verified* — those checks live in code.
+
+- **The logo goes home.** The PaperlessBrain logo and wordmark are a real link
+  to the dashboard, so middle-click opens it in a new tab and "copy link
+  address" works — which a click handler on a `<div>` looks identical to and
+  supports none of.
+
+- **Dictated punctuation becomes punctuation.** Saying "Komma", "Doppelpunkt",
+  "neue Zeile" (or comma, colon, new line …) writes the mark instead of the
+  word, in memos and in conversation mode. Only when it is meant as punctuation:
+  "ein Punkt auf der Liste" stays a sentence about a point.
+
+### Fixed
+
+- **A research run can write about the mail it found.** A subtask is two calls —
+  work the tools, then report facts against the schema — and everything the tools
+  returned was dropped in between: the reporting call saw only a list of source
+  names and the model's own notes. So a fact could be no better than that
+  paraphrase, and a verbatim quote no better than a memory of one. Faced with 299
+  e-mail hits and no text, the agent correctly refused to invent and reported
+  nothing. The retrieved text now goes back into that call, as labelled excerpts
+  within a fixed budget, with failed calls named but empty.
+
+- **Mail searches are minutes faster.** A page of results was fetched one message
+  at a time — fifty results, fifty round trips — and `detail=full` downloaded
+  every attachment in every message to keep at most 40 000 characters of text. A
+  page is now one request, full bodies stop at 256 KB, and a research run surveys
+  with headers before pulling bodies for the few threads that answer the question.
+
+- **A tool that could not run no longer proves anything.** "IMAP not configured",
+  "the search host refused this request" and "no e-mails found" are three
+  different sentences and used to reach a report as one: an absence. A call now
+  records whether it *ran and found nothing* — which is evidence — or *never
+  ran*, which is not. A failed call carries no result count, no trust and nothing
+  quotable, and any gap behind it is reported as an unavailable source instead of
+  a finding.
+
+- **A German quote in the answer no longer costs a subtask everything it found.**
+  `(als „M.Milbich", Bauleiter)` closed the JSON string early, and three attempts
+  in a row were discarded with a schema error — after twelve tool calls that had
+  found exactly the document that was asked for. The repair now asks the parser
+  where it stopped instead of guessing from punctuation.
+
+- **A German quote in a tool *call* no longer searches for nothing.** Unparseable
+  arguments were replaced with an empty object, so the tool ran with no query at
+  all and answered "nothing found" — with no trace of why. They are repaired the
+  same way, and what cannot be repaired is refused out loud.
+
+- **An answer cut off at the token limit says so.** A review that asked for one
+  fact per e-mail across 155 of them produced an answer too long to deliver,
+  three times, and the subtask was reported as unanswered. The retry now asks for
+  fewer, aggregated facts, and reviews no longer demand an entry per item of a
+  long list.
+
+- **Search hits are counted where they exist and nowhere else.** Mail and
+  calendar searches never reported a count, so an honest negative finding ("I ran
+  this query, nothing came back") could not be verified and was thrown out — while
+  a fetched web page was credited with 95 "hits" counted off its own navigation
+  menu. Counts now come only from searches, and from the pagination total rather
+  than the page size.
+
+- **German text is no longer underlined as misspelt.** The browser spellchecks
+  with its English dictionary; it is now switched off for every input in the app,
+  not only the chat box.
+
+- **Deleting a run asks first.** It sits next to the button that opens the run,
+  and a finished run is half an hour of model time plus a report that cannot be
+  reproduced. A running one is stopped before it is deleted, so it cannot write
+  its next result after the row is gone and reappear in the list.
+
+- **A dialog no longer closes itself a few seconds after opening.** The run
+  list refreshes on a timer while research is under way, and anything built
+  inside it — the board, a fact, the brief you were reading — was deleted along
+  with it. Dialogs now live outside that list, and the refresh holds while one
+  is open.
+
+- **Research fetches through a real browser.** Journal pages, registries and
+  anything behind a cookie banner returned a few hundred characters of "please
+  enable JavaScript", which then had to be treated as the article. A run now
+  loads pages in headless Chromium first, and a page that still cannot be read
+  says so plainly instead of passing a banner off as content.
+
+- **One set of agents instead of two.** The four v1 archetypes (retriever,
+  researcher, secretary, writer) sat in the same table the new registry reads, so
+  a run could be planned around an agent that has no prompt of its own and none
+  of the evidence rules — the exact failure the rebuild removes. The shipped
+  agents now come from one file, and an untouched v1 archetype is cleared away on
+  first use. One you rewrote yourself is kept as your own.
+
+- **A research run no longer reads a stale index.** It syncs the vault before it
+  retrieves anything, so a note written minutes earlier is visible to the run
+  started to act on it.
+
+- **A run survives the tab that started it, and a restart.** Progress comes from
+  storage rather than from the page, so closing the tab aborts nothing; after a
+  restart an interrupted run is offered for resumption rather than silently
+  restarted — each subtask costs model calls.
+
+- **A second recording continues the memo instead of being stapled to it.** In
+  the review dialog the rewrite only ever saw the new fragment, so it tidied it
+  in isolation: a second heading for the same subject, a second table with the
+  same columns, facts separated from the ones they belong with. The model now
+  gets the memo as it stands — including your own edits to it — and returns the
+  merged whole. Every failure path keeps both halves; the earlier one has
+  already been reviewed and must not be lost to a model timeout.
+
+- **Lists render without needing a heading above them.** markdown2 wants a blank
+  line before a list, so "Einkauf:" followed directly by "- Milch" came out as
+  one paragraph — and a `# title` at the top happened to supply that blank line,
+  which is why adding one "fixed" it. The preview now enables `cuddled-lists`,
+  and `break-on-newline` so a single newline is the line break the editor shows.
+
+- **The tree shows enough of a filename to identify it.** Wider on the desktop
+  (330 px) and on the phone (up to 88 vw), one step smaller in type, tighter
+  rows and indentation — and the selected note wraps to its full name instead of
+  ellipsising, since that is the one whose identity matters.
+
+### Changed
+
+- **Properties start collapsed.** They are mostly machine-managed, and the note
+  is what you opened the page for. (0.7.0 had them expanded.)
+
+- **Memo filenames are `YY-MM-DD Topic.md`**, without the clock. The name is read
+  in a narrow sidebar, where every character spent on a timestamp is one the
+  topic does not get; the exact time is still in the note's `created` property,
+  and two memos on one day are still separated by a suffix.
+
+- **README: the Note vault no longer compares itself to Obsidian.** Obsidian is
+  the better editor and stays the recommended way to work with a large vault —
+  the point of the built-in one is that you no longer need it *installed* to fix
+  a typo from a phone.
+
 ## [0.7.2] — 2026-08-15
 
 **Dictation in chat sends itself.**
@@ -76,8 +260,8 @@ looked healthy right up to the moment a tool ran.
 
 ## [0.7.0] — 2026-08-14
 
-**Like Obsidian, without needing Obsidian — and an answer in the language you
-asked in.**
+**Notes editable without Obsidian — and an answer in the language you asked
+in.**
 
 The Memory page could edit exactly two things: agent-curated facts and manual
 deadlines. Everything else in the vault — to-do notes, memos, logs — was
@@ -87,11 +271,12 @@ WebDAV. Neither is something you can hand to a person with a phone.
 So the module became a note editor: folder tree on the left, the note on the
 right, frontmatter as typed properties above it. It is now called the **Note
 vault**, because it stopped being only the agent's memory the moment it could
-edit every note in the folder. Obsidian still works on the same directory, at
-the same time — the editor is one more client, not a new format. That claim is
-load-bearing, and it is why an untouched property is written back byte for byte
-rather than re-serialized, and why two people editing the same note merge
-instead of overwriting.
+edit every note in the folder. This does not replace Obsidian — Obsidian is
+still the better editor for a large vault — it means you no longer need it
+installed to fix a typo from your phone. Both work on the same directory at the
+same time, which is load-bearing: it is why an untouched property is written
+back byte for byte rather than re-serialized, and why two clients editing the
+same note merge instead of overwriting.
 
 The other half of this release is a language bug worth describing honestly: an
 English question about a German invoice came back in German. The rule said "do

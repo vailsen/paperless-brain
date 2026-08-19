@@ -174,8 +174,14 @@ async def rewrite_payload(
     username: str,
     token: str,
     conversation: bool = False,
+    previous: str = "",
 ) -> dict:
     """Transcript → ``{"topic", "text", "transcript"}``.
+
+    ``previous`` carries the memo as it already stands when the user records a
+    second time, so the model merges into it instead of tidying a fragment in
+    isolation. When it is set the returned text is the COMPLETE memo and the
+    caller replaces rather than appends.
 
     Split out from the transcription so the UI can tell the two phases apart:
     waiting on Whisper and waiting on the model are different waits, and a
@@ -195,7 +201,12 @@ async def rewrite_payload(
         # cut from its first words — visibly worse, and nothing in the UI says why.
         _log.warning("no memo model configured for %s — filing the raw transcript", username)
     topic, cleaned = await memo_service.rewrite_dictation(
-        raw, model=model, user_id=username, token=token, conversation=conversation
+        raw,
+        model=model,
+        user_id=username,
+        token=token,
+        conversation=conversation,
+        previous=previous,
     )
     return {"topic": topic, "text": cleaned, "transcript": raw}
 
@@ -381,7 +392,9 @@ async def rewrite_transcript(body: dict) -> JSONResponse:
             username=username,
             token=token,
             conversation=(body.get("mode") == "conversation"),
+            previous=str(body.get("previous") or ""),
         )
     except MemoInputError as exc:
         return _error(exc.status, exc.message)
+    payload["replaced"] = bool(str(body.get("previous") or "").strip())
     return JSONResponse(payload)

@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from typing import Any
 
@@ -46,6 +47,8 @@ import httpx
 
 from config.settings import settings
 from services.credential_store import load_credentials
+
+_log = logging.getLogger(__name__)
 
 # ── Concurrency lanes ─────────────────────────────────────────────────────────
 
@@ -222,10 +225,7 @@ async def _call_openai_compatible(
         fn = tc.get("function", {})
         args = fn.get("arguments", {})
         if isinstance(args, str):
-            try:
-                args = json.loads(args)
-            except json.JSONDecodeError:
-                args = {}
+            args = _tool_args(args)
         tool_calls.append(
             {
                 "name": fn.get("name", ""),
@@ -412,6 +412,60 @@ async def complete_turn(
             _touch_watchdog(sem)
 
 
+_JSON_FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.S)
+
+
+def _tool_args(raw: str) -> dict:
+    """Tool-call arguments, with the same quote repair the answers get.
+
+    A German query — `search(query="Rechnung „Milbich" 2023")` — is not valid
+    JSON, and the old handling replaced the whole argument object with `{}`.
+    The tool then ran with no arguments at all: a search for nothing, an empty
+    result, and no trace anywhere of why. Silence is the wrong failure here, so
+    what cannot be repaired is passed on as an argument the tool will reject.
+    """
+    from werkbank.v2.models import repair_json
+
+    for candidate in (raw, repair_json(raw)):
+        try:
+            parsed = json.loads(candidate)
+        except ValueError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    _log.warning("werkbank: unparseable tool arguments: %s", raw[:200])
+    return {"_unparsed_arguments": raw[:500]}
+
+
+def _json_from_text(content: str) -> dict | None:
+    """Rescue a structured answer a model wrote as text instead of calling the tool.
+
+    Local models behind an OpenAI-compatible gateway do this often, especially
+    after a long tool-using turn: the JSON is right there in `content`, and the
+    only thing missing is the tool-call wrapper. Discarding it throws away the
+    entire subtask — in one observed run, 42 tool calls and 119 KB of fetched
+    pages — over a protocol detail.
+    """
+    if not content:
+        return None
+    if match := _JSON_FENCE.search(content):
+        candidates = [match.group(1)]
+    else:
+        start, end = content.find("{"), content.rfind("}")
+        candidates = [content[start:end + 1]] if 0 <= start < end else []
+    from werkbank.v2.models import repair_json
+
+    for text in candidates:
+        for candidate in (text, repair_json(text)):
+            try:
+                parsed = json.loads(candidate)
+            except ValueError:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+    return None
+
+
 async def complete_structured(
     system: str,
     messages: list[dict],
@@ -522,6 +576,9 @@ async def _call_claude_structured(
     for block in response.content:
         if block.type == "tool_use" and block.name == tool_name:
             return block.input
+    text = "".join(b.text for b in response.content if getattr(b, "type", "") == "text")
+    if salvaged := _json_from_text(text):
+        return salvaged
     raise ValueError(f"Claude did not call tool '{tool_name}'")
 
 
@@ -567,7 +624,9 @@ async def _call_openai_compatible_structured(
         )
         resp.raise_for_status()
 
-    msg = resp.json().get("choices", [{}])[0].get("message", {})
+    choice = resp.json().get("choices", [{}])[0]
+    msg = choice.get("message", {})
+    finish = choice.get("finish_reason") or ""
     for tc in msg.get("tool_calls") or []:
         fn = tc.get("function", {})
         if fn.get("name") == tool_name:
@@ -576,11 +635,40 @@ async def _call_openai_compatible_structured(
                 try:
                     return json.loads(args)
                 except json.JSONDecodeError as exc:
-                    raise ValueError(
-                        f"OpenAI-compat structured output invalid JSON: {exc}"
-                    ) from exc
+                    # A German closing quote inside a value — `„Prion" und …` —
+                    # ends the JSON string early and makes the rest unparseable.
+                    # The answer is complete and correct; only the punctuation is
+                    # in the way, so repair before giving up on it.
+                    from werkbank.v2.models import repair_json
+
+                    try:
+                        return json.loads(repair_json(args))
+                    except json.JSONDecodeError:
+                        raise ValueError(
+                            f"OpenAI-compat structured output invalid JSON: {exc}"
+                        ) from exc
             return args
-    raise ValueError(f"OpenAI-compat model did not call tool '{tool_name}'")
+    content = msg.get("content") or ""
+    if salvaged := _json_from_text(content):
+        _log.warning(
+            "werkbank: model answered as text instead of calling '%s' — "
+            "parsed the JSON out of the message", tool_name
+        )
+        return salvaged
+    # Name the reason. "did not call tool" covers two different failures — a
+    # model that wrote prose, and a model whose answer ran into the token cap
+    # before the call was complete — and only the second one is fixed by asking
+    # for a shorter answer. Without this the retry repeats the demand that broke
+    # it: one observed subtask asked for a fact per e-mail across 155 of them and
+    # lost all three attempts to the cap.
+    detail = f"finish_reason={finish or 'unknown'}"
+    if finish == "length":
+        detail += " (answer was cut off at the token limit)"
+    if content:
+        detail += f", {len(content)} characters of text instead"
+    raise ValueError(
+        f"OpenAI-compat model did not call tool '{tool_name}' — {detail}"
+    )
 
 
 def _create_llm_from_config(cfg: dict):

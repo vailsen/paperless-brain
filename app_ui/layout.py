@@ -8,14 +8,21 @@ from config.version import __version__
 from i18n import N_, get_translator
 from services.session_auth import clear_session, get_session_token
 
+# A real <a href> rather than a click handler: that is what makes middle-click
+# ("open in new tab"), ctrl-click and "copy link address" work. A div with an
+# on_click looks identical and supports none of them.
 _LOGO_HTML = (
-    '<div style="display:flex;align-items:center;gap:9px;user-select:none;">'
+    # No title attribute: this constant is built at import time, where there is
+    # no user context to translate one with (see the i18n rules in CLAUDE.md),
+    # and a hardcoded English tooltip in a German UI is worse than none.
+    '<a href="/" style="display:flex;align-items:center;gap:9px;user-select:none;'
+    'text-decoration:none;">'
     '<img src="/static/paperlessbrain_logo.png" style="height:32px;width:32px;object-fit:contain;">'
     '<span class="logo-text" style="font-size:1.1rem;font-weight:800;letter-spacing:-.025em;color:var(--c-text);">Paperless</span>'
     '<span class="logo-text" style="font-size:1.1rem;font-weight:800;letter-spacing:-.025em;'
     "background:linear-gradient(135deg,#c084fc,#7c3aed);"
     '-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Brain</span>'
-    "</div>"
+    "</a>"
 )
 
 _MOBILE_HEADER_CSS = (
@@ -88,6 +95,33 @@ def require_auth() -> bool:
     return True
 
 
+# The browser spellchecks with whatever dictionary it has — English, in practice —
+# and underlines every German word the user types. There is no per-field setting
+# that survives Quasar re-rendering its inputs, so this runs once per page and
+# again for anything added later (dialogs build their fields on open).
+_NO_SPELLCHECK_JS = """<script>
+(function(){
+  var SEL = 'textarea,input[type="text"],input:not([type])';
+  function off(el){ if(el && el.spellcheck !== false){ el.spellcheck = false; } }
+  function strip(root){
+    if(root.matches && root.matches(SEL)){ off(root); }
+    if(root.querySelectorAll){ root.querySelectorAll(SEL).forEach(off); }
+  }
+  function start(){
+    strip(document);
+    new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        m.addedNodes.forEach(function(n){ if(n.nodeType === 1){ strip(n); } });
+      });
+    }).observe(document.body, {childList: true, subtree: true});
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', start);
+  } else { start(); }
+})();
+</script>"""
+
+
 def page_layout() -> None:
     """Call at the top of every page to inject the shared header + drawer."""
     apply_theme()
@@ -112,6 +146,7 @@ def page_layout() -> None:
         "m.content=c;document.head.appendChild(m);}})();</script>"
     )
     ui.add_head_html(_MOBILE_HEADER_CSS)
+    ui.add_head_html(_NO_SPELLCHECK_JS)
 
     _ = get_translator()
 

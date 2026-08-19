@@ -68,7 +68,7 @@ _PAGE_CSS = """
   height: calc(100dvh - 118px); min-height: 380px; width: 100%; min-width: 0;
 }
 .vault-tree-pane {
-  width: 268px; flex-shrink: 0; min-width: 0;
+  width: 330px; flex-shrink: 0; min-width: 0;
   display: flex; flex-direction: column;
   background: var(--c-surface); border: 1px solid var(--c-border);
   border-radius: 8px 0 0 8px; overflow: hidden;
@@ -81,11 +81,16 @@ _PAGE_CSS = """
 .vault-scrim { display: none; }
 
 /* Tree nodes: neutral icons, one line, ellipsis rather than a wider pane. */
-.vault-node { display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%; }
+.vault-node { display: flex; align-items: center; gap: 5px; min-width: 0; width: 100%; padding: 1px 0; }
 .vault-node-icon { color: var(--c-text-muted); flex-shrink: 0; }
 .vault-node-label {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 0.8125rem; color: var(--c-text-2); min-width: 0;
+  font-size: 0.75rem; color: var(--c-text-2); min-width: 0;
+}
+/* The selected node is the one whose full name matters — let it wrap instead
+   of hiding the half that identifies it. */
+.vault-tree-pane .q-tree__node-header.q-tree__node--selected .vault-node-label {
+  white-space: normal; overflow: visible; overflow-wrap: anywhere;
 }
 .vault-node-att .vault-node-label { color: var(--c-text-muted); font-style: italic; }
 /* Genuine state the user may want to act on: written but not yet indexed. */
@@ -93,7 +98,13 @@ _PAGE_CSS = """
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--c-warn); flex-shrink: 0; margin-left: auto;
 }
-.vault-tree-pane .q-tree__node-header { padding: 2px 4px; }
+.vault-tree-pane .q-tree__node-header { padding: 1px 4px; min-height: 0; }
+/* Quasar indents each level by a wide fixed padding and spaces rows
+   generously; a file tree wants density and the name is what matters. */
+.vault-tree-pane .q-tree__children { padding-left: 14px; }
+.vault-tree-pane .q-tree__node { padding-bottom: 0; }
+.vault-tree-pane .q-tree__arrow { margin-right: 2px; font-size: 18px; }
+.vault-tree-pane .q-tree__node--child > .q-tree__node-header { margin-top: 0; }
 /* Quasar sizes a node header to its content, so a long note name widens the
    whole tree past the pane and the label's ellipsis never engages. min-width:0
    at every level of the flex chain is what gives it something to truncate
@@ -167,7 +178,8 @@ _PAGE_CSS = """
 @media (max-width: 900px) {
   .vault-wrap { height: calc(100dvh - 104px); }
   .vault-tree-pane {
-    position: fixed; top: var(--q-header-height, 52px); bottom: 0; left: -272px;
+    position: fixed; top: var(--q-header-height, 52px); bottom: 0;
+    width: min(88vw, 330px); left: calc(-1 * min(88vw, 330px) - 4px);
     z-index: 501; border-radius: 0; box-shadow: 4px 0 24px rgba(0,0,0,.5);
     transition: left .25s cubic-bezier(.4,0,.2,1);
   }
@@ -1010,11 +1022,10 @@ def brain_page():
 
                 _banner()
 
-                # Open by default: the properties are the half of a note the
-                # editor no longer shows, so hiding them behind a click would
-                # make them invisible rather than tidy.
+                # Collapsed by default: the note is what the user came for,
+                # and the properties are mostly machine-managed.
                 props_box = ui.expansion(
-                    _("Properties"), icon="list_alt", value=True,
+                    _("Properties"), icon="list_alt", value=False,
                 ).classes("w-full").style(
                     "border-bottom:1px solid var(--c-border); flex-shrink:0"
                 )
@@ -1031,8 +1042,18 @@ def brain_page():
                         on_change=lambda e: _on_edit(e.value),
                         keymap={"Mod-s": lambda _e: asyncio.create_task(_save())},
                     ).classes("w-full").style("flex:1; min-height:0")
+                    # `cuddled-lists`: markdown2 otherwise wants a blank line
+                    # before a list, so "Einkauf:" followed directly by "- Milch"
+                    # renders as one paragraph — which is how people actually
+                    # type a note. `break-on-newline`: a single newline is a line
+                    # break, matching what the editor above shows and what
+                    # Obsidian does by default.
                     preview = ui.markdown(
-                        "", extras=["fenced-code-blocks", "tables"]
+                        "",
+                        extras=[
+                            "fenced-code-blocks", "tables",
+                            "cuddled-lists", "break-on-newline",
+                        ],
                     ).classes("note-md w-full p-3").style("flex:1; overflow:auto; min-height:0")
                     # Reading is the common case; the pencil switches to source.
                     editor.set_visibility(False)

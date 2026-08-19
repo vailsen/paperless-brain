@@ -112,10 +112,96 @@ LXC container (see `.deploy.env` for target host), remote path from `DEPLOY_REMO
 
 ## Feature: KI-Werkbank (autonomes Agenten-Modul)
 
-Vollständige Spezifikation: `docs/werkbank-architecture.md`
-Bauplan: `docs/werkbank-tasks.md`
+Spezifikation (v2, maßgeblich): `docs/werkbank-architecture.md`
+Bauplan + Umsetzungsstand: `docs/werkbank-tasks.md`
+Bestandsaufnahme, Tool-Inventar, Tool→Archetyp-Zuordnung: `docs/werkbank-v2-findings.md`
+Abgelöstes v1: `docs/werkbank-v1-legacy.md`
 
-### Nicht verhandelbare Prinzipien
+**v2 ist live.** `/werkbank` ist `werkbank/v2/ui/page.py`, ein Lauf geht durch
+`werkbank/v2/pipeline.py`, die Chat-Übergabe startet einen v2-Lauf. Der
+v1-Ausführungspfad (`orchestrator.py`, `scheduler.py`, `roles/`, `compaction.py`,
+`prechecks.py`, `ui/module_page.py`, `ui/task_dialog.py`) ist aus jedem Live-Pfad
+entfernt, trägt einen `DEPRECATED`-Header und liegt noch **eine Release** auf der
+Platte, bis v2 einen vollständigen Lauf auf echten Daten bestanden hat — danach
+löschen. Weiter in Benutzung und **nicht** deprecated: `repository.py`,
+`models.py`, `archetypes.py`, `settings_store.py`, `export.py`, `llm_lane.py`,
+`ui/archetype_dialog.py`.
+
+### v2 — nicht verhandelbar
+
+Leitsatz: **Ehrlichkeit entsteht nicht durch Prompt-Anweisungen, sondern dadurch,
+dass das Schema einen Platz für „weiß ich nicht" hat und deterministischer Code
+prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
+
+- **Der `Fact` ist das zitierfähige Substrat**, Prosa ist abgeleitet. `narrative`
+  darf ausschließlich Fact-IDs referenzieren, sonst schreibt der Writer Prosa aus
+  Prosa aus Prosa.
+- **`gaps` ist ein First-Class-Feld.** Gibt es keinen gebahnten Weg für „nicht
+  gefunden", nimmt das Modell den Weg zu „ja".
+- **Diese Felder setzt nie das LLM:** `Source.trust`, `Source.hits`,
+  `Fact.confidence`, `SelfCheck`. Sie kommen aus dem Tool-Log;
+  `models.strip_llm_controlled()` entfernt sie beim Parsen, statt im Prompt
+  darum zu bitten.
+- **D1–D9 laufen vor dem LLM-Critic und sind nicht überstimmbar**
+  (`werkbank/v2/checks.py`). Was die Checks verworfen haben, sieht der Critic
+  nicht mehr.
+- **Quote-Grounding braucht den Rohtext.** `execute_tool()` liefert nur die für
+  das Modell formatierte Zeichenkette — v2 ruft Tools über eine eigene Schicht,
+  die `raw_text` pro Call ablegt (`wb2_tool_calls`). Ohne die ist D2 tot.
+- **Ein Ähnlichkeitsmaß allein reicht für Zitate nicht.** Ein getauschtes Wort
+  oder eine getauschte Zahl lässt zwei Sätze zu >90 % übereinstimmen und dreht
+  die Aussage um — deshalb zusätzlich `unsupported_tokens()`: Zahlen exakt,
+  lange Wörter nahezu vollständig.
+- **Ein Toolaufruf, der nicht lief, ist kein Beleg für Abwesenheit.** Jeder
+  Aufruf wird als `ok` / `empty` / `failed` klassifiziert
+  (`werkbank/v2/tools.classify`). `empty` heißt „gesucht, nichts da" — das *ist*
+  Evidenz. `failed` heißt „nie gelaufen" (keine Zugangsdaten, blockierte
+  Suchmaschine, Paywall-Stub, Exception) und trägt deshalb **kein** `hits`,
+  **kein** Tool-Trust und **nichts Zitierfähiges**; Lücken dahinter werden zu
+  `source_unavailable`. Die Klassifikation rät an Prosa, die in einem anderen
+  Modul steht — deshalb ist jede reale Rückgabezeichenkette in
+  `tests/test_werkbank_v2_tool_outcomes.py` festgenagelt. Wer eine Tool-Meldung
+  umformuliert, bricht dort einen Test statt still „keine E-Mails vorhanden" zu
+  berichten.
+- **`hits` gibt es nur für Suchen** (`tools.SEARCH_TOOLS`), und zwar aus der
+  Paginierungs-Gesamtzahl, nicht aus der Seitengröße. D3 akzeptiert
+  Query+Hits als Beleg — eine aus dem Navigationsmenü einer Webseite gezählte
+  Trefferzahl macht eine unbelegte Aussage prüfbar.
+- **Trust hängt am Tool, nicht am Agenten und nicht am Speicher.** Eine
+  Sidecar-Zusammenfassung (`get_document_details`) ist `derived`, nicht
+  `authoritative` — sie ist die Paraphrase eines Modells, nicht der Wortlaut des
+  Dokuments.
+- **Kein Agent schreibt.** `create_note`, `remember_fact`, `create_deadline`,
+  `update_brain_fact`, `delete_brain_fact` sind aus allen Archetypen
+  ausgeschlossen; ein Rechercheauftrag verändert die Daten des Nutzers nicht.
+- **Archetypen bleiben nutzerdefinierbar**, aber die v2-Defaults sind
+  versioniert und jederzeit wiederherstellbar.
+- **`config/agents.yaml` ist die einzige Quelle der Default-Archetypen.**
+  `werkbank/archetypes.py` seedet daraus; die vier v1-Archetypen (`retriever`,
+  `researcher`, `secretary`, `writer`) sind entfernt, unveränderte Zeilen werden
+  beim ersten Seed gelöscht. Zwei Default-Sätze in derselben Tabelle hieß: der
+  Planner sah neun Agenten, vier davon ohne Prompt-Datei und damit ohne
+  Belegregeln. Eine vom Nutzer *überschriebene* v1-Zeile bleibt — als sein
+  eigener Archetyp.
+- **Ein editierter Shipped-Agent verliert sein `requires` nicht.** Der
+  Capability-Filter ist das, was den Planner davon abhält, `comms_researcher`
+  ohne Mail-Konto zu vergeben; eine Prompt-Änderung darf ihn nicht abschalten.
+  Übernommen werden nur Tools, Beschreibung und Prompt (`prompt_text` schlägt
+  `prompt_file`).
+- **Rollen-Prompts sind editierbar, Checks nicht.** `werkbank/v2/prompts.py`
+  legt einen Nutzer-Override über den ausgelieferten Prompt; ein Override ändert,
+  was eine Rolle *gefragt* wird. Was *geprüft* wird, liegt in `checks.py` und ist
+  von dort nicht erreichbar — deshalb ist das Freigeben der Prompts überhaupt
+  vertretbar. `checks.py` importiert weder `settings_store` noch `prompts`, und
+  ein Test hält das fest.
+- **Fortschritt kommt aus dem Store, nicht aus einem Callback.** Ein Lauf
+  überlebt den Tab, der ihn gestartet hat; ein `progress`-Callback erreicht nur
+  diese eine Sitzung. Die Seite pollt.
+- **Nach einem Neustart ist ein Lauf fortsetzbar, nie automatisch fortgesetzt.**
+  Jeder Subtask kostet Modellaufrufe, also entscheidet der Nutzer, nicht der
+  Prozessstart (`store.reset_stale_runs()`).
+
+### v1 — Prinzipien (gelten unverändert in v2 weiter)
 
 - **Der Orchestrator ist deterministischer Python-Code, kein LLM.** Steuerung
   (Reihenfolge, Status, Retries, Fehler) ist Python; kognitive Arbeit nur innerhalb
@@ -226,7 +312,7 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
   selection — no `create_memo` tool, no trigger phrase. `remember_fact`, `create_deadline`
   and "note to myself" are near-synonymous at the language level, so nothing in
   `TOOL_DEFINITIONS` may compete with them.
-- **One memo = one file** in `MEMO_SUBFOLDER`, named `YYYY-MM-DD HHMM Topic.md`. Never an
+- **One memo = one file** in `MEMO_SUBFOLDER`, named `YY-MM-DD Topic.md`. Never an
   append-only journal: `vault/sync.py` re-embeds *every* chunk of a changed file, so appending
   would re-embed the whole history each time.
 - **Memos are vault notes, not brain facts.** Outside `BRAIN_SUBFOLDER`, chunked, in the

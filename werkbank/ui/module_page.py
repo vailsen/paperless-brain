@@ -1,4 +1,16 @@
-"""werkbank/ui/module_page.py — KI-Tiefenrecherche overview page at /werkbank."""
+"""DEPRECATED — v1 execution path, retired 2026-08-18.
+
+Nothing imports this any more: `/werkbank` is `werkbank/v2/ui/page.py`, the chat
+hand-off goes to `werkbank.v2.pipeline`, and `main.py` no longer starts the v1
+scheduler. The files stay on disk for exactly one release because
+`docs/werkbank-tasks.md` (Phase 7) conditions removal on v2 passing a complete
+run on real data, and that run has not happened yet — the first real run *is*
+the test. If it fails, re-adding two imports in `main.py` brings v1 back.
+
+Delete this module once v2 has completed a run against the live archive.
+
+werkbank/ui/module_page.py — KI-Tiefenrecherche overview page at /werkbank.
+"""
 
 from __future__ import annotations
 
@@ -31,16 +43,46 @@ def _task_elapsed(task: repository.Task) -> str:
         return ""
 
 
+# Colour encodes state, never identity (see CLAUDE.md). Eight hues meant the
+# one status that actually wants the user — "to review" — looked exactly like
+# the seven that do not. Three tones now: neutral by default, accent while
+# something is running, warn when the user has to act or something broke.
+_TONE_NEUTRAL = "neutral"
+_TONE_ACTIVE = "active"
+_TONE_ATTENTION = "attention"
+
 _STATUS_META: dict[TaskStatus, tuple[str, str]] = {
-    TaskStatus.DRAFT:           ("Draft",     "gray"),
-    TaskStatus.TRIAGE:          ("Triage",    "yellow"),
-    TaskStatus.QUEUED:          ("Queued",    "blue"),
-    TaskStatus.RUNNING:         ("Running",   "purple"),
-    TaskStatus.PAUSED:          ("Paused",    "orange"),
-    TaskStatus.AWAITING_REVIEW: ("To review", "amber"),
-    TaskStatus.COMPLETED:       ("Done",      "green"),
-    TaskStatus.FAILED:          ("Error",     "red"),
+    TaskStatus.DRAFT:           ("Draft",     _TONE_NEUTRAL),
+    TaskStatus.TRIAGE:          ("Triage",    _TONE_NEUTRAL),
+    TaskStatus.QUEUED:          ("Queued",    _TONE_NEUTRAL),
+    TaskStatus.RUNNING:         ("Running",   _TONE_ACTIVE),
+    TaskStatus.PAUSED:          ("Paused",    _TONE_NEUTRAL),
+    TaskStatus.AWAITING_REVIEW: ("To review", _TONE_ATTENTION),
+    TaskStatus.COMPLETED:       ("Done",      _TONE_NEUTRAL),
+    TaskStatus.FAILED:          ("Error",     _TONE_ATTENTION),
 }
+
+_PAGE_CSS = """
+<style>
+.wb-row {
+  background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: 8px; transition: border-color .15s, background .15s;
+}
+.wb-row:hover { background: var(--c-surface-2); border-color: var(--c-border-strong); }
+.wb-row.is-active { box-shadow: inset 3px 0 0 0 var(--c-accent); }
+.wb-row.is-attention { box-shadow: inset 3px 0 0 0 var(--c-warn); }
+.wb-status {
+  display: inline-flex; align-items: center; font-size: .68rem;
+  padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--c-border-strong); color: var(--c-text-2);
+}
+.wb-status.active { border-color: var(--c-accent); color: var(--c-accent); }
+.wb-status.attention { border-color: var(--c-warn); color: var(--c-warn); }
+.wb-colhead { font-size: .7rem; color: var(--c-text-muted); }
+.wb-goal { color: var(--c-text); font-size: .875rem; min-width: 0; }
+@media (max-width: 700px) { .wb-hide-narrow { display: none !important; } }
+</style>
+"""
 
 
 def _available_models(user_id: str = "", token: str = "") -> list[str]:
@@ -104,6 +146,7 @@ def werkbank_page() -> None:
         return
     page_layout()
     _ = get_translator()
+    ui.add_head_html(_PAGE_CSS)
 
     user_id: str = ng_app.storage.user.get("paperless_user", "")
     token: str   = get_session_token()
@@ -119,9 +162,11 @@ def werkbank_page() -> None:
         tasks = repository.get_tasks_for_user(user_id)
 
         if not tasks:
-            ui.label(_("No tasks yet. Create your first one with \"New task\".")).classes(
-                "text-gray-500 text-sm mt-6"
-            )
+            with ui.column().classes("w-full items-center gap-2 mt-10"):
+                ui.icon("auto_awesome", size="32px").style("color:var(--c-text-muted)")
+                ui.label(_("No tasks yet. Create your first one with \"New task\".")).classes(
+                    "text-sm"
+                ).style("color:var(--c-text-muted)")
             return
 
         _status_labels = {
@@ -143,18 +188,23 @@ def werkbank_page() -> None:
                 date_str  = task.created_at.strftime("%d.%m.%Y")
                 elapsed   = _task_elapsed(task)
 
+                row_tone = (
+                    "is-active" if color == _TONE_ACTIVE
+                    else "is-attention" if color == _TONE_ATTENTION else ""
+                )
                 with ui.row().classes(
-                    "w-full items-center px-4 py-3 rounded-lg bg-gray-800 "
-                    "hover:bg-gray-750 cursor-pointer gap-3"
+                    f"w-full items-center px-4 py-3 gap-3 cursor-pointer wb-row {row_tone}"
                 ):
-                    ui.label(goal_text).classes("flex-1 text-sm text-gray-200").style(
+                    ui.label(goal_text).classes("flex-1 wb-goal w-full").style(
                         "overflow:hidden;white-space:nowrap;text-overflow:ellipsis"
                     )
-                    ui.label(date_str).classes("w-28 text-xs text-gray-500 mobile-hidden")
-                    with ui.column().classes("w-28 items-start gap-0"):
-                        ui.badge(label, color=color)
+                    ui.label(date_str).classes("w-24 wb-colhead wb-hide-narrow")
+                    with ui.column().classes("items-start gap-0 flex-shrink-0"):
+                        ui.html(f'<span class="wb-status {color}">{label}</span>',
+                                sanitize=False)
                         if elapsed:
-                            ui.label(elapsed).classes("text-xs font-mono text-purple-400")
+                            ui.label(elapsed).classes("text-xs font-mono").style(
+                                "color:var(--c-text-muted)")
 
                     def _open(tid=task.id):
                         from werkbank.ui.task_dialog import open_task_dialog
@@ -172,29 +222,28 @@ def werkbank_page() -> None:
         # ── Header ────────────────────────────────────────────────────
         with ui.row().classes("w-full items-center justify-between mb-5"):
             with ui.row().classes("items-center gap-2"):
-                ui.icon("auto_awesome", size="md").classes("text-gray-400")
-                ui.label(_("AI deep research")).classes("text-2xl font-bold text-gray-100")
+                ui.icon("auto_awesome", size="md").style("color:var(--c-text-muted)")
+                ui.label(_("AI deep research")).classes("text-2xl font-bold").style(
+                    "color:var(--c-text)")
 
             with ui.row().classes("gap-2"):
                 def _open_archetypes():
                     from werkbank.ui.archetype_dialog import open_archetype_dialog
                     open_archetype_dialog(user_id)
 
-                ui.button(_("Agents"), icon="psychology", on_click=_open_archetypes).props(
+                ui.button(_("Agents"), icon="groups", on_click=_open_archetypes).props(
                     "flat dark"
-                ).classes("text-gray-300")
+                ).style("color:var(--c-text-2)")
                 ui.button(
                     _("New task"), icon="add",
                     on_click=lambda: _open_new_task_dialog(user_id, token, task_table),
-                ).props("unelevated dark").classes("bg-purple-700 text-white")
+                ).props("unelevated dark color=purple")
 
         # ── Column headers ────────────────────────────────────────────
-        with ui.row().classes(
-            "w-full px-4 py-1 text-xs text-gray-500 uppercase tracking-wide"
-        ):
+        with ui.row().classes("w-full px-4 py-1 wb-colhead"):
             ui.label(_("Task")).classes("flex-1")
-            ui.label(_("Created")).classes("w-28 mobile-hidden")
-            ui.label(_("Status / time")).classes("w-28")
+            ui.label(_("Created")).classes("w-24 wb-hide-narrow")
+            ui.label(_("Status")).classes("flex-shrink-0")
             ui.label("").classes("w-10")
 
         task_table()

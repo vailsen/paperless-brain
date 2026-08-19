@@ -1,4 +1,15 @@
-"""werkbank/orchestrator.py — deterministic state machine for ONE task.
+"""DEPRECATED — v1 execution path, retired 2026-08-18.
+
+Nothing imports this any more: `/werkbank` is `werkbank/v2/ui/page.py`, the chat
+hand-off goes to `werkbank.v2.pipeline`, and `main.py` no longer starts the v1
+scheduler. The files stay on disk for exactly one release because
+`docs/werkbank-tasks.md` (Phase 7) conditions removal on v2 passing a complete
+run on real data, and that run has not happened yet — the first real run *is*
+the test. If it fails, re-adding two imports in `main.py` brings v1 back.
+
+Delete this module once v2 has completed a run against the live archive.
+
+werkbank/orchestrator.py — deterministic state machine for ONE task.
 
 Drives the Ready-Set-Walk over the sub-task DAG:
   for each ready sub-task → Worker → prechecks → (retry) → Critic → (redo) → compact → DONE
