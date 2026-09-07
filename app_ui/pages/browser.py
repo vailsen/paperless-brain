@@ -5,6 +5,7 @@ from nicegui import app as ng_app, ui
 
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
+from app_ui.similar_dialog import create_similar_dialog
 from app_ui.layout import page_layout, require_auth
 from app_ui.tag_style import render_tag_chips
 from config.settings import settings
@@ -136,6 +137,7 @@ async def browser():
     # Register the shared detail dialog for this page instance.
     open_document, _doc_dlg = create_document_dialog(
         open_cluster_fn=lambda doc_id: open_cluster(doc_id),
+        open_similar_fn=lambda doc_id: open_similar(doc_id),
         pin_fn=lambda r: _browser_pin(r),
         get_pin_state_fn=lambda doc_id: doc_id in _get_pinned_ids(),
     )
@@ -421,6 +423,14 @@ async def browser():
 
     # ── Querverweis-Cluster dialog ────────────────────────────────────────────
     open_cluster = create_cluster_dialog(
+        open_document_fn=open_document,
+        pin_fn=lambda r: _browser_pin(r),
+        get_pinned_ids_fn=lambda: _get_pinned_ids(),
+        render_card_fn=_render_card,
+    )
+
+    # ── Similar-documents dialog ──────────────────────────────────────────────
+    open_similar = create_similar_dialog(
         open_document_fn=open_document,
         pin_fn=lambda r: _browser_pin(r),
         get_pinned_ids_fn=lambda: _get_pinned_ids(),

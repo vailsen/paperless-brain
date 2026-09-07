@@ -6,6 +6,8 @@ import re
 from datetime import datetime
 
 import markdown2
+
+from services.markdown_text import escape_intraword_underscores
 from weasyprint import CSS, HTML
 
 from config.settings import local_tz, settings
@@ -135,7 +137,7 @@ def generate_chat_pdf(
     badge = _BADGE_TEXT.get(lang, _BADGE_TEXT["en"])
 
     body_html = markdown2.markdown(
-        content_markdown,
+        escape_intraword_underscores(content_markdown),
         extras=["fenced-code-blocks", "tables", "strike", "cuddled-lists", "header-ids",
                 "link-patterns"],
         link_patterns=[(_URL_RE, r"\g<0>")],

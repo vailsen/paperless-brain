@@ -31,6 +31,7 @@ capabilities:
 tool_trust:
   search: authoritative              # chunk text of the document
   search_exact: authoritative
+  find_similar_documents: authoritative   # the neighbour chunk, verbatim
   get_document_page_text: authoritative
   get_document_table: authoritative
   get_document_details: derived      # ingest summary — a model's paraphrase
@@ -72,6 +73,7 @@ agents:
     tools:
       - search
       - search_exact
+      - find_similar_documents
       - get_document_page_text
       - get_document_table
       - get_document_details

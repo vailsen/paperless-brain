@@ -5,6 +5,55 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.8.1] — 2026-09-07
+
+**"Show me documents like this one."**
+
+Search answers a question you can phrase. The question you often cannot phrase
+is *what belongs with this* — the other years of the same statement, the same
+form from a different sender, the correspondence around a contract. Naming what
+makes a document distinctive is the hard part, and you would have to do it
+before you could search for it.
+
+So the document itself asks the question now. Its stored embeddings are the
+query, compared against the same vectors every other document was indexed with.
+
+### Added
+
+- **"Similar documents" on every document** — in the browser, on the dashboard
+  and in the document dialog. The result is a normal card list: open, pin, carry
+  on from there.
+
+- **A neighbour is ranked by its single best passage, not by an average.** A
+  fifteen-page contract and a one-page invoice about the same matter overlap in
+  one paragraph; averaging over the whole document would bury that under fourteen
+  unrelated pages. Each hit shows the passage that made it similar.
+
+- **The assistant can do it too** (`find_similar_documents`), in chat and in a
+  research run. It is deliberately worded apart from `search` in the tool
+  descriptions: for a described content the model should still search, and for a
+  shared reference number look that number up. Similarity is a measurement, not
+  a fact in the documents.
+
+- **"Not indexed" and "nothing similar" are different answers.** A document with
+  no embeddings was never asked; reporting that as "no similar documents found"
+  would be a claim about the archive that nobody checked. The chat tool, the
+  Werkbank tool classifier and the dialog each say which of the two happened.
+
+### Fixed
+
+- **Underscores in filenames no longer eat half the name.** `markdown2` predates
+  CommonMark and still reads an underscore inside a word as emphasis, so
+  `26_08_26_Heizkostenabrechnung_Weisshoferstr59` arrived as italic fragments
+  with the underscores swallowed — and the mangled name is the one you read as
+  real. Document names, model ids and paths are full of them. Now escaped in
+  chat, in the vault note preview, in Werkbank reports and in generated PDFs;
+  code spans, fenced blocks and link targets are left alone, and a deliberate
+  `_italic_` still works.
+
+- **Obsidian task lines render as checkboxes** in the note preview instead of
+  bullets with literal `[x]` brackets.
+
 ## [0.8.0] — 2026-08-19
 
 **Deep research, rebuilt: facts with sources instead of prose.**

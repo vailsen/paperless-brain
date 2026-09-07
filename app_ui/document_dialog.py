@@ -124,7 +124,9 @@ def highlight_text(full_text: str, chunks: list[str], text_query: str = "") -> s
 # ── Dialog factory ────────────────────────────────────────────────────────────
 
 
-def create_document_dialog(open_cluster_fn=None, pin_fn=None, get_pin_state_fn=None):
+def create_document_dialog(
+    open_cluster_fn=None, pin_fn=None, get_pin_state_fn=None, open_similar_fn=None
+):
     """Create the document detail dialog in the current NiceGUI page context.
 
     Returns ``(open_document, dlg)``:
@@ -216,6 +218,7 @@ def create_document_dialog(open_cluster_fn=None, pin_fn=None, get_pin_state_fn=N
                 result, file_url, dlg, related_refs, related_docs,
                 navigate_fn=_on_ref_click,
                 open_cluster_fn=open_cluster_fn,
+                open_similar_fn=open_similar_fn,
                 pin_fn=pin_fn,
                 is_pinned=_is_pinned,
             )
@@ -679,6 +682,7 @@ def _render_content(
     related_docs: dict | None = None,
     navigate_fn=None,
     open_cluster_fn=None,
+    open_similar_fn=None,
     pin_fn=None,
     is_pinned: bool = False,
 ) -> None:
@@ -742,6 +746,16 @@ def _render_content(
                         on_click=lambda _id=doc.id: open_cluster_fn(_id),
                     ).props("flat dark dense").classes("card-action-btn").tooltip(
                         _("Cross-reference cluster")
+                    )
+                # Always offered, unlike the cluster button: whether neighbours
+                # exist is only known after measuring, and hiding the control
+                # when the answer is "none" would mean measuring on every open.
+                if open_similar_fn:
+                    ui.button(
+                        icon="travel_explore",
+                        on_click=lambda _id=doc.id: open_similar_fn(_id),
+                    ).props("flat dark dense").classes("card-action-btn").tooltip(
+                        _("Similar documents")
                     )
                 if pin_fn:
                     _pin_state = [is_pinned]

@@ -19,6 +19,11 @@ about them is invented.
 - **`search_exact`** — metadata and full text: correspondent, document type,
   tag, date range. Use it when you know *what kind* of document you want.
 - The two combine: filter first, then search semantically inside the hits.
+- **`find_similar_documents`** — neighbours of a document you already
+  found, by its own embeddings. Use it to complete a set (the other years
+  of a statement, the same form from another sender) once one member of
+  that set is in hand. It answers "what belongs with this", never "what
+  is there about X".
 - **`get_document_page_text`** — the wording of one page. This is the strongest
   source in the system; use it whenever you intend to quote.
 - **`get_document_details`** — metadata plus an **AI summary of the document**.

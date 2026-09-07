@@ -38,6 +38,7 @@ _log = logging.getLogger(__name__)
 TOOL_SOURCE_TYPE: dict[str, str] = {
     "search": "paperless",
     "search_exact": "paperless",
+    "find_similar_documents": "paperless",
     "get_document_details": "paperless",
     "get_document_page_text": "paperless",
     "get_document_table": "paperless",
@@ -117,6 +118,8 @@ _FAILURE_MARKERS = (
     "not configured",              # IMAP / calendar credentials missing
     "imap error", "calendar error",
     "error during search", "error during analytical search",
+    "error during similarity search",
+    "is not indexed",                  # no embeddings: the neighbour search never ran
     "error loading document", "error accessing document",
     "not found or no access",
     "no extracted text found",         # the page was never OCR'd, not "the page is blank"
@@ -138,6 +141,7 @@ _FAILURE_MARKERS = (
 _EMPTY_MARKERS = (
     "no results found", "keine ergebnisse", "nothing found",
     "no documents match the criteria",
+    "no similar documents found",
     "no emails found", "no calendar entries found",
     "no relevant facts found", "no relevant notes found",
     "no actions/deadlines found",
@@ -151,7 +155,7 @@ _EMPTY_MARKERS = (
 # accepts a fact backed by query+hits, so that number was not cosmetic. It made
 # an unfounded claim checkable.
 SEARCH_TOOLS = frozenset({
-    "search", "search_exact", "vault_search", "search_memory",
+    "search", "search_exact", "find_similar_documents", "vault_search", "search_memory",
     "search_emails", "search_calendar", "web_search", "get_actions",
 })
 

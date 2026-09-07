@@ -151,8 +151,11 @@ MD_EXTRAS = ["fenced-code-blocks", "tables", "cuddled-lists", "break-on-newline"
 
 def _to_html(markdown_text: str) -> str:
     from nicegui.elements.markdown import prepare_content
+    from services.markdown_text import escape_intraword_underscores
 
-    return prepare_content(markdown_text, extras=" ".join(MD_EXTRAS))
+    return prepare_content(
+        escape_intraword_underscores(markdown_text), extras=" ".join(MD_EXTRAS)
+    )
 
 
 def _linkify(html_text: str, known: set[str]) -> str:

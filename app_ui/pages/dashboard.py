@@ -16,6 +16,7 @@ from services.session_auth import get_session_token
 
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
+from app_ui.similar_dialog import create_similar_dialog
 from app_ui.layout import page_layout, require_auth
 from app_ui.tag_style import invalidate_tag_colors, refresh_tag_colors
 from config.extraction_rules import PROMPT_VERSION
@@ -332,9 +333,17 @@ async def dashboard():
         pin_fn=lambda r: _on_pin(r),
         get_pin_state_fn=lambda doc_id: doc_id in _pinned_ids(),
         open_cluster_fn=lambda doc_id: open_cluster(doc_id),
+        open_similar_fn=lambda doc_id: open_similar(doc_id),
     )
 
     open_cluster = create_cluster_dialog(
+        open_document_fn=open_document,
+        pin_fn=lambda r: _on_pin(r),
+        get_pinned_ids_fn=_pinned_ids,
+        render_card_fn=_render_card,
+    )
+
+    open_similar = create_similar_dialog(
         open_document_fn=open_document,
         pin_fn=lambda r: _on_pin(r),
         get_pinned_ids_fn=_pinned_ids,

@@ -12,6 +12,7 @@ from nicegui import ui
 
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
+from app_ui.similar_dialog import create_similar_dialog
 from app_ui.layout import page_layout, require_auth
 from app_ui.pages.browser import _render_card
 from config.chat_prompts import build_system_prompt
@@ -29,7 +30,10 @@ _log = logging.getLogger(__name__)
 _wb2_runs: set[asyncio.Task] = set()
 
 # ui.markdown default extras + LaTeX ($$...$$ → MathML via latex2mathml)
-_MD_EXTRAS = ["fenced-code-blocks", "tables", "latex"]
+# `task_list`: "- [ ] foo" becomes a real checkbox instead of a bullet with
+# literal brackets. Vault notes carry Obsidian task lines, and the model
+# writes checklists back in the same syntax.
+_MD_EXTRAS = ["fenced-code-blocks", "tables", "latex", "task_list"]
 from services.chat_service import (
     TOOL_DEFINITIONS,
     ClaudeChatBackend,
@@ -54,6 +58,7 @@ from services.chat_service import (
     _web_fetch_mode,
 )
 from services.clients import get_session_paperless
+from services.markdown_text import escape_intraword_underscores
 from services.credential_store import load_credentials, save_credentials
 import services.chat_history_service as _chat_hist
 
@@ -106,6 +111,10 @@ def _extract_markdown_csvs(text: str) -> list[bytes]:
 
 
 def _inject_doc_links(text: str, vault_index: dict | None = None) -> str:
+    # Before any link injection: a document filename is full of underscores and
+    # markdown2 would eat them as emphasis markers.
+    text = escape_intraword_underscores(text)
+
     def _vault_a(psid: str, label: str) -> str:
         return (
             f'<a href="#" data-vault-id="{psid}" '
@@ -191,6 +200,7 @@ _TOOL_GROUPS: list[tuple[str, str, list[str]]] = [
         [
             "search",
             "search_exact",
+            "find_similar_documents",
             "get_document_details",
             "get_document_table",
             "get_document_page_text",
@@ -287,6 +297,8 @@ html, body { overflow: hidden !important; }
 .chat-md p:last-child { margin-bottom: 0; }
 .chat-md ul, .chat-md ol { padding-left: 1.4rem; margin: 0 0 0.4rem 0; }
 .chat-md li { margin-bottom: 0.15rem; }
+.chat-md li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.15rem; }
+.chat-md input[type="checkbox"] { margin-right: 0.45rem; vertical-align: -0.1em; accent-color: var(--c-accent); }
 .chat-md strong { color: var(--c-text); }
 .chat-md em { color: var(--c-text-2); }
 .chat-md code { background: var(--c-border); border-radius: 3px; padding: 0.1rem 0.3rem; font-family: monospace; font-size: 0.8em; color: #a5b4fc; }
@@ -573,6 +585,7 @@ async def chat():
 
     open_document, _doc_dlg = create_document_dialog(
         open_cluster_fn=lambda doc_id: open_cluster(doc_id),
+        open_similar_fn=lambda doc_id: open_similar(doc_id),
         pin_fn=lambda r: _on_pin(r),
         get_pin_state_fn=lambda doc_id: doc_id in _pinned_ids(),
     )
@@ -592,7 +605,7 @@ async def chat():
                 ).classes("text-gray-400")
             _vault_dlg_path = ui.label("").classes("text-xs text-gray-400 font-mono mb-1")
             ui.separator()
-            _vault_dlg_body = ui.markdown("").classes("chat-md mt-3")
+            _vault_dlg_body = ui.markdown("", extras=_MD_EXTRAS).classes("chat-md mt-3")
 
     async def open_vault_note(pbrain_id: str) -> None:
         from services.clients import brain, vault_chroma
@@ -620,7 +633,9 @@ async def chat():
                 name = path_str.rsplit("/", 1)[-1].removesuffix(".md")
                 _vault_dlg_title.set_text(fm_meta.get("title") or name)
                 _vault_dlg_path.set_text(path_str)
-                _vault_dlg_body.set_content(body or _("_Empty_"))
+                _vault_dlg_body.set_content(
+                    escape_intraword_underscores(body) if body else _("_Empty_")
+                )
             else:
                 # Chroma-only fact (no file yet): show document text directly
                 doc_text = entry.get("document") or _("_No content_")
@@ -634,7 +649,9 @@ async def chat():
                     header += " · " + _("Confidence: {conf}").format(conf=f"{float(conf):.0%}")
                 _vault_dlg_title.set_text(_("🧠 Memory fact"))
                 _vault_dlg_path.set_text(f"brain:{pbrain_id[:8]}")
-                _vault_dlg_body.set_content(f"{header}\n\n---\n\n{doc_text}")
+                _vault_dlg_body.set_content(
+                    f"{header}\n\n---\n\n{escape_intraword_underscores(doc_text)}"
+                )
             _vault_dlg.open()
         except Exception as e:
             ui.notify(_("Error: {err}").format(err=e), type="negative")
@@ -1258,7 +1275,7 @@ async def chat():
                     break
                 if isinstance(ev, TextTokenEvent):
                     parts.append(ev.text)
-                    compact_md.set_content("".join(parts))
+                    compact_md.set_content(escape_intraword_underscores("".join(parts)))
 
             summary = "".join(parts).strip()
             if summary:
@@ -1277,7 +1294,9 @@ async def chat():
                                 "text-xs text-purple-400 font-semibold mb-2"
                             )
                             ui.markdown(
-                                summary, sanitize=False, extras=_MD_EXTRAS
+                                escape_intraword_underscores(summary),
+                                sanitize=False,
+                                extras=_MD_EXTRAS,
                             ).classes("chat-md")
                 _update_context_progress()
                 ng_app.storage.user["chat_history"] = list(_s["messages"])
@@ -1416,6 +1435,14 @@ async def chat():
 
     # ── Querverweis-Cluster dialog ────────────────────────────────────────────
     open_cluster = create_cluster_dialog(
+        open_document_fn=open_document,
+        pin_fn=lambda r: _on_pin(r),
+        get_pinned_ids_fn=lambda: _pinned_ids(),
+        render_card_fn=_render_card,
+    )
+
+    # ── Similar-documents dialog ──────────────────────────────────────────────
+    open_similar = create_similar_dialog(
         open_document_fn=open_document,
         pin_fn=lambda r: _on_pin(r),
         get_pinned_ids_fn=lambda: _pinned_ids(),
@@ -2526,7 +2553,7 @@ window.__openVaultNote = function(noteId) {{
         _STRIP_THINK = re.compile(r"</?think(?:ing)?>", re.IGNORECASE)
 
         def _build_display() -> str:
-            return accumulated[0]
+            return escape_intraword_underscores(accumulated[0])
 
         def _fmt_tool_call_label(label: str, tool_input: dict, iteration: int) -> str:
             clean = label.rstrip(".")
@@ -2722,7 +2749,7 @@ window.__openVaultNote = function(noteId) {{
         except Exception as e:
             error_text = _("Error: {err}").format(err=e)
             accumulated[0] = accumulated[0] or error_text
-            streaming_label[0].set_content(accumulated[0])
+            streaming_label[0].set_content(escape_intraword_underscores(accumulated[0]))
 
         finally:
             status_badge[0].style("display:none;")
@@ -3235,7 +3262,13 @@ window.__openVaultNote = function(noteId) {{
                             _pdf_content.set_visibility(False)
 
                             _pdf_preview = (
-                                ui.markdown(_pp.get("content_markdown", ""), sanitize=False)
+                                ui.markdown(
+                                    escape_intraword_underscores(
+                                        _pp.get("content_markdown", "")
+                                    ),
+                                    sanitize=False,
+                                    extras=_MD_EXTRAS,
+                                )
                                 .classes("chat-md w-full")
                                 .style(
                                     "min-height:220px; padding:10px 12px; border:1px solid var(--c-border);"
@@ -3254,7 +3287,9 @@ window.__openVaultNote = function(noteId) {{
                                 else:
                                     # → preview
                                     _pdf_edit_mode[0] = False
-                                    _pdf_preview.set_content(_pdf_content.value)
+                                    _pdf_preview.set_content(
+                                        escape_intraword_underscores(_pdf_content.value)
+                                    )
                                     _pdf_content.set_visibility(False)
                                     _pdf_preview.set_visibility(True)
                                     _pdf_mode_btn.set_text(_("Edit"))

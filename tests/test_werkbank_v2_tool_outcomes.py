@@ -40,6 +40,14 @@ CASES = [
      OUTCOME_FAILED, None),
     ("get_document_details", "Dokument #163 not found or no access.", OUTCOME_FAILED, None),
     ("search_exact", "Suchtext zu kurz.", OUTCOME_FAILED, None),
+    ("find_similar_documents", "Document #647 is not indexed — it has no "
+     "embeddings, so no similarity search could run for it. This says nothing "
+     "about whether similar documents exist.", OUTCOME_FAILED, None),
+    ("find_similar_documents", "Error during similarity search: ReadTimeout",
+     OUTCOME_FAILED, None),
+    ("find_similar_documents", "Tool 'find_similar_documents' was not run: no "
+     "valid document_id given. Send the call again with the Paperless ID as an "
+     "integer.", OUTCOME_FAILED, None),
     ("vault_search", "No notes indexed in the vault.", OUTCOME_FAILED, None),
     ("get_document_page_text", "No extracted text found for page 3 of document #163.",
      OUTCOME_FAILED, None),
@@ -55,6 +63,8 @@ CASES = [
      "parameter.", OUTCOME_EMPTY, 0),
     ("search_calendar", "No calendar entries found (Marcel Milbich)", OUTCOME_EMPTY, 0),
     ("search_exact", "No documents match the criteria.", OUTCOME_EMPTY, 0),
+    ("find_similar_documents", "No similar documents found for #647.",
+     OUTCOME_EMPTY, 0),
     ("web_search", "Web search: 'x'\n\nNo results found.", OUTCOME_EMPTY, 0),
     ("search_memory", "No relevant facts found in memory.", OUTCOME_EMPTY, 0),
     ("vault_search", "No relevant notes found.", OUTCOME_EMPTY, 0),
@@ -63,6 +73,8 @@ CASES = [
 
     # ── ran, found something ─────────────────────────────────────────────────
     ("search", "Found: 18 document(s)\n\n1. #347 — Arztbrief", OUTCOME_OK, 18),
+    ("find_similar_documents", "Found: 4 document(s) similar to #647\n\n"
+     "1. #460 — Nebenkostenabrechnung", OUTCOME_OK, 4),
     ("search_exact", "Analytical search (Text 'Milbich'): 1 document(s)\n\n"
      "1. #163 — Auflistung", OUTCOME_OK, 1),
     ("vault_search", "Vault: 5 hits\n\n• [[To-Dos]] › …", OUTCOME_OK, 5),

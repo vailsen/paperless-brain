@@ -295,6 +295,26 @@ TOOL_DEFINITIONS: list[dict] = [
         },
     },
     {
+        "name": "find_similar_documents",
+        "description": (
+            "Finds documents that RESEMBLE a document you already have, by comparing their embeddings — 'more like this one'. Use it when the user points at a document and asks for its counterparts, predecessors, other years of the same thing, or anything belonging with it, and when you cannot phrase what makes it distinctive as a query. Not a keyword or metadata search: for a described content use 'search', for hard criteria 'search_exact', for documents sharing a literal reference number 'search_exact' with that reference. Returns document IDs, title, type, correspondent, date and the passage that made each one similar."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "document_id": {
+                    "type": "integer",
+                    "description": "Paperless ID of the document to find neighbours for.",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of similar documents. Default 10.",
+                },
+            },
+            "required": ["document_id"],
+        },
+    },
+    {
         "name": "get_document_details",
         "description": (
             "Returns full details for a document: Paperless metadata (title, correspondent, tags, date, page count), user notes, and AI-extracted content (summary, actions/deadlines, cross-references, tables, page summaries). Always use this tool for document details, metadata or notes."
@@ -927,6 +947,7 @@ def _tool_label(name: str) -> str:
     labels = {
         "search": _("🔍 Searching documents..."),
         "search_exact": _("🔎 Analytical search..."),
+        "find_similar_documents": _("🧲 Searching similar documents..."),
         "get_document_details": _("📋 Loading document details..."),
         "get_document_table": _("📊 Loading table..."),
         "get_document_page_text": _("📄 Reading page text..."),
@@ -1032,6 +1053,8 @@ async def _execute_tool_inner(
         return await _tool_search(inputs)
     if name == "search_exact":
         return await _tool_search_exact(inputs)
+    if name == "find_similar_documents":
+        return await _tool_find_similar_documents(inputs)
     if name == "get_document_details":
         return await _tool_get_document_details(inputs)
     if name == "get_document_table":
@@ -1281,6 +1304,86 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
     from werkbank.settings_store import get_search_max_results as _get_max_results
 
     for i, r in enumerate(results[: _get_max_results()], 1):
+        doc = r.document
+        lines.append(f"{i}. #{doc.id} — {doc.title}")
+        meta = " | ".join(
+            filter(
+                None,
+                [
+                    doc.document_type,
+                    doc.correspondent,
+                    r.display_date,
+                    f"Score {r.relevance_score:.3f}"
+                    if r.relevance_score is not None
+                    else None,
+                ],
+            )
+        )
+        if meta:
+            lines.append(f"   {meta}")
+        sc = sidecar_service.load_sidecar(doc.id)
+        if sc:
+            summary = sc.get("full_summary_summarized") or sc.get("full_summary")
+            if summary:
+                lines.append(f"   {summary[:250]}")
+        if r.matched_chunks:
+            snippet = r.matched_chunks[0][:150].replace("\n", " ")
+            lines.append(f"   …{snippet}…")
+        lines.append("")
+
+    return "\n".join(lines), results
+
+
+async def _tool_find_similar_documents(inputs: dict) -> tuple[str, list[DocumentResult]]:
+    """Nearest neighbours of a document, by its own embeddings.
+
+    The three outcomes are worded apart on purpose: a document with no chunks in
+    Chroma was never asked, and reporting that as "nothing similar" would be a
+    claim about the archive that was never checked.
+    """
+    from pipelines.similar import find_similar_documents
+
+    doc_id = inputs.get("document_id")
+    try:
+        doc_id = int(doc_id)
+    except (TypeError, ValueError):
+        return (
+            "Tool 'find_similar_documents' was not run: no valid document_id "
+            "given. Send the call again with the Paperless ID as an integer.",
+            [],
+        )
+
+    try:
+        max_results = int(inputs.get("max_results") or 10)
+    except (TypeError, ValueError):
+        max_results = 10
+    max_results = max(1, min(30, max_results))
+
+    # Outside the try: NoUserContext is handled one level up by execute_tool,
+    # and swallowing it here would report "not signed in" as a search error.
+    pl = _user_paperless()
+    try:
+        results = await find_similar_documents(
+            doc_id, n_results=max_results, paperless_client=pl
+        )
+    except Exception as exc:
+        return f"Error during similarity search: {exc}", []
+
+    if not results:
+        indexed = await chroma.get(
+            where={"paperless_id": {"$eq": doc_id}}, limit=1
+        )
+        if not indexed:
+            return (
+                f"Document #{doc_id} is not indexed — it has no embeddings, so no "
+                "similarity search could run for it. This says nothing about "
+                "whether similar documents exist.",
+                [],
+            )
+        return f"No similar documents found for #{doc_id}.", []
+
+    lines = [f"Found: {len(results)} document(s) similar to #{doc_id}\n"]
+    for i, r in enumerate(results, 1):
         doc = r.document
         lines.append(f"{i}. #{doc.id} — {doc.title}")
         meta = " | ".join(

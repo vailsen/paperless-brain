@@ -40,6 +40,7 @@ from app_ui.theme import DEFAULT_THEME
 from app_ui.vault_routes import FILE_PATH
 from config.settings import settings
 from i18n import get_translator
+from services.markdown_text import escape_intraword_underscores
 from vault import notes
 from vault.frontmatter import ID_KEY, sanitize_tags
 from vault.note_text import (
@@ -153,6 +154,8 @@ _PAGE_CSS = """
 .note-md p { margin: 0 0 0.6rem 0; }
 .note-md ul, .note-md ol { padding-left: 1.4rem; margin: 0 0 0.6rem 0; }
 .note-md li { margin-bottom: 0.2rem; }
+.note-md li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.15rem; }
+.note-md input[type="checkbox"] { margin-right: 0.45rem; vertical-align: -0.1em; accent-color: var(--c-accent); }
 .note-md code { background: var(--c-border); border-radius: 3px; padding: 0.1rem 0.3rem; font-family: monospace; font-size: 0.85em; }
 .note-md pre { background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; }
 .note-md blockquote { border-left: 3px solid var(--c-border-strong); padding-left: 0.75rem; color: var(--c-text-muted); }
@@ -341,7 +344,7 @@ def brain_page():
         editor.set_value(note.body)
         _props_panel.refresh()
         if preview.visible:
-            preview.set_content(note.body)
+            preview.set_content(escape_intraword_underscores(note.body))
 
     async def _open(rel: str) -> None:
         if not await _flush():
@@ -935,7 +938,7 @@ def brain_page():
         preview_btn.props(f'icon={"edit" if show else "visibility"}')
         preview_btn.tooltip(_("Edit") if show else _("Preview"))
         if show:
-            preview.set_content(editor.value)
+            preview.set_content(escape_intraword_underscores(editor.value))
 
     # ── Layout ───────────────────────────────────────────────────────────────
     _cm_theme = "basicLight" if ng_app.storage.user.get("theme", DEFAULT_THEME) == "light" else "basicDark"
@@ -1053,6 +1056,9 @@ def brain_page():
                         extras=[
                             "fenced-code-blocks", "tables",
                             "cuddled-lists", "break-on-newline",
+                            # Obsidian task lines ("- [x] …") are checkboxes,
+                            # not bullets with literal brackets.
+                            "task_list",
                         ],
                     ).classes("note-md w-full p-3").style("flex:1; overflow:auto; min-height:0")
                     # Reading is the common case; the pencil switches to source.
