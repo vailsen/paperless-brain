@@ -5,6 +5,76 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.9.0] — 2026-09-10
+
+**"Say what to change."**
+
+Dictation could only ever add. A memo you spoke last week is easy to extend and
+awkward to correct: fixing a name, dropping a paragraph or changing an amount
+meant opening the text and typing it yourself. The words you speak can now be
+an *instruction about* the text instead of more of it — and telling those two
+apart is the model's first job, not yours.
+
+### Added
+
+- **A microphone in the note editor.** Hold it, say what should change, and the
+  revision comes back as a proposal: a diff of what moved and an editable
+  field. Nothing is written to the note until you accept it. The frontmatter
+  never reaches the model and never comes back from it, so `pbrain_id` and the
+  properties keep exactly one editor.
+
+- **The same thing in the memo dialog, with no new button.** A second dictation
+  already merged into the draft; now it can also carry out an instruction.
+  "Und noch Kaffee kaufen, und streich den letzten Absatz" is one breath and
+  both things happen.
+
+- **Thinking effort per model** (`low` … `max`) for Anthropic's own API, which
+  replaced token budgets. Turning thinking down beats turning it off: without
+  it the model occasionally writes a tool call as plain text and the tool never
+  runs.
+
+### Changed
+
+- **Both dictation dialogs ignore a backdrop tap.** They hold a transcript you
+  already waited for and possibly edited by hand, and a stray tap next to the
+  card discarded it with no undo. Leaving is deliberate now.
+
+- **Similarity is shown as a distance, not a percentage.** Neighbour distances
+  land between 0.002 and 0.09, so as a percentage every hit rounded to "99%"
+  and the gap that separates the real relatives from the tail vanished.
+
+- **The record buttons are neutral at rest**, as the theme always said they
+  should be. They carried Quasar's default purple, and the amber that marks a
+  live microphone is 12% alpha — it tinted the purple instead of replacing it.
+
+- **Dependencies updated, and every range now has an upper bound.** Embeddings
+  were compared bit-for-bit across the `sentence-transformers` major bump
+  before it shipped: identical, so no reindex.
+
+### Fixed
+
+- **Every Anthropic call failed in the container while the tests passed
+  locally.** The dependency range was open, the dev machine resolved SDK 0.117
+  and the image resolved 1.4.0, and 1.x removed a parameter the code still
+  sent. Sampling parameters are gone from the current models server-side too,
+  so they are no longer sent at all. Extended thinking had gone stale the same
+  way: first-party Anthropic now gets `adaptive`, while Anthropic-compatible
+  endpoints keep the token budget they actually implement.
+
+- **A model that says it edited your text and did not.** It hands the note
+  straight back with a summary claiming a change; nothing updates, and the
+  confirmation reads as success. Both paths now measure the result against what
+  they sent instead of believing the summary, retry once where it is cheap, and
+  otherwise say plainly that nothing changed.
+
+- **"Max. output tokens" did nothing on the Anthropic backend.** The value
+  never reached it — the ceiling was hardcoded — so the field promising
+  "0 = default 16384" quietly capped answers at 12,000.
+
+- **Settings fields that cannot apply are greyed out.** The thinking budget and
+  the effort setting are mutually exclusive depending on the base URL; both
+  stayed editable, so it was possible to pick one that did nothing.
+
 ## [0.8.1] — 2026-09-07
 
 **"Show me documents like this one."**
