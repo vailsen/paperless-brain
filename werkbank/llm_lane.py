@@ -255,12 +255,12 @@ async def _call_claude(
         client_kwargs["base_url"] = base_url
     client = anthropic.AsyncAnthropic(**client_kwargs)
 
+    # `temperature` is deliberately not sent — see _call_claude_structured.
     kwargs: dict[str, Any] = dict(
         model=model,
         system=system,
         messages=messages,
         max_tokens=max_tokens,
-        temperature=temperature,
     )
     if tools:
         kwargs["tools"] = tools
@@ -564,6 +564,12 @@ async def _call_claude_structured(
         "description": "Output the structured result according to the schema.",
         "input_schema": json_schema,
     }
+    # `temperature` is deliberately not sent on the Anthropic path.
+    # The SDK dropped the parameter in 1.x (`AsyncMessages.create() got an
+    # unexpected keyword argument 'temperature'`), and the current Claude models
+    # reject sampling parameters server-side as well — `effort` replaced them.
+    # The argument stays in this signature because the OpenAI-compatible path, which
+    # every local and gateway model takes, still honours it.
     response = await client.messages.create(
         model=model,
         system=system,
@@ -571,7 +577,6 @@ async def _call_claude_structured(
         tools=[tool],
         tool_choice={"type": "tool", "name": tool_name},
         max_tokens=max_tokens,
-        temperature=temperature,
     )
     for block in response.content:
         if block.type == "tool_use" and block.name == tool_name:

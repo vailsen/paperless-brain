@@ -887,6 +887,8 @@ async def chat():
                 base_url=_rm.get("base_url", ""),
                 think=bool(_think_cfg) if _think_cfg is not None else None,
                 thinking_budget=int(_rm.get("thinking_budget") or 0),
+                effort=str(_rm.get("effort") or ""),
+                max_output_tokens=int(_rm.get("max_output_tokens") or 0) or None,
             )
         else:
             from services.model_registry import tool_config as _tool_config

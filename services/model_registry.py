@@ -11,6 +11,11 @@ Each model config stored in encrypted credentials under key "llm_models":
         "lane":     "local" | "api",
         "enabled":  bool,
 
+        # Thinking (anthropic backend only):
+        "think":           bool | None,  # None = let the endpoint decide
+        "thinking_budget": int,   # compatible endpoints only — Anthropic removed it
+        "effort":          str,   # "" | low | medium | high | xhigh | max — first party
+
         # Tool behaviour (openai_compatible only, all optional):
         "supports_tools":        bool,  # False = never offer tools to this model
         "force_tool_first_turn": bool,  # require a tool on personal questions

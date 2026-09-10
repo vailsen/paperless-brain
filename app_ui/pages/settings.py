@@ -476,9 +476,33 @@ async def settings_page() -> None:
                                     "decide yourself."
                                 )
                             ).classes("text-xs text-gray-500 mt-1")
+                            f_effort = (
+                                ui.select(
+                                    {
+                                        "": _("Model default"),
+                                        "low": _("Low"),
+                                        "medium": _("Medium"),
+                                        "high": _("High"),
+                                        "xhigh": _("Very high"),
+                                        "max": _("Maximum"),
+                                    },
+                                    label=_("Thinking effort (Anthropic, no base URL)"),
+                                    value=str(edit_model.get("effort", "")) if is_edit else "",
+                                )
+                                .props("outlined dark dense")
+                                .classes("w-full mt-2")
+                            )
+                            ui.label(
+                                _(
+                                    "Replaces the token budget on Anthropic's own API, where "
+                                    "budgets were removed. Turning thinking down beats turning it "
+                                    "off — without it the model sometimes writes a tool call as "
+                                    "plain text and the tool never runs."
+                                )
+                            ).classes("text-xs text-gray-500 mt-1")
                             f_thinking_budget = (
                                 ui.number(
-                                    label=_("Thinking budget in tokens (Anthropic backend, 0 = 4096)"),
+                                    label=_("Thinking budget in tokens (0 = 4096)"),
                                     value=int(edit_model.get("thinking_budget", 0)) if is_edit else 0,
                                     min=0, step=1024, format="%.0f",
                                 )
@@ -487,8 +511,9 @@ async def settings_page() -> None:
                             )
                             ui.label(
                                 _(
-                                    "With thinking ON the Anthropic backend runs at temperature 1 — "
-                                    "the API allows no other value."
+                                    "Only sent to Anthropic-compatible endpoints (those with a base "
+                                    "URL). Anthropic's own API rejects it. Either way it sets how "
+                                    "much room an answer gets."
                                 )
                             ).classes("text-xs text-gray-500 mt-1")
                             ui.label(
@@ -525,8 +550,31 @@ async def settings_page() -> None:
                                 )
                             ).classes("text-xs text-gray-500 mt-1")
 
+                            def _update_thinking_fields():
+                                """Grey out whichever thinking control cannot be sent.
+
+                                Both are Anthropic-only, and which of the two applies
+                                is decided by the base URL: first party takes `effort`
+                                and rejects a budget, an Anthropic-*compatible* endpoint
+                                takes the budget and knows nothing about effort. The
+                                label said so and the field stayed editable anyway,
+                                which is how a setting gets picked that does nothing.
+                                """
+                                anthropic = f_backend.value == "anthropic"
+                                first_party = not (f_base_url.value or "").strip()
+                                f_effort.set_enabled(anthropic and first_party)
+                                f_thinking_budget.set_enabled(anthropic and not first_party)
+
                             _update_base_url_placeholder()
-                            f_backend.on_value_change(lambda _: _update_base_url_placeholder())
+                            _update_thinking_fields()
+                            f_backend.on_value_change(
+                                lambda _: (_update_base_url_placeholder(),
+                                           _update_thinking_fields())
+                            )
+                            # `on_value_change` on a text input fires per keystroke,
+                            # which is what makes clearing the base URL re-enable the
+                            # right field immediately rather than on reopen.
+                            f_base_url.on_value_change(lambda _: _update_thinking_fields())
 
                             def _save():
                                 name = f_name.value.strip()
@@ -545,6 +593,7 @@ async def settings_page() -> None:
                                     "max_output_tokens": int(f_max_output.value or 0),
                                     "think": True if f_think.value == "true" else (False if f_think.value == "false" else None),
                                     "thinking_budget": int(f_thinking_budget.value or 0),
+                                    "effort": f_effort.value or "",
                                     "supports_tools":        bool(f_supports_tools.value),
                                     "force_tool_first_turn": bool(f_force_tool.value),
                                     "enabled":          True,

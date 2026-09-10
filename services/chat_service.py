@@ -308,7 +308,7 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
                 "max_results": {
                     "type": "integer",
-                    "description": "Maximum number of similar documents. Default 10.",
+                    "description": "Maximum number of similar documents. Defaults to the configured search result limit; only set this to deviate from it.",
                 },
             },
             "required": ["document_id"],
@@ -1353,11 +1353,18 @@ async def _tool_find_similar_documents(inputs: dict) -> tuple[str, list[Document
             [],
         )
 
+    # Same default as the semantic search: one setting decides how many results
+    # a search hands back, whichever kind of search it was. Resolved before the
+    # try block -- inside it, a failure here would leave the except branch
+    # reaching for a name that was never bound.
+    from werkbank.settings_store import get_search_max_results
+
+    default_n = get_search_max_results()
     try:
-        max_results = int(inputs.get("max_results") or 10)
+        max_results = int(inputs.get("max_results") or default_n)
     except (TypeError, ValueError):
-        max_results = 10
-    max_results = max(1, min(30, max_results))
+        max_results = default_n
+    max_results = max(1, min(50, max_results))
 
     # Outside the try: NoUserContext is handled one level up by execute_tool,
     # and swallowing it here would report "not signed in" as a search error.
@@ -2973,10 +2980,17 @@ def _claude_ctx_window(model: str, override: int = 0) -> int:
 
 
 # Anthropic's floor for `budget_tokens`; anything smaller is rejected.
+# `output_config.effort` replaced the thinking budget on first-party Anthropic.
+# Ordered cheapest first; the API default is "high", which is why "" (send
+# nothing) is a distinct choice rather than a synonym for it.
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+
 MIN_THINKING_BUDGET = 1024
 DEFAULT_THINKING_BUDGET = 4096
 # Headroom for the answer on top of the thinking budget — max_tokens covers both.
 _ANSWER_HEADROOM = 8_000
+# Matches OpenAICompatibleChatBackend and what the settings field promises.
+DEFAULT_MAX_OUTPUT_TOKENS = 16_384
 
 
 class ClaudeChatBackend:
@@ -2988,6 +3002,8 @@ class ClaudeChatBackend:
         context_window: int = 0,
         think: bool | None = None,
         thinking_budget: int = 0,
+        effort: str = "",
+        max_output_tokens: int | None = None,
     ):
         import anthropic
 
@@ -2995,6 +3011,11 @@ class ClaudeChatBackend:
         if base_url:
             kwargs["base_url"] = base_url
         self.client = anthropic.AsyncAnthropic(**kwargs)
+        # An empty base_url is what tells first-party Anthropic apart from an
+        # Anthropic-*compatible* endpoint. The two want different thinking
+        # parameters and there is nothing in the model string that says which is
+        # which — see _thinking_params.
+        self.first_party = not base_url
         self.model = model
         self.context_window = _claude_ctx_window(model, context_window)
         # None = say nothing and let the model/endpoint decide. That is what the
@@ -3003,21 +3024,57 @@ class ClaudeChatBackend:
         # exactly the "thinks only sometimes" behaviour the flag exists to fix.
         self.think = think
         self.thinking_budget = max(thinking_budget or DEFAULT_THINKING_BUDGET, MIN_THINKING_BUDGET)
+        self.effort = effort if effort in EFFORT_LEVELS else ""
+        # Same field, same default, same meaning as on the OpenAI-compatible
+        # backend. It used not to reach this class at all: the ceiling was a
+        # hardcoded 12_000, so the settings field advertising "0 = default
+        # 16384" changed nothing for an Anthropic-backed model.
+        self.max_output_tokens = max_output_tokens or DEFAULT_MAX_OUTPUT_TOKENS
 
-    def _thinking_params(self, temperature: float) -> tuple[dict, float, int]:
-        """Return (extra kwargs, effective temperature, max_tokens)."""
-        max_tokens = 12_000
+    def _thinking_params(self) -> tuple[dict, int]:
+        """Return (extra kwargs, max_tokens).
+
+        Two shapes, chosen by `first_party`, because this class fronts both real
+        Anthropic and Anthropic-compatible endpoints (MiniMax and friends):
+
+        * **First party.** `budget_tokens` is removed on the current models and
+          returns a 400 — `{"type": "adaptive"}` replaced it, and depth is set
+          with `output_config.effort` instead. Sending the old shape to Opus 5 or
+          Sonnet 5 fails every turn.
+        * **Compatible endpoint.** Those implement `budget_tokens` and know
+          nothing about `adaptive`, so they keep exactly what they had.
+
+        No temperature in either: the SDK dropped the parameter in 1.x and the
+        current models reject sampling parameters server-side. It used to be
+        forced to 1.0 here because extended thinking demanded exactly that — a
+        rule that only existed while the parameter did.
+
+        `max_tokens` is the user's own ceiling. The thinking budget only raises a
+        floor under it, because the API requires `max_tokens > budget_tokens` —
+        without that a generous budget on a small ceiling is a rejected request
+        rather than a long answer. The floor applies on both branches: thinking
+        tokens come out of the same ceiling either way, so switching a model's
+        backend must not silently change how long its answers may be.
+        """
+        ceiling = self.max_output_tokens
+        max_tokens = max(ceiling, self.thinking_budget + _ANSWER_HEADROOM)
         if self.think is None:
-            return {}, temperature, max_tokens
+            # Say nothing at all: the endpoint's own default applies, and that
+            # is a valid request on every model and every backend.
+            return {}, ceiling
         if not self.think:
-            return {"thinking": {"type": "disabled"}}, temperature, max_tokens
-        # max_tokens must exceed budget_tokens, and extended thinking only runs
-        # at temperature 1 — the API rejects any other value instead of clamping.
-        return (
-            {"thinking": {"type": "enabled", "budget_tokens": self.thinking_budget}},
-            1.0,
-            max(max_tokens, self.thinking_budget + _ANSWER_HEADROOM),
-        )
+            return {"thinking": {"type": "disabled"}}, ceiling
+        if not self.first_party:
+            return (
+                {"thinking": {"type": "enabled", "budget_tokens": self.thinking_budget}},
+                max_tokens,
+            )
+        extra: dict = {"thinking": {"type": "adaptive"}}
+        if self.effort:
+            # Omitted means the API default (high). Only sent when the user
+            # picked one, so the default is the API's rather than ours.
+            extra["output_config"] = {"effort": self.effort}
+        return extra, max_tokens
 
     async def run_turn(
         self,
@@ -3037,7 +3094,7 @@ class ClaudeChatBackend:
         ]
         working = list(messages)
         usage = 0
-        extra_kwargs, temperature, max_tokens = self._thinking_params(temperature)
+        extra_kwargs, max_tokens = self._thinking_params()
 
         for _i in range(max_iterations):
             yield IterationEvent(_i + 1)
@@ -3057,7 +3114,6 @@ class ClaudeChatBackend:
                 messages=_with_cache_marker(working),
                 tools=active_tools,
                 max_tokens=max_tokens,
-                temperature=temperature,
                 **extra_kwargs,
             ) as stream:
                 async for event in stream:
