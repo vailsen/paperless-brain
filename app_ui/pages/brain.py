@@ -36,6 +36,7 @@ from nicegui import app as ng_app
 from nicegui import ui
 
 from app_ui.layout import page_layout, require_auth
+from app_ui.note_voice_dialog import create_note_voice_dialog, note_voice_enabled
 from app_ui.theme import DEFAULT_THEME
 from app_ui.vault_routes import FILE_PATH
 from config.settings import settings
@@ -231,6 +232,10 @@ def brain_page():
         "last_edit": 0.0, "ticks": 0, "attachment": "",
     }
     sel: dict = {"rel": "", "dir": True}
+    # The voice button only exists when dictation is configured, and only means
+    # anything with a note open — `_layout_mode` owns its visibility, like the
+    # editor's, rather than a binding that polls.
+    voice_ui: dict = {"btn": None}
     drawer: dict = {"open": False}
     # Below the CSS breakpoint the tree is a drawer, and a tap must not open a
     # note (the drawer would close over the toolbar the tap was aiming for).
@@ -929,6 +934,32 @@ def brain_page():
     def _toggle_drawer() -> None:
         _set_drawer(not drawer["open"])
 
+    async def _apply_voice_edit(text: str) -> None:
+        """Accept a dictated revision.
+
+        Goes through the editor, not through `notes.save_note`: the dirty check,
+        the merge base and the autosave all hang off `editor.value`, and a write
+        that bypassed them would be a second save path — the one thing this page
+        must not have. `set_value` fires `_on_edit`, which marks the note dirty;
+        the save itself is the ordinary one, kicked off here rather than left to
+        the idle timer because an accepted revision is a decision, not a keystroke.
+        """
+        if not st["rel"]:
+            return
+        editor.set_value(text)
+        if preview.visible:
+            preview.set_content(escape_intraword_underscores(text))
+        _on_edit(text)
+        # Awaited, not spawned: a save can hit a conflict and render the banner,
+        # and a detached task has no client slot to render it into.
+        await _save()
+
+    def _open_voice_edit() -> None:
+        if not st["rel"]:
+            ui.notify(_("Select a note first."), type="warning")
+            return
+        _voice_edit()
+
     def _toggle_preview() -> None:
         _set_preview(not preview.visible)
 
@@ -1019,6 +1050,13 @@ def brain_page():
                     status_label = ui.label("").classes("text-xs shrink-0").style(
                         "color:var(--c-text-muted)"
                     )
+                    if note_voice_enabled():
+                        voice_ui["btn"] = ui.button(
+                            icon="mic", on_click=_open_voice_edit
+                        ).props("flat dense round size=sm").classes(
+                            "card-action-btn"
+                        ).tooltip(_("Edit note by voice"))
+                        voice_ui["btn"].set_visibility(False)
                     preview_btn = ui.button(icon="edit", on_click=_toggle_preview).props(
                         "flat dense round size=sm"
                     ).classes("card-action-btn").tooltip(_("Edit"))
@@ -1068,6 +1106,8 @@ def brain_page():
                 def _layout_mode() -> None:
                     """Empty state / attachment view. The editor is built once,
                     above; this only decides what is on screen."""
+                    if voice_ui["btn"] is not None:
+                        voice_ui["btn"].set_visibility(bool(st["rel"]))
                     if st["rel"]:
                         title.text = st["rel"]
                         editor_box.set_visibility(True)
@@ -1100,6 +1140,17 @@ def brain_page():
                             ).props("flat dense").classes("lg:hidden")
 
                 _layout_mode()
+
+    # Built after the editor, because the dialog reads and writes it. One per
+    # page, reused for every note — the recorder script is installed with it.
+    _voice_edit = (
+        create_note_voice_dialog(
+            get_note=lambda: editor.value,
+            apply_note=_apply_voice_edit,
+        )
+        if note_voice_enabled()
+        else (lambda: None)
+    )
 
     def _on_edit(value: str) -> None:
         if not st["rel"]:

@@ -47,7 +47,7 @@ def test_real_memos_pass_the_guard(text):
 
 
 def test_no_model_returns_the_raw_transcript(monkeypatch):
-    topic, text = _run(M.rewrite_dictation(
+    topic, text, _changed = _run(M.rewrite_dictation(
         "Klempner kommt Dienstag.", model="", user_id="alice", token="t"
     ))
     assert text == "Klempner kommt Dienstag."
@@ -59,7 +59,7 @@ def test_a_failed_rewrite_never_loses_the_users_words(monkeypatch):
         raise RuntimeError("model unreachable")
 
     monkeypatch.setattr("werkbank.llm_lane.complete_structured", boom)
-    topic, text = _run(M.rewrite_dictation(
+    topic, text, _changed = _run(M.rewrite_dictation(
         "Gebäudeversicherung Nummer 118 prüfen.",
         model="qwen", user_id="alice", token="t",
     ))
@@ -72,7 +72,7 @@ def test_an_empty_rewrite_body_falls_back_to_the_transcript(monkeypatch):
         return {"topic": "Versicherung", "text": "   "}
 
     monkeypatch.setattr("werkbank.llm_lane.complete_structured", empty)
-    topic, text = _run(M.rewrite_dictation(
+    topic, text, _changed = _run(M.rewrite_dictation(
         "Originaltext bleibt.", model="qwen", user_id="alice", token="t"
     ))
     assert text == "Originaltext bleibt."
@@ -85,7 +85,7 @@ def test_a_successful_rewrite_is_used(monkeypatch):
         return {"topic": "Klempner Termin", "text": "- Klempner kommt am Dienstag"}
 
     monkeypatch.setattr("werkbank.llm_lane.complete_structured", ok)
-    topic, text = _run(M.rewrite_dictation(
+    topic, text, _changed = _run(M.rewrite_dictation(
         "Klempner kommt Dienstag.", model="qwen", user_id="alice", token="t"
     ))
     assert topic == "Klempner Termin"
@@ -97,7 +97,7 @@ def test_a_missing_topic_is_derived_from_the_text(monkeypatch):
         return {"text": "Gebäudereinigung muss neu beauftragt werden."}
 
     monkeypatch.setattr("werkbank.llm_lane.complete_structured", no_topic)
-    topic, _ = _run(M.rewrite_dictation(
+    topic, _text, _changed = _run(M.rewrite_dictation(
         "irgendwas", model="qwen", user_id="alice", token="t"
     ))
     assert topic == "Gebäudereinigung muss neu beauftragt werden"
@@ -150,7 +150,7 @@ def test_a_first_recording_sends_only_the_transcript(monkeypatch):
 
 def test_a_second_recording_sends_the_memo_so_far(monkeypatch):
     seen = _capture_rewrite(monkeypatch)
-    topic, text = _run(M.rewrite_dictation(
+    topic, text, _changed = _run(M.rewrite_dictation(
         "und Brot", model="m", user_id="alice", token="t",
         previous="# Einkauf\n\n- Milch",
     ))
@@ -169,14 +169,14 @@ def test_a_failed_second_rewrite_keeps_the_earlier_half(monkeypatch):
 
     import werkbank.llm_lane as lane
     monkeypatch.setattr(lane, "complete_structured", boom)
-    _topic, text = _run(M.rewrite_dictation(
+    _topic, text, _changed = _run(M.rewrite_dictation(
         "und Brot", model="m", user_id="alice", token="t", previous="- Milch",
     ))
     assert "- Milch" in text and "und Brot" in text
 
 
 def test_no_model_still_keeps_both_halves(monkeypatch):
-    _topic, text = _run(M.rewrite_dictation(
+    _topic, text, _changed = _run(M.rewrite_dictation(
         "und Brot", model="", user_id="alice", token="t", previous="- Milch",
     ))
     assert "- Milch" in text and "und Brot" in text
@@ -187,3 +187,57 @@ def test_punctuation_dictation_is_covered_by_the_prompts():
     for prompt in (M.REWRITE_SYSTEM, M.CONVERSATION_SYSTEM):
         assert "Komma" in prompt and "comma" in prompt
         assert "Doppelpunkt" in prompt
+
+
+# ── "changed" is measured, never believed ────────────────────────────────────
+#
+# The continuation prompt now accepts an instruction as well as more material,
+# and the failure that comes with it is a model that narrates a deletion and
+# returns the memo untouched. NiceGUI sends no update for an unchanged value, so
+# without this the user sees a confirmation over a draft that did not move.
+
+
+def test_a_continuation_that_changes_nothing_is_reported(monkeypatch):
+    async def echo(system, messages, **kw):
+        return {"topic": "Einkauf", "text": "- Milch"}
+
+    import werkbank.llm_lane as lane
+
+    monkeypatch.setattr(lane, "complete_structured", echo)
+    _topic, text, changed = _run(M.rewrite_dictation(
+        "lösche den letzten Punkt", model="m", user_id="a", token="t",
+        previous="- Milch",
+    ))
+    assert text == "- Milch"
+    assert changed is False
+
+
+def test_a_real_continuation_reports_changed(monkeypatch):
+    async def grow(system, messages, **kw):
+        return {"topic": "Einkauf", "text": "- Milch\n- Brot"}
+
+    import werkbank.llm_lane as lane
+
+    monkeypatch.setattr(lane, "complete_structured", grow)
+    _topic, _text, changed = _run(M.rewrite_dictation(
+        "und Brot", model="m", user_id="a", token="t", previous="- Milch",
+    ))
+    assert changed is True
+
+
+def test_a_first_recording_is_always_a_change():
+    """There is nothing to compare against, so the flag must not read as a
+    failure on the one path where it means nothing."""
+    _topic, _text, changed = _run(M.rewrite_dictation(
+        "Klempner kommt Dienstag.", model="", user_id="a", token="t",
+    ))
+    assert changed is True
+
+
+def test_the_continuation_prompt_allows_an_instruction():
+    """It used to say "never drop anything", so a deletion only ever worked by
+    the model disobeying it."""
+    assert "never drop anything" not in M.CONTINUATION_RULE
+    lowered = M.CONTINUATION_RULE.lower()
+    assert "instruction" in lowered
+    assert "delete the last paragraph" in lowered

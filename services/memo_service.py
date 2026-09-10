@@ -201,13 +201,30 @@ REWRITE_SCHEMA = {
 
 CONTINUATION_RULE = """\
 
-This memo already exists and the user has just dictated more. The memo so far \
-is given first, the new dictation second. Return the COMPLETE memo — the \
-earlier part plus the new material, merged into one coherent whole. Fold the \
-new content into the structure that is already there: continue the existing \
-list or table instead of starting a second one, and put related facts next to \
-the ones they belong with. The earlier part is already tidied and may contain \
-the user's own edits — keep its wording and never drop anything from it."""
+This memo already exists and the user has just dictated again. The memo so far \
+is given first, the new dictation second. Return the COMPLETE memo either way.
+
+The new dictation is one of two things, and telling them apart is your first \
+job:
+
+* **More material.** Fold it into the structure that is already there: continue \
+the existing list or table instead of starting a second one, and put related \
+facts next to the ones they belong with. Keep the earlier part's wording — it \
+is already tidied and may contain the user's own edits — and drop nothing from \
+it.
+* **An instruction about the memo** — "delete the last paragraph", "spell that \
+name with ai, not ey", "put the appointment at the top", "the amount is 240, \
+not 420". Carry it out. Here you *may* remove or rewrite what the instruction \
+names, and only that; everything else still comes back untouched and word for \
+word.
+
+When it is unclear which of the two you are looking at, treat it as material \
+and add it. A stray sentence is visible and one keystroke to remove; deleting \
+the user's own words on a guess is not.
+
+Never describe the change instead of making it. What you return is the memo as \
+it should look afterwards — if you report that something was deleted, that text \
+must be gone from what you return."""
 
 
 async def rewrite_dictation(
@@ -218,8 +235,15 @@ async def rewrite_dictation(
     token: str,
     conversation: bool = False,
     previous: str = "",
-) -> tuple[str, str]:
-    """Return (topic, text). Never raises.
+) -> tuple[str, str, bool]:
+    """Return (topic, text, changed). Never raises.
+
+    ``changed`` says whether the result differs from ``previous``, measured
+    here rather than believed from the model. It only means anything for a
+    continuation; on a first recording there is nothing to compare against and
+    it is always True. A model that hands the memo straight back after being
+    told to delete a paragraph would otherwise leave the user looking at a
+    confident, untouched draft.
 
     A failed rewrite must not cost the user their words, so every error path
     falls back to the raw transcript with a topic taken from its first words.
@@ -236,8 +260,16 @@ async def rewrite_dictation(
     than appends.
     """
     raw = transcript.strip()
+    previous_stripped = (previous or "").strip()
+
+    def _done(topic: str, text: str) -> tuple[str, str, bool]:
+        return topic, text, (text.strip() != previous_stripped)
+
     if not model:
-        return _fallback_topic(raw), (f"{previous}\n\n{raw}".strip() if previous else raw)
+        return _done(
+            _fallback_topic(raw),
+            f"{previous}\n\n{raw}".strip() if previous else raw,
+        )
 
     from werkbank.llm_lane import complete_structured
 
@@ -270,11 +302,13 @@ async def rewrite_dictation(
         )
     except Exception as exc:
         _log.warning("memo rewrite failed, keeping raw transcript: %s", exc)
-        return _fallback_topic(raw), fallback
+        return _done(_fallback_topic(raw), fallback)
 
     text = (result.get("text") or "").strip()
     topic = (result.get("topic") or "").strip()
     if not text:
         # A structurally valid response with an empty body is still a failure.
-        return topic or _fallback_topic(raw), fallback
-    return topic or _fallback_topic(text), text
+        return _done(topic or _fallback_topic(raw), fallback)
+    if previous_stripped and text == previous_stripped:
+        _log.warning("memo continuation returned the memo unchanged")
+    return _done(topic or _fallback_topic(text), text)

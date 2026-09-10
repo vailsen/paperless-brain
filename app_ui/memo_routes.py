@@ -1,6 +1,6 @@
-"""Upload endpoint for dictated audio.
+"""Endpoints for dictated audio, and for what the model does with it.
 
-One route serves both callers. The chat mic wants the **raw** transcript — the
+Transcription is one route for every caller. The chat mic wants the **raw** transcript — the
 user is composing their own message and a rewrite would put words in their
 mouth. The memo dialog additionally runs the Phase 2 rewrite and gets a topic
 back. See `docs/voice-memos-tasks.md`.
@@ -31,6 +31,10 @@ _log = logging.getLogger(__name__)
 TRANSCRIBE_PATH = "/api/memo/transcribe"
 REWRITE_PATH = "/api/memo/rewrite"
 QUICK_PATH = "/api/memo/quick"
+# A spoken instruction applied to a note the user has open. Same audio and
+# same model as a memo — a different prompt, and a result the user accepts
+# or discards before anything is written.
+NOTE_EDIT_PATH = "/api/note/voice-edit"
 
 
 class MemoInputError(Exception):
@@ -200,7 +204,7 @@ async def rewrite_payload(
         # Without a model the rewrite degrades to the raw transcript and a topic
         # cut from its first words — visibly worse, and nothing in the UI says why.
         _log.warning("no memo model configured for %s — filing the raw transcript", username)
-    topic, cleaned = await memo_service.rewrite_dictation(
+    topic, cleaned, changed = await memo_service.rewrite_dictation(
         raw,
         model=model,
         user_id=username,
@@ -208,7 +212,47 @@ async def rewrite_payload(
         conversation=conversation,
         previous=previous,
     )
-    return {"topic": topic, "text": cleaned, "transcript": raw}
+    # Measured, not claimed. Only meaningful for a continuation: an instruction
+    # the model narrated but did not carry out leaves the memo byte-identical,
+    # and the UI has to say so rather than show an untouched draft as done.
+    return {"topic": topic, "text": cleaned, "transcript": raw, "changed": changed}
+
+
+async def note_edit_payload(
+    note: str,
+    instruction: str,
+    *,
+    username: str,
+    token: str,
+) -> dict:
+    """Note + spoken instruction → ``{"text", "summary"}``.
+
+    Its own route, like the memo rewrite, so the status line can say which of
+    the two waits the user is in: Whisper first, then the model.
+
+    Raises ``MemoInputError`` for anything the user can act on.
+    """
+    from services.note_edit_service import NoteEditError, apply_voice_edit
+
+    if not username:
+        raise MemoInputError(401, "Not signed in.")
+    spoken = (instruction or "").strip()
+    if not spoken:
+        raise MemoInputError(400, "There was nothing to act on.")
+
+    model = _memo_model(username, token)
+    try:
+        text, summary, changed = await apply_voice_edit(
+            note, spoken, model=model, user_id=username, token=token
+        )
+    except NoteEditError as exc:
+        # 502, not 422: the recording was fine, the model was not. The note is
+        # untouched either way — nothing here writes.
+        raise MemoInputError(502, str(exc)) from exc
+    # `changed` is measured, not claimed: a model that hands the note back
+    # unchanged while reporting an edit would otherwise show the user a
+    # confident confirmation over an untouched draft.
+    return {"text": text, "summary": summary, "changed": changed}
 
 
 @ng_app.post(TRANSCRIBE_PATH)
@@ -397,4 +441,29 @@ async def rewrite_transcript(body: dict) -> JSONResponse:
     except MemoInputError as exc:
         return _error(exc.status, exc.message)
     payload["replaced"] = bool(str(body.get("previous") or "").strip())
+    return JSONResponse(payload)
+
+
+@ng_app.post(NOTE_EDIT_PATH)
+async def voice_edit_note(body: dict) -> JSONResponse:
+    """Apply a dictated instruction to a note and return the revised text.
+
+    Answers with the proposal only. Writing it is the note editor's job, after
+    the user has accepted it.
+    """
+    try:
+        username = ng_app.storage.user.get("paperless_user", "")
+        token = get_session_token()
+    except Exception:  # no session context at all
+        username, token = "", ""
+
+    try:
+        payload = await note_edit_payload(
+            str(body.get("note") or ""),
+            str(body.get("instruction") or ""),
+            username=username,
+            token=token,
+        )
+    except MemoInputError as exc:
+        return _error(exc.status, exc.message)
     return JSONResponse(payload)
