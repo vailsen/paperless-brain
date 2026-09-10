@@ -446,7 +446,8 @@ async def browser():
 # ── Module-level card renderer ────────────────────────────────────────────────
 
 
-def _render_card(result: DocumentResult, on_eye, on_cluster=None, on_pin=None, is_pinned: bool = False) -> None:
+def _render_card(result: DocumentResult, on_eye, on_cluster=None, on_pin=None,
+                 is_pinned: bool = False, show_distance: bool = False) -> None:
     _ = get_translator()
     doc = result.document
     _pin_border = "border: 2px solid #a78bfa !important; box-shadow: 0 0 8px #a78bfa44;" if is_pinned else ""
@@ -520,7 +521,17 @@ def _render_card(result: DocumentResult, on_eye, on_cluster=None, on_pin=None, i
                             )
                             ui.label(str(doc.page_count)).classes("text-xs text-gray-400")
 
-                if settings.show_relevance_scores and result.relevance is not None:
+                # In the similarity dialog the distance is not decoration, it is
+                # the only thing that says where the list stops being useful --
+                # so it is shown there regardless of the global setting. As a
+                # percentage it would not: with cosine distances of 0.002..0.09
+                # every neighbour rounds to "99%" and the gap that separates the
+                # real relatives from the tail disappears.
+                if show_distance and result.relevance_score is not None:
+                    ui.label(
+                        _("Distance: {d:.3f}").format(d=result.relevance_score)
+                    ).classes("text-xs text-gray-400")
+                elif settings.show_relevance_scores and result.relevance is not None:
                     ui.label(
                         _("Relevance: {score:.0%}").format(score=result.relevance)
                     ).classes("text-xs text-gray-400")

@@ -19,7 +19,7 @@ def create_similar_dialog(
     pin_fn: Callable,
     get_pinned_ids_fn: Callable[[], set],
     render_card_fn: Callable,
-    max_results: int = 12,
+    max_results: int | None = None,
 ) -> Callable:
     """Factory: build one persistent dialog per page and return
     ``open_similar(doc_id)``.
@@ -54,6 +54,7 @@ def create_similar_dialog(
                         r, _open_doc, None,
                         on_pin=pin_fn,
                         is_pinned=r.document.id in pinned,
+                        show_distance=True,
                     )
 
     ui.add_head_html("""<style>
@@ -89,6 +90,13 @@ def create_similar_dialog(
     async def open_similar(doc_id: int) -> None:
         from pipelines.similar import find_similar_documents
         from services.clients import chroma, get_session_paperless
+        from werkbank.settings_store import get_search_max_results
+
+        # Read per open, not per dialog build: changing the setting then takes
+        # effect on the next search instead of on the next restart. Same knob
+        # the semantic search uses -- one number for "how many results", not a
+        # second one hidden in the code.
+        n = max_results if max_results is not None else get_search_max_results()
 
         _state["results"] = []
         _state["empty_reason"] = ""
@@ -98,7 +106,7 @@ def create_similar_dialog(
         try:
             results = await find_similar_documents(
                 doc_id,
-                n_results=max_results,
+                n_results=n,
                 paperless_client=get_session_paperless(),
             )
         except Exception as exc:
