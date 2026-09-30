@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 15:03+0200\n"
+"POT-Creation-Date: 2026-09-30 11:03+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -312,8 +312,8 @@ msgid ""
 "The memo is unchanged — nothing was added and no instruction was carried "
 "out. Try saying it more plainly."
 msgstr ""
-"Das Memo ist unverändert — es kam nichts dazu und es wurde keine Anweisung "
-"ausgeführt. Sag es noch einmal, einfacher."
+"Das Memo ist unverändert — es kam nichts dazu und es wurde keine "
+"Anweisung ausgeführt. Sag es noch einmal, einfacher."
 
 #: app_ui/memo_dialog.py:391 app_ui/memo_dialog.py:524
 #: app_ui/note_voice_dialog.py:298 app_ui/pages/chat.py:1888
@@ -384,7 +384,7 @@ msgstr "Wird im Hintergrund abgelegt …"
 msgid "Recording discarded."
 msgstr "Aufnahme verworfen."
 
-#: app_ui/note_voice_dialog.py:130 app_ui/pages/brain.py:1058
+#: app_ui/note_voice_dialog.py:130 app_ui/pages/brain.py:1158
 msgid "Edit note by voice"
 msgstr "Notiz per Sprache bearbeiten"
 
@@ -476,8 +476,8 @@ msgstr ""
 msgid "Similar to #{id} — {n} documents"
 msgstr "Ähnlich zu #{id} — {n} Dokumente"
 
-#: app_ui/pages/brain.py:266 app_ui/pages/brain.py:280
-#: app_ui/pages/brain.py:704 app_ui/pages/chat.py:1179
+#: app_ui/pages/brain.py:277 app_ui/pages/brain.py:291
+#: app_ui/pages/brain.py:772 app_ui/pages/chat.py:1179
 #: app_ui/pages/chat.py:3086 app_ui/pages/chat.py:3345
 #: app_ui/pages/chat.py:3429 app_ui/pages/dashboard.py:964
 #: app_ui/pages/dashboard.py:1157 app_ui/pages/dashboard.py:1345
@@ -487,238 +487,257 @@ msgstr "Ähnlich zu #{id} — {n} Dokumente"
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: app_ui/pages/brain.py:267
+#: app_ui/pages/brain.py:278
 msgid "OK"
 msgstr "OK"
 
-#: app_ui/pages/brain.py:281 app_ui/pages/brain.py:1000
+#: app_ui/pages/brain.py:292 app_ui/pages/brain.py:1100
 #: werkbank/ui/task_dialog.py:363 werkbank/ui/task_dialog.py:699
 #: werkbank/v2/ui/page.py:273
 msgid "Delete"
 msgstr "Löschen"
 
-#: app_ui/pages/brain.py:291
+#: app_ui/pages/brain.py:302
 msgid "Saved"
 msgstr "Gespeichert"
 
-#: app_ui/pages/brain.py:292
+#: app_ui/pages/brain.py:303
 msgid "Saving …"
 msgstr "Speichern …"
 
-#: app_ui/pages/brain.py:293
+#: app_ui/pages/brain.py:304
 msgid "Unsaved changes"
 msgstr "Nicht gespeicherte Änderungen"
 
-#: app_ui/pages/brain.py:294
+#: app_ui/pages/brain.py:305
 msgid "Merged changes from disk"
 msgstr "Änderungen von der Festplatte zusammengeführt"
 
-#: app_ui/pages/brain.py:295
+#: app_ui/pages/brain.py:306
 msgid "Reloaded — changed on disk"
 msgstr "Neu geladen – auf der Festplatte geändert"
 
-#: app_ui/pages/brain.py:296
+#: app_ui/pages/brain.py:307
 msgid "Changed on disk"
 msgstr "Auf der Festplatte geändert"
 
-#: app_ui/pages/brain.py:297
+#: app_ui/pages/brain.py:308
 msgid "Properties were reformatted"
 msgstr "Eigenschaften wurden neu formatiert"
 
-#: app_ui/pages/brain.py:320 app_ui/pages/brain.py:1026
+#: app_ui/pages/brain.py:349 app_ui/pages/brain.py:372
+msgid "Shared by others"
+msgstr "Von anderen geteilt"
+
+#: app_ui/pages/brain.py:378 app_ui/pages/brain.py:1126
 msgid "Not indexed yet"
 msgstr "Noch nicht indiziert"
 
-#: app_ui/pages/brain.py:368
+#: app_ui/pages/brain.py:436
 msgid "This note no longer exists."
 msgstr "Diese Notiz existiert nicht mehr."
 
-#: app_ui/pages/brain.py:468
+#: app_ui/pages/brain.py:536
 #, python-brace-format
 msgid "Could not save: {err}"
 msgstr "Konnte nicht gespeichert werden: {err}"
 
-#: app_ui/pages/brain.py:540
+#: app_ui/pages/brain.py:608
 msgid "The note could not be found anywhere in the vault."
 msgstr "Die Notiz wurde nirgends im Vault gefunden."
 
-#: app_ui/pages/brain.py:549 app_ui/pages/brain.py:574
+#: app_ui/pages/brain.py:617 app_ui/pages/brain.py:642
 msgid "Save as new note"
 msgstr "Als neue Notiz speichern"
 
-#: app_ui/pages/brain.py:549 app_ui/pages/brain.py:667
-#: app_ui/pages/brain.py:842 app_ui/pages/brain.py:857
-#: app_ui/pages/brain.py:873 app_ui/pages/chat.py:2898
+#: app_ui/pages/brain.py:617 app_ui/pages/brain.py:735
+#: app_ui/pages/brain.py:936 app_ui/pages/brain.py:951
+#: app_ui/pages/brain.py:970 app_ui/pages/chat.py:2898
 #: app_ui/pages/chat.py:2941 werkbank/ui/archetype_dialog.py:118
 msgid "Name"
 msgstr "Name"
 
-#: app_ui/pages/brain.py:569
+#: app_ui/pages/brain.py:637
 msgid "This note no longer exists on disk."
 msgstr "Diese Notiz existiert nicht mehr auf der Festplatte."
 
-#: app_ui/pages/brain.py:573
+#: app_ui/pages/brain.py:641
 msgid "Find it"
 msgstr "Suchen"
 
-#: app_ui/pages/brain.py:578
+#: app_ui/pages/brain.py:646
 msgid "This note changed on disk while you were editing."
 msgstr ""
 "Diese Notiz wurde auf der Festplatte geändert, während du sie bearbeitet "
 "hast."
 
-#: app_ui/pages/brain.py:584
+#: app_ui/pages/brain.py:652
 msgid "On disk"
 msgstr "Auf der Festplatte"
 
-#: app_ui/pages/brain.py:584
+#: app_ui/pages/brain.py:652
 msgid "Yours"
 msgstr "Deine Version"
 
-#: app_ui/pages/brain.py:589
+#: app_ui/pages/brain.py:657
 msgid "Reload from disk"
 msgstr "Von der Festplatte neu laden"
 
-#: app_ui/pages/brain.py:590
+#: app_ui/pages/brain.py:658
 msgid "Save as copy"
 msgstr "Als Kopie speichern"
 
-#: app_ui/pages/brain.py:591
+#: app_ui/pages/brain.py:659
 msgid "Overwrite"
 msgstr "Überschreiben"
 
-#: app_ui/pages/brain.py:667 app_ui/pages/brain.py:779
+#: app_ui/pages/brain.py:735 app_ui/pages/brain.py:873
 msgid "Add property"
 msgstr "Eigenschaft hinzufügen"
 
-#: app_ui/pages/brain.py:673
+#: app_ui/pages/brain.py:741
 msgid "That property already exists."
 msgstr "Diese Eigenschaft existiert bereits."
 
-#: app_ui/pages/brain.py:676
+#: app_ui/pages/brain.py:744
 #, python-brace-format
 msgid "{key} is assigned automatically."
 msgstr "{key} wird automatisch vergeben."
 
-#: app_ui/pages/brain.py:691
+#: app_ui/pages/brain.py:759
 msgid "Edit properties as YAML"
 msgstr "Eigenschaften als YAML bearbeiten"
 
-#: app_ui/pages/brain.py:699
+#: app_ui/pages/brain.py:767
 #, python-brace-format
 msgid "{key} is managed by PaperlessBrain and stays unchanged."
 msgstr "{key} wird von PaperlessBrain verwaltet und bleibt unverändert."
 
-#: app_ui/pages/brain.py:705 app_ui/pages/settings.py:1542
+#: app_ui/pages/brain.py:773 app_ui/pages/settings.py:1542
 msgid "Apply"
 msgstr "Übernehmen"
 
-#: app_ui/pages/brain.py:715
+#: app_ui/pages/brain.py:783
 #, python-brace-format
 msgid "Invalid YAML: {err}"
 msgstr "Ungültiges YAML: {err}"
 
-#: app_ui/pages/brain.py:718
+#: app_ui/pages/brain.py:786
 msgid "Properties must be a mapping of keys to values."
 msgstr "Eigenschaften müssen eine Zuordnung von Schlüsseln zu Werten sein."
 
-#: app_ui/pages/brain.py:749
+#: app_ui/pages/brain.py:817
 msgid "Copied"
 msgstr "Kopiert"
 
-#: app_ui/pages/brain.py:755
+#: app_ui/pages/brain.py:823
 msgid "Assigned when indexed"
 msgstr "Wird beim Indizieren vergeben"
 
-#: app_ui/pages/brain.py:769
+#: app_ui/pages/brain.py:837
 msgid "Excluded from the search index."
 msgstr "Vom Suchindex ausgeschlossen."
 
-#: app_ui/pages/brain.py:782
+#: app_ui/pages/brain.py:855
+msgid ""
+"Shared with every user: their chat can use it, and it is listed under "
+"Shared by others. The file stays in your vault."
+msgstr "Mit allen Nutzern geteilt: deren Chat kann es verwenden, und es erscheint unter „Von anderen geteilt“. Die Datei bleibt in deinem Vault."
+
+#: app_ui/pages/brain.py:867
+#, python-brace-format
+msgid "Has no effect here — only facts in {folder} can be shared."
+msgstr "Hat hier keine Wirkung — nur Fakten in {folder} lassen sich teilen."
+
+#: app_ui/pages/brain.py:876
 msgid "Edit YAML"
 msgstr "YAML bearbeiten"
 
-#: app_ui/pages/brain.py:837
+#: app_ui/pages/brain.py:931
 #, python-brace-format
 msgid "{action} in {folder}"
 msgstr "{action} in {folder}"
 
-#: app_ui/pages/brain.py:838
+#: app_ui/pages/brain.py:932
 #, python-brace-format
 msgid "{action} in the vault root"
 msgstr "{action} im Vault-Stammverzeichnis"
 
-#: app_ui/pages/brain.py:842 app_ui/pages/brain.py:991
+#: app_ui/pages/brain.py:936 app_ui/pages/brain.py:1091
 msgid "New note"
 msgstr "Neue Notiz"
 
-#: app_ui/pages/brain.py:857 app_ui/pages/brain.py:994
+#: app_ui/pages/brain.py:951 app_ui/pages/brain.py:1094
 msgid "New folder"
 msgstr "Neuer Ordner"
 
-#: app_ui/pages/brain.py:869 app_ui/pages/brain.py:893
+#: app_ui/pages/brain.py:963 app_ui/pages/brain.py:990
 msgid "Select a note or folder first."
 msgstr "Zuerst eine Notiz oder einen Ordner auswählen."
 
-#: app_ui/pages/brain.py:873 app_ui/pages/brain.py:997
+#: app_ui/pages/brain.py:966 app_ui/pages/brain.py:993
+msgid "Shared notes are read-only."
+msgstr "Geteilte Notizen sind schreibgeschützt."
+
+#: app_ui/pages/brain.py:970 app_ui/pages/brain.py:1097
 msgid "Rename"
 msgstr "Umbenennen"
 
-#: app_ui/pages/brain.py:896
+#: app_ui/pages/brain.py:996
 #, python-brace-format
 msgid "Delete “{name}” permanently?"
 msgstr "„{name}“ endgültig löschen?"
 
-#: app_ui/pages/brain.py:920
+#: app_ui/pages/brain.py:1020
 #, python-brace-format
 msgid "Indexing failed: {err}"
 msgstr "Indizierung fehlgeschlagen: {err}"
 
-#: app_ui/pages/brain.py:927
+#: app_ui/pages/brain.py:1027
 msgid "Vault indexed."
 msgstr "Vault indiziert."
 
-#: app_ui/pages/brain.py:959
+#: app_ui/pages/brain.py:1059
 msgid "Select a note first."
 msgstr "Zuerst eine Notiz auswählen."
 
-#: app_ui/pages/brain.py:970 app_ui/pages/brain.py:1062
+#: app_ui/pages/brain.py:1070 app_ui/pages/brain.py:1162
 #: app_ui/pages/chat.py:3255 app_ui/pages/chat.py:3297
 #: werkbank/ui/task_dialog.py:525 werkbank/ui/task_dialog.py:555
 msgid "Edit"
 msgstr "Bearbeiten"
 
-#: app_ui/pages/brain.py:970 app_ui/pages/chat.py:3287
+#: app_ui/pages/brain.py:1070 app_ui/pages/chat.py:3287
 #: werkbank/ui/task_dialog.py:548
 msgid "Preview"
 msgstr "Vorschau"
 
-#: app_ui/pages/brain.py:986 app_ui/pages/chat.py:564
+#: app_ui/pages/brain.py:1086 app_ui/pages/chat.py:564
 msgid "Vault"
 msgstr "Vault"
 
-#: app_ui/pages/brain.py:1001
+#: app_ui/pages/brain.py:1101
 msgid "Filter …"
 msgstr "Filtern …"
 
-#: app_ui/pages/brain.py:1008
+#: app_ui/pages/brain.py:1108
 #, python-brace-format
 msgid "Selected: {name}"
 msgstr "Ausgewählt: {name}"
 
-#: app_ui/pages/brain.py:1011
+#: app_ui/pages/brain.py:1111
 msgid "Tap to select, tap again to open"
 msgstr "Tippen zum Auswählen, nochmal tippen zum Öffnen"
 
-#: app_ui/pages/brain.py:1012
+#: app_ui/pages/brain.py:1112
 msgid "Click a note to open it"
 msgstr "Notiz anklicken, um sie zu öffnen"
 
-#: app_ui/pages/brain.py:1033
+#: app_ui/pages/brain.py:1133
 msgid "Index now"
 msgstr "Jetzt indizieren"
 
-#: app_ui/pages/brain.py:1035
+#: app_ui/pages/brain.py:1135
 msgid ""
 "Make edited notes findable by the chat right away. Happens on its own "
 "with the next chat message."
@@ -726,23 +745,33 @@ msgstr ""
 "Bearbeitete Notizen sofort für den Chat auffindbar machen. Passiert von "
 "selbst mit der nächsten Chat-Nachricht."
 
-#: app_ui/pages/brain.py:1069
+#: app_ui/pages/brain.py:1169
 msgid "Properties"
 msgstr "Eigenschaften"
 
-#: app_ui/pages/brain.py:1122
+#: app_ui/pages/brain.py:1227
+#, python-brace-format
+msgid "Shared by {user} — read-only. Only they can change it."
+msgstr "Geteilt von {user} — schreibgeschützt. Nur diese Person kann es ändern."
+
+#: app_ui/pages/brain.py:1232
+#, python-brace-format
+msgid "Due: {date}"
+msgstr "Fällig: {date}"
+
+#: app_ui/pages/brain.py:1247
 msgid "Attachments are read-only."
 msgstr "Anhänge sind schreibgeschützt."
 
-#: app_ui/pages/brain.py:1126
+#: app_ui/pages/brain.py:1251
 msgid "Open"
 msgstr "Öffnen"
 
-#: app_ui/pages/brain.py:1135
+#: app_ui/pages/brain.py:1260
 msgid "Select a note to edit it."
 msgstr "Notiz auswählen, um sie zu bearbeiten."
 
-#: app_ui/pages/brain.py:1139
+#: app_ui/pages/brain.py:1264
 msgid "Show notes"
 msgstr "Notizen anzeigen"
 
