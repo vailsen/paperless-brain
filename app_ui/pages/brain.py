@@ -62,6 +62,10 @@ MOBILE_BP = 900                # keep in step with the media query below
 # Properties the panel renders with a dedicated widget instead of a text field.
 BOOL_KEYS = ("dont_ingest", "common")
 LIST_KEYS = ("tags",)
+# Tree ids of the read-only "Shared by others" section. `:` cannot occur in a
+# vault path (notes.check_name refuses it, and so does Obsidian), so no real
+# note can collide with this prefix.
+SHARED_ROOT = "::shared"
 
 _PAGE_CSS = """
 <style>
@@ -201,7 +205,7 @@ _PAGE_CSS = """
 _NODE_TEMPLATE = """
 <div class="vault-node" :class="props.node.note ? '' : (props.node.dir ? '' : 'vault-node-att')">
   <q-icon size="15px" class="vault-node-icon"
-          :name="props.node.dir ? 'folder' : (props.node.note ? 'description' : 'attach_file')" />
+          :name="props.node.icon || (props.node.dir ? 'folder' : (props.node.note ? 'description' : 'attach_file'))" />
   <span class="vault-node-label">{{ props.node.label }}</span>
   <span v-if="props.node.pending" class="vault-pending-dot" :title="__TIP__"></span>
 </div>
@@ -229,7 +233,7 @@ def brain_page():
         "rel": "", "base": "", "sha": "", "sig": None,
         "fm_raw": None, "open_fence": "---\n", "close_fence": "---\n",
         "dirty": False, "saving": False, "conflict": False,
-        "last_edit": 0.0, "ticks": 0, "attachment": "",
+        "last_edit": 0.0, "ticks": 0, "attachment": "", "shared": None,
     }
     sel: dict = {"rel": "", "dir": True}
     # The voice button only exists when dictation is configured, and only means
@@ -242,6 +246,13 @@ def brain_page():
     # Above it there is no drawer, so a tap can open straight away.
     viewport: dict = {"mobile": False}
     pending: set[str] = set()
+    # Facts other users shared (`common: true`), keyed by tree id. They are
+    # never files in this vault — the owner keeps the only copy — so they are
+    # shown from the index, read-only, and no save path can reach them.
+    shared: dict[str, dict] = {}
+
+    def _is_shared(rel: str) -> bool:
+        return rel == SHARED_ROOT or rel.startswith(SHARED_ROOT + "/")
 
     def _parent_of(rel: str) -> str:
         parent = Path(rel).parent.as_posix()
@@ -250,7 +261,7 @@ def brain_page():
     def _target_folder() -> str:
         """Where a new note/folder goes: the selection if it is a folder, else
         the folder containing it."""
-        if not sel["rel"]:
+        if not sel["rel"] or _is_shared(sel["rel"]):
             return ""
         return sel["rel"] if sel["dir"] else _parent_of(sel["rel"])
 
@@ -309,9 +320,56 @@ def brain_page():
                 pending = await notes.pending_rel_paths(username)
             except Exception:
                 pending = set()
-        tree.props["nodes"] = await notes.list_tree(username, pending)
+        nodes = await notes.list_tree(username, pending)
+        shared_node = await _shared_node()
+        if shared_node:
+            nodes.append(shared_node)
+        tree.props["nodes"] = nodes
         tree.update()
         _pending_dot.refresh()
+
+    async def _shared_node() -> dict | None:
+        """The "Shared by others" subtree, one folder per owner."""
+        from services.clients import brain
+
+        shared.clear()
+        entries = await brain.get_shared_by_others(username)
+        if not entries:
+            return None
+        by_owner: dict[str, list[dict]] = {}
+        for entry in entries:
+            node_id = f"{SHARED_ROOT}/{entry['user']}/{entry['id']}"
+            shared[node_id] = entry
+            stem = Path(entry["path"]).stem if entry["path"] else entry["text"][:60]
+            by_owner.setdefault(entry["user"], []).append(
+                {"id": node_id, "label": stem, "note": True}
+            )
+        return {
+            "id": SHARED_ROOT,
+            "label": _("Shared by others"),
+            "dir": True,
+            "icon": "folder_shared",
+            "children": [
+                {
+                    "id": f"{SHARED_ROOT}/{owner}",
+                    "label": owner,
+                    "dir": True,
+                    "icon": "person",
+                    "children": sorted(leaves, key=lambda n: n["label"].lower()),
+                }
+                for owner, leaves in by_owner.items()
+            ],
+        }
+
+    def _display_rel(rel: str) -> str:
+        """A tree id as the user should read it — shared ids are internal."""
+        if not _is_shared(rel):
+            return rel
+        entry = shared.get(rel)
+        if entry:
+            return f"{entry['user']} / {Path(entry['path']).stem}"
+        tail = rel[len(SHARED_ROOT):].strip("/")
+        return tail or _("Shared by others")
 
     @ui.refreshable
     def _pending_dot() -> None:
@@ -356,7 +414,17 @@ def brain_page():
             tree.select(st["rel"] or None)
             return
         st["conflict"] = False
+        st["shared"] = None
         _banner.refresh()
+        if _is_shared(rel):
+            # Read-only: `rel` stays empty, so autosave, the disk poll and the
+            # properties panel all have nothing to act on.
+            st.update(rel="", attachment="", base="", sha="", sig=None, dirty=False)
+            st["shared"] = shared.get(rel)
+            _layout_mode.refresh()
+            _pending_dot.refresh()
+            _set_drawer(False)
+            return
         if not notes.is_note(rel):
             st.update(rel="", attachment=rel, base="", sha="", sig=None, dirty=False)
             _layout_mode.refresh()
@@ -770,10 +838,36 @@ def brain_page():
                             "color:var(--c-text-muted)"
                         )
 
+            if in_brain:
+                # Sharing is a brain-fact feature (the chat's memory search
+                # reads `common` from the brain index), so it gets a permanent
+                # switch here instead of waiting to be typed in by hand.
+                with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    ui.label("common").classes("text-xs w-32 shrink-0").style(
+                        "color:var(--c-text-muted)"
+                    )
+                    with ui.column().classes("gap-0 flex-1 min-w-0"):
+                        ui.switch(
+                            value=bool(props.get("common", False)),
+                            on_change=lambda e: _apply_props(set_={"common": bool(e.value)}),
+                        ).props("dense color=purple")
+                        ui.label(
+                            _("Shared with every user: their chat can use it, and it is "
+                              "listed under Shared by others. The file stays in your vault.")
+                        ).classes("text-xs").style("color:var(--c-text-muted)")
+
             for key, value in props.items():
                 if key == ID_KEY or (key == "dont_ingest" and not in_brain):
                     continue
+                if key == "common" and in_brain:
+                    continue
                 _prop_row(key, value, _raw_scalar(blocks.get(key, ""), key))
+                if key == "common":
+                    ui.label(
+                        _("Has no effect here — only facts in {folder} can be shared.").format(
+                            folder=settings.brain_subfolder
+                        )
+                    ).classes("text-xs w-full").style("color:var(--c-text-muted); padding-left:8.5rem")
 
             with ui.row().classes("w-full items-center gap-2 pt-1"):
                 ui.button(_("Add property"), icon="add", on_click=_add_property).props(
@@ -868,6 +962,9 @@ def brain_page():
         if not sel["rel"]:
             ui.notify(_("Select a note or folder first."), type="warning")
             return
+        if _is_shared(sel["rel"]):
+            ui.notify(_("Shared notes are read-only."), type="warning")
+            return
         old = Path(sel["rel"]).name
         stem = Path(sel["rel"]).stem if not sel["dir"] else old
         name = await _prompt(_("Rename"), _("Name"), stem)
@@ -891,6 +988,9 @@ def brain_page():
     async def _delete() -> None:
         if not sel["rel"]:
             ui.notify(_("Select a note or folder first."), type="warning")
+            return
+        if _is_shared(sel["rel"]):
+            ui.notify(_("Shared notes are read-only."), type="warning")
             return
         target = sel["rel"]
         if not await _confirm(_("Delete “{name}” permanently?").format(name=Path(target).name)):
@@ -1005,7 +1105,7 @@ def brain_page():
                 @ui.refreshable
                 def _sel_label() -> None:
                     ui.label(
-                        _("Selected: {name}").format(name=sel["rel"])
+                        _("Selected: {name}").format(name=_display_rel(sel["rel"]))
                         if sel["rel"]
                         else (
                             _("Tap to select, tap again to open")
@@ -1108,6 +1208,7 @@ def brain_page():
                     above; this only decides what is on screen."""
                     if voice_ui["btn"] is not None:
                         voice_ui["btn"].set_visibility(bool(st["rel"]))
+                    preview_btn.set_visibility(bool(st["rel"]))
                     if st["rel"]:
                         title.text = st["rel"]
                         editor_box.set_visibility(True)
@@ -1115,6 +1216,30 @@ def brain_page():
                         return
                     editor_box.set_visibility(False)
                     props_box.set_visibility(False)
+                    entry = st.get("shared")
+                    if entry:
+                        name = Path(entry["path"]).stem if entry["path"] else ""
+                        title.text = f"{entry['user']} / {name}" if name else entry["user"]
+                        with ui.column().classes("w-full flex-1 min-h-0 gap-0").style("overflow:auto"):
+                            with ui.row().classes("items-center gap-2 px-3 pt-2 no-wrap w-full"):
+                                ui.icon("lock", size="xs").style("color:var(--c-text-muted)")
+                                ui.label(
+                                    _("Shared by {user} — read-only. Only they can change it.").format(
+                                        user=entry["user"]
+                                    )
+                                ).classes("text-xs w-full").style("color:var(--c-text-muted)")
+                            if entry.get("due"):
+                                ui.label(_("Due: {date}").format(date=entry["due"])).classes(
+                                    "text-xs px-3 pt-1"
+                                ).style("color:var(--c-text-2)")
+                            ui.markdown(
+                                escape_intraword_underscores(entry["text"]),
+                                extras=[
+                                    "fenced-code-blocks", "tables", "cuddled-lists",
+                                    "break-on-newline", "task_list",
+                                ],
+                            ).classes("note-md w-full p-3")
+                        return
                     if st["attachment"]:
                         title.text = st["attachment"]
                         with ui.column().classes("items-center justify-center flex-1 gap-2 p-6 w-full"):

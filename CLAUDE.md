@@ -401,6 +401,11 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
     the file under `get_user_lock` and three-way merges on mismatch; only a genuine overlap
     reaches the user. The lock also serialises against sync's `git add -A` … `commit` window,
     where a write would otherwise be committed without ever being embedded.
+  - **Other users' `common: true` facts are shown, never copied.** The tree's virtual
+    "Shared by others" section (`SHARED_ROOT` ids, `BrainService.get_shared_by_others`) is
+    read from the `brain` index — the file stays in its owner's vault — and is read-only:
+    opening one leaves `st["rel"]` empty, so no save, poll or properties path can reach it.
+    `common` only means something under `BRAIN_SUBFOLDER`; the panel says so elsewhere.
 
 ## Embedding
 

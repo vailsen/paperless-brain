@@ -143,6 +143,42 @@ class BrainService:
         facts = [f for i in items if (f := _parse_fact(i)) is not None]
         return [f for f in facts if f.kind != "deadline"]
 
+    async def get_shared_by_others(self, user: str) -> list[dict]:
+        """Facts other users marked `common: true` — what the chat can already
+        read on this user's behalf, listed so the note explorer can show it.
+
+        Read from the index on purpose: the fact file lives in its owner's
+        vault and stays there. The text is the body as last indexed, so an
+        owner's edit shows up after their next sync — the same moment the chat
+        sees it.
+        """
+        try:
+            if await self._chroma.count() == 0:
+                return []
+            items = await self._chroma.get(
+                where={"$and": [{"common": {"$eq": True}}, {"user": {"$ne": user}}]}
+            )
+        except Exception:
+            return []
+        out: list[dict] = []
+        for item in items:
+            text = item.get("document")
+            m = item.get("metadata") or {}
+            owner = m.get("user") or ""
+            if not text or not owner or owner == user:
+                continue
+            out.append({
+                "id": item["id"],
+                "user": owner,
+                "path": m.get("path") or "",
+                "text": text,
+                "updated": m.get("updated") or m.get("created_at") or "",
+                "kind": m.get("kind") or "fact",
+                "due": m.get("due") or "",
+            })
+        out.sort(key=lambda e: (e["user"].lower(), e["path"].lower()))
+        return out
+
     async def get_deadlines(self, user: str) -> list[BrainFact]:
         """Return the user's manual due-dates (kind="deadline"), sorted by due date."""
         try:
