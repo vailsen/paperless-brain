@@ -5,6 +5,11 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.9.2] — 2026-10-06
+
+First published release of the 0.9.1 changes — `v0.9.1` was bumped but never
+tagged, so no image was built for it. No code changes beyond 0.9.1.
+
 ## [0.9.1] — 2026-10-06
 
 ### Added
