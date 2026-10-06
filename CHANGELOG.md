@@ -5,6 +5,20 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.9.1] — 2026-10-06
+
+### Added
+
+- **See what other users share.** A brain fact marked `common: true` was
+  already readable by everyone's chat, but the note explorer only showed your
+  own vault. The tree now ends in a read-only **Shared by others** section,
+  one folder per owner. Nothing is copied: the fact stays in its creator's
+  vault and only they can change it.
+
+- **A `common` switch on every brain fact.** Sharing no longer means typing
+  the property in by hand. On a regular note, where `common` has no effect, the
+  properties panel now says so.
+
 ## [0.9.0] — 2026-09-10
 
 **"Say what to change."**
