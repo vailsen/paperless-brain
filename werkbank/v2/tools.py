@@ -130,7 +130,8 @@ _FAILURE_MARKERS = (
     "no notes indexed in the vault",   # an empty index, not an empty answer
     "could not read",                  # a bot wall or a paywall stub
     "no text content extractable",
-    "suchtext zu kurz",                # the call was refused before it ran
+    "search text too short",           # the call was refused before it ran
+    "do not exist in paperless",       # an unknown tag/correspondent/type: never ran
     "no search criterion given", "no search term and no time range given",
     "no url given", "query or pbrain_id required",
     "failed:",                         # `Tool 'x' failed: …` from `_call`
@@ -457,7 +458,7 @@ class ToolBelt:
     def trust_by_source(self) -> dict[str, str]:
         # A call that did not run carries the trust of no tool. Leaving it at
         # `authoritative` because the tool *would* have been authoritative is how
-        # "Dokument #163 not found or no access" ends up as the strongest source
+        # "Document #163 not found or no access" ends up as the strongest source
         # in a report.
         return {
             r.source_id: ("model" if r.outcome == OUTCOME_FAILED else r.trust)

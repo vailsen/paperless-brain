@@ -1,6 +1,6 @@
 # config/chat_prompts.py
 
-from i18n import DEFAULT_LANG, language_directive
+from i18n import DEFAULT_LANG, archive_search_directive, language_directive
 
 # ── Core prompt: identity + rules that always apply, independent of tool groups ──
 _CORE = """\
@@ -145,6 +145,7 @@ def build_system_prompt(
     username: str = "",
     language: str = DEFAULT_LANG,
     custom_instructions: str = "",
+    archive_language: str = "",
 ) -> str:
     """Assemble the chat system prompt from the core + only the ACTIVE tool groups.
 
@@ -155,6 +156,8 @@ def build_system_prompt(
     custom_instructions: the user's own standing instructions, appended under a
     subordinating header. Truncated rather than rejected — a prompt that silently
     loses its tail is better than a chat that refuses to start.
+    archive_language: language the documents are in — appended to the document
+    search block so queries are written in it. Empty → omitted.
     """
     groups = set(_CAPABILITIES) if active_groups is None else set(active_groups)
 
@@ -166,7 +169,10 @@ def build_system_prompt(
 
     for g in _GROUP_ORDER:
         if g in groups and g in _BLOCKS:
-            parts.append(_BLOCKS[g])
+            block = _BLOCKS[g]
+            if g == "documents" and archive_language:
+                block += "\n- " + archive_search_directive(archive_language)
+            parts.append(block)
 
     if username:
         parts.append(f"The signed-in user is: {username}.")

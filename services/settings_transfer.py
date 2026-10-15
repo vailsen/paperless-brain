@@ -2,7 +2,8 @@
 """Export / import of the user-scoped settings as a portable JSON string.
 
 Covers exactly what the settings page lets a user change *for themselves*:
-language, theme and the Paperless write-back switch (``app.storage.user``) plus
+language, theme and the Paperless write-back switch (the per-user preferences
+in ``services/user_prefs.py``) plus
 the encrypted credential blob (LLM model registry, IMAP, calendar, sender
 profile, dream model).
 
@@ -214,7 +215,7 @@ def apply_import(
 ) -> dict[str, str]:
     """Write the credential part of ``payload``.
 
-    Returns the UI preferences the caller must write to ``app.storage.user``
+    Returns the UI preferences the caller must store with ``set_pref``
     (``language`` / ``theme`` / ``push_text_to_paperless``) — this module has no
     session context of its own.
     """

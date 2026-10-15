@@ -5,6 +5,44 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.9.3] — 2026-10-15
+
+**Same quality in both languages, same settings on every device.**
+
+### Fixed
+
+- **Settings now follow your login, not your browser.** They used to be stored
+  per browser, so the desktop and the phone each had their own copy, and a
+  browser left unused for two weeks started over empty. Most visibly, the
+  Paperless-ngx write-back switch kept "un-ticking" itself — and a sync wrote
+  text back only when started from a browser that had it ticked. Language,
+  theme, write-back, voice-memo options, chat model, pinned documents and
+  hidden deadlines are now stored once per user. Existing values are taken
+  over the first time you open the app. The login and the chat open in a tab
+  stay per browser.
+
+- **English questions about a German archive find what they should.** The
+  model was never told which language the documents are in, so it searched
+  with English words, and every literal match — tag, correspondent and
+  document-type names, exact text — came back empty. The archive language
+  (Settings > Processing) is now named in the chat's search rules and in
+  deep research.
+
+- **An unknown tag, correspondent or document type lists the real ones.**
+  "Tag 'tax return' does not exist" left the model nothing to correct with.
+  The answer now lists the names that do exist, so it can pick
+  "Steuererklärung" and search again.
+
+- **Deep research rejected correct German totals.** "Summe 1.240 €" was read as
+  1.24, so a correct calculated fact was thrown out while the same fact in
+  English passed.
+
+- **Tool output the model reads is English throughout.** German fragments
+  ("Suchtext zu kurz", "Zeitraum", "Dokument #…") pulled English answers
+  toward German.
+
+- **Four German UI texts showed their sentence twice.**
+
 ## [0.9.2] — 2026-10-06
 
 First published release of the 0.9.1 changes — `v0.9.1` was bumped but never

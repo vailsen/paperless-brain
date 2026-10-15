@@ -1,7 +1,7 @@
 # app_ui/pages/browser.py
 import re
 
-from nicegui import app as ng_app, ui
+from nicegui import ui
 
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
@@ -13,6 +13,7 @@ from i18n import get_translator
 from models.result_document import DocumentResult
 from pipelines.search import search
 from services.clients import cross_ref_index, get_session_paperless, sidecar_service
+from services.user_prefs import get_pref, set_pref
 
 # Sort field identifiers (keys are stable; German labels translated at render).
 SORT_OPTIONS: dict[str, str] = {
@@ -146,11 +147,11 @@ async def browser():
     _search_seq = [0]
 
     def _get_pinned_ids() -> set[int]:
-        return set(ng_app.storage.user.get("pinned_doc_ids") or [])
+        return set(get_pref("pinned_doc_ids") or [])
 
     def _browser_pin(result: DocumentResult) -> None:
         ids = _get_pinned_ids()
-        cache: list[dict] = list(ng_app.storage.user.get("pinned_docs_cache") or [])
+        cache: list[dict] = list(get_pref("pinned_docs_cache") or [])
         if result.document.id in ids:
             ids.discard(result.document.id)
             cache = [c for c in cache if c["id"] != result.document.id]
@@ -159,8 +160,8 @@ async def browser():
             ids.add(result.document.id)
             cache.append({"id": result.document.id, "title": result.document.title})
             ui.notify(_("#{id} pinned").format(id=result.document.id), type="positive", timeout=1500)
-        ng_app.storage.user["pinned_doc_ids"] = list(ids)
-        ng_app.storage.user["pinned_docs_cache"] = cache
+        set_pref("pinned_doc_ids", list(ids))
+        set_pref("pinned_docs_cache", cache)
         render_results()
 
     # render_results / do_search reference variables defined later in the layout.

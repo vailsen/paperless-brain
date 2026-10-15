@@ -135,6 +135,37 @@ def test_arithmetic_that_does_not_match_the_claim_is_rejected():
     assert not report.passed and "4230" in report.messages[0]
 
 
+@pytest.mark.parametrize("claim", [
+    "Die Summe beträgt 4.230 €.",        # German thousands dot
+    "The total is 4,230 EUR.",           # English thousands comma
+    "Die Summe beträgt 4.230,00 €.",
+    "The total is 4,230.00 EUR.",
+])
+def test_a_correct_total_passes_in_either_notation(claim):
+    """German "4.230" used to be read as 4.23, so a correct German total was
+    rejected while the same fact written in English passed."""
+    fact = _fact(claim=claim, evidence=Evidence.COMPUTED,
+                 expression="1240 + 890 + 2100", sources=[])
+    assert checks.check_d3_computed(_result([fact])).passed
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("Summe 12.345.678 €", [12345678.0]),
+    ("Total 12,345,678", [12345678.0]),
+    ("Rate 2,5 %", [2.5]),
+    ("Rate 2.5 %", [2.5]),
+    ("1.240,50", [1240.5]),
+    ("1,240.50", [1240.5]),
+])
+def test_unambiguous_numbers_have_one_reading(text, expected):
+    assert checks._numbers_in(text) == expected
+
+
+def test_a_single_three_digit_group_is_read_both_ways():
+    assert sorted(checks._numbers_in("1.240")) == [1.24, 1240.0]
+    assert sorted(checks._numbers_in("1,240")) == [1.24, 1240.0]
+
+
 def test_computed_without_expression_and_without_query_is_rejected():
     fact = _fact(claim="Es gibt 17 Rechnungen.", evidence=Evidence.COMPUTED, sources=[])
     assert not checks.check_d3_computed(_result([fact])).passed

@@ -120,9 +120,9 @@ class BrainService:
                 continue
             m = h.get("metadata") or {}
             # Deadlines keep the due date in metadata, not the body — append it
-            # so callers (search hints, dedup) see "bis wann".
+            # so callers (search hints, dedup) see the date.
             if m.get("kind") == "deadline" and m.get("due"):
-                doc = f"{doc} (Frist: {m['due']})"
+                doc = f"{doc} (due: {m['due']})"
             out.append((h["id"], doc, h["distance"]))
         return out
 

@@ -326,12 +326,12 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
 - **Transcription is bring-your-own-endpoint** (`WHISPER_URL`, OpenAI-compatible). No bundled
   model, no new runtime dependency. Empty URL = feature hidden everywhere.
 - **Dictation language is a user preference, never derived from the UI language**
-  (`app.storage.user["dictation_language"]`, ISO-639-1, `""` = fall back to
+  (`get_pref("dictation_language")`, ISO-639-1, `""` = fall back to
   `WHISPER_LANGUAGE`, then the UI language). Speaking German into an English
   interface is the normal case. One setting feeds both engines: `transcribe(…,
   language=…)` overrides the env default per request, and `speech_recognition_lang()`
   maps it to the BCP-47 tag the Web Speech API demands.
-- The chat mic engine is a **user preference** (`app.storage.user["chat_mic_engine"]`,
+- The chat mic engine is a **user preference** (`get_pref("chat_mic_engine")`,
   `whisper` | `browser`, default `whisper`), because the two differ in kind, not only in
   quality: Web Speech streams interim words, Whisper answers only after the round trip.
   Whichever engine the browser cannot provide falls back to the other. Either way the chat
@@ -448,10 +448,12 @@ persists in server-side user storage.
 - Module-level constants that feed `_()` at render time (e.g. `NAV_ITEMS`) are
   marked with `N_()` from `i18n.py` — a no-op that pybabel extracts (it is in
   Babel's default keywords).
-- Language preference is stored in **`app.storage.user["language"]`** — the same
-  encrypted server-side user storage every other setting uses. **No new settings
-  table, no new persistence layer.** This is consistent with the
-  minimal-persistence principle.
+- Language preference is a **per-user preference** (`services/user_prefs.py`:
+  `get_pref("language")` / `set_pref`), stored in NiceGUI's own server-side
+  `app.storage.general` under the Paperless username — the same place every
+  other user setting lives. **No new settings table, no new persistence layer.**
+  It used to be `app.storage.user`, which NiceGUI keys by browser cookie, so the
+  desktop and the phone had different settings and an idle browser lost them.
 - The translator is resolved **per page / per render** from the current user's
   language. There is **no global `_`**. NiceGUI runs a single async worker; a
   global translator installed via `gettext.install()` would leak one user's
@@ -497,7 +499,7 @@ patterns. If a normal source folder must be excluded later, add an
 ```python
 import gettext
 from pathlib import Path
-from nicegui import app
+from services.user_prefs import get_pref
 
 LOCALES_DIR = Path(__file__).parent / "locales"   # adjust if i18n.py is not at root
 DEFAULT_LANG = "en"
@@ -513,10 +515,10 @@ SUPPORTED_LANGUAGES: dict[str, str] = {
 def get_translator():
     """Return the gettext callable for the current user's language.
 
-    MUST be called inside a page function or event handler — it reads
-    app.storage.user, which only exists once a client/session is connected.
+    MUST be called inside a page function or event handler — it reads the
+    user's preferences, which need a connected client/session.
     """
-    lang = app.storage.user.get("language", DEFAULT_LANG)
+    lang = get_pref("language", DEFAULT_LANG)
     if lang == DEFAULT_LANG:
         return gettext.NullTranslations().gettext        # msgid IS English
     try:
@@ -546,13 +548,14 @@ Render this **first, at the top** of the settings page.
 
 ```python
 from i18n import SUPPORTED_LANGUAGES
-from nicegui import app, ui
+from nicegui import ui
+from services.user_prefs import get_pref, set_pref
 
 def language_setting():
-    current = app.storage.user.get("language", DEFAULT_LANG)
+    current = get_pref("language", DEFAULT_LANG)
 
     def on_change(e):
-        app.storage.user["language"] = e.value
+        set_pref("language", e.value)
         ui.navigate.reload()              # re-render everything with new language
 
     ui.select(
@@ -614,7 +617,7 @@ Telegram/Hermes reply.
   label, store the keys and translate at render instead.
 - **Do NOT** create a `locales/en/` catalog. English is the `msgid`.
 - **Do NOT** add a settings table or any new persistence for the language. It
-  lives in `app.storage.user`.
+  lives in the per-user preferences (`services/user_prefs.py`).
 - **Do NOT** edit `.mo` files by hand. Edit the `.po`, then `compile`.
 - **Do NOT** live-update the UI on language change; set storage and
   `ui.navigate.reload()`.

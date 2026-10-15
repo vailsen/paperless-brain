@@ -12,7 +12,7 @@ import gettext
 import re
 from pathlib import Path
 
-from nicegui import app
+from services.user_prefs import get_pref
 
 LOCALES_DIR = Path(__file__).parent / "locales"
 DEFAULT_LANG = "en"
@@ -140,6 +140,31 @@ def answer_language_reminder(lang: str) -> str:
     )
 
 
+def archive_search_directive(archive_lang: str) -> str:
+    """Prompt line naming the language the archive is searched in.
+
+    The answer language follows the user (`language_directive`); the *search*
+    language must follow the archive. Asked in English about German documents,
+    a model searches with English words, and every literal match in the system —
+    tag, correspondent and document-type names, `search_exact` text, the tag
+    boost inside semantic search — then finds nothing. Semantic search still
+    works across languages, only worse. Nothing told the model which language
+    the documents are in, so it could not have done better.
+
+    The archive language is the Settings > Processing value the vision model
+    writes summaries in, so it is the language the index is (mostly) in.
+    """
+    name = language_name(archive_lang or DEFAULT_LANG)
+    return (
+        f"The user's document archive is in {name}: document summaries are written "
+        f"in {name}, and most page texts are too. Write search queries in {name} "
+        f"even when the user writes in another language — translate the question's "
+        f"key terms before searching. Tag, correspondent and document-type names are "
+        f"matched against the names as they exist in Paperless, which are {name} "
+        f"as well. Identifiers (invoice numbers, IBANs, license plates) stay as given."
+    )
+
+
 def weekday_name(dt, lang: str = DEFAULT_LANG) -> str:
     """Weekday name from LANGUAGE_META — independent of the process locale.
 
@@ -174,10 +199,10 @@ def N_(message: str) -> str:
 def get_translator():
     """Return the gettext callable for the current user's language.
 
-    MUST be called inside a page function or event handler — it reads
-    app.storage.user, which only exists once a client/session is connected.
+    MUST be called inside a page function or event handler — it reads the
+    user's preferences, which need a connected client/session.
     """
-    lang = app.storage.user.get("language", DEFAULT_LANG)
+    lang = get_pref("language", DEFAULT_LANG)
     if lang == DEFAULT_LANG:
         return gettext.NullTranslations().gettext  # msgid IS English
     try:

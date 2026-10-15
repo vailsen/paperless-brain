@@ -42,6 +42,7 @@ from app_ui.vault_routes import FILE_PATH
 from config.settings import settings
 from i18n import get_translator
 from services.markdown_text import escape_intraword_underscores
+from services.user_prefs import get_pref
 from vault import notes
 from vault.frontmatter import ID_KEY, sanitize_tags
 from vault.note_text import (
@@ -1072,7 +1073,7 @@ def brain_page():
             preview.set_content(escape_intraword_underscores(editor.value))
 
     # ── Layout ───────────────────────────────────────────────────────────────
-    _cm_theme = "basicLight" if ng_app.storage.user.get("theme", DEFAULT_THEME) == "light" else "basicDark"
+    _cm_theme = "basicLight" if get_pref("theme", DEFAULT_THEME) == "light" else "basicDark"
 
     with ui.column().classes("w-full max-w-full p-2 gap-2").style("min-width:0"):
         with ui.element("div").classes("vault-wrap"):

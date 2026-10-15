@@ -1027,8 +1027,7 @@ msgstr "Chat in Paperless speichern"
 msgid "Create a document from the current chat and save it to Paperless."
 msgstr ""
 "Aus dem aktuellen Chat ein Dokument erstellen und in Paperless "
-"speichern.Erstelle ein Dokument aus dem aktuellen Chat und speichere es "
-"in Paperless."
+"speichern."
 
 #: app_ui/pages/chat.py:623
 msgid "Note not found."
@@ -1242,9 +1241,8 @@ msgstr "Websuche"
 #: app_ui/pages/chat.py:2428
 msgid "No chat model configured — add one in Settings > AI Models."
 msgstr ""
-"Kein Chat-Modell konfiguriert – füge eines unter Einstellungen > KI-"
-"Modelle hinzu.Kein Chat-Modell konfiguriert — bitte unter Einstellungen >"
-" KI-Modelle anlegen."
+"Kein Chat-Modell konfiguriert — füge eines unter Einstellungen > KI-"
+"Modelle hinzu."
 
 #: app_ui/pages/chat.py:2433
 msgid "Sync is currently running — please wait"
@@ -2906,8 +2904,7 @@ msgstr ""
 msgid "Saved, but only the first {max} characters are sent to the model."
 msgstr ""
 "Gespeichert, aber nur die ersten {max} Zeichen werden an das Modell "
-"gesendet.Gespeichert, aber nur die ersten {max} Zeichen werden an das "
-"Modell geschickt."
+"gesendet."
 
 #: app_ui/pages/settings.py:1334
 msgid "Instructions saved."
@@ -3057,9 +3054,8 @@ msgstr "Diese Einstellungen übernehmen?"
 #: app_ui/pages/settings.py:1536
 msgid "The export contains no secrets — existing passwords and API keys are kept."
 msgstr ""
-"Der Export enthält keine Geheimnisse – vorhandene Passwörter und API-"
-"Schlüssel bleiben erhalten.Der Export enthält keine Geheimnisse — "
-"vorhandene Passwörter und API-Schlüssel bleiben erhalten."
+"Der Export enthält keine Geheimnisse — vorhandene Passwörter und API-"
+"Schlüssel bleiben erhalten."
 
 #: app_ui/pages/settings.py:1559
 msgid "Settings imported."

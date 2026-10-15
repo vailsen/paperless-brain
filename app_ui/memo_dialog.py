@@ -17,6 +17,7 @@ from nicegui import ui
 from app_ui.memo_routes import QUICK_PATH, REWRITE_PATH, TRANSCRIBE_PATH
 from config.settings import settings
 from i18n import get_translator
+from services.user_prefs import get_pref, set_pref
 from services import transcription
 from services.clients import vault_memo_writer
 from services.session_auth import get_session_token
@@ -39,11 +40,11 @@ def memo_enabled() -> bool:
     """
     if not memo_configured():
         return False
-    return bool(ng_app.storage.user.get(_ENABLED_KEY, True))
+    return bool(get_pref(_ENABLED_KEY, True))
 
 
 def set_memo_enabled(value: bool) -> None:
-    ng_app.storage.user[_ENABLED_KEY] = bool(value)
+    set_pref(_ENABLED_KEY, bool(value))
 
 
 def chat_mic_engine() -> str:
@@ -54,12 +55,12 @@ def chat_mic_engine() -> str:
     is right is a preference, not something the server can decide — hence the
     setting. Defaults to Whisper, which is what a configured service implies.
     """
-    value = ng_app.storage.user.get(_MIC_ENGINE_KEY, "whisper")
+    value = get_pref(_MIC_ENGINE_KEY, "whisper")
     return "browser" if value == "browser" else "whisper"
 
 
 def set_chat_mic_engine(value: str) -> None:
-    ng_app.storage.user[_MIC_ENGINE_KEY] = "browser" if value == "browser" else "whisper"
+    set_pref(_MIC_ENGINE_KEY, "browser" if value == "browser" else "whisper")
 
 
 # The language you speak is not the language you read the app in — an English
@@ -98,7 +99,7 @@ def dictation_language() -> str:
     and that held for the transcription service long before the browser engine
     became selectable.
     """
-    chosen = str(ng_app.storage.user.get(_DICTATION_LANG_KEY, "") or "").strip()
+    chosen = str(get_pref(_DICTATION_LANG_KEY, "") or "").strip()
     if chosen:
         return chosen
     server = (settings.whisper_language or "").strip().lower()
@@ -106,11 +107,11 @@ def dictation_language() -> str:
         return server
     from i18n import DEFAULT_LANG
 
-    return str(ng_app.storage.user.get("language", DEFAULT_LANG) or DEFAULT_LANG)
+    return str(get_pref("language", DEFAULT_LANG) or DEFAULT_LANG)
 
 
 def set_dictation_language(value: str | None) -> None:
-    ng_app.storage.user[_DICTATION_LANG_KEY] = (value or "").strip()
+    set_pref(_DICTATION_LANG_KEY, (value or "").strip())
 
 
 def speech_recognition_lang() -> str:

@@ -21,6 +21,7 @@ from nicegui import ui
 
 from app_ui.layout import page_layout, require_auth
 from i18n import DEFAULT_LANG, get_translator
+from services.user_prefs import get_pref
 from services.session_auth import get_session_token
 from werkbank import repository
 from werkbank.models import TaskStatus
@@ -124,7 +125,7 @@ def _open_new_task_dialog(user_id: str, token: str, table_refresh) -> None:
                     return
                 task = repository.create_task(
                     user_id, goal.value.strip(), model_sel.value,
-                    language=ng_app.storage.user.get("language", DEFAULT_LANG),
+                    language=get_pref("language", DEFAULT_LANG),
                 )
                 dlg.close()
                 table_refresh.refresh()

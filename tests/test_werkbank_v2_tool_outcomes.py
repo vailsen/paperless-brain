@@ -38,8 +38,13 @@ CASES = [
      OUTCOME_FAILED, None),
     ("web_fetch_page", "No text content extractable from: https://example.com",
      OUTCOME_FAILED, None),
-    ("get_document_details", "Dokument #163 not found or no access.", OUTCOME_FAILED, None),
-    ("search_exact", "Suchtext zu kurz.", OUTCOME_FAILED, None),
+    ("get_document_details", "Document #163 not found or no access.", OUTCOME_FAILED, None),
+    ("search_exact", "Search text too short.", OUTCOME_FAILED, None),
+    ("search_exact", "The following criteria do not exist in Paperless: Tag 'tax return'. "
+     "The search was not run.\nExisting tag names: 2025; Auto; Steuererklärung; "
+     "Versicherung.\nPick the matching existing name — it may be in another "
+     "language than the question — and search again. If none fits, ask the user.",
+     OUTCOME_FAILED, None),
     ("find_similar_documents", "Document #647 is not indexed — it has no "
      "embeddings, so no similarity search could run for it. This says nothing "
      "about whether similar documents exist.", OUTCOME_FAILED, None),
@@ -51,7 +56,7 @@ CASES = [
     ("vault_search", "No notes indexed in the vault.", OUTCOME_FAILED, None),
     ("get_document_page_text", "No extracted text found for page 3 of document #163.",
      OUTCOME_FAILED, None),
-    ("get_document_table", "Invalid table_index 4. Document #163 hat 2 table(s) (0–1).",
+    ("get_document_table", "Invalid table_index 4. Document #163 has 2 table(s) (0–1).",
      OUTCOME_FAILED, None),
     ("search", "Tool 'search' failed: 500 Internal Server Error", OUTCOME_FAILED, None),
     ("search", "Tool 'search' was not run: its arguments were not valid JSON.",
@@ -205,7 +210,7 @@ def test_a_call_that_did_not_run_carries_no_trust(reg):
                           user_id="alice", persist=False)
     belt._record("search", {"query": "x"}, "Found: 1 document(s)\n\n1. #7 — Vertrag")
     belt._record("get_document_details", {"document_id": 163},
-                 "Dokument #163 not found or no access.")
+                 "Document #163 not found or no access.")
 
     assert belt.trust_by_source() == {"s1": "authoritative", "s2": "model"}
 
