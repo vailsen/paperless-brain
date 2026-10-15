@@ -11,12 +11,13 @@ single toggle flips the whole UI.
 Accent colors (purple brand, red/green/amber/blue status) are intentionally left
 as-is — they read acceptably on both backgrounds.
 
-Preference lives in ``app.storage.user["theme"]`` ("dark" | "light"), the same
-encrypted per-user storage as the language setting. Default: dark.
+Preference is the per-user ``get_pref("theme")`` ("dark" | "light"), the same
+store as the language setting (services/user_prefs.py). Default: dark.
 """
 
-from nicegui import app as ng_app
 from nicegui import ui
+
+from services.user_prefs import get_pref
 
 DEFAULT_THEME = "dark"
 
@@ -311,10 +312,10 @@ body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
 def apply_theme() -> None:
     """Inject theme CSS and set dark/light from the user's stored preference.
 
-    MUST run inside a page context (reads app.storage.user). Call once per page
+    MUST run inside a page context (reads the user preferences). Call once per page
     from page_layout()/login.
     """
-    theme = ng_app.storage.user.get("theme", DEFAULT_THEME)
+    theme = get_pref("theme", DEFAULT_THEME)
     ui.dark_mode(theme != "light")  # True → dark (body--dark), False → light (body--light)
     # Quasar's `primary` is the app's brand purple, not its stock blue. Without
     # this, every ui.button() (which defaults to color='primary') picks up

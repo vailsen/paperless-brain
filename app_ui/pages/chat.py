@@ -22,6 +22,7 @@ from models.brain_fact_result import BrainFactResult
 from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
 from services import sync_state
+from services.user_prefs import get_pref, set_pref
 from services.session_auth import get_session_token
 
 _log = logging.getLogger(__name__)
@@ -866,12 +867,12 @@ async def chat():
     }
 
     # Pinned docs: list of {"id": int, "title": str} — persisted in storage
-    _pinned_cache: list[dict] = list(ng_app.storage.user.get("pinned_docs_cache") or [])
+    _pinned_cache: list[dict] = list(get_pref("pinned_docs_cache") or [])
 
     # ── Model registry ────────────────────────────────────────────────────────
     from services.model_registry import get_models as _get_reg_models
     _reg_models = [m for m in _get_reg_models(_username, _token) if m.get("enabled", True)]
-    _saved_name = ng_app.storage.user.get("chat_model_name", "")
+    _saved_name = get_pref("chat_model_name", "")
     _initial_model_name = (
         _saved_name if any(m["name"] == _saved_name for m in _reg_models)
         else (_reg_models[0]["name"] if _reg_models else "")
@@ -1527,7 +1528,7 @@ async def chat():
                             def _on_chat_model_change(e) -> None:
                                 name = e.value
                                 _s["chat_model_name"] = name
-                                ng_app.storage.user["chat_model_name"] = name
+                                set_pref("chat_model_name", name)
                                 rm = next((m for m in _reg_models if m["name"] == name), None)
                                 if rm and rm.get("temperature"):
                                     _s["temperature"] = float(rm["temperature"])
@@ -2251,8 +2252,8 @@ window.__openVaultNote = function(noteId) {{
                     )
 
     def _sync_pin_storage() -> None:
-        ng_app.storage.user["pinned_doc_ids"] = [d["id"] for d in _s["pinned_docs"]]
-        ng_app.storage.user["pinned_docs_cache"] = list(_s["pinned_docs"])
+        set_pref("pinned_doc_ids", [d["id"] for d in _s["pinned_docs"]])
+        set_pref("pinned_docs_cache", list(_s["pinned_docs"]))
 
     def _on_pin(result: DocumentResult) -> None:
         doc_id = result.document.id
@@ -2625,7 +2626,7 @@ window.__openVaultNote = function(noteId) {{
         # the UI language is only the fallback when the message is too short to
         # tell. Resolved here so both the system prompt and the post-tool
         # reminder name the same language.
-        _lang = detect_language(text, default=ng_app.storage.user.get("language", DEFAULT_LANG))
+        _lang = detect_language(text, default=get_pref("language", DEFAULT_LANG))
         # Build the prompt from only the ACTIVE tool groups — the model is never
         # told to use a tool that was filtered out of its tool list.
         _system = build_system_prompt(

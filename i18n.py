@@ -12,7 +12,7 @@ import gettext
 import re
 from pathlib import Path
 
-from nicegui import app
+from services.user_prefs import get_pref
 
 LOCALES_DIR = Path(__file__).parent / "locales"
 DEFAULT_LANG = "en"
@@ -199,10 +199,10 @@ def N_(message: str) -> str:
 def get_translator():
     """Return the gettext callable for the current user's language.
 
-    MUST be called inside a page function or event handler — it reads
-    app.storage.user, which only exists once a client/session is connected.
+    MUST be called inside a page function or event handler — it reads the
+    user's preferences, which need a connected client/session.
     """
-    lang = app.storage.user.get("language", DEFAULT_LANG)
+    lang = get_pref("language", DEFAULT_LANG)
     if lang == DEFAULT_LANG:
         return gettext.NullTranslations().gettext  # msgid IS English
     try:

@@ -13,6 +13,7 @@ import httpx
 from nicegui import ui
 
 from services.session_auth import get_session_token
+from services.user_prefs import get_pref, set_pref
 
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
@@ -36,7 +37,7 @@ from services.clients import (
     thumbnail_service,
     vision,
 )
-from services.credential_store import load_credentials, save_credentials
+from services.credential_store import load_credentials
 from services.ollama_watchdog import on_manual_shutdown, on_wol
 
 # ── module-level sync state (persists across page navigations) ───────────────
@@ -305,9 +306,12 @@ async def dashboard():
     _username = ng_app.storage.user.get("paperless_user", "")
     _token = get_session_token()
     _creds = load_credentials(_username, _token) if _username and _token else {}
+    # Per-user preference now. The encrypted credential file held a copy too —
+    # read once as a fallback for users who hid deadlines before, never written.
+    _stored_hidden = get_pref("hidden_actions")
     _hidden_keys: set[str] = set(
-        _creds.get("dashboard", {}).get("hidden_actions")
-        or ng_app.storage.user.get("hidden_actions", [])
+        _stored_hidden if _stored_hidden is not None
+        else _creds.get("dashboard", {}).get("hidden_actions") or []
     )
     _show_hidden: list[bool] = [False]
     _render_deadline: list = [None]  # forward ref set in _refresh_status
@@ -315,19 +319,19 @@ async def dashboard():
     from app_ui.pages.browser import _render_card
 
     def _pinned_ids() -> set[int]:
-        return set(ng_app.storage.user.get("pinned_doc_ids") or [])
+        return set(get_pref("pinned_doc_ids") or [])
 
     def _on_pin(result: DocumentResult) -> None:
         doc_id = result.document.id
-        cache: list[dict] = list(ng_app.storage.user.get("pinned_docs_cache") or [])
+        cache: list[dict] = list(get_pref("pinned_docs_cache") or [])
         if doc_id in _pinned_ids():
             cache = [d for d in cache if d["id"] != doc_id]
             ui.notify(_("#{id} unpinned").format(id=doc_id), timeout=1500)
         else:
             cache.append({"id": doc_id, "title": result.document.title})
             ui.notify(_("#{id} pinned").format(id=doc_id), type="positive", timeout=1500)
-        ng_app.storage.user["pinned_doc_ids"] = [d["id"] for d in cache]
-        ng_app.storage.user["pinned_docs_cache"] = cache
+        set_pref("pinned_doc_ids", [d["id"] for d in cache])
+        set_pref("pinned_docs_cache", cache)
 
     open_document, _doc_dialog = create_document_dialog(
         pin_fn=lambda r: _on_pin(r),
@@ -673,11 +677,7 @@ window.__openDocById = function(docId) {{
                 _hidden_keys.discard(key)
             else:
                 _hidden_keys.add(key)
-            ng_app.storage.user["hidden_actions"] = list(_hidden_keys)
-            if _username and _token:
-                _nc = load_credentials(_username, _token)
-                _nc.setdefault("dashboard", {})["hidden_actions"] = list(_hidden_keys)
-                await asyncio.to_thread(save_credentials, _username, _token, _nc)
+            set_pref("hidden_actions", list(_hidden_keys))
             if _render_deadline[0]:
                 _render_deadline[0]()
         except Exception:
@@ -899,7 +899,7 @@ window.__toggleHideAction = function(key) {{
             # wherever it differs from the OCR text. Uses the signed-in user's
             # own client — the PATCH needs write permission per document, and
             # the superuser client would edit documents they cannot see.
-            if ng_app.storage.user.get("push_text_to_paperless", False):
+            if get_pref("push_text_to_paperless", False):
                 try:
                     from pipelines.text_push import push_vision_texts
                     from services.clients import get_session_paperless

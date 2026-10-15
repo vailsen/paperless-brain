@@ -25,6 +25,7 @@ from config.settings import settings
 from services import memo_service, transcription
 from services.credential_store import load_credentials
 from services.session_auth import get_session_token
+from services.user_prefs import get_pref
 
 _log = logging.getLogger(__name__)
 
@@ -87,9 +88,7 @@ def _memo_model(username: str, token: str) -> str:
     except Exception:  # a broken credential file must not kill the transcript
         _log.warning("could not read credentials for %s", username, exc_info=True)
         creds = {}
-    return (creds.get("memo_model") or "").strip() or ng_app.storage.user.get(
-        "chat_model_name", ""
-    )
+    return (creds.get("memo_model") or "").strip() or get_pref("chat_model_name", "")
 
 
 def upload_limit_mb(conversation: bool) -> int:

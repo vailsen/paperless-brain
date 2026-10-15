@@ -10,6 +10,7 @@ from config.chat_prompts import MAX_CUSTOM_INSTRUCTIONS_CHARS
 from config.settings import settings
 from i18n import DEFAULT_LANG, SUPPORTED_LANGUAGES, get_translator
 from services.credential_store import load_credentials, save_credentials
+from services.user_prefs import get_pref, set_pref
 from services.session_auth import get_session_token
 
 
@@ -18,12 +19,12 @@ from services.session_auth import get_session_token
 
 def language_setting() -> None:
     """Render the language selector. Switching = write storage + reload."""
-    current = ng_app.storage.user.get("language", DEFAULT_LANG)
+    current = get_pref("language", DEFAULT_LANG)
     if current not in SUPPORTED_LANGUAGES:
         current = DEFAULT_LANG
 
     def on_change(e) -> None:
-        ng_app.storage.user["language"] = e.value
+        set_pref("language", e.value)
         ui.navigate.reload()
 
     ui.select(
@@ -37,10 +38,10 @@ def language_setting() -> None:
 def theme_setting() -> None:
     """Render the dark/light selector. Switching = write storage + reload."""
     _ = get_translator()
-    current = ng_app.storage.user.get("theme", "dark")
+    current = get_pref("theme", "dark")
 
     def on_change(e) -> None:
-        ng_app.storage.user["theme"] = e.value
+        set_pref("theme", e.value)
         ui.navigate.reload()
 
     ui.select(
@@ -60,11 +61,11 @@ def push_text_setting() -> None:
     _ = get_translator()
 
     def on_change(e) -> None:
-        ng_app.storage.user["push_text_to_paperless"] = bool(e.value)
+        set_pref("push_text_to_paperless", bool(e.value))
 
     ui.checkbox(
         _("Push AI extracted text to Paperless-ngx"),
-        value=bool(ng_app.storage.user.get("push_text_to_paperless", False)),
+        value=bool(get_pref("push_text_to_paperless", False)),
         on_change=on_change,
     ).classes("text-sm text-gray-300")
 
@@ -116,7 +117,7 @@ def voice_memo_setting(username: str = "", token: str = "") -> None:
 
     ui.checkbox(
         _("Enable voice memos"),
-        value=bool(ng_app.storage.user.get("voice_memos_enabled", True)),
+        value=bool(get_pref("voice_memos_enabled", True)),
         on_change=lambda e: set_memo_enabled(e.value),
     ).classes("text-sm text-gray-300")
     _hint(
@@ -136,7 +137,7 @@ def voice_memo_setting(username: str = "", token: str = "") -> None:
 
     ui.select(
         options={"": _("Server default"), **DICTATION_LANGUAGES},
-        value=ng_app.storage.user.get("dictation_language", ""),
+        value=get_pref("dictation_language", ""),
         label=_("Dictation language"),
         on_change=lambda e: set_dictation_language(e.value),
     ).props("outlined dark dense").classes("w-full mt-3")
@@ -1469,13 +1470,13 @@ async def settings_page() -> None:
                 text = _st.build_export(
                     username,
                     token,
-                    language=ng_app.storage.user.get("language", DEFAULT_LANG),
-                    theme=ng_app.storage.user.get("theme", "dark"),
+                    language=get_pref("language", DEFAULT_LANG),
+                    theme=get_pref("theme", "dark"),
                     push_text_to_paperless=bool(
-                        ng_app.storage.user.get("push_text_to_paperless", False)
+                        get_pref("push_text_to_paperless", False)
                     ),
                     voice_memos_enabled=bool(
-                        ng_app.storage.user.get("voice_memos_enabled", True)
+                        get_pref("voice_memos_enabled", True)
                     ),
                     include_secrets=bool(_export_secrets_cb.value),
                 )
@@ -1555,7 +1556,7 @@ async def settings_page() -> None:
                     return
 
                 for k, v in prefs.items():
-                    ng_app.storage.user[k] = v
+                    set_pref(k, v)
                 ui.notify(_("Settings imported."), type="positive")
                 ui.navigate.reload()
 
