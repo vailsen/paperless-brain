@@ -96,6 +96,27 @@ def agent_prompt(spec: AgentSpec) -> str:
     )
 
 
+# Tools whose queries are matched against the archive's own wording.
+ARCHIVE_SEARCH_TOOLS = frozenset({"search", "search_exact"})
+
+
+def archive_language_block(spec: AgentSpec) -> str:
+    """Which language to search the archive in, for agents that search it.
+
+    Appended at run time, not written into the prompt file, so an agent whose
+    prompt the user edited still gets it — it is a fact about this archive, not
+    a rule about how to behave. The web researcher already searches "in the
+    language the sources are written in"; this is the same rule with the
+    archive's language actually named.
+    """
+    if not ARCHIVE_SEARCH_TOOLS & set(spec.tools):
+        return ""
+    from i18n import archive_search_directive
+    from werkbank.settings_store import get_archive_language
+
+    return "\n\n" + archive_search_directive(get_archive_language())
+
+
 def facts_block(facts: list[Fact]) -> str:
     """What a dependent subtask inherits: claims and ids, no prose."""
     if not facts:
@@ -204,7 +225,7 @@ async def run_subtask(
         ),
     )
 
-    system = agent_prompt(spec)
+    system = agent_prompt(spec) + archive_language_block(spec)
     task = task_block(subtask, inherited, belt)
     if defects:
         task += (

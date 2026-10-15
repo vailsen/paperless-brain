@@ -203,21 +203,51 @@ def eval_expression(expr: str) -> float | None:
 _NUMBER_RE = re.compile(r"-?\d[\d.,]*")
 
 
+def _number_readings(token: str) -> list[float]:
+    """Every value a number token can mean, in German or English notation.
+
+    `1.240,50` and `1,240.50` are unambiguous: the last separator is the
+    decimal one. A token with one *kind* of separator is not. `12.345.678` and
+    `12,345,678` can only be grouped thousands, but `1.240` is 1240 to a German
+    reader and 1.24 to an English one — and `1,240` the other way round. The
+    claim's language is not known here, so both readings are returned and D3
+    accepts the fact if either matches. Reading only one of them rejected every
+    correct German total written with a thousands dot ("Summe 1.240 €").
+    """
+    if "," in token and "." in token:
+        decimal = "," if token.rfind(",") > token.rfind(".") else "."
+        group = "." if decimal == "," else ","
+        candidates = [token.replace(group, "").replace(decimal, ".")]
+    elif "," in token or "." in token:
+        sep = "," if "," in token else "."
+        head, *groups = token.split(sep)
+        as_thousands = head + "".join(groups)
+        as_decimal = token.replace(sep, ".")
+        if len(groups) > 1:
+            # Two or more separators of one kind can only be thousands grouping.
+            candidates = [as_thousands] if all(len(g) == 3 for g in groups) else []
+        elif len(groups[0]) == 3:
+            candidates = [as_thousands, as_decimal]
+        else:
+            candidates = [as_decimal]
+    else:
+        candidates = [token]
+    out: list[float] = []
+    for c in candidates:
+        try:
+            out.append(float(c))
+        except ValueError:
+            continue
+    return out
+
+
 def _numbers_in(text: str) -> list[float]:
-    """Numbers in a claim, tolerating both 1.234,56 and 1,234.56."""
+    """Numbers in a claim, in German or English notation (see _number_readings)."""
     out: list[float] = []
     for raw in _NUMBER_RE.findall(text or ""):
         token = raw.rstrip(".,")
-        if "," in token and "." in token:
-            token = (token.replace(".", "").replace(",", ".")
-                     if token.rfind(",") > token.rfind(".")
-                     else token.replace(",", ""))
-        elif "," in token:
-            token = token.replace(",", ".") if len(token.split(",")[-1]) != 3 else token.replace(",", "")
-        try:
-            out.append(float(token))
-        except ValueError:
-            continue
+        if token:
+            out.extend(_number_readings(token))
     return out
 
 

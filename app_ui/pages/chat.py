@@ -16,6 +16,7 @@ from app_ui.similar_dialog import create_similar_dialog
 from app_ui.layout import page_layout, require_auth
 from app_ui.pages.browser import _render_card
 from config.chat_prompts import build_system_prompt
+from werkbank.settings_store import get_archive_language
 from i18n import DEFAULT_LANG, detect_language, get_translator
 from models.brain_fact_result import BrainFactResult
 from models.result_document import DocumentResult
@@ -2632,6 +2633,7 @@ window.__openVaultNote = function(noteId) {{
             _username,
             _lang,
             custom_instructions=_custom_instructions(),
+            archive_language=get_archive_language(),
         )
 
         try:
