@@ -1445,6 +1445,38 @@ def _resolve_names(
     return matched, unresolved
 
 
+# Up to this many names, a miss lists every existing name of that kind. Beyond
+# it, only the names sharing a word with what was asked are listed.
+MAX_LISTED_NAMES = 150
+
+
+def _existing_names_hint(kind: str, asked: list[str], id_to_name: dict[int, str]) -> str:
+    """The names that DO exist, for a `search_exact` criterion that matched none.
+
+    A miss used to say only "Tag 'tax return' does not exist", which leaves the
+    model nothing to correct with: it gives up or guesses again. The usual
+    cause is language, not spelling — an English question about a German
+    archive asks for "tax return" where Paperless says "Steuererklärung" — so a
+    closest-spelling suggestion cannot help; the model has to see the real
+    names and translate. Listed only on a miss, so a working search pays
+    nothing for it, and on one line separated by "; " so the deep-research hit
+    counter, which counts bullet lines, never mistakes the list for results.
+    """
+    names = sorted({n for n in id_to_name.values() if n}, key=str.casefold)
+    if not names:
+        return f"No {kind} names exist in Paperless."
+    if len(names) <= MAX_LISTED_NAMES:
+        return f"Existing {kind} names: " + "; ".join(names) + "."
+    words = {w for a in asked for w in re.findall(r"\w{3,}", a.casefold())}
+    related = [n for n in names if any(w in n.casefold() for w in words)][:30]
+    if related:
+        return f"{len(names)} {kind} names exist; related: " + "; ".join(related) + "."
+    return (
+        f"{len(names)} {kind} names exist, none sharing a word with the request — "
+        "too many to list. Use the name exactly as Paperless spells it."
+    )
+
+
 async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
     text = (inputs.get("text") or "").strip()
     raw_tags = inputs.get("tags") or []
@@ -1465,6 +1497,7 @@ async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
 
     # ── Resolve metadata names → Paperless IDs in parallel ───────────────────
     unresolved: list[str] = []
+    hints: list[str] = []
     tag_ids: list[int] = []
     corr_ids: list[int] = []
     dtype_ids: list[int] = []
@@ -1477,18 +1510,28 @@ async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
         if tag_names:
             tag_ids, u = _resolve_names(tag_names, tag_map)
             unresolved += [f"Tag '{x}'" for x in u]
+            if u:
+                hints.append(_existing_names_hint("tag", u, tag_map))
         if corr_name:
             corr_ids, u = _resolve_names([corr_name], corr_map)
             unresolved += [f"Correspondent \'{x}'" for x in u]
+            if u:
+                hints.append(_existing_names_hint("correspondent", u, corr_map))
         if dtype_name:
             dtype_ids, u = _resolve_names([dtype_name], dtype_map)
             unresolved += [f"Document type \'{x}'" for x in u]
+            if u:
+                hints.append(_existing_names_hint("document type", u, dtype_map))
 
     if unresolved:
         return (
             "The following criteria do not exist in Paperless: "
             + ", ".join(unresolved)
-            + ". Check the spelling or ask the user.",
+            + ". The search was not run.\n"
+            + "\n".join(hints)
+            + "\nPick the matching existing name — it may be in another "
+            "language than the question — and search again. If none fits, "
+            "ask the user.",
             [],
         )
 
@@ -1512,7 +1555,7 @@ async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
 
     where_doc = _build_where_document(text) if text else None
     if text and not where_doc:
-        return "Suchtext zu kurz.", []
+        return "Search text too short.", []
 
     try:
         results = await search(
@@ -1554,10 +1597,10 @@ async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
     if corr_name:
         crit.append(f"Correspondent \'{corr_name}'")
     if dtype_name:
-        crit.append(f"Typ '{dtype_name}'")
+        crit.append(f"Type '{dtype_name}'")
     if created:
         crit.append(
-            "Zeitraum " + "–".join(filter(None, [created_after, created_before]))
+            "Period " + "–".join(filter(None, [created_after, created_before]))
         )
     header = "; ".join(crit) if crit else "criteria"
 
@@ -1613,7 +1656,7 @@ def _render_table_md(t: dict, offset: int = 0, limit: int | None = None) -> str:
         body = [[str(c) for c in (row if isinstance(row, (list, tuple)) else [row])] for row in window]
         if not headers:
             width = max(len(r) for r in body)
-            headers = [f"Spalte {i + 1}" for i in range(width)]
+            headers = [f"Column {i + 1}" for i in range(width)]
 
     def _row(cells: list[str]) -> str:
         return "| " + " | ".join(c.replace("|", "\\|").replace("\n", " ") for c in cells) + " |"
@@ -1633,7 +1676,7 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
     try:
         docs = await pl.list_documents(ids=[doc_id])
         if not docs:
-            return f"Dokument #{doc_id} not found or no access.", []
+            return f"Document #{doc_id} not found or no access.", []
         doc = docs[0]
     except Exception as e:
         return f"Error loading document {doc_id}: {e}", []
@@ -1729,17 +1772,17 @@ async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResu
     pl = _user_paperless()
     try:
         if not await pl.list_documents(ids=[doc_id]):
-            return f"Dokument #{doc_id} not found or no access.", []
+            return f"Document #{doc_id} not found or no access.", []
     except Exception as e:
         return f"Error accessing document {doc_id}: {e}", []
 
     sc = sidecar_service.load_sidecar(doc_id)
     tables = (sc or {}).get("tables") or []
     if not tables:
-        return f"Dokument #{doc_id} has no extracted tables.", []
+        return f"Document #{doc_id} has no extracted tables.", []
     if table_index < 0 or table_index >= len(tables):
         return (
-            f"Invalid table_index {table_index}. Document #{doc_id} hat "
+            f"Invalid table_index {table_index}. Document #{doc_id} has "
             f"{len(tables)} table(s) (0–{len(tables) - 1}).",
             [],
         )
@@ -1770,7 +1813,7 @@ async def _tool_get_document_page_text(
     page_number = int(inputs.get("page_number", 1))
     # Permission check — sidecar is file-based, has no access control
     if not await _user_paperless().list_documents(ids=[doc_id]):
-        return f"Dokument #{doc_id} not found or no access.", []
+        return f"Document #{doc_id} not found or no access.", []
     sc = sidecar_service.load_sidecar(doc_id)
     if sc:
         for p in sc.get("pages") or []:
@@ -1797,7 +1840,7 @@ async def _tool_view_document_page(inputs: dict) -> tuple[str, list[DocumentResu
 
     # Permission check before serving cached PDF
     if not await _user_paperless().list_documents(ids=[doc_id]):
-        return f"Dokument #{doc_id} not found or no access.", []
+        return f"Document #{doc_id} not found or no access.", []
     cached = os.path.join(_PDF_CACHE, f"{doc_id}.pdf")
     if not os.path.exists(cached):
         try:
