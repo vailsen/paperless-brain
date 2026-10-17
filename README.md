@@ -54,6 +54,12 @@ talk to.
   back into Paperless. Plus notes filed on a document under your own account.
 - **OCR write-back (opt-in)** — vision-read text pushed back into Paperless,
   which fixes its full-text search too. → [docs/operations.md](docs/operations.md)
+- **AI document names (opt-in)** — `scan_0042.pdf` becomes
+  `2026_10_17_Invoice_Graphics card_Amazon.pdf`, from a template you write
+  (`{year}_{month}_{day}_{doc_type}_{description}_{correspondent}`). The model
+  only names what the document is about; date and sender come from Paperless.
+  New documents are named as they arrive, and existing ones after a dry run
+  that shows every rename first. → [docs/operations.md](docs/operations.md#ai-document-names-opt-in)
 - **Email, calendar & web** — per-user IMAP and CalDAV (encrypted), web search
   through your own SearXNG with full-page reading.
 - **PWA** — installable on phone and desktop, English/German, dark/light.

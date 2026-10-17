@@ -35,6 +35,53 @@ Three things to know before switching it on:
 It is idempotent: after a push both sides hold the same string, so the next sync
 finds nothing to do.
 
+## AI document names (opt-in)
+
+Scanners and mail importers name files `scan_0042.pdf` or `20261017_143012.pdf`,
+and Paperless turns that into the title. PaperlessBrain can replace it with a name
+built from a template you write:
+
+```
+{year}_{month}_{day}_{doc_type}_{description}_{correspondent}
+→ 2026_10_17_Invoice_Graphics card_Amazon
+```
+
+Only `{description}` — what the document is about, in 1–4 words — comes from the
+model, plus `{doc_type}` when Paperless has no document type. Date and
+correspondent are Paperless' own metadata, so they always match what Paperless
+shows. The model is the ingestion model chosen under **Settings > Documents >
+Processing new documents**; it names a document from the summary it already
+wrote, with one short text request and no page images.
+
+**Paperless renames the file, not PaperlessBrain.** Paperless-ngx offers no way
+for an app to set a file name; it builds the stored name from its own filename
+format on every save. PaperlessBrain sets the *title*, so for the file on disk to
+carry it, add this line to `docker-compose.env` in your Paperless-ngx folder
+(not to its `.env`, which only feeds Docker Compose itself) and restart Paperless:
+
+```
+PAPERLESS_FILENAME_FORMAT={{ title }}
+```
+
+Without it only the title changes. Files that already exist are renamed the next
+time their title changes, or all at once with
+`docker compose exec webserver document_renamer`. Paperless' own download button
+always prefixes the date and correspondent, whatever the title says.
+
+Enable it under **Settings > Documents > "Rename documents after AI analysis"**.
+Like the text write-back it is **per user, off by default**, and runs with your
+own Paperless token, so it only touches documents you may edit.
+
+- **New documents** are renamed at the end of each sync — only the ones that
+  sync ingested.
+- **Existing documents** are renamed only through **"Rename existing
+  documents…"**, which first shows up to 20 of them old → new without changing
+  anything. "Rename all" then works through the rest on the server, with progress
+  and a stop button; closing the dialog or the page does not stop it.
+- **Every document is renamed once,** hand-edited titles included. After that it
+  is never touched again, so a title you change later stays. The old and new
+  titles are kept in `data/title_renames.json`.
+
 ## Power management (optional)
 
 For homelab GPU servers: the app can wake the Ollama host via Wake-on-LAN on
