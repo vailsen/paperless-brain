@@ -375,6 +375,9 @@ async def settings_page() -> None:
                     "a document in Paperless-ngx replaces the text with its own OCR again."
                 )
             )
+            from app_ui.title_rename_settings import title_rename_setting
+
+            title_rename_setting(username, token)
 
         # ── Sprachmemos / voice memos ─────────────────────────────────────────
         with _card("voice"):

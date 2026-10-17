@@ -348,6 +348,21 @@ class PaperlessClient:
             )
         resp.raise_for_status()
 
+    async def update_document_title(self, doc_id: int, title: str) -> None:
+        """Set a document's title.
+
+        Paperless re-derives the stored file name from its filename format on
+        every save, so with `PAPERLESS_FILENAME_FORMAT={{ title }}` this call is
+        also what renames the file on disk. Without a filename format it only
+        changes the title.
+        """
+        async with httpx.AsyncClient(headers=self.headers, timeout=60) as client:
+            resp = await client.patch(
+                f"{self.base_url}/api/documents/{doc_id}/",
+                json={"title": title},
+            )
+        resp.raise_for_status()
+
     async def create_note(self, doc_id: int, note: str) -> str:
         """Add a note to a document. Returns "" on success, else the error text.
 

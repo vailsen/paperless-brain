@@ -30,6 +30,7 @@ from config.extraction_rules import (
     CONDENSED_SUMMARY_PROMPT,
     EXTRACTION_JSON_SCHEMA,
     TABLE_CONTINUATION_CONTEXT,
+    TITLE_DESCRIPTION_PROMPT,
     get_extraction_rules,
 )
 from services.extraction_guard import (
@@ -155,6 +156,34 @@ class VisionClient(ABC):
             if not _FOREIGN_SCRIPT_RE.search(result):
                 return result
         return ""
+
+    async def describe_for_title(self, summary: str) -> tuple[str, str]:
+        """(document type, subject) for a document title, from its summary.
+
+        Either part may come back empty — the caller decides what an
+        unusable answer means. A reply in another script is treated as empty
+        rather than written into someone's archive as a file name.
+        """
+        prompt = (
+            TITLE_DESCRIPTION_PROMPT.format(language=_archive_language_name())
+            + "\n\nSummary:\n" + (summary or "").strip()
+        )
+        _wol_touch()
+        raw = (await self._text(prompt)).strip()
+        if _FOREIGN_SCRIPT_RE.search(raw):
+            return "", ""
+        doc_type = subject = ""
+        for line in raw.splitlines():
+            label, _, value = line.partition(":")
+            key = label.strip().strip("*#_- ").upper()
+            # Markdown emphasis around the label ("**TYPE:** invoice") leaves
+            # its closing half on the value side.
+            value = value.strip().strip("*_`\"' ")
+            if key == "TYPE":
+                doc_type = value
+            elif key == "SUBJECT":
+                subject = value
+        return doc_type, subject
 
     def _parse_fields(
         self, raw_text: str, page: PageImage, ai_doc_type: str
