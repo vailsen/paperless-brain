@@ -30,10 +30,15 @@ TITLE_DESCRIPTION_PROMPT = """\
 You receive the summary of a scanned document. Name it for a file name.
 
 Answer with exactly two lines and nothing else:
-TYPE: the kind of document in 1–2 words (e.g. invoice, contract, notice, payslip)
-SUBJECT: what it is about in 1–4 words — the item, service or matter, as specific as the summary allows (e.g. graphics card, car insurance premium change, apartment lease)
+TYPE: the kind of document in 1 word (e.g. invoice, contract, notice, payslip — Rechnung, Vertrag, Bescheid, Gehaltsabrechnung)
+SUBJECT: what it is about in at most 3 short words
 
-Do not put the sender, a date or an amount into either line — those are added separately.
+Rules for SUBJECT:
+- Name the category, not the items. An invoice for CPU, graphics card, RAM and SSD is "computer parts" (German: "Computerteile"); groceries are "groceries" ("Lebensmittel"); several insurance policies are "insurance" ("Versicherungen").
+- Only words that carry meaning: no "and", "or", "of", "for", "und", "oder", "für", "von", no articles.
+- Prefer short, common words and usual abbreviations (e.g. "car insurance" / "Kfz-Versicherung", "tax return" / "Steuererklärung").
+- Do not put the sender, a date or an amount into either line — those are added separately.
+
 Write both lines in {language}. No quotes, no punctuation at the end.\
 """
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-17 07:42+0000\n"
+"POT-Creation-Date: 2026-10-17 09:44+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -476,11 +476,11 @@ msgstr ""
 msgid "Similar to #{id} — {n} documents"
 msgstr "Ähnlich zu #{id} — {n} Dokumente"
 
-#: app_ui/title_rename_settings.py:60
+#: app_ui/title_rename_settings.py:61
 msgid "Before you turn this on"
 msgstr "Bevor du das einschaltest"
 
-#: app_ui/title_rename_settings.py:64
+#: app_ui/title_rename_settings.py:65
 msgid ""
 "After every sync, PaperlessBrain replaces the title of each newly "
 "analysed document with a name built from your template. The old title is "
@@ -490,7 +490,7 @@ msgstr ""
 "Dokuments durch einen Namen nach deiner Vorlage. Der alte Titel bleibt in"
 " PaperlessBrains Umbenennungs-Protokoll erhalten, nicht in Paperless."
 
-#: app_ui/title_rename_settings.py:69
+#: app_ui/title_rename_settings.py:70
 msgid ""
 "Paperless-ngx renames the file itself only if its filename format uses "
 "the title. Add this line to docker-compose.env in your Paperless-ngx "
@@ -500,7 +500,7 @@ msgstr ""
 "Format den Titel verwendet. Trage diese Zeile in die docker-compose.env "
 "in deinem Paperless-ngx-Ordner ein und starte Paperless neu:"
 
-#: app_ui/title_rename_settings.py:75
+#: app_ui/title_rename_settings.py:76
 msgid "Without it, only the title changes — the files keep their names."
 msgstr ""
 "Ohne diese Zeile ändert sich nur der Titel — die Dateien behalten ihre "
@@ -512,54 +512,54 @@ msgstr ""
 #: app_ui/pages/chat.py:3432 app_ui/pages/dashboard.py:987
 #: app_ui/pages/dashboard.py:1180 app_ui/pages/dashboard.py:1368
 #: app_ui/pages/settings.py:618 app_ui/pages/settings.py:1543
-#: app_ui/title_rename_settings.py:78 app_ui/title_rename_settings.py:204
-#: werkbank/ui/module_page.py:136 werkbank/v2/ui/brief_dialog.py:158
-#: werkbank/v2/ui/page.py:508
+#: app_ui/title_rename_settings.py:79 app_ui/title_rename_settings.py:186
+#: app_ui/title_rename_settings.py:245 werkbank/ui/module_page.py:136
+#: werkbank/v2/ui/brief_dialog.py:158 werkbank/v2/ui/page.py:508
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: app_ui/title_rename_settings.py:79
+#: app_ui/title_rename_settings.py:80
 msgid "Turn on"
 msgstr "Einschalten"
 
-#: app_ui/title_rename_settings.py:94
+#: app_ui/title_rename_settings.py:95
 msgid "Rename documents after AI analysis"
 msgstr "Dokumente nach der KI-Analyse umbenennen"
 
-#: app_ui/title_rename_settings.py:100
+#: app_ui/title_rename_settings.py:101
 msgid "Name template"
 msgstr "Namensvorlage"
 
-#: app_ui/title_rename_settings.py:104
+#: app_ui/title_rename_settings.py:105
 #, python-brace-format
 msgid "Placeholders: {placeholders}"
 msgstr "Platzhalter: {placeholders}"
 
-#: app_ui/title_rename_settings.py:110
+#: app_ui/title_rename_settings.py:111
 msgid "Example:"
 msgstr "Beispiel:"
 
-#: app_ui/title_rename_settings.py:119
+#: app_ui/title_rename_settings.py:120
 msgid "Invoice"
 msgstr "Rechnung"
 
-#: app_ui/title_rename_settings.py:120
-msgid "Graphics card"
-msgstr "Grafikkarte"
+#: app_ui/title_rename_settings.py:121
+msgid "Computer parts"
+msgstr "Computerteile"
 
-#: app_ui/title_rename_settings.py:123
+#: app_ui/title_rename_settings.py:124
 msgid "(empty — the template produces no text)"
 msgstr "(leer — die Vorlage ergibt keinen Text)"
 
-#: app_ui/pages/settings.py:1411 app_ui/title_rename_settings.py:134
+#: app_ui/pages/settings.py:1411 app_ui/title_rename_settings.py:135
 msgid "Reset to default"
 msgstr "Auf Standard zurücksetzen"
 
-#: app_ui/title_rename_settings.py:137
+#: app_ui/title_rename_settings.py:138
 msgid "Rename existing documents…"
 msgstr "Vorhandene Dokumente umbenennen …"
 
-#: app_ui/title_rename_settings.py:145
+#: app_ui/title_rename_settings.py:146
 msgid ""
 "PaperlessBrain sets the document title; Paperless-ngx builds the file "
 "name from it. For the file on disk to carry this name, add the line below"
@@ -574,7 +574,7 @@ msgstr ""
 "umbenannt, sobald sich ihr Titel ändert, oder alle auf einmal mit dem "
 "Paperless-Befehl document_renamer."
 
-#: app_ui/title_rename_settings.py:153
+#: app_ui/title_rename_settings.py:154
 msgid ""
 "Paperless' own download button always prefixes the date and the "
 "correspondent; the name above is the one on disk."
@@ -582,50 +582,76 @@ msgstr ""
 "Der Download-Button von Paperless stellt immer Datum und Korrespondent "
 "voran; der Name oben ist der auf der Platte."
 
-#: app_ui/title_rename_settings.py:179
+#: app_ui/title_rename_settings.py:173 app_ui/title_rename_settings.py:217
 msgid "Rename existing documents"
 msgstr "Vorhandene Dokumente umbenennen"
 
-#: app_ui/title_rename_settings.py:197
+#: app_ui/title_rename_settings.py:177
+#, python-brace-format
+msgid ""
+"First, a dry run: the ingestion model names {n} documents that have not "
+"been renamed yet, and you see each old title next to its new one. Nothing"
+" is changed in Paperless."
+msgstr ""
+"Zuerst ein Probelauf: Das Ingest-Modell benennt {n} Dokumente, die noch "
+"nicht umbenannt wurden, und du siehst jeweils den alten neben dem neuen "
+"Titel. In Paperless wird nichts geändert."
+
+#: app_ui/title_rename_settings.py:180
+msgid ""
+"Then you decide: cancel, or rename all documents that have not been "
+"renamed yet. That runs on the server — you can close the page — and each "
+"document is renamed only once."
+msgstr ""
+"Dann entscheidest du: abbrechen oder alle noch nicht umbenannten "
+"Dokumente umbenennen. Das läuft auf dem Server — du kannst die Seite "
+"schließen — und jedes Dokument wird nur einmal umbenannt."
+
+#: app_ui/title_rename_settings.py:187
+msgid "Start dry run"
+msgstr "Probelauf starten"
+
+#: app_ui/pages/chat.py:3206 app_ui/pages/dashboard.py:1044
+#: app_ui/pages/dashboard.py:1071 app_ui/title_rename_settings.py:231
+#: app_ui/title_rename_settings.py:266 app_ui/title_rename_settings.py:268
+#: werkbank/v2/ui/board.py:140
+msgid "Close"
+msgstr "Schließen"
+
+#: app_ui/title_rename_settings.py:238
 #, python-brace-format
 msgid "{n} documents could not be named"
 msgstr "{n} Dokumente konnten nicht benannt werden"
 
-#: app_ui/title_rename_settings.py:208
+#: app_ui/title_rename_settings.py:249
 #, python-brace-format
 msgid "Rename all {n} documents"
 msgstr "Alle {n} Dokumente umbenennen"
 
-#: app_ui/title_rename_settings.py:222 werkbank/ui/task_dialog.py:457
+#: app_ui/title_rename_settings.py:263 werkbank/ui/task_dialog.py:457
 msgid "Stop"
 msgstr "Stop"
 
-#: app_ui/pages/chat.py:3206 app_ui/pages/dashboard.py:1044
-#: app_ui/pages/dashboard.py:1071 app_ui/title_rename_settings.py:225
-#: app_ui/title_rename_settings.py:227 werkbank/v2/ui/board.py:140
-msgid "Close"
-msgstr "Schließen"
-
-#: app_ui/title_rename_settings.py:234
+#: app_ui/title_rename_settings.py:275
 msgid "None of the examples could be named."
 msgstr "Keines der Beispiele konnte benannt werden."
 
-#: app_ui/title_rename_settings.py:286
+#: app_ui/title_rename_settings.py:327
 #, python-brace-format
 msgid "Renamed {done} of {total} …"
 msgstr "{done} von {total} umbenannt …"
 
-#: app_ui/title_rename_settings.py:291
+#: app_ui/title_rename_settings.py:332
 #, python-brace-format
 msgid "Stopped with an error: {err}"
 msgstr "Mit einem Fehler abgebrochen: {err}"
 
-#: app_ui/title_rename_settings.py:294
+#: app_ui/title_rename_settings.py:335
 #, python-brace-format
 msgid "Finished: {renamed} renamed, {failed} failed."
 msgstr "Fertig: {renamed} umbenannt, {failed} fehlgeschlagen."
 
-#: app_ui/title_rename_settings.py:310
+#: app_ui/title_rename_settings.py:351
 #, python-brace-format
 msgid ""
 "Naming up to {n} documents with the ingestion model — this can take a few"
@@ -634,12 +660,12 @@ msgstr ""
 "Das Ingest-Modell benennt bis zu {n} Dokumente — das kann ein paar "
 "Minuten dauern …"
 
-#: app_ui/title_rename_settings.py:323
+#: app_ui/title_rename_settings.py:364
 #, python-brace-format
 msgid "Named {done} of {total} …"
 msgstr "{done} von {total} benannt …"
 
-#: app_ui/title_rename_settings.py:338
+#: app_ui/title_rename_settings.py:379
 #, python-brace-format
 msgid ""
 "{total} documents have not been renamed yet. These are the first {n} as "
@@ -648,7 +674,7 @@ msgstr ""
 "{total} Dokumente wurden noch nicht umbenannt. Das sind die ersten {n}, "
 "so wie sie benannt würden — in Paperless wurde nichts geändert."
 
-#: app_ui/title_rename_settings.py:342
+#: app_ui/title_rename_settings.py:383
 msgid "Every analysed document has already been renamed."
 msgstr "Alle analysierten Dokumente wurden bereits umbenannt."
 
@@ -3996,4 +4022,7 @@ msgstr "nicht erfüllt"
 
 #~ msgid "No example could be named — see the sync log for why."
 #~ msgstr ""
+
+#~ msgid "Graphics card"
+#~ msgstr "Grafikkarte"
 

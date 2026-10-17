@@ -24,6 +24,7 @@ from pipelines.title_rename import (
     PLACEHOLDERS,
     PREVIEW_SIZE,
     RenamePlan,
+    compact_description,
     preview_renames,
     rename_documents,
     render_title,
@@ -117,7 +118,7 @@ def title_rename_setting(username: str, token: str) -> None:
             template_input.value or DEFAULT_TEMPLATE,
             created=date(2026, 10, 17),
             doc_type=_("Invoice"),
-            description=_("Graphics card"),
+            description=compact_description(_("Computer parts")),
             correspondent="Amazon",
         )
         preview.set_text(f"{title}.pdf" if title else _("(empty — the template produces no text)"))
@@ -135,7 +136,7 @@ def title_rename_setting(username: str, token: str) -> None:
         ).props("flat dense size=sm")
         ui.button(
             _("Rename existing documents…"), icon="drive_file_rename_outline",
-            on_click=lambda: _open_backfill(username, token),
+            on_click=lambda: _explain_backfill(username, token),
         ).props("flat dense size=sm")
 
     with ui.element("div").classes(
@@ -153,6 +154,43 @@ def title_rename_setting(username: str, token: str) -> None:
             "Paperless' own download button always prefixes the date and the "
             "correspondent; the name above is the one on disk."
         )).classes("w-full mt-1")
+
+
+async def _explain_backfill(username: str, token: str) -> None:
+    """Say what is about to happen before any model call is made.
+
+    The dry run costs model time (and tokens, with a cloud model), so it is a
+    choice, not a side effect of opening a dialog. A running backfill skips this
+    and goes straight to its progress.
+    """
+    _ = get_translator()
+    if (job := _JOBS.get(username)) and job.get("running"):
+        _open_backfill(username, token)
+        return
+    with ui.dialog() as dlg, ui.card().style(
+        "background:var(--c-surface); width:min(94vw,520px);"
+    ):
+        ui.label(_("Rename existing documents")).classes("text-base font-semibold").style(
+            "color:var(--c-text)"
+        )
+        for text in (
+            _("First, a dry run: the ingestion model names {n} documents that have "
+              "not been renamed yet, and you see each old title next to its new "
+              "one. Nothing is changed in Paperless.").format(n=PREVIEW_SIZE),
+            _("Then you decide: cancel, or rename all documents that have not been "
+              "renamed yet. That runs on the server — you can close the page — and "
+              "each document is renamed only once."),
+        ):
+            ui.label(text).classes("text-sm w-full").style("color:var(--c-text-2)")
+        with ui.row().classes("w-full justify-end gap-2"):
+            ui.button(_("Cancel"), on_click=lambda: dlg.submit(False)).props("flat dense")
+            ui.button(_("Start dry run"), on_click=lambda: dlg.submit(True)).props(
+                "unelevated dense color=purple"
+            )
+    go = await dlg
+    dlg.delete()
+    if go:
+        _open_backfill(username, token)
 
 
 def _open_backfill(username: str, token: str) -> None:

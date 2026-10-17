@@ -46,6 +46,41 @@ def test_titles_fit_paperless():
     assert len(title) <= MAX_TITLE_LENGTH and not title.endswith(" ")
 
 
+# ── Compacting the model's description ───────────────────────────────────────
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("graphics card and memory", "graphics_card_memory"),
+    ("the list of computer parts", "list_computer_parts"),
+    ("Rechnung für CPU und RAM", "Rechnung_CPU_RAM"),
+    ("Kfz-Versicherung Beitragsanpassung", "Kfz-Versicherung_Beitragsanpassung"),
+    ("Computerteile", "Computerteile"),
+    ("CPU, GPU, RAM, SSD, HDD", "CPU_GPU_RAM"),
+    ("  Lebensmittel  ", "Lebensmittel"),
+    ("und oder für", ""),
+])
+def test_descriptions_are_short_and_joined_with_underscores(raw, expected):
+    assert tr.compact_description(raw) == expected
+
+
+def test_type_and_sender_are_not_repeated_in_the_description():
+    assert tr.compact_description("Rechnung CPU Grafikkarte", exclude="Rechnung Amazon") == (
+        "CPU_Grafikkarte")
+    assert tr.compact_description("Amazon order", exclude="Invoice Amazon") == "order"
+    # Never emptied by it: a description that is only the type stays.
+    assert tr.compact_description("Rechnung", exclude="Rechnung") == "Rechnung"
+
+
+def test_overlong_words_and_names_are_cut():
+    word = tr.compact_description("Grundsteuerbescheidänderungsmitteilung")
+    assert len(word) == tr.MAX_WORD_CHARS
+    # Whole words are dropped from the end rather than cut in the middle.
+    long = tr.compact_description("Nebenkostenabrechnung Wohnungseigentümergemeinschaft Hausverwaltung")
+    assert long == "Nebenkostenabrechnung"
+    assert tr.compact_description("Nebenkostenabrechnung Hausverwaltung") == (
+        "Nebenkostenabrechnung_Hausverwaltung")
+
+
 # ── Planning and renaming ─────────────────────────────────────────────────────
 
 
@@ -200,3 +235,25 @@ def test_describe_for_title_parses_the_two_lines(monkeypatch, reply, expected):
     monkeypatch.setattr(vision, "_archive_language_name", lambda: "German (Deutsch)")
     monkeypatch.setattr(vision, "_wol_touch", lambda: None)
     assert asyncio.run(_Fake().describe_for_title("summary")) == expected
+
+
+def test_a_chatty_answer_becomes_a_short_name(state):
+    pl = _Paperless([_doc(1, "scan_0001")])
+    describe = _Describer(("Rechnung", "Rechnung für CPU, Grafikkarte und RAM"))
+    asyncio.run(tr.rename_documents(pl, _Sidecars({1: "s"}), describe,
+                                    "{description}", path=state))
+    # "Rechnung" is the type, so it is not repeated in the description, and the
+    # third word slot goes to RAM instead.
+    assert pl.patched == [(1, "CPU_Grafikkarte_RAM")]
+
+
+def test_answers_cached_under_an_older_prompt_are_asked_again(state):
+    tr._save_state(state, {"done": {}, "described": {
+        "1": {"doc_type": "Rechnung", "subject": "CPU Grafikkarte RAM SSD Netzteil"},
+    }})
+    describe = _Describer(("Rechnung", "Computerteile"))
+    pl = _Paperless([_doc(1, "scan_0001")])
+    asyncio.run(tr.rename_documents(pl, _Sidecars({1: "s"}), describe,
+                                    "{description}", path=state))
+    assert describe.calls == 1
+    assert pl.patched == [(1, "Computerteile")]
