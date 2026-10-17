@@ -35,6 +35,13 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **Dependency floors raised to the current releases**, among them NiceGUI
   3.18, crawl4ai 0.9.5, anthropic 1.15 and FastAPI 0.143.
 
+### Fixed
+
+- **Re-ingest asks first.** The refresh button in the document dialog
+  deleted a document's extraction and search index and ran every page
+  through the vision model again on a single click. It now asks, and says
+  that it can take a few minutes.
+
 ## [0.9.3] — 2026-10-15
 
 **Same quality in both languages, same settings on every device.**
