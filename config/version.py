@@ -1,3 +1,3 @@
 # config/version.py — single source of truth for the app version.
 # pyproject.toml reads this via hatchling ([tool.hatch.version] path).
-__version__ = "0.9.3"
+__version__ = "0.9.4"

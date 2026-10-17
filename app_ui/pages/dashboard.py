@@ -807,6 +807,7 @@ window.__toggleHideAction = function(key) {{
             )
 
             batch = state.new_ids
+            _ingested: list[int] = []
             for i, doc_id in enumerate(batch, 1):
                 _log(f"Ingest #{doc_id} ({i}/{len(batch)})…")
                 try:
@@ -820,6 +821,7 @@ window.__toggleHideAction = function(key) {{
                         log=_log,
                     )
                     _log(f"  ✓ #{doc_id}")
+                    _ingested.append(doc_id)
                     _notify(_("✓ #{id} imported").format(id=doc_id), type="positive", timeout=2000)
                 except Exception as exc:
                     _log(f"  ✗ #{doc_id}: {exc}")
@@ -910,6 +912,27 @@ window.__toggleHideAction = function(key) {{
                     _log(f"  ✓ {_n_push} text(s) pushed · {_n_fail} failed")
                 except Exception as exc:
                     _log(f"  ✗ Text push failed: {exc}")
+
+            # Optional: title the documents this sync ingested from the user's
+            # template. Only these — the rest of the archive is renamed through
+            # the dry run in Settings, never behind the user's back.
+            if get_pref("rename_titles", False) and _ingested:
+                try:
+                    from pipelines.title_rename import DEFAULT_TEMPLATE, rename_documents
+                    from services.clients import get_session_paperless
+
+                    _log(f"Renaming {len(_ingested)} new document(s)…")
+                    _n_ren, _n_fail = await rename_documents(
+                        get_session_paperless(),
+                        sidecar_service,
+                        _vision.describe_for_title,
+                        get_pref("rename_title_template", DEFAULT_TEMPLATE) or DEFAULT_TEMPLATE,
+                        doc_ids=_ingested,
+                        log=_log,
+                    )
+                    _log(f"  ✓ {_n_ren} renamed · {_n_fail} failed")
+                except Exception as exc:
+                    _log(f"  ✗ Renaming failed: {exc}")
 
             sidecar_service.create_index_file()
             cross_ref_index.rebuild(

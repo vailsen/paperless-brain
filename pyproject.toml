@@ -24,9 +24,9 @@ classifiers = [
 # Direct imports only; everything else is transitive.
 # Floors = versions the app was last smoke-tested with (2026-07-19).
 dependencies = [
-    "nicegui>=3.16,<4",
-    "fastapi>=0.141,<1",
-    "aiohttp>=3.14.3,<4",
+    "nicegui>=3.18,<4",
+    "fastapi>=0.143,<1",
+    "aiohttp>=3.14.5,<4",
     "httpx>=0.28,<1",
     "requests>=2.34,<3",
     # Every range here carries an upper bound, and the floors track what the
@@ -35,21 +35,24 @@ dependencies = [
     # every Anthropic call in the container died on a parameter 1.x had removed
     # while the tests passed locally. An unbounded floor means dev and image are
     # different builds of the same commit.
-    "anthropic>=1.4,<2",
+    "anthropic>=1.15,<2",
     "chromadb>=1.5.9,<2",
-    "sentence-transformers>=6.0,<7",
-    "pydantic>=2.13,<3",
-    "pydantic-settings>=2.15,<3",
-    "cryptography>=50,<51",
-    "pypdfium2>=5.13,<6",
+    "sentence-transformers>=6.1,<7",
+    "pydantic>=2.14,<3",
+    "pydantic-settings>=2.16,<3",
+    "cryptography>=50.0.2,<51",
+    "pypdfium2>=5.14,<6",
     "weasyprint>=70,<71",
     "python-docx>=1.2,<2",
-    "pillow>=12,<13",
+    # 13: 12.x below 12.3.0 carries ~40 published advisories (PSD/PDF/EPS/font
+    # parsers, the kind ingestion feeds untrusted scans into); 13 drops only
+    # Python 3.10 and APIs this code does not use.
+    "pillow>=13,<14",
     "lxml>=6.1.3,<7",
     # [latex] pulls latex2mathml — chat renders markdown with the "latex" extra
     # (app_ui/pages/chat.py:_MD_EXTRAS); without it every message raises ImportError.
-    "markdown2[latex]>=2.5,<3",
-    "trafilatura>=2.2,<3",
+    "markdown2[latex]>=2.5.5,<3",
+    "trafilatura>=2.3,<3",
     # Stays on 2.x: crawl4ai pins `snowballstemmer~=2.2`, so the [crawl] extra
     # would make any higher floor unresolvable. 3.x is API-compatible with the
     # one call this makes (`stemmer("german").stemWord`), so a LEAN build that
@@ -61,7 +64,7 @@ dependencies = [
 [project.optional-dependencies]
 # Headless-browser web crawling (chat web tool fallback for JS-heavy pages).
 # Without it the app still runs; page fetching uses trafilatura only.
-crawl = ["crawl4ai>=0.9.3,<1"]
+crawl = ["crawl4ai>=0.9.5,<1"]
 # i18n catalog workflow (pybabel extract/update/compile) — not needed at runtime.
 i18n = ["babel>=2.18"]
 # Test suite. babel is used by the catalog-integrity tests, so it is included.

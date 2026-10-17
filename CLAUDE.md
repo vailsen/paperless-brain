@@ -100,6 +100,23 @@ Three tools don't execute server-side — they return a special event that the U
 
 IMAP and CalDAV credentials per user stored via `services/credential_store.py`, encrypted with the user's session token. Chat tools load them at call time.
 
+### AI document titles
+
+`pipelines/title_rename.py` + `app_ui/title_rename_settings.py` (Settings > Documents).
+
+- **Paperless has no writable file name** — `original_file_name` / `archived_file_name` are
+  read-only. PaperlessBrain sets the **title** from the user's template; Paperless re-derives
+  the stored file name on every save, so with `PAPERLESS_FILENAME_FORMAT={{ title }}` (in
+  Paperless' `docker-compose.env`) the title change *is* the rename.
+- **The model fills only `{description}`** (and `{doc_type}` when Paperless has none). Date and
+  correspondent come from Paperless metadata, never from the model.
+- **The automatic step renames only documents ingested in that sync.** The rest of the archive
+  is renamed solely through the Settings backfill, which always starts with a dry run.
+- **A document is renamed once.** The record (`data/title_renames.json`: old title, new title,
+  cached model answer) lives outside the sidecar folder — re-ingest rewrites sidecars, and other
+  scanners read every `.json` there. A renamed document is never touched again, so a later hand
+  edit stays.
+
 ### Ollama watchdog
 
 `services/ollama_watchdog.py`: sends Wake-on-LAN to the Ollama server MAC on first use, shuts it down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity. `touch()` resets the idle timer.

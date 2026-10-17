@@ -28,6 +28,7 @@ from config.extraction_rules.base import (
     EXTRACTION_JSON_SCHEMA,
     PROMPT_VERSION,
     TABLE_CONTINUATION_CONTEXT,
+    TITLE_DESCRIPTION_PROMPT,
 )
 
 log = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ __all__ = [
     "EXTRACTION_JSON_SCHEMA",
     "PROMPT_VERSION",
     "TABLE_CONTINUATION_CONTEXT",
+    "TITLE_DESCRIPTION_PROMPT",
     "get_active_profile",
     "get_extraction_rules",
 ]

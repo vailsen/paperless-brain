@@ -39,6 +39,8 @@ KEYS = frozenset({
     "pinned_doc_ids",
     "pinned_docs_cache",
     "hidden_actions",
+    "rename_titles",
+    "rename_title_template",
 })
 
 

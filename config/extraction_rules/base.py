@@ -21,6 +21,22 @@ Ignore meaningless pages such as privacy notices, terms-and-conditions appendice
 Respond exclusively in {language} and only with the summary text — no JSON, no heading, no introduction.\
 """
 
+# Asks for the two parts of a document title the archive does not already know.
+# Date and correspondent come from Paperless — the model cannot get them wrong
+# that way — so it is told not to repeat them. Two labelled lines rather than
+# JSON: this goes through the free-text path of every transport, and a local
+# model answering "TYPE: …" is far more reliable than one emitting JSON unasked.
+TITLE_DESCRIPTION_PROMPT = """\
+You receive the summary of a scanned document. Name it for a file name.
+
+Answer with exactly two lines and nothing else:
+TYPE: the kind of document in 1–2 words (e.g. invoice, contract, notice, payslip)
+SUBJECT: what it is about in 1–4 words — the item, service or matter, as specific as the summary allows (e.g. graphics card, car insurance premium change, apartment lease)
+
+Do not put the sender, a date or an amount into either line — those are added separately.
+Write both lines in {language}. No quotes, no punctuation at the end.\
+"""
+
 BASE_INSTRUCTIONS = """\
 You are analyzing a scanned document (JPEG of a single page).
 Some scans contain two document pages side by side (double-page scan):
