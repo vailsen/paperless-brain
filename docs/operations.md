@@ -43,11 +43,16 @@ built from a template you write:
 
 ```
 {year}_{month}_{day}_{doc_type}_{description}_{correspondent}
-→ 2026_10_17_Invoice_Graphics card_Amazon
+→ 2026_10_17_Invoice_Computer_parts_Amazon
 ```
 
-Only `{description}` — what the document is about, in 1–4 words — comes from the
-model, plus `{doc_type}` when Paperless has no document type. Date and
+Only `{description}` — what the document is about — comes from the model, plus
+`{doc_type}` when Paperless has no document type. The model is asked for the
+category rather than the items (an invoice for CPU, RAM and SSD is "computer
+parts" / "Computerteile"), and the answer is then made fit for a file name
+whatever the model wrote: filler words in English and German ("and", "of",
+"und", "für" …) are dropped, at most three words remain, joined with `_`, and
+trailing words go when the description would exceed 40 characters. Date and
 correspondent are Paperless' own metadata, so they always match what Paperless
 shows. The model is the ingestion model chosen under **Settings > Documents >
 Processing new documents**; it names a document from the summary it already
@@ -75,8 +80,8 @@ own Paperless token, so it only touches documents you may edit.
 - **New documents** are renamed at the end of each sync — only the ones that
   sync ingested.
 - **Existing documents** are renamed only through **"Rename existing
-  documents…"**, which first shows up to 20 of them old → new without changing
-  anything. "Rename all" then works through the rest on the server, with progress
+  documents…"**. It explains the steps, then — if you start it — a dry run shows
+  10 of them old → new without changing anything. "Rename all" then works through the rest on the server, with progress
   and a stop button; closing the dialog or the page does not stop it.
 - **Every document is renamed once,** hand-edited titles included. After that it
   is never touched again, so a title you change later stays. The old and new

@@ -37,7 +37,26 @@ DEFAULT_TEMPLATE = "{year}_{month}_{day}_{doc_type}_{description}_{correspondent
 #: Paperless' `Document.title` is a CharField(max_length=128).
 MAX_TITLE_LENGTH = 128
 #: How many documents the dry run names before the user decides.
-PREVIEW_SIZE = 20
+PREVIEW_SIZE = 10
+#: Bumped whenever the naming prompt changes, so answers cached under an older
+#: prompt are asked again instead of reused.
+DESCRIPTION_VERSION = 2
+#: The description is part of a file name, so it is kept short however chatty
+#: the model is: at most this many words, at most this many characters.
+MAX_DESCRIPTION_WORDS = 3
+MAX_DESCRIPTION_CHARS = 40
+#: A single word longer than this is cut. High enough that ordinary German
+#: compounds ("Nebenkostenabrechnung", 21) survive whole — a word cut in the
+#: middle looks broken — and only the 30-character monsters are trimmed.
+MAX_WORD_CHARS = 24
+
+# Words that carry no meaning in a file name, in both archive languages.
+# Matched case-insensitively against whole words only.
+FILLER_WORDS = frozenset("""
+    a an and or of the for with to in on at by from per via about as
+    und oder der die das des dem den ein eine einer eines einem einen
+    für mit von vom zu zum zur im am an auf aus bei über unter nach sowie bzw
+""".split())
 
 STATE_FILENAME = "title_renames.json"
 
@@ -111,6 +130,45 @@ def render_title(
     if len(out) > MAX_TITLE_LENGTH:
         out = out[:MAX_TITLE_LENGTH].rstrip(_SEPARATORS)
     return out
+
+
+def _words(text: str | None) -> list[str]:
+    cleaned = clean_value(text)
+    words = [w.strip(_SEPARATORS + ",;") for w in re.split(r"[\s_,;/+&]+", cleaned)]
+    return [w for w in words if w]
+
+
+def compact_description(
+    text: str | None,
+    max_words: int = MAX_DESCRIPTION_WORDS,
+    exclude: str = "",
+) -> str:
+    """The model's description, made fit for a file name.
+
+    Local models answer "Rechnung für CPU, Grafikkarte und RAM" to a request for
+    three words. The prompt asks for less; this enforces it, because a long file
+    name is what the user sees and a prompt is only a request:
+
+    - filler words ("and", "of", "für", "und" …) are dropped,
+    - at most `max_words` words remain, joined with "_",
+    - a word over `MAX_WORD_CHARS` is cut, and trailing words are dropped while
+      the whole is longer than `MAX_DESCRIPTION_CHARS`.
+
+    Hyphenated compounds ("Kfz-Versicherung") count as one word.
+
+    Words already in `exclude` — the document type and the correspondent, which
+    the template places next to the description — are dropped too: a model
+    asked about "Rechnung für CPU" from Amazon otherwise produces
+    `Rechnung_Rechnung_CPU_…_Amazon`. If that would leave nothing, they stay.
+    """
+    words = [w for w in _words(text) if w.casefold() not in FILLER_WORDS]
+    taken = {w.casefold() for w in _words(exclude)}
+    if taken and (kept := [w for w in words if w.casefold() not in taken]):
+        words = kept
+    words = [w[:MAX_WORD_CHARS] for w in words[:max_words]]
+    while len(words) > 1 and len("_".join(words)) > MAX_DESCRIPTION_CHARS:
+        words.pop()
+    return "_".join(words)
 
 
 # ── Rename record ─────────────────────────────────────────────────────────────
@@ -201,6 +259,8 @@ async def iter_plans(
         if should_stop is not None and should_stop():
             return
         cached = described.get(str(doc.id))
+        if cached is not None and cached.get("v") != DESCRIPTION_VERSION:
+            cached = None          # named under an older prompt — ask again
         if cached is None:
             sidecar = sidecar_service.load_sidecar(doc.id) or {}
             summary = sidecar.get("full_summary_summarized") or sidecar.get("full_summary") or ""
@@ -212,9 +272,15 @@ async def iter_plans(
             except Exception as exc:  # noqa: BLE001 — one bad document must not stop the run
                 _log(f"  ✗ #{doc.id}: naming failed: {exc}")
                 continue
-            cached = {"doc_type": ai_type, "subject": subject}
+            cached = {"doc_type": ai_type, "subject": subject, "v": DESCRIPTION_VERSION}
             await _record(path, "described", doc.id, cached)
-        subject = clean_value(cached.get("subject"))
+        # The user's own Paperless type is kept as written; the model's is
+        # compacted like the description.
+        doc_type = doc.document_type or compact_description(cached.get("doc_type"), 2)
+        subject = compact_description(
+            cached.get("subject"),
+            exclude=f"{doc_type} {doc.correspondent or ''}",
+        )
         if not subject:
             # A title without its subject is worse than the one it would
             # replace. Not cached as done, so a later run can try again.
@@ -223,7 +289,7 @@ async def iter_plans(
         new_title = render_title(
             template,
             created=doc.created,
-            doc_type=doc.document_type or cached.get("doc_type", ""),
+            doc_type=doc_type,
             description=subject,
             correspondent=doc.correspondent or "",
         )
