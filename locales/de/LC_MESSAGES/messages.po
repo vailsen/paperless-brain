@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-17 09:44+0000\n"
+"POT-Creation-Date: 2026-10-17 17:00+0200\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -190,22 +190,54 @@ msgstr "Angeheftet — Lösen"
 msgid "Pin"
 msgstr "Anheften"
 
-#: app_ui/document_dialog.py:792
+#: app_ui/document_dialog.py:786
+#, python-brace-format
+msgid "Re-ingest document #{id}?"
+msgstr "Dokument #{id} neu einlesen?"
+
+#: app_ui/document_dialog.py:789
+msgid ""
+"Its extraction and search index are deleted and built again from the PDF."
+" Every page goes through the vision model once more, which can take a few"
+" minutes."
+msgstr ""
+"Extraktion und Suchindex werden gelöscht und aus dem PDF neu aufgebaut. "
+"Jede Seite läuft dafür noch einmal durch das Vision-Modell – das kann "
+"einige Minuten dauern."
+
+#: app_ui/document_dialog.py:794 app_ui/pages/brain.py:278
+#: app_ui/pages/brain.py:292 app_ui/pages/brain.py:773
+#: app_ui/pages/chat.py:1181 app_ui/pages/chat.py:3089
+#: app_ui/pages/chat.py:3348 app_ui/pages/chat.py:3432
+#: app_ui/pages/dashboard.py:987 app_ui/pages/dashboard.py:1180
+#: app_ui/pages/dashboard.py:1368 app_ui/pages/settings.py:618
+#: app_ui/pages/settings.py:1543 app_ui/title_rename_settings.py:79
+#: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
+#: werkbank/ui/module_page.py:136 werkbank/v2/ui/brief_dialog.py:158
+#: werkbank/v2/ui/page.py:508
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: app_ui/document_dialog.py:797
+msgid "Re-ingest"
+msgstr "Neu einlesen"
+
+#: app_ui/document_dialog.py:817
 #, python-brace-format
 msgid "Re-ingesting document #{id} …"
 msgstr "Dokument #{id} wird neu eingelesen …"
 
-#: app_ui/document_dialog.py:801
+#: app_ui/document_dialog.py:826
 #, python-brace-format
 msgid "#{id} re-ingested."
 msgstr "#{id} neu eingelesen."
 
-#: app_ui/document_dialog.py:806
+#: app_ui/document_dialog.py:831
 #, python-brace-format
 msgid "Error during re-ingest: {err}"
 msgstr "Fehler beim Neu-Einlesen: {err}"
 
-#: app_ui/document_dialog.py:814
+#: app_ui/document_dialog.py:839
 msgid "Re-ingest (extraction + embedding)"
 msgstr "Neu einlesen (Extraktion + Embedding)"
 
@@ -505,18 +537,6 @@ msgid "Without it, only the title changes — the files keep their names."
 msgstr ""
 "Ohne diese Zeile ändert sich nur der Titel — die Dateien behalten ihre "
 "Namen."
-
-#: app_ui/pages/brain.py:278 app_ui/pages/brain.py:292
-#: app_ui/pages/brain.py:773 app_ui/pages/chat.py:1181
-#: app_ui/pages/chat.py:3089 app_ui/pages/chat.py:3348
-#: app_ui/pages/chat.py:3432 app_ui/pages/dashboard.py:987
-#: app_ui/pages/dashboard.py:1180 app_ui/pages/dashboard.py:1368
-#: app_ui/pages/settings.py:618 app_ui/pages/settings.py:1543
-#: app_ui/title_rename_settings.py:79 app_ui/title_rename_settings.py:186
-#: app_ui/title_rename_settings.py:245 werkbank/ui/module_page.py:136
-#: werkbank/v2/ui/brief_dialog.py:158 werkbank/v2/ui/page.py:508
-msgid "Cancel"
-msgstr "Abbrechen"
 
 #: app_ui/title_rename_settings.py:80
 msgid "Turn on"
