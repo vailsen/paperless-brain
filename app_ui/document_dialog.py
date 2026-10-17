@@ -778,8 +778,33 @@ def _render_content(
                         on_click=lambda: ui.run_javascript(f"window.open('{file_url}', '_blank')"),
                     ).props("flat dark dense").classes("text-gray-400 text-xs")
 
+                async def _confirm_reingest() -> bool:
+                    with ui.dialog() as cdlg, ui.card().style(
+                        "background:var(--c-surface); width:min(92vw,420px);"
+                    ):
+                        ui.label(
+                            _("Re-ingest document #{id}?").format(id=doc.id)
+                        ).classes("text-base font-semibold").style("color:var(--c-text)")
+                        ui.label(_(
+                            "Its extraction and search index are deleted and built again "
+                            "from the PDF. Every page goes through the vision model once "
+                            "more, which can take a few minutes."
+                        )).classes("text-sm w-full").style("color:var(--c-text-2)")
+                        with ui.row().classes("w-full justify-end gap-2"):
+                            ui.button(_("Cancel"), on_click=lambda: cdlg.submit(False)).props(
+                                "flat dense"
+                            )
+                            ui.button(_("Re-ingest"), on_click=lambda: cdlg.submit(True)).props(
+                                "unelevated dense color=purple"
+                            )
+                    answer = await cdlg
+                    cdlg.delete()
+                    return bool(answer)
+
                 async def _reingest() -> None:
                     """Re-run extraction+embedding for this document (fix bad ingests)."""
+                    if not await _confirm_reingest():
+                        return
                     _id = doc.id
                     from pipelines.delete import delete_document
                     from pipelines.ingest import ingest_document
