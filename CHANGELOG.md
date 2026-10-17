@@ -5,6 +5,36 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [0.9.4] — 2026-10-17
+
+**Documents named the way you want.**
+
+### Added
+
+- **Rename documents after AI analysis** (Settings > Documents). Build a
+  document title from a template — `{year}_{month}_{day}_{doc_type}_{description}_{correspondent}`
+  by default — with a live example. The ingestion model supplies only the
+  description (and the type, when Paperless has none); date and correspondent
+  come from Paperless. Off by default, and turning it on explains what it
+  needs: Paperless-ngx renames the file itself only with
+  `PAPERLESS_FILENAME_FORMAT={{ title }}` in its `docker-compose.env`.
+  Each sync renames only the documents it just ingested.
+
+- **Rename existing documents, with a dry run first.** A button next to the
+  template names up to 20 documents and shows old → new before anything
+  changes; "Rename all" then works through the rest on the server, with
+  progress and a stop button. Every document is renamed once — a title you
+  edit afterwards stays — and the old titles are kept in
+  `data/title_renames.json`.
+
+### Changed
+
+- **Pillow 13.** Pillow versions the old range still allowed carry about 40
+  published security advisories, many in the image and PDF parsers ingestion
+  feeds scans into.
+- **Dependency floors raised to the current releases**, among them NiceGUI
+  3.18, crawl4ai 0.9.5, anthropic 1.15 and FastAPI 0.143.
+
 ## [0.9.3] — 2026-10-15
 
 **Same quality in both languages, same settings on every device.**
