@@ -7,7 +7,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
-**Pictures in chat.**
+## [0.10.0] — 2026-10-18
+
+**Pictures in chat, and AI models grouped by service.**
 
 ### Added
 
