@@ -15,6 +15,7 @@ from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
 from app_ui.similar_dialog import create_similar_dialog
 from app_ui.layout import page_layout, require_auth
+from app_ui.model_picker import model_select
 from app_ui.pages.browser import _render_card
 from config.chat_prompts import build_system_prompt
 from werkbank.settings_store import get_archive_language
@@ -1527,10 +1528,7 @@ async def chat():
 
                         if _reg_models:
                             _chat_model_sel = (
-                                ui.select(
-                                    options={m["name"]: m["name"] for m in _reg_models},
-                                    value=_initial_model_name,
-                                )
+                                model_select(_reg_models, _initial_model_name)
                                 .props("dense outlined dark")
                                 .classes("chat-model-sel")
                                 .style("flex-shrink:0; width:13rem;")
@@ -3419,13 +3417,13 @@ window.__openVaultNote = function(noteId) {{
 
                             from services.model_registry import get_models as _get_wb_models
                             _wb_models = [
-                                m["name"] for m in _get_wb_models(_wb_username, _wb_token)
+                                m for m in _get_wb_models(_wb_username, _wb_token)
                                 if m.get("enabled", True)
                             ]
-                            _kb_model = ui.select(
+                            _kb_model = model_select(
                                 _wb_models,
+                                _wb_models[0]["name"] if _wb_models else None,
                                 label=_("Model"),
-                                value=_wb_models[0] if _wb_models else None,
                             ).props("outlined dark dense").classes("w-full mt-2")
 
                             _kb_status = ui.label("").classes("text-xs mt-2")

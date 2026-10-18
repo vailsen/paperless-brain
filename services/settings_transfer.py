@@ -4,8 +4,9 @@
 Covers exactly what the settings page lets a user change *for themselves*:
 language, theme and the Paperless write-back switch (the per-user preferences
 in ``services/user_prefs.py``) plus
-the encrypted credential blob (LLM model registry, IMAP, calendar, sender
-profile, dream model).
+the encrypted credential blob (LLM services and their models, IMAP, calendar,
+sender profile, dream model). Exports written before services existed carry a
+flat ``llm_models`` list; it is grouped into services on import.
 
 Deliberately **not** covered: the werkbank settings store. Those keys are global
 — they apply to every user of the instance — so moving them around inside a
@@ -32,7 +33,7 @@ REDACTED = "__OMITTED__"
 
 #: Credential keys carried by the export, in the order they are written.
 _CRED_KEYS = (
-    "llm_models",
+    "llm_providers",
     "imap",
     "calendar",
     "sender_profile",
@@ -70,8 +71,9 @@ def _redact_calendar(cal: dict) -> dict:
 
 def _redact(creds: dict) -> dict:
     out = dict(creds)
-    if out.get("llm_models"):
-        out["llm_models"] = _redact_models(out["llm_models"])
+    if out.get("llm_providers"):
+        # A provider holds the key; its models hold none.
+        out["llm_providers"] = _redact_models(out["llm_providers"])
     if out.get("imap", {}).get("password"):
         out["imap"] = {**out["imap"], "password": REDACTED}
     if out.get("calendar"):
@@ -91,6 +93,12 @@ def build_export(
 ) -> str:
     """Return the settings of ``username`` as an indented JSON string."""
     creds = load_credentials(username, token) if username and token else {}
+    if username and token:
+        # Migrates a registry that is still the old flat list, so an export
+        # always carries services — and only them.
+        from services.model_registry import get_providers
+
+        creds["llm_providers"] = get_providers(username, token)
     payload: dict[str, Any] = {
         "_app": APP_ID,
         "_schema": SCHEMA_VERSION,
@@ -155,8 +163,10 @@ def describe(payload: dict, supported_languages: tuple[str, ...] | list[str]) ->
     if isinstance(payload.get("voice_memos_enabled"), bool):
         state = "on" if payload["voice_memos_enabled"] else "off"
         notes.append(f"Voice memos: {state}")
-    if isinstance(payload.get("llm_models"), list):
-        notes.append(f"AI models: {len(payload['llm_models'])}")
+    providers = _payload_providers(payload)
+    if providers is not None:
+        n_models = sum(len(p.get("models") or []) for p in providers)
+        notes.append(f"AI models: {n_models} in {len(providers)} service(s)")
     if isinstance(payload.get("imap"), dict):
         notes.append("Email (IMAP)")
     if isinstance(payload.get("calendar"), dict):
@@ -170,17 +180,33 @@ def describe(payload: dict, supported_languages: tuple[str, ...] | list[str]) ->
     return notes
 
 
-def _merge_models(new: list, existing: list) -> list:
-    """Carry redacted API keys over from the models already stored, by name."""
-    by_name = {m.get("name"): m for m in existing if isinstance(m, dict)}
+def _payload_providers(payload: dict) -> list | None:
+    """The services in an export — converted when it predates them."""
+    if isinstance(payload.get("llm_providers"), list):
+        return [p for p in payload["llm_providers"] if isinstance(p, dict)]
+    if isinstance(payload.get("llm_models"), list):
+        from services.model_registry import migrate_flat
+
+        return migrate_flat(payload["llm_models"])
+    return None
+
+
+def _merge_providers(new: list, existing: list) -> list:
+    """Carry redacted API keys over from the services already stored.
+
+    Matched by name first, then by backend + base URL: a service renamed on one
+    side still finds its key.
+    """
+    existing = [p for p in existing if isinstance(p, dict)]
+    by_name = {p.get("name"): p for p in existing}
+    by_addr = {(p.get("backend"), p.get("base_url")): p for p in existing}
     out = []
-    for m in new:
-        if not isinstance(m, dict):
-            continue
-        m = dict(m)
-        if m.get("api_key") == REDACTED:
-            m["api_key"] = by_name.get(m.get("name"), {}).get("api_key", "")
-        out.append(m)
+    for p in new:
+        p = dict(p)
+        if p.get("api_key") == REDACTED:
+            old = by_name.get(p.get("name")) or by_addr.get((p.get("backend"), p.get("base_url"))) or {}
+            p["api_key"] = old.get("api_key", "")
+        out.append(p)
     return out
 
 
@@ -221,8 +247,15 @@ def apply_import(
     """
     creds = load_credentials(username, token) if username and token else {}
 
-    if isinstance(payload.get("llm_models"), list):
-        creds["llm_models"] = _merge_models(payload["llm_models"], creds.get("llm_models") or [])
+    providers = _payload_providers(payload)
+    if providers is not None:
+        current: list = []
+        if username and token:
+            from services.model_registry import get_providers
+
+            current = get_providers(username, token)
+            creds = load_credentials(username, token)
+        creds["llm_providers"] = _merge_providers(providers, current)
     if isinstance(payload.get("imap"), dict):
         creds["imap"] = _merge_imap(payload["imap"], creds.get("imap") or {})
     if isinstance(payload.get("calendar"), dict):

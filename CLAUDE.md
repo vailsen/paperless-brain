@@ -55,9 +55,21 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
   `OLLAMA_SERVER` additionally names the host the WoL/shutdown buttons control;
   without it that is inferred from the first local-lane model in the registry.
 - No provider API key belongs in `.env`. Every chat/research/vision model is managed
-  per user in the UI (Settings > AI Models, `services/model_registry.py`) with its own
-  backend (`anthropic` / `openai_compatible`), base URL, key and model id — which is
-  what makes AI gateways (OpenRouter, Requesty, LiteLLM, Portkey …) work with no code.
+  per user in the UI (Settings > AI Models, `services/model_registry.py`): one entry per
+  **service** (backend `anthropic` / `openai_compatible`, base URL, key, lane) with any
+  number of **models** below it — which is what makes AI gateways (OpenRouter, Requesty,
+  LiteLLM, Portkey …) work with no code.
+  - **`get_models()` stays the flat view** (one dict per model, service fields merged in).
+    Everything that runs a model reads that; only the settings editor sees the tree.
+  - **A model is referenced by its display name**, everywhere (chat choice, ingest model,
+    memo/dream model, Werkbank). The ingest model is a *global* setting resolved in whichever
+    user's registry triggers the sync, so a per-user id would not do. Hence display names are
+    unique across all services (enforced on save), and a rename re-points the stored choices.
+  - **Every model dropdown goes through `app_ui/model_picker.model_select`**, which groups by
+    service. Never a raw `ui.select` over model names.
+  - The flat list of older versions (`llm_models`) is migrated on first read and left in place
+    as a fallback copy. A base URL is normalized on save — a pasted `/chat/completions` or
+    `/v1/messages` doubled the path and produced a bare 404.
 - `SEARXNG_HOST` — self-hosted SearXNG instance
 - `STORAGE_SECRET` — NiceGUI session secret
 

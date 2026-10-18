@@ -87,6 +87,16 @@ def local_time(iso: str) -> str:
     return stamp.astimezone(local_tz()).strftime("%Y-%m-%d %H:%M")
 
 
+def _registry_models(user_id: str, token: str) -> list[dict]:
+    """Enabled registry models (flat view), for the grouped model picker."""
+    try:
+        from services.model_registry import get_models
+
+        return [m for m in get_models(user_id, token) if m.get("enabled", True)]
+    except Exception:
+        return []
+
+
 def _models(user_id: str, token: str) -> list[str]:
     try:
         from services.model_registry import model_names
@@ -502,8 +512,14 @@ def werkbank_page() -> None:
                 placeholder=_("e.g. Which notice periods apply to my contracts, "
                               "and which of them are statutory?"),
             ).props("outlined dense autogrow").classes("w-full")
-            model = ui.select(models, value=models[0], label=_("Model")).props(
-                "outlined dense").classes("w-full mt-2")
+            registry = _registry_models(user_id, token)
+            if registry:
+                from app_ui.model_picker import model_select
+
+                model = model_select(registry, models[0], label=_("Model"))
+            else:
+                model = ui.select(models, value=models[0], label=_("Model"))
+            model.props("outlined dense").classes("w-full mt-2")
             with ui.row().classes("w-full justify-end gap-2 mt-3"):
                 ui.button(_("Cancel"), color=None, on_click=dialog.close).props(
                     "flat dense"
