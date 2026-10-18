@@ -15,6 +15,9 @@ class ExtractedContent(BaseModel):
     page_summary: str
     cross_references: list[dict]
     document_type: str
+    # Raw picture entries as the model returned them ({description, belongs_to,
+    # box}); ingest validates the boxes and stores them per page.
+    images: list[dict] = []
 
 
 class JsonSidecar(BaseModel):

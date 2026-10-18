@@ -5,6 +5,48 @@ All notable changes to PaperlessBrain are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
+## [Unreleased]
+
+**Pictures in chat.**
+
+### Added
+
+- **See it, not just read about it.** Ask the chat to show something — "show
+  me the lasagna recipe", "what does the X-ray look like", "show me page 3" —
+  and the picture appears in the answer: one cropped photo, or the whole page.
+  It fits a phone screen, a tap opens it full size, and it is still there after
+  a reload. A new chat tool, `show_document_image`, does this without a model
+  call; access is checked against your own Paperless permissions on every
+  request. Pictures in an answer you save as PDF are embedded in the PDF.
+
+- **Ingestion records the pictures on every page.** Photos, illustrations,
+  charts, maps, X-rays and drawings get a description, what they belong to, and
+  where they are on the page. On born-digital PDFs the position comes straight
+  from the PDF; on scans from the vision model, checked in code before it is
+  stored. Logos, barcodes, QR codes, stamps and signatures are left out.
+  Search finds the descriptions, and search results, document details and page
+  text list each document's pictures.
+
+### Changed
+
+- **Picture descriptions moved out of the page text.** They used to be written
+  inline as "[Image description: …]" — a marker the model translated in German
+  documents, so it could not be relied on. They now live in their own field.
+  The page text that the opt-in text write-back pushes into Paperless no longer
+  contains them.
+- **Extraction prompt version 0.3 — without re-ingesting the archive.** New
+  documents get their pictures right away. Of the existing ones, only those
+  whose old extraction mentions a picture count as outdated and are
+  re-ingested by the next sync (on the reference archive: 9 of 523 documents,
+  75 pages, about 20 minutes on a local model). Every other document would come
+  out of a re-ingest unchanged, so it is left alone; a whole page can still be
+  shown for any of them.
+
+### Fixed
+
+- **Document details listed every page as "page ?".** The chat model now sees
+  real page numbers in the page summaries.
+
 ## [0.9.4] — 2026-10-17
 
 **Documents named the way you want.**

@@ -15,6 +15,8 @@ from i18n import format_datetime
 
 _URL_RE = re.compile(r'https?://[^\s<>"\[\]{}|\\^`]+[^\s<>"\[\]{}|\\^`.,;:!?)>]')
 
+_UNRESOLVED_DOC_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(/api/doc-image/[^)\s]*\)")
+
 _TABLE_RE = re.compile(r'<table\b[^>]*>.*?</table>', re.DOTALL | re.IGNORECASE)
 _TH_RE    = re.compile(r'<th\b', re.IGNORECASE)
 
@@ -117,6 +119,8 @@ pre  { background: #f7fafc; padding: 8px; border-radius: 3px; white-space: pre-w
 blockquote { border-left: 3px solid #6b46c1; margin: 8px 0; padding-left: 10px; color: #4a5568; }
 ul, ol { margin: 6px 0; padding-left: 18px; }
 li { margin: 3px 0; }
+img { max-width: 100%; max-height: 220mm; display: block; margin: 6px 0 2px 0; }
+.chat-img-cap { display: block; font-size: 8pt; color: #718096; margin-bottom: 6px; }
 """
 
 
@@ -136,6 +140,10 @@ def generate_chat_pdf(
     dt_str = format_datetime(dt, lang)
     badge = _BADGE_TEXT.get(lang, _BADGE_TEXT["en"])
 
+    # Chat pictures arrive here already inlined as data URIs (chat page →
+    # doc_image_service.embed_images). One that was not — e.g. markdown handed
+    # over by another path — cannot be fetched by WeasyPrint; drop it.
+    content_markdown = _UNRESOLVED_DOC_IMAGE_RE.sub("", content_markdown or "")
     body_html = markdown2.markdown(
         escape_intraword_underscores(content_markdown),
         extras=["fenced-code-blocks", "tables", "strike", "cuddled-lists", "header-ids",

@@ -29,6 +29,7 @@ from config.extraction_rules import PROMPT_VERSION
 from models.extraction import ExtractedContent, JsonSidecar
 from services.chroma import ChromaClient
 from services.chunking import build_context_prefix, chunk_document
+from services.page_images import build_page_images, embedding_lines, pdf_boxes_per_page
 from services.paperless import PaperlessClient
 from services.pdf_extractor import PDFExtractor
 from services.sidecar_service import SidecarService
@@ -70,6 +71,9 @@ async def ingest_document(
 
     pdf_extractor = PDFExtractor()
     images = pdf_extractor.extract_pages(doc_bytes)
+    # Exact picture boxes of born-digital pages; empty lists for scans.
+    pdf_boxes = pdf_boxes_per_page(doc_bytes)
+    page_pictures: dict[int, list[dict]] = {}
 
     extracted_pages: list[ExtractedContent] = []
     ai_doc_type = ""
@@ -101,6 +105,16 @@ async def ingest_document(
             )
         if idx == 0:
             ai_doc_type = extracted.document_type
+        try:
+            render_w, render_h = Image.open(io.BytesIO(image.image_bytes)).size
+        except Exception:
+            render_w = render_h = 0
+        page_pictures[image.page_number] = build_page_images(
+            extracted.images,
+            pdf_boxes[idx] if idx < len(pdf_boxes) else [],
+            render_w,
+            render_h,
+        )
         extracted.tables = [t for t in extracted.tables if t.get("rows")]
         prev_table = extracted.tables[-1] if extracted.tables else None
         extracted_pages.append(extracted)
@@ -131,6 +145,7 @@ async def ingest_document(
             "page_number": page_num,
             "page_text": extr_page.page_text,
             "page_summary": extr_page.page_summary,
+            "images": page_pictures.get(page_num, []),
         }
         all_pages.append(page_dict)
         all_actions.extend(extr_page.actions)
@@ -181,7 +196,13 @@ async def ingest_document(
         correspondent=document.correspondent,
         document_date=document.created,
     )
-    page_texts = [page.page_text for page in extracted_pages]
+    # Picture descriptions are embedded with their page so a search for "the
+    # lasagna photo" lands on it — but only here: page_text / full_text go back
+    # into Paperless via the text write-back and must stay the document's text.
+    page_texts = []
+    for page in extracted_pages:
+        lines = embedding_lines(page_pictures.get(page.page, []))
+        page_texts.append(f"{page.page_text}\n\n{lines}".strip() if lines else page.page_text)
     chunks = chunk_document(page_texts=page_texts, context_prefix=prefix)
 
     sidecar = JsonSidecar(

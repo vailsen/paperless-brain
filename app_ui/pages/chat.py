@@ -10,6 +10,7 @@ import urllib.parse
 from nicegui import app as ng_app
 from nicegui import ui
 
+from app_ui.chat_images import with_images
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
 from app_ui.similar_dialog import create_similar_dialog
@@ -44,6 +45,7 @@ from services.chat_service import (
     DoneEvent,
     DownloadRequestEvent,
     EmailRequestEvent,
+    ImageDisplayEvent,
     IterationEvent,
     OpenAICompatibleChatBackend,
     PdfSaveRequestEvent,
@@ -206,6 +208,7 @@ _TOOL_GROUPS: list[tuple[str, str, list[str]]] = [
             "get_document_details",
             "get_document_table",
             "get_document_page_text",
+            "show_document_image",
             "get_actions",
             "download_document",
         ],
@@ -341,6 +344,14 @@ html, body { overflow: hidden !important; }
    bubble's `max-width: 85%` loses against a max-content-wide table and the
    whole bubble grows past the screen. The bubble carries the same override. */
 .chat-md { max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
+/* Pictures from show_document_image. Never wider than the bubble (phone width),
+   never taller than most of the screen; a tap opens the full render. */
+.chat-md img {
+    display: block; max-width: 100%; height: auto; max-height: 70vh;
+    object-fit: contain; border-radius: 8px; margin: 0.5rem 0 0.15rem 0;
+    border: 1px solid var(--c-border); background: var(--c-bg); cursor: zoom-in;
+}
+.chat-md .chat-img-cap { display: block; font-size: 0.72rem; color: var(--c-text-muted); margin-bottom: 0.4rem; }
 /* Chat history left drawer — always available (desktop + mobile) */
 .chat-history-drawer {
     --hist-w: 252px;
@@ -2140,6 +2151,8 @@ document.addEventListener('click', function(e) {{
     }}
     var d = e.target.closest('[data-doc-id]');
     if (d) {{ e.preventDefault(); window.__openDocById(d.getAttribute('data-doc-id')); return; }}
+    var img = e.target.closest('.chat-md img[src^="/api/doc-image/"]');
+    if (img) {{ e.preventDefault(); window.open(img.getAttribute('src'), '_blank', 'noopener'); return; }}
 }});
 window.__openDocById = function(docId) {{
     if (!window.socket || !window.did_handshake) {{
@@ -2557,7 +2570,12 @@ window.__openVaultNote = function(noteId) {{
         _STRIP_THINK = re.compile(r"</?think(?:ing)?>", re.IGNORECASE)
 
         def _build_display() -> str:
-            return escape_intraword_underscores(accumulated[0])
+            # Pictures stream in as the tools return, so they show up while the
+            # answer is still being written; on finish they become part of the
+            # stored message text (below), which is what makes them survive a reload.
+            return escape_intraword_underscores(
+                with_images(accumulated[0], _shown_images, _)
+            )
 
         def _fmt_tool_call_label(label: str, tool_input: dict, iteration: int) -> str:
             clean = label.rstrip(".")
@@ -2604,6 +2622,7 @@ window.__openVaultNote = function(noteId) {{
         _pending_pdf: list = [None]     # PdfSaveRequestEvent params if triggered
         _pending_kanban: list = [None]  # KanbanTaskRequestEvent params if triggered
         _pending_downloads: list[dict] = []  # DownloadRequestEvent params (one per doc)
+        _shown_images: list[ImageDisplayEvent] = []  # show_document_image, in call order
 
         backend = _reg_backends.get(
             _s["chat_model_name"],
@@ -2741,6 +2760,12 @@ window.__openVaultNote = function(noteId) {{
                 elif isinstance(event, DownloadRequestEvent):
                     _pending_downloads.append(event.params)
 
+                elif isinstance(event, ImageDisplayEvent):
+                    _key = (event.doc_id, event.page, event.index)
+                    if _key not in {(e.doc_id, e.page, e.index) for e in _shown_images}:
+                        _shown_images.append(event)
+                        streaming_label[0].set_content(_build_display())
+
                 elif isinstance(event, DoneEvent):
                     status_badge[0].style("display:none;")
                     activity_row.set_visibility(False)
@@ -2761,6 +2786,8 @@ window.__openVaultNote = function(noteId) {{
             activity_row.set_visibility(False)
             if thinking_chunks[0] and _s["show_thinking"]:
                 _update_thinking()
+            if _shown_images:
+                accumulated[0] = with_images(accumulated[0], _shown_images, _)
             if accumulated[0]:
                 await _resolve_vault_wiki_links(
                     accumulated[0], _rs.setdefault("vault_index", {}), _username
@@ -3317,13 +3344,18 @@ window.__openVaultNote = function(noteId) {{
                                     # import failure surfaces in the UI instead of
                                     # killing the handler silently.
                                     from services.clients import get_session_paperless
+                                    from services.doc_image_service import embed_images
+                                    from services.session_auth import get_session_token
                                     from werkbank.export import upload_pdf as _upload_pdf
 
                                     _pl = get_session_paperless()
                                     _pdf_status.set_text(_("Uploading…"))
                                     await asyncio.sleep(0)
+                                    _pdf_md = await embed_images(
+                                        _pdf_content.value, get_session_token()
+                                    )
                                     _upload_task_id, _filename = await _upload_pdf(
-                                        content_markdown=_pdf_content.value,
+                                        content_markdown=_pdf_md,
                                         title=_pdf_title.value,
                                         username=_pp_username,
                                         model_name=_pp_model,

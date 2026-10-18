@@ -117,6 +117,37 @@ IMAP and CalDAV credentials per user stored via `services/credential_store.py`, 
   scanners read every `.json` there. A renamed document is never touched again, so a later hand
   edit stays.
 
+### Pictures in chat
+
+Plan and calibration: `docs/image-retrieval-plan.md`. Code: `services/page_images.py` (boxes,
+rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_image_routes.py`,
+`app_ui/chat_images.py`, tool `show_document_image` in `services/chat_service.py`.
+
+- **Boxes come from code where possible, from the model otherwise, and are always validated in
+  code.** A model box is a claim, not a fact (`validate_box`). A PDF image object only ever
+  *refines* a picture the model reported — never adds one: the PDF cannot tell a photo from a
+  letterhead logo (seen on the live archive). Touching image objects are merged first; producers
+  store one picture as several strips.
+- **Coordinates are stored resolution-free** — `bbox` = `[x, y, w, h]` in page fractions,
+  top-left origin. The model answers on a 0–1000 grid (calibrated with Qwen3.8; a coordinate above
+  1000 means pixels and is converted with the render size, never guessed without it).
+- **Picture descriptions live in `pages[i]["images"]`, never inline in `page_text`.** The old
+  `[Image description: …]` marker was translated by the model and is unparseable. Descriptions
+  reach the embedding as `[Image n: …]` lines appended in ingest only — `page_text` / `full_text`
+  are pushed back into Paperless by the text write-back.
+- **Every image request checks the user's own Paperless access** — sidecars and the render cache
+  have no access control. No access and no such document both answer 404.
+- **`show_document_image` is display-only.** The model never receives the pixels from it; that is
+  what `view_document_page` (visual analysis) is for. It is in the always-on `documents` group and
+  in `forbidden_tools` for Werkbank agents.
+- **Pictures in an answer are Markdown in the stored message** (`chat_images.with_images`), so
+  they survive a reload; the PDF export inlines them as data URIs after the same access check.
+- **Re-ingest goes through `PROMPT_VERSION`**, not a second versioning mechanism.
+  `sidecar_service.is_outdated` decides; `_PICTURES_ONLY_CHANGES` lists version steps that changed
+  nothing but picture handling (0.2 → 0.3), across which a sidecar without a picture is current.
+  Add a pair there only if nothing else in the prompt changed — otherwise documents silently keep
+  an outdated extraction. `outdated_ids()` orders documents with pictures first, then newest.
+
 ### Ollama watchdog
 
 `services/ollama_watchdog.py`: sends Wake-on-LAN to the Ollama server MAC on first use, shuts it down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity. `touch()` resets the idle timer.

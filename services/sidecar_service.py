@@ -1,8 +1,42 @@
 # services/sidecar_service.py
 import json
 import os
+import re
 
 from models.extraction import JsonSidecar
+
+# The inline picture marker of prompt versions < 0.3, in the three spellings the
+# model actually produced on the live archive. Used only to decide what a
+# re-ingest must redo; nothing reads pictures from page text any more.
+_OLD_PICTURE_MARKER_RE = re.compile(
+    r"\[\s*(image description|bildbeschreibung|abbildung)\s*:", re.IGNORECASE
+)
+
+# (sidecar version, current version) pairs whose prompts differ ONLY in how
+# pictures are recorded. A sidecar of such an old version in which the model
+# found no picture would come out of a re-ingest unchanged — so it is current,
+# and only the ones that mention a picture are re-ingested (9 of 523 documents
+# on the live archive, instead of all of them: hours of GPU time saved).
+# Add a pair only when nothing else in the prompt changed.
+_PICTURES_ONLY_CHANGES: set[tuple[str, str]] = {("0.2", "0.3")}
+
+
+def _mentions_pictures(sidecar: dict) -> bool:
+    for page in sidecar.get("pages") or []:
+        if page.get("images") or _OLD_PICTURE_MARKER_RE.search(page.get("page_text") or ""):
+            return True
+    return False
+
+
+def is_outdated(sidecar: dict, current_version: str) -> bool:
+    """Whether a re-ingest with the current prompt would change this sidecar."""
+    version = str(sidecar.get("prompt_version", ""))
+    if version == str(current_version):
+        return False
+    if (version, str(current_version)) in _PICTURES_ONLY_CHANGES:
+        return _mentions_pictures(sidecar)
+    return True
+
 
 # Paperless takes the id filter as one comma-joined query param; a whole archive's
 # worth of ids in a single URL gets rejected by the proxy long before Paperless
@@ -93,8 +127,14 @@ class SidecarService:
 
         Used by the dashboard to show how far ingestion is behind the code's
         extraction prompt and to drive a re-ingest of stale documents.
+
+        "Differs" in the sense of ``is_outdated``: a version step that only
+        changed picture handling leaves picture-less documents alone.
+
+        Ordered by what a capped re-ingest should do first: documents whose old
+        extraction mentions pictures, then the newest documents.
         """
-        out: list[int] = []
+        out: list[tuple[int, int]] = []
         for filename in os.listdir(self.extr_path):
             if filename == "index.json" or not filename.endswith(".json"):
                 continue
@@ -106,9 +146,9 @@ class SidecarService:
             pid = data.get("paperless_id")
             if pid is None:
                 continue
-            if str(data.get("prompt_version", "")) != str(current_version):
-                out.append(int(pid))
-        return out
+            if is_outdated(data, current_version):
+                out.append((0 if _mentions_pictures(data) else 1, -int(pid)))
+        return [-neg_pid for _prio, neg_pid in sorted(out)]
 
     def create_index_file(self) -> None:
         """Create or update index.json with all actions from all sidecars."""

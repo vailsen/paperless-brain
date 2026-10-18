@@ -87,7 +87,7 @@ class VisionClient(ABC):
         _rules_map = get_extraction_rules()
         rules = _rules_map.get(document_type, _rules_map["_default"])
         prompt = rules["prompt"] + (
-            f"\n\nWrite page_summary and image descriptions in {_archive_language_name()}. "
+            f"\n\nWrite page_summary and the image descriptions in {_archive_language_name()}. "
             "page_text is extracted verbatim and keeps the document's original language."
         )
         if prev_table and prev_table.get("rows"):
@@ -199,6 +199,7 @@ class VisionClient(ABC):
             page_summary=parsed.get("page_summary", ""),
             cross_references=parsed.get("cross_references", []),
             document_type=doc_type,
+            images=[i for i in (parsed.get("images") or []) if isinstance(i, dict)],
         )
 
 
