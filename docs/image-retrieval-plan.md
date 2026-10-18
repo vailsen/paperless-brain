@@ -327,3 +327,30 @@ PR with clearly separated commits.
 2. Re-ingest all 523 documents, or only new ones plus a chosen few (magazine, the 9 with
    images)? The time estimate from calibration should drive this.
 3. Should images appear in chat-to-PDF exports, or be left out?
+
+## 11. Status and calibration result (2026-10-18)
+
+Phases A–C are built; phase D is prepared (re-ingest ordering) and switched on by
+`PROMPT_VERSION = "0.3"`.
+
+Calibration on the owner's ingest model `qwen3.8:27b-mtp-q4_K_M` (OpenAI-compatible
+endpoint on Ollama), six real pages, new prompt vs old prompt:
+
+| Page | Kind | Result |
+|---|---|---|
+| #361 p1 | X-ray, born-digital | model box ≈ PDF box → stored as exact `"pdf"` box |
+| #577 p3 | two bar charts, scan | two tight `"model"` boxes |
+| #126 p25 | map, born-digital, stored as **two image strips** | strips merged, matched → `"pdf"` |
+| #700 p1 | invoice with a 0.08 % product thumbnail + 11 % letterhead logo | thumbnail boxed correctly; logo ignored |
+| #647 p2 | photo collage, scan | one `"model"` box |
+| #668 p1 | letter with seal and QR code | `images: []` — exclusion rule works |
+
+- Boxes come on the 0–1000 grid, not in pixels.
+- The old inline marker no longer appears in `page_text`.
+- Time per page: 13.6 s new vs 15.4 s old (average of six) — no extra cost.
+  A full re-ingest of 523 documents / 1813 pages ≈ 7 h of GPU time plus one summary
+  call per document; do it in batches with the dashboard's re-ingest limit.
+
+Decisions taken from the data: the PDF never decides what is a picture (the logo
+case); `MIN_AREA` is 0.05 % of the page (the thumbnail case); touching PDF image
+objects are merged (the map case). Chat-to-PDF embeds the pictures (§10.3).

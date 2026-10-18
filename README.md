@@ -36,6 +36,10 @@ talk to.
 - **Vision-LLM ingestion** — every page rendered and read by a vision model:
   summary, tables, actions and deadlines, per document type. Fully local on
   Ollama, or any cloud vision model.
+- **Pictures in chat** — "show me the lasagna recipe" answers with the photo,
+  cropped from the page; any page can be shown inline. Ingestion finds every
+  photo, chart, map or X-ray on a page, describes it and records where it is —
+  exactly from the PDF where it can, from the vision model on scans.
 - **Deadlines & actions** — extracted obligations ("cancel by …", "pay until …")
   on the dashboard.
 - **Brain memory** — the assistant remembers facts about you as plain Markdown,
