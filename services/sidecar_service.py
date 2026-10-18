@@ -1,8 +1,23 @@
 # services/sidecar_service.py
 import json
 import os
+import re
 
 from models.extraction import JsonSidecar
+
+# The inline picture marker of prompt versions < 0.3, in the three spellings the
+# model actually produced on the live archive. Used only to *order* a re-ingest;
+# nothing reads pictures from page text any more.
+_OLD_PICTURE_MARKER_RE = re.compile(
+    r"\[\s*(image description|bildbeschreibung|abbildung)\s*:", re.IGNORECASE
+)
+
+
+def _mentions_pictures(sidecar: dict) -> bool:
+    for page in sidecar.get("pages") or []:
+        if page.get("images") or _OLD_PICTURE_MARKER_RE.search(page.get("page_text") or ""):
+            return True
+    return False
 
 # Paperless takes the id filter as one comma-joined query param; a whole archive's
 # worth of ids in a single URL gets rejected by the proxy long before Paperless
@@ -93,8 +108,12 @@ class SidecarService:
 
         Used by the dashboard to show how far ingestion is behind the code's
         extraction prompt and to drive a re-ingest of stale documents.
+
+        Ordered by what a capped re-ingest should do first: documents whose old
+        extraction mentions pictures (they gain the most from the structured
+        ``images`` field), then the newest documents.
         """
-        out: list[int] = []
+        out: list[tuple[int, int]] = []
         for filename in os.listdir(self.extr_path):
             if filename == "index.json" or not filename.endswith(".json"):
                 continue
@@ -107,8 +126,8 @@ class SidecarService:
             if pid is None:
                 continue
             if str(data.get("prompt_version", "")) != str(current_version):
-                out.append(int(pid))
-        return out
+                out.append((0 if _mentions_pictures(data) else 1, -int(pid)))
+        return [-neg_pid for _prio, neg_pid in sorted(out)]
 
     def create_index_file(self) -> None:
         """Create or update index.json with all actions from all sidecars."""

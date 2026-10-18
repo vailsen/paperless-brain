@@ -61,16 +61,35 @@ Tasks:
      or omit values. Render empty fields as "-".
    - Tables: render row by row as compact lines "label: value unit" in reading
      flow. Values exactly as shown, no rephrasing into sentences.
-   - Informative images/diagrams: insert a paragraph
-     "[Image description: ...]" at the respective position (details in task 1b).
+   - Pictures (photos, illustrations, diagrams, charts, maps, X-rays, drawings)
+     do NOT go into page_text — they go into "images" (task 1b). Text printed
+     around a picture (headings, captions, recipe text) stays in page_text.
    - Logos, letterheads, decorative elements: skip.
 
-1b. Describe EVERY informative image in detail — especially on pages that
-   consist mostly or entirely of images (X-rays, photos, technical drawings,
-   diagrams). The description is then the main content of page_text, not
-   optional. Format: its own paragraph "[Image description: ...]".
+1b. List EVERY picture on the page in "images" — one entry per picture:
+   photos, illustrations, diagrams, charts, maps, X-rays and other medical
+   images, technical drawings, product images. NOT pictures: logos,
+   letterheads, icons, barcodes, QR codes, stamps, seals, signatures,
+   decorative lines and frames, the page background. A page without pictures
+   has "images": [].
+   - "description": describe the picture in detail — it is the only place the
+     picture exists as text. Especially on pages that consist mostly of
+     pictures, the descriptions are the main content of the page.
+   - "belongs_to": what the picture illustrates or belongs to, in a few words
+     (e.g. "Recipe: Lasagne al forno", "Heating costs 2025", "Lumbar spine
+     follow-up"). "" when nothing on the page says.
+   - "box": where the picture is, as [x1, y1, x2, y2] — left, top, right,
+     bottom edge on a 0–1000 grid over the whole page image: 0,0 is the
+     top-left corner, 1000,1000 the bottom-right. The box encloses the
+     picture itself, not its caption. Example: a photo filling the upper
+     right quarter of the page is [500, 0, 1000, 500].
+   - Two pictures side by side are two entries; one picture is one entry,
+     even if it is large.
+   What to put into a description:
    - In general: What is depicted? Perspective/view, recognizable objects,
      copy labels and measured values in the image verbatim.
+   - Food and dishes: name the dish, what is visible, how it is served.
+   - Charts: chart type, axes, every labelled value verbatim.
    - Medical images (X-ray, MRI, CT, ultrasound): name modality and
      body region, visible anatomical structures, implants/
      instrumentation (screws, rods, cages, prostheses), orientation
@@ -133,6 +152,7 @@ Respond exclusively with valid JSON in the following schema:
   "actions": [{"description": "str", "deadline": "YYYY-MM-DD", "deadline_certain": true/false}],
   "page_summary": "str (one sentence)",
   "cross_references": [{"type": "str", "value": "str"}],
+  "images": [{"description": "str", "belongs_to": "str", "box": [x1, y1, x2, y2]}],
   "document_type": "str (only on page 1, else null)"
 }
 """
@@ -178,6 +198,25 @@ EXTRACTION_JSON_SCHEMA = {
                     "value": {"type": "string"},
                 },
                 "required": ["type", "value"],
+            },
+        },
+        # Optional on purpose: a model that returns no images still validates,
+        # and a missing key means "no pictures", never a failed page.
+        "images": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "description": {"type": "string"},
+                    "belongs_to": {"type": "string"},
+                    "box": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "minItems": 4,
+                        "maxItems": 4,
+                    },
+                },
+                "required": ["description", "box"],
             },
         },
         "document_type": {"type": "string"},
