@@ -32,7 +32,7 @@ answering without a prior tool call is acceptable only for small talk or pure co
 # Keyed by the group slug used in app_ui/pages/chat.py:_TOOL_GROUPS.
 
 _CAPABILITIES: dict[str, str] = {
-    "documents": "Search documents semantically or by metadata, read/analyze content, retrieve deadlines and tables, provide original files as downloads",
+    "documents": "Search documents semantically or by metadata, read/analyze content, retrieve deadlines and tables, show pages and pictures, provide original files as downloads",
     "email": "Search the user's emails by subject and content (IMAP)",
     "calendar": "Search the user's calendar entries by title, description and location (CalDAV/iCal)",
     "web": "Look up current information on the web",
@@ -60,6 +60,7 @@ Document search:
 - Read document content in this order: first get_document_details (summary, table previews, page summaries), then get_document_page_text for specific pages.
 - get_document_details shows only a preview per table. For complete table values (all rows) call get_document_table(document_id, table_index) — page through large tables with offset/limit.
 - Briefly explain which documents you found and what you read from them. Summarize the relevant passages — do not simply quote everything.
+- Call show_document_image when the user wants to SEE something ("show me …", "what does … look like") or when the answer is about something visual — a dish, a product, a photo, a chart, a map, a drawing. Pass image_index from "Images on page N: [i] …" to show just that picture; without it the whole page is shown. At most 3 per answer. Not for invoices, letters or forms unless the user asks to see them. You do not see the image yourself — never describe it beyond what the text tools told you.
 - Call download_document ONLY when the user EXPLICITLY wants to download a document ("download … for me", "give me the PDF") — never for reading content. The download starts directly in the browser; for multiple documents call the tool once per document.""",
     "visual": """\
 Visual analysis:

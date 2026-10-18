@@ -60,6 +60,7 @@ forbidden_tools:
   - generate_chat_pdf
   - create_kanban_task
   - download_document
+  - show_document_image         # display-only: puts a picture in front of a user who is not there
   - view_document_page          # vision per page; page text says the same thing
 
 agents:

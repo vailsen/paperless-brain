@@ -16,6 +16,7 @@ import app_ui.pages.login  # noqa: F401
 import app_ui.pages.settings  # noqa: F401
 import app_ui.memo_routes  # noqa: F401  — registers POST /api/memo/transcribe
 import app_ui.vault_routes  # noqa: F401  — registers GET /api/vault/file
+import app_ui.doc_image_routes  # noqa: F401  — registers GET /api/doc-image/{doc}/{page}
 import werkbank.v2.ui.page  # noqa: F401  — registers /werkbank
 from app_ui.tag_style import refresh_tag_colors
 from config.settings import settings

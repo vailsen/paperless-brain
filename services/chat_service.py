@@ -194,6 +194,16 @@ class DownloadRequestEvent:
 
 
 @dataclass
+class ImageDisplayEvent:
+    """A page, or one picture on it, to show the user inline in the answer."""
+
+    doc_id: int
+    page: int
+    index: int | None  # None = the whole page
+    caption: str
+
+
+@dataclass
 class VaultNotesRetrievedEvent:
     notes: list[VaultNoteResult]
 
@@ -224,6 +234,7 @@ ChatEvent = (
     | PdfSaveRequestEvent
     | KanbanTaskRequestEvent
     | DownloadRequestEvent
+    | ImageDisplayEvent
 )
 
 # ── Tool definitions (canonical Claude format) ────────────────────────────────
@@ -378,7 +389,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "view_document_page",
         "description": (
-            "Has the vision model analyze a document page directly as an image. Use for: visual elements (logos, stamps, signatures, diagrams, tables as graphics), handwriting, poorly readable OCR, layout questions, colors/symbols/graphics. Also useful when the user explicitly asks about the visual appearance. Slower than the text tools — check get_document_page_text first for pure text content. question MUST contain the concrete visual question (e.g. 'Describe the company logo: colors, symbol, lettering.')."
+            "Has the vision model analyze a document page directly as an image and returns its answer to YOU as text — the user sees nothing. To SHOW a page or picture to the user use show_document_image instead. Use for: visual elements (logos, stamps, signatures, diagrams, tables as graphics), handwriting, poorly readable OCR, layout questions, colors/symbols/graphics. Also useful when the user explicitly asks about the visual appearance. Slower than the text tools — check get_document_page_text first for pure text content. question MUST contain the concrete visual question (e.g. 'Describe the company logo: colors, symbol, lettering.')."
         ),
         "input_schema": {
             "type": "object",
@@ -394,6 +405,33 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
             },
             "required": ["document_id", "page_number", "question"],
+        },
+    },
+    {
+        "name": "show_document_image",
+        "description": (
+            "Shows the user a document page, or one picture on it, as an image directly in your answer. "
+            "Use it when the user wants to SEE something (\"show me the lasagna recipe\", \"what does the X-ray look like\", \"show me page 3\") "
+            "or when the answer is about something visual: a dish, a product, a photo, a chart, a map, a drawing. "
+            "Without image_index the whole page is shown. With image_index only that picture is shown — the indices are listed as "
+            "\"Images on page N: [0] …\" in get_document_details and get_document_page_text. "
+            "Display only: YOU do not get to see the image (for that, use view_document_page). At most 3 per answer. "
+            "Not for invoices, letters or forms unless the user asks to see them."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "document_id": {"type": "integer"},
+                "page_number": {
+                    "type": "integer",
+                    "description": "Page number (1-based)",
+                },
+                "image_index": {
+                    "type": "integer",
+                    "description": "Index of one picture on that page, from \"Images on page N: [i] …\". Omit to show the whole page.",
+                },
+            },
+            "required": ["document_id", "page_number"],
         },
     },
     {
@@ -952,6 +990,7 @@ def _tool_label(name: str) -> str:
         "get_document_table": _("📊 Loading table..."),
         "get_document_page_text": _("📄 Reading page text..."),
         "view_document_page": _("👁 Visual analysis..."),
+        "show_document_image": _("🖼 Showing image..."),
         "web_search": _("🌐 Web search..."),
         "web_fetch_page": _("🌐 Loading web page..."),
         "calculate": _("🧮 Calculating..."),
@@ -1025,6 +1064,9 @@ async def _execute_tool_dispatch(
             "started — tell the user to click the button to download the file."
         )
         return text, [], [DownloadRequestEvent(params=inputs)]
+    if name == "show_document_image":
+        text, event = await _tool_show_document_image(inputs)
+        return text, [], ([event] if event else [])
     if name == "search_memory":
         text, facts, vault_notes = await _tool_search_memory(inputs)
         extras = []
@@ -1326,12 +1368,39 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
             summary = sc.get("full_summary_summarized") or sc.get("full_summary")
             if summary:
                 lines.append(f"   {summary[:250]}")
+            pictures_line = _search_hit_pictures(sc)
+            if pictures_line:
+                lines.append(f"   {pictures_line}")
         if r.matched_chunks:
             snippet = r.matched_chunks[0][:150].replace("\n", " ")
             lines.append(f"   …{snippet}…")
         lines.append("")
 
     return "\n".join(lines), results
+
+
+_SEARCH_HIT_MAX_PICTURES = 4
+
+
+def _search_hit_pictures(sidecar: dict) -> str:
+    """'📷 3 picture(s): p.12 [0] Lasagne al forno; …' for one search hit.
+
+    Page and index are what show_document_image takes, so a "show me …"
+    request can go from search straight to the picture.
+    """
+    from services.page_images import page_images
+
+    entries = []
+    for p in sidecar.get("pages") or []:
+        for n, img in enumerate(page_images(p)):
+            label = img.get("belongs_to") or img["description"]
+            entries.append(f"p.{p.get('page_number', '?')} [{n}] {_clip(label, 60)}")
+    if not entries:
+        return ""
+    shown = "; ".join(entries[:_SEARCH_HIT_MAX_PICTURES])
+    extra = len(entries) - _SEARCH_HIT_MAX_PICTURES
+    more = f"; … {extra} more" if extra > 0 else ""
+    return f"📷 {len(entries)} picture(s): {shown}{more}"
 
 
 async def _tool_find_similar_documents(inputs: dict) -> tuple[str, list[DocumentResult]]:
@@ -1413,6 +1482,9 @@ async def _tool_find_similar_documents(inputs: dict) -> tuple[str, list[Document
             summary = sc.get("full_summary_summarized") or sc.get("full_summary")
             if summary:
                 lines.append(f"   {summary[:250]}")
+            pictures_line = _search_hit_pictures(sc)
+            if pictures_line:
+                lines.append(f"   {pictures_line}")
         if r.matched_chunks:
             snippet = r.matched_chunks[0][:150].replace("\n", " ")
             lines.append(f"   …{snippet}…")
@@ -1751,13 +1823,35 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
 
         pages = sc.get("pages") or []
         if pages:
-            lines.append("Seitenzusammenfassungen:")
+            from services.page_images import page_images
+
+            n_pictures = sum(len(page_images(p)) for p in pages)
+            lines.append("Page summaries:")
             for p in pages:
+                page_n = p.get("page_number", p.get("page", "?"))
                 ps = p.get("page_summary", "").strip()
                 if ps:
-                    lines.append(f"  page {p.get('page', '?')}: {ps}")
+                    lines.append(f"  page {page_n}: {ps}")
+                pictures = page_images(p)
+                if pictures:
+                    listing = "; ".join(
+                        f"[{n}] {_clip(img['description'], 110)}"
+                        + (f" ({_clip(img['belongs_to'], 60)})" if img.get("belongs_to") else "")
+                        for n, img in enumerate(pictures)
+                    )
+                    lines.append(f"    Images on page {page_n}: {listing}")
+            if n_pictures:
+                lines.append(
+                    f"\n{n_pictures} picture(s) — show one to the user with "
+                    f"show_document_image(document_id={doc_id}, page_number=…, image_index=…)."
+                )
 
     return "\n".join(lines), []
+
+
+def _clip(text: str, limit: int) -> str:
+    text = " ".join(str(text or "").split())
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
 async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResult]]:
@@ -1818,10 +1912,14 @@ async def _tool_get_document_page_text(
     if sc:
         for p in sc.get("pages") or []:
             if p.get("page_number") == page_number:
+                from services.page_images import describe_for_model, page_images
+
                 text = p.get("page_text", "").strip()
-                if text:
+                pictures = describe_for_model(page_images(p), page_number)
+                if text or pictures:
+                    body = "\n\n".join(part for part in (text, pictures) if part)
                     return (
-                        f"Page {page_number} of document #{doc_id}:\n\n{text}",
+                        f"Page {page_number} of document #{doc_id}:\n\n{body}",
                         [],
                     )
     return (
@@ -1872,6 +1970,79 @@ async def _tool_view_document_page(inputs: dict) -> tuple[str, list[DocumentResu
         )
     except Exception as e:
         return f"Vision analysis failed: {e}", []
+
+
+async def _tool_show_document_image(
+    inputs: dict,
+) -> tuple[str, "ImageDisplayEvent | None"]:
+    """Validate a show request and turn it into an ImageDisplayEvent.
+
+    Nothing is rendered here and no model is called: the event puts an image
+    URL into the answer and the browser fetches it from /api/doc-image, which
+    checks access again on its own. A request that cannot be shown answers the
+    model with what *can* be shown, so it can correct itself in one step.
+    """
+    from services.page_images import page_images
+
+    try:
+        doc_id = int(inputs.get("document_id", 0))
+        page_number = int(inputs.get("page_number", 1))
+    except (TypeError, ValueError):
+        return "document_id and page_number must be numbers.", None
+    raw_index = inputs.get("image_index")
+    try:
+        index = int(raw_index) if raw_index not in (None, "") else None
+    except (TypeError, ValueError):
+        index = None
+
+    docs = await _user_paperless().list_documents(ids=[doc_id])
+    if not docs:
+        return f"Document #{doc_id} not found or no access.", None
+    title = (docs[0].title or "").strip()
+
+    sc = sidecar_service.load_sidecar(doc_id) or {}
+    pages = sc.get("pages") or []
+    if pages and not any(p.get("page_number") == page_number for p in pages):
+        return (
+            f"Document #{doc_id} has no page {page_number} "
+            f"(pages 1–{len(pages)}). Nothing was shown.",
+            None,
+        )
+    images = next(
+        (page_images(p) for p in pages if p.get("page_number") == page_number), []
+    )
+
+    if index is not None:
+        if not images:
+            return (
+                f"Page {page_number} of document #{doc_id} has no indexed pictures. "
+                "Call show_document_image again without image_index to show the whole page.",
+                None,
+            )
+        if not 0 <= index < len(images):
+            listing = "; ".join(f"[{n}] {img['description'][:80]}" for n, img in enumerate(images))
+            return (
+                f"Page {page_number} of document #{doc_id} has no picture [{index}]. "
+                f"Available: {listing}. Nothing was shown.",
+                None,
+            )
+        picture = images[index]
+        caption = picture.get("belongs_to") or picture["description"]
+        what = f"picture [{index}] on page {page_number} of document #{doc_id}"
+        if not picture.get("bbox"):
+            what += " (its position is unknown, so the whole page is shown)"
+    else:
+        caption = f"{title} – {page_number}" if title else str(page_number)
+        what = f"page {page_number} of document #{doc_id}"
+
+    caption = " ".join(caption.split())
+    if len(caption) > 90:
+        caption = caption[:87].rstrip() + "…"
+    return (
+        f"Shown to the user: {what}. The image appears below your answer — "
+        "do not describe it as if you could see it, and do not add a link to it.",
+        ImageDisplayEvent(doc_id=doc_id, page=page_number, index=index, caption=caption),
+    )
 
 
 # e5 cosine distance, measured on live data: on-topic hits ≈ 0.10–0.13,
