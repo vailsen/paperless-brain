@@ -187,16 +187,13 @@ def voice_memo_setting(username: str = "", token: str = "") -> None:
 
     _memo_creds = _lc_memo(username, token)
     _cur_memo_model = _memo_creds.get("memo_model", "")
-    _memo_opts = {
-        m["name"]: m["name"]
-        for m in _get_models_memo(username, token)
-        if m.get("enabled", True)
-    }
+    from app_ui.model_picker import model_select
+
     _memo_sel = (
-        ui.select(
-            _memo_opts,
+        model_select(
+            _get_models_memo(username, token),
+            _cur_memo_model or None,
             label=_("Model for memo cleanup"),
-            value=_cur_memo_model if _cur_memo_model in _memo_opts else None,
         )
         .props("outlined dark dense clearable")
         .classes("w-full mt-3")
@@ -383,363 +380,11 @@ async def settings_page() -> None:
         with _card("voice"):
             voice_memo_setting(username, token)
 
-        # ── KI-Modelle (dynamic registry) ─────────────────────────────────────
+        # ── KI-Modelle: services and their models ────────────────────────────
         with _card("ai"):
-            from services.model_registry import get_models, save_models, new_model
+            from app_ui.ai_models_settings import ai_models_setting
 
-            _BACKEND_LABEL = {
-                "anthropic":         _("Anthropic-compatible"),
-                "openai_compatible": _("OpenAI-compatible"),
-            }
-            _BACKEND_COLOR = {
-                "anthropic":         "text-orange-400 bg-orange-950",
-                "openai_compatible": "text-blue-400 bg-blue-950",
-            }
-
-            with ui.row().classes("w-full items-center justify-between mb-1"):
-                with ui.row().classes("items-center gap-3"):
-                    ui.icon("smart_toy", size="sm").classes("text-gray-400")
-                    with ui.column().classes("gap-0"):
-                        ui.label(_("AI models")).classes("text-base font-semibold text-gray-100")
-                        ui.label(_("Providers and models — order = dropdown order")).classes("text-xs text-gray-500")
-
-                def _open_add_dialog(edit_model: dict | None = None):
-                    is_edit = edit_model is not None
-                    models  = get_models(username, token)
-
-                    with ui.dialog().props("persistent") as dlg:
-                        with ui.card().classes("bg-gray-900").style("width:min(95vw,480px)"):
-                            ui.label(_("Edit model") if is_edit else _("Add model")).classes(
-                                "text-base font-semibold text-gray-100 mb-3"
-                            )
-
-                            f_name = _field(_("Display name"), _("e.g. Qwen3 local"))
-                            f_name.set_value(edit_model.get("name", "") if is_edit else "")
-
-                            f_backend = ui.select(
-                                {"openai_compatible": _("OpenAI-compatible"), "anthropic": _("Anthropic-compatible")},
-                                label=_("Backend"),
-                                value=edit_model.get("backend", "openai_compatible") if is_edit else "openai_compatible",
-                            ).props("outlined dark dense").classes("w-full mt-2")
-
-                            f_model = _field(_("Model ID"), _("e.g. qwen3:32b or claude-sonnet-4-6"))
-                            f_model.set_value(edit_model.get("model", "") if is_edit else "")
-
-                            f_base_url = _field(_("Base URL"), "http://192.168.1.x:11434/v1")
-                            f_base_url.set_value(edit_model.get("base_url", "") if is_edit else "")
-
-                            _BASE_URL_PLACEHOLDERS = {
-                                "anthropic":         _("https://api.anthropic.com (empty = default)"),
-                                "openai_compatible": "http://192.168.1.x:11434/v1",
-                            }
-
-                            def _update_base_url_placeholder():
-                                ph = _BASE_URL_PLACEHOLDERS.get(f_backend.value, "")
-                                f_base_url.props(f'placeholder="{ph}"')
-
-                            f_api_key = _field(_("API key"), _("sk-… (leave empty if not needed)"), password=True)
-                            f_api_key.set_value(edit_model.get("api_key", "") if is_edit else "")
-
-                            f_lane = ui.select(
-                                {"api": _("API (several in parallel)"), "local": _("Local (one request at a time)")},
-                                label=_("Concurrency lane"),
-                                value=edit_model.get("lane", "api") if is_edit else "api",
-                            ).props("outlined dark dense").classes("w-full mt-2")
-
-                            f_temperature = (
-                                ui.number(
-                                    label=_("Temperature (0.0 precise – 1.5 creative)"),
-                                    value=float(edit_model.get("temperature", 0.3)) if is_edit else 0.3,
-                                    min=0.0, max=2.0, step=0.05, format="%.2f",
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full mt-2")
-                            )
-
-                            f_max_output = (
-                                ui.number(
-                                    label=_("Max. output tokens (thinking + answer, 0 = default 16384)"),
-                                    value=int(edit_model.get("max_output_tokens", 0)) if is_edit else 0,
-                                    min=0, step=1024, format="%.0f",
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full mt-2")
-                            )
-
-                            _think_val = edit_model.get("think") if is_edit else None
-                            _think_init = "true" if _think_val is True else ("false" if _think_val is False else "auto")
-                            f_think = ui.select(
-                                {"auto": _("Auto (model default)"), "true": _("Thinking ON"), "false": _("Thinking OFF")},
-                                label=_("Thinking mode"),
-                                value=_think_init,
-                            ).props("outlined dark dense").classes("w-full mt-2")
-                            ui.label(
-                                _(
-                                    "\"Auto\" leaves the decision to the model — Claude then never "
-                                    "thinks, and other models only sometimes. Set it explicitly to "
-                                    "decide yourself."
-                                )
-                            ).classes("text-xs text-gray-500 mt-1")
-                            f_effort = (
-                                ui.select(
-                                    {
-                                        "": _("Model default"),
-                                        "low": _("Low"),
-                                        "medium": _("Medium"),
-                                        "high": _("High"),
-                                        "xhigh": _("Very high"),
-                                        "max": _("Maximum"),
-                                    },
-                                    label=_("Thinking effort (Anthropic, no base URL)"),
-                                    value=str(edit_model.get("effort", "")) if is_edit else "",
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full mt-2")
-                            )
-                            ui.label(
-                                _(
-                                    "Replaces the token budget on Anthropic's own API, where "
-                                    "budgets were removed. Turning thinking down beats turning it "
-                                    "off — without it the model sometimes writes a tool call as "
-                                    "plain text and the tool never runs."
-                                )
-                            ).classes("text-xs text-gray-500 mt-1")
-                            f_thinking_budget = (
-                                ui.number(
-                                    label=_("Thinking budget in tokens (0 = 4096)"),
-                                    value=int(edit_model.get("thinking_budget", 0)) if is_edit else 0,
-                                    min=0, step=1024, format="%.0f",
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full mt-2")
-                            )
-                            ui.label(
-                                _(
-                                    "Only sent to Anthropic-compatible endpoints (those with a base "
-                                    "URL). Anthropic's own API rejects it. Either way it sets how "
-                                    "much room an answer gets."
-                                )
-                            ).classes("text-xs text-gray-500 mt-1")
-                            ui.label(
-                                _("⚠ Qwen3 thinking-loop risk at temp. < 0.5 — recommended: ≥ 0.6")
-                            ).classes("text-xs text-yellow-500 mt-1")
-
-                            # ── Tool use ─────────────────────────────────────
-                            # "OpenAI-compatible" says nothing about whether a
-                            # model actually calls tools. A model that answers a
-                            # question about the user's own mail from its
-                            # weights invents an answer that reads exactly like
-                            # a real one, so this is worth its own control.
-                            f_supports_tools = ui.switch(
-                                _("Model can use tools"),
-                                value=bool(edit_model.get("supports_tools", True)) if is_edit else True,
-                            ).props("dark").classes("mt-3")
-                            ui.label(
-                                _(
-                                    "Off: this model is never offered tools. Use for models that "
-                                    "cannot call them reliably — better a model that says it does "
-                                    "not know than one that invents an answer."
-                                )
-                            ).classes("text-xs text-gray-500 mt-1")
-
-                            f_force_tool = ui.switch(
-                                _("Require a tool for personal questions"),
-                                value=bool(edit_model.get("force_tool_first_turn", False)) if is_edit else False,
-                            ).props("dark").classes("mt-2")
-                            ui.label(
-                                _(
-                                    "For questions about your own documents, emails or purchases, "
-                                    "the first request already demands a tool call. Switch on for "
-                                    "models that answer such questions from memory."
-                                )
-                            ).classes("text-xs text-gray-500 mt-1")
-
-                            def _update_thinking_fields():
-                                """Grey out whichever thinking control cannot be sent.
-
-                                Both are Anthropic-only, and which of the two applies
-                                is decided by the base URL: first party takes `effort`
-                                and rejects a budget, an Anthropic-*compatible* endpoint
-                                takes the budget and knows nothing about effort. The
-                                label said so and the field stayed editable anyway,
-                                which is how a setting gets picked that does nothing.
-                                """
-                                anthropic = f_backend.value == "anthropic"
-                                first_party = not (f_base_url.value or "").strip()
-                                f_effort.set_enabled(anthropic and first_party)
-                                f_thinking_budget.set_enabled(anthropic and not first_party)
-
-                            _update_base_url_placeholder()
-                            _update_thinking_fields()
-                            f_backend.on_value_change(
-                                lambda _: (_update_base_url_placeholder(),
-                                           _update_thinking_fields())
-                            )
-                            # `on_value_change` on a text input fires per keystroke,
-                            # which is what makes clearing the base URL re-enable the
-                            # right field immediately rather than on reopen.
-                            f_base_url.on_value_change(lambda _: _update_thinking_fields())
-
-                            def _save():
-                                name = f_name.value.strip()
-                                if not name:
-                                    ui.notify(_("Name must not be empty."), type="warning")
-                                    return
-                                cfg = {
-                                    "id":          edit_model["id"] if is_edit else new_model("", "", "")["id"],
-                                    "name":        name,
-                                    "backend":     f_backend.value,
-                                    "model":       f_model.value.strip(),
-                                    "base_url":    f_base_url.value.strip(),
-                                    "api_key":     f_api_key.value.strip(),
-                                    "lane":        f_lane.value,
-                                    "temperature": float(f_temperature.value or 0.3),
-                                    "max_output_tokens": int(f_max_output.value or 0),
-                                    "think": True if f_think.value == "true" else (False if f_think.value == "false" else None),
-                                    "thinking_budget": int(f_thinking_budget.value or 0),
-                                    "effort": f_effort.value or "",
-                                    "supports_tools":        bool(f_supports_tools.value),
-                                    "force_tool_first_turn": bool(f_force_tool.value),
-                                    "enabled":          True,
-                                }
-                                fresh = get_models(username, token)
-                                if is_edit:
-                                    idx = next((i for i, m in enumerate(fresh) if m["id"] == edit_model["id"]), None)
-                                    if idx is not None:
-                                        fresh[idx] = cfg
-                                else:
-                                    fresh.append(cfg)
-                                save_models(username, token, fresh)
-                                dlg.close()
-                                model_list.refresh()
-                                ui.notify(_("Model saved."), type="positive")
-
-                            with ui.row().classes("w-full justify-end gap-2 mt-4"):
-                                ui.button(_("Cancel"), on_click=dlg.close).props("flat dark").classes("text-gray-400")
-                                ui.button(_("Save"), icon="save", on_click=_save).props(
-                                    "unelevated dark"
-                                ).classes("bg-purple-700 text-white")
-
-                    dlg.open()
-
-                ui.button(_("Add"), icon="add", on_click=lambda: _open_add_dialog()).props(
-                    "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
-
-            ui.separator().classes("mb-3")
-
-            @ui.refreshable
-            def model_list():
-                models = get_models(username, token)
-                if not models:
-                    ui.label(_("No models configured yet.")).classes("text-xs text-gray-500 py-2")
-                    return
-
-                ui.add_head_html("""<style>
-                @media(max-width:767px){
-                  .model-item{flex-wrap:wrap!important;row-gap:2px!important;}
-                  .model-item-top{width:100%;order:1;}
-                  .model-item-bottom{width:100%;order:2;padding-left:4px;}
-                }
-                @media(min-width:768px){
-                  .model-item-top{display:contents;}
-                  .model-item-bottom{display:contents;}
-                }
-                /* A flex item's default min-width is its content, so a long
-                   model id widens the row until the card overflows the phone.
-                   The ellipsis on the labels only takes effect once every
-                   ancestor is allowed to shrink below that. */
-                .model-item, .model-item-top, .model-item-bottom { min-width:0; max-width:100%; }
-                </style>""")
-                with ui.column().classes("w-full gap-1"):
-                    for i, m in enumerate(models):
-                        badge_cls = _BACKEND_COLOR.get(m.get("backend", ""), "text-gray-400 bg-gray-800")
-                        with ui.row().classes(
-                            "w-full items-center gap-2 px-2 py-2 rounded-lg bg-gray-900 hover:bg-gray-850 model-item"
-                        ):
-                            # ── Row 1 on mobile: sort + badge + lane ──────────
-                            with ui.element("div").classes("flex items-center gap-2 model-item-top"):
-                                # Sort arrows
-                                with ui.column().classes("gap-0"):
-                                    def _move(idx=i, direction=-1):
-                                        ms = get_models(username, token)
-                                        j = idx + direction
-                                        if 0 <= j < len(ms):
-                                            ms[idx], ms[j] = ms[j], ms[idx]
-                                            save_models(username, token, ms)
-                                            model_list.refresh()
-                                    ui.button(icon="keyboard_arrow_up",
-                                              on_click=lambda _, idx=i: _move(idx, -1)).props(
-                                        "flat dark dense"
-                                    ).classes("text-gray-600 p-0").set_enabled(i > 0)
-                                    ui.button(icon="keyboard_arrow_down",
-                                              on_click=lambda _, idx=i: _move(idx, 1)).props(
-                                        "flat dark dense"
-                                    ).classes("text-gray-600 p-0").set_enabled(i < len(models) - 1)
-
-                                # Backend badge
-                                ui.label(_BACKEND_LABEL.get(m.get("backend", ""), m.get("backend", ""))).classes(
-                                    f"text-xs font-mono px-2 py-0.5 rounded {badge_cls} flex-shrink-0"
-                                )
-
-                                # Lane chip
-                                lane = m.get("lane", "api")
-                                ui.label(_("local") if lane == "local" else "API").classes(
-                                    "text-xs text-gray-600 flex-shrink-0"
-                                )
-
-                                # A model without tools cannot see any of the
-                                # user's data. Saying so here beats letting it
-                                # answer plausibly and wrongly in chat.
-                                if not m.get("supports_tools", True):
-                                    ui.label(_("no tools")).classes(
-                                        "text-xs flex-shrink-0 px-1.5 rounded"
-                                    ).style(
-                                        "color:var(--c-warn);background:var(--c-warn-bg);"
-                                    ).tooltip(
-                                        _("Limited — cannot search documents, emails or notes.")
-                                    )
-
-                            # ── Row 2 on mobile: name + model id + buttons ───
-                            with ui.element("div").classes("flex items-center gap-2 flex-1 min-w-0 model-item-bottom"):
-                                # Name + model id
-                                # `w-full` is what makes the ellipsis work at all:
-                                # ui.column() is a flex column with
-                                # `align-items: flex-start`, so a label inside it
-                                # is sized to its own content. Without an explicit
-                                # width there is nothing to truncate against, and a
-                                # long model name walks straight out of the card.
-                                with ui.column().classes("flex-1 gap-0 min-w-0"):
-                                    ui.label(m.get("name", "")).classes(
-                                        "w-full text-sm font-semibold text-gray-200"
-                                    ).style("overflow:hidden;white-space:nowrap;text-overflow:ellipsis")
-                                    ui.label(m.get("model", "")).classes(
-                                        "w-full text-xs text-gray-500 font-mono"
-                                    ).style("overflow:hidden;white-space:nowrap;text-overflow:ellipsis")
-
-                                # Edit / delete (inside row-2 div)
-                                ui.button(icon="edit",
-                                          on_click=lambda _, mod=m: _open_add_dialog(mod)).props(
-                                    "flat dark dense"
-                                ).classes("text-gray-500")
-
-                                def _delete(mid=m["id"]):
-                                    ms = get_models(username, token)
-                                    save_models(username, token, [x for x in ms if x["id"] != mid])
-                                    model_list.refresh()
-                                    ui.notify(_("Model deleted."), type="info")
-
-                                ui.button(icon="delete", on_click=_delete).props(
-                                    "flat dark dense"
-                                ).classes("text-red-700")
-
-            model_list()
-
-            _hint(
-                _(
-                    "Models appear in dropdowns in the configured order.<br><b>OpenAI-compatible</b>: Ollama (<code>http://host:11434/v1</code>), MiniMax, Moonshot, …<br><b>Anthropic-compatible</b>: Anthropic API, MiniMax (<code>https://api.minimaxi.chat/v1</code>) and other providers with an Anthropic-compatible endpoint."
-                )
-            )
+            ai_models_setting(username, token)
 
         # ── Verarbeitung neuer Dokumente ──────────────────────────────────────
         with _card("docs"):
@@ -771,11 +416,15 @@ async def settings_page() -> None:
                 None,
             )
 
-            _ingest_select = ui.select(
-                _model_opts or {"": _("— No models configured yet —")},
-                label=_("Vision model"),
-                value=_cur_sel,
-            ).props("outlined dark dense").classes("w-full")
+            if _model_opts:
+                from app_ui.model_picker import model_select
+
+                _ingest_select = model_select(_ingest_models, _cur_sel, label=_("Vision model"))
+            else:
+                _ingest_select = ui.select(
+                    {"": _("— No models configured yet —")}, label=_("Vision model"), value=_cur_sel
+                )
+            _ingest_select.props("outlined dark dense").classes("w-full")
 
             with ui.column().classes("gap-0 mt-1 mb-3"):
                 _info_server = ui.label(_("Server: {server}").format(server=_cur_ingest_server)).classes(
@@ -953,10 +602,12 @@ async def settings_page() -> None:
             _dream_creds = _lc_dream(username, token) if username and token else {}
             _cur_dream_model = _dream_creds.get("dream_model", "")
             _dream_model_opts = {m["name"]: m["name"] for m in _get_models_dream(username, token) if m.get("enabled", True)}
-            _dream_sel = ui.select(
-                _dream_model_opts,
+            from app_ui.model_picker import model_select
+
+            _dream_sel = model_select(
+                _get_models_dream(username, token),
+                _cur_dream_model if _cur_dream_model in _dream_model_opts else next(iter(_dream_model_opts), None),
                 label=_("Model for memory cleanup"),
-                value=_cur_dream_model if _cur_dream_model in _dream_model_opts else next(iter(_dream_model_opts), None),
             ).props("outlined dark dense").classes("w-full mt-2")
 
             # This model has a second job that its name does not suggest: the

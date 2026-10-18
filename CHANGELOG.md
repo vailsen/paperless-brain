@@ -29,6 +29,19 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Changed
 
+- **AI models are grouped by service.** Settings > AI models now has one entry
+  per service — "Ollama local", "OpenRouter", "Claude" — holding the address,
+  the key and the concurrency lane once, with any number of models below it.
+  Every model dropdown (chat, document processing, memo cleanup, memory
+  maintenance, deep research) shows the models grouped under their service.
+  Existing models are grouped by address automatically and keep their names, so
+  every model you had chosen stays chosen; the services get a suggested name
+  from their address until you name them. Settings exports carry the new
+  structure, and exports from older versions still import.
+- **A pasted endpoint is cut back to the base URL.** Entering
+  `https://openrouter.ai/api/v1/chat/completions` as base URL doubled the path
+  and every request failed with a bare "404 Not Found"; the endpoint part is now
+  removed on save.
 - **Picture descriptions moved out of the page text.** They used to be written
   inline as "[Image description: …]" — a marker the model translated in German
   documents, so it could not be relied on. They now live in their own field.
