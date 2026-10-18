@@ -7,7 +7,7 @@ instructions prepended to every per-type prompt, and the condensed-summary
 prompt. The per-document-type rules live in the profile modules (de.py, en.py).
 """
 
-PROMPT_VERSION = "0.2"
+PROMPT_VERSION = "0.3"  # 0.3: pictures in a structured "images" field, not inline
 
 CONDENSED_SUMMARY_PROMPT = """\
 You receive the page summaries of a scanned document — one summary per page.
