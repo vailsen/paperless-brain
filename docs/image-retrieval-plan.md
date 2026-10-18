@@ -330,8 +330,8 @@ PR with clearly separated commits.
 
 ## 11. Status and calibration result (2026-10-18)
 
-Phases A–C are built; phase D is prepared (re-ingest ordering) and switched on by
-`PROMPT_VERSION = "0.3"`.
+Phases A–C are built; phase D is switched on by `PROMPT_VERSION = "0.3"` and
+limited to the documents that need it (see below).
 
 Calibration on the owner's ingest model `qwen3.8:27b-mtp-q4_K_M` (OpenAI-compatible
 endpoint on Ollama), six real pages, new prompt vs old prompt:
@@ -348,8 +348,15 @@ endpoint on Ollama), six real pages, new prompt vs old prompt:
 - Boxes come on the 0–1000 grid, not in pixels.
 - The old inline marker no longer appears in `page_text`.
 - Time per page: 13.6 s new vs 15.4 s old (average of six) — no extra cost.
-  A full re-ingest of 523 documents / 1813 pages ≈ 7 h of GPU time plus one summary
-  call per document; do it in batches with the dashboard's re-ingest limit.
+
+Re-ingest scope (decided with the owner): 0.2 → 0.3 changed nothing but picture
+handling, so a 0.2 sidecar without a picture marker would come out of a re-ingest
+unchanged and counts as current (`_PICTURES_ONLY_CHANGES` in
+`services/sidecar_service.py`). Only the 9 documents whose old extraction mentions
+a picture are outdated — 75 pages (#126 alone has 46), ≈ 20 min, instead of
+1813 pages ≈ 7 h. Known trade-off: a picture the old prompt never described stays
+without an `images` entry until that document is re-ingested for another reason
+(the document dialog's re-ingest button does it for one document).
 
 Decisions taken from the data: the PDF never decides what is a picture (the logo
 case); `MIN_AREA` is 0.05 % of the page (the thumbnail case); touching PDF image

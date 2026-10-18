@@ -245,12 +245,29 @@ def _write_sidecar(d, pid: int, version: str, page_text: str = "", images=None):
     }))
 
 
-def test_outdated_documents_with_pictures_come_first_then_newest(tmp_sidecar_dir):
+def test_picture_less_documents_skip_a_pictures_only_version_step(tmp_sidecar_dir):
+    """0.2 → 0.3 changed only how pictures are recorded. A 0.2 document whose
+    model found no picture would come out of a re-ingest unchanged, so only the
+    ones that mention a picture are outdated — 9 of 523 on the live archive."""
     _write_sidecar(tmp_sidecar_dir, 10, "0.2")
     _write_sidecar(tmp_sidecar_dir, 30, "0.2")
     _write_sidecar(tmp_sidecar_dir, 5, "0.2", "Text\n\n[Bildbeschreibung: Röntgenbild]")
     _write_sidecar(tmp_sidecar_dir, 7, "0.2", "[Image description: chart]")
+    _write_sidecar(tmp_sidecar_dir, 8, "0.2", "[Abbildung: Karte]")
     _write_sidecar(tmp_sidecar_dir, 99, "0.3")
     (tmp_sidecar_dir / "index.json").write_text("{}")
     svc = SidecarService(extraction_sidecar_path=str(tmp_sidecar_dir))
-    assert svc.outdated_ids("0.3") == [7, 5, 30, 10]
+    assert svc.outdated_ids("0.3") == [8, 7, 5]
+
+
+def test_any_other_version_step_reingests_everything(tmp_sidecar_dir):
+    """The shortcut is for that one pair only. A version that changed more than
+    pictures (0.1 → 0.3, or a later 0.2 → 0.4) re-ingests every document, with
+    the picture ones first, then the newest."""
+    _write_sidecar(tmp_sidecar_dir, 10, "0.1")
+    _write_sidecar(tmp_sidecar_dir, 30, "0.1")
+    _write_sidecar(tmp_sidecar_dir, 5, "0.1", "[Image description: chart]")
+    svc = SidecarService(extraction_sidecar_path=str(tmp_sidecar_dir))
+    assert svc.outdated_ids("0.3") == [5, 30, 10]
+    _write_sidecar(tmp_sidecar_dir, 40, "0.2")
+    assert 40 in svc.outdated_ids("0.4")

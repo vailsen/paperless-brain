@@ -143,7 +143,10 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 - **Pictures in an answer are Markdown in the stored message** (`chat_images.with_images`), so
   they survive a reload; the PDF export inlines them as data URIs after the same access check.
 - **Re-ingest goes through `PROMPT_VERSION`**, not a second versioning mechanism.
-  `outdated_ids()` orders documents with pictures first, then newest.
+  `sidecar_service.is_outdated` decides; `_PICTURES_ONLY_CHANGES` lists version steps that changed
+  nothing but picture handling (0.2 → 0.3), across which a sidecar without a picture is current.
+  Add a pair there only if nothing else in the prompt changed — otherwise documents silently keep
+  an outdated extraction. `outdated_ids()` orders documents with pictures first, then newest.
 
 ### Ollama watchdog
 

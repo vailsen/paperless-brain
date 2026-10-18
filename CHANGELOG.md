@@ -34,14 +34,13 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   documents, so it could not be relied on. They now live in their own field.
   The page text that the opt-in text write-back pushes into Paperless no longer
   contains them.
-- **Re-ingest picks the right documents first.** When a re-ingest is capped,
-  documents with pictures go first, then the newest.
-- **Extraction prompt version 0.3.** New documents get their pictures right
-  away. Existing ones keep working — a whole page can be shown for any of them
-  — but get cropped pictures only after a re-ingest: the dashboard counts them
-  as outdated, and each sync re-ingests as many as the limit in the sync
-  dialog allows. Leave the limit empty and it does all of them in one go, which
-  on a local model is hours (about 14 s per page).
+- **Extraction prompt version 0.3 — without re-ingesting the archive.** New
+  documents get their pictures right away. Of the existing ones, only those
+  whose old extraction mentions a picture count as outdated and are
+  re-ingested by the next sync (on the reference archive: 9 of 523 documents,
+  75 pages, about 20 minutes on a local model). Every other document would come
+  out of a re-ingest unchanged, so it is left alone; a whole page can still be
+  shown for any of them.
 
 ### Fixed
 
