@@ -299,7 +299,7 @@ def test_pdf_generator_survives_an_unresolved_picture_link():
 
 
 class _Vision:
-    async def analyze_document(self, page, document_type, ai_doc_type, prev_table=None):
+    async def analyze_document(self, page, document_type, ai_doc_type, prev_table=None, hint=""):
         return ExtractedContent(
             page=page.page_number,
             page_text=f"Rezepttext Seite {page.page_number}",

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-18 15:26+0200\n"
+"POT-Creation-Date: 2026-10-19 20:54+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -97,7 +97,7 @@ msgid "Service saved."
 msgstr ""
 
 #: app_ui/ai_models_settings.py:172 app_ui/ai_models_settings.py:325
-#: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:794
+#: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:814
 #: app_ui/pages/brain.py:278 app_ui/pages/brain.py:292
 #: app_ui/pages/brain.py:773 app_ui/pages/chat.py:1193
 #: app_ui/pages/chat.py:3114 app_ui/pages/chat.py:3378
@@ -518,38 +518,55 @@ msgstr ""
 msgid "Pin"
 msgstr ""
 
-#: app_ui/document_dialog.py:786
+#: app_ui/document_dialog.py:789
 #, python-brace-format
 msgid "Re-ingest document #{id}?"
 msgstr ""
 
-#: app_ui/document_dialog.py:789
+#: app_ui/document_dialog.py:792
 msgid ""
 "Its extraction and search index are deleted and built again from the PDF."
 " Every page goes through the vision model once more, which can take a few"
 " minutes."
 msgstr ""
 
-#: app_ui/document_dialog.py:797
+#: app_ui/document_dialog.py:798
+msgid "Hint for the vision model (optional)"
+msgstr ""
+
+#: app_ui/document_dialog.py:800
+msgid ""
+"e.g. The blood pressure values are handwritten; the second one reads "
+"210/80, not 210/180."
+msgstr ""
+
+#: app_ui/document_dialog.py:809
+msgid ""
+"Tell the model what it misread and how to read it. The hint stays with "
+"the document and is used on every later re-ingest too; clear the field to"
+" remove it."
+msgstr ""
+
+#: app_ui/document_dialog.py:818
 msgid "Re-ingest"
 msgstr ""
 
-#: app_ui/document_dialog.py:817
+#: app_ui/document_dialog.py:845
 #, python-brace-format
 msgid "Re-ingesting document #{id} …"
 msgstr ""
 
-#: app_ui/document_dialog.py:826
+#: app_ui/document_dialog.py:855
 #, python-brace-format
 msgid "#{id} re-ingested."
 msgstr ""
 
-#: app_ui/document_dialog.py:831
+#: app_ui/document_dialog.py:860
 #, python-brace-format
 msgid "Error during re-ingest: {err}"
 msgstr ""
 
-#: app_ui/document_dialog.py:839
+#: app_ui/document_dialog.py:868
 msgid "Re-ingest (extraction + embedding)"
 msgstr ""
 

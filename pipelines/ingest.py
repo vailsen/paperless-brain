@@ -28,6 +28,7 @@ def _is_specific_value(val: str) -> bool:
 from config.extraction_rules import PROMPT_VERSION
 from models.extraction import ExtractedContent, JsonSidecar
 from services.chroma import ChromaClient
+from services import ingest_hints
 from services.chunking import build_context_prefix, chunk_document
 from services.page_images import build_page_images, embedding_lines, pdf_boxes_per_page
 from services.paperless import PaperlessClient
@@ -52,11 +53,15 @@ async def ingest_document(
     sidecar_service: SidecarService,
     thumbnail_service: ThumbnailService,
     log: Callable[[str], None] | None = None,
+    hint: str | None = None,
 ):
     """pipeline for ingesting a paperless document by id into the vector database.
 
     ``log`` receives per-page progress. A long document is minutes of silence
     otherwise, which is indistinguishable from a hung sync.
+
+    ``hint`` is the owner's reading hint for the vision model; ``None`` reads the
+    stored one, so a sync re-ingest keeps a correction made by hand earlier.
     """
 
     def _log(msg: str) -> None:
@@ -68,6 +73,10 @@ async def ingest_document(
     thumb_bytes = await thumbnail_service.get_thumbnail(doc_id)
 
     doc_type = document.document_type
+    if hint is None:
+        hint = ingest_hints.get_hint(doc_id)
+    if hint:
+        _log("    with the reading hint left for this document")
 
     pdf_extractor = PDFExtractor()
     images = pdf_extractor.extract_pages(doc_bytes)
@@ -88,6 +97,7 @@ async def ingest_document(
                 document_type=doc_type,
                 ai_doc_type=ai_doc_type,
                 prev_table=prev_table,
+                hint=hint,
             )
         except Exception as exc:
             print(

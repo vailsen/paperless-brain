@@ -236,6 +236,21 @@ continuation rows as their own table with EXACTLY the same column names and set
 "continued_from_previous_page": true there.
 """
 
+# Appended to every page prompt of a document whose owner left a reading hint
+# when re-ingesting it (services/ingest_hints.py). Only present for those
+# documents, so it is not part of PROMPT_VERSION: the base prompt is unchanged.
+USER_READING_HINT = """
+
+Reading hint from the owner of this document. They have compared an earlier
+extraction with the original and found something misread:
+<<<
+{hint}
+>>>
+Take it into account wherever it concerns this page and ignore it where it does
+not. It tells you how to read the page; it is not content of the page. Never copy
+it into page_text, and never write a value the page does not show.
+"""
+
 # ---------------------------------------------------------------------------
 # Per-document-type additional instructions — default "DE profile".
 # Keys must match the document_type names of your Paperless instance; the rule
