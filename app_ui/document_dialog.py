@@ -778,9 +778,12 @@ def _render_content(
                         on_click=lambda: ui.run_javascript(f"window.open('{file_url}', '_blank')"),
                     ).props("flat dark dense").classes("text-gray-400 text-xs")
 
-                async def _confirm_reingest() -> bool:
+                async def _confirm_reingest() -> str | None:
+                    """The reading hint to re-ingest with ("" = none), or None on cancel."""
+                    from services import ingest_hints
+
                     with ui.dialog() as cdlg, ui.card().style(
-                        "background:var(--c-surface); width:min(92vw,420px);"
+                        "background:var(--c-surface); width:min(92vw,480px);"
                     ):
                         ui.label(
                             _("Re-ingest document #{id}?").format(id=doc.id)
@@ -790,28 +793,53 @@ def _render_content(
                             "from the PDF. Every page goes through the vision model once "
                             "more, which can take a few minutes."
                         )).classes("text-sm w-full").style("color:var(--c-text-2)")
+                        hint_in = (
+                            ui.textarea(
+                                label=_("Hint for the vision model (optional)"),
+                                placeholder=_(
+                                    "e.g. The blood pressure values are handwritten; "
+                                    "the second one reads 210/80, not 210/180."
+                                ),
+                                value=ingest_hints.get_hint(doc.id),
+                            )
+                            .props(f"dark outlined autogrow maxlength={ingest_hints.MAX_CHARS} counter")
+                            .classes("w-full")
+                        )
+                        ui.label(_(
+                            "Tell the model what it misread and how to read it. The hint "
+                            "stays with the document and is used on every later "
+                            "re-ingest too; clear the field to remove it."
+                        )).classes("text-xs w-full").style("color:var(--c-text-muted)")
                         with ui.row().classes("w-full justify-end gap-2"):
-                            ui.button(_("Cancel"), on_click=lambda: cdlg.submit(False)).props(
+                            ui.button(_("Cancel"), on_click=lambda: cdlg.submit(None)).props(
                                 "flat dense"
                             )
-                            ui.button(_("Re-ingest"), on_click=lambda: cdlg.submit(True)).props(
-                                "unelevated dense color=purple"
-                            )
+                            ui.button(
+                                _("Re-ingest"),
+                                on_click=lambda: cdlg.submit((hint_in.value or "").strip()),
+                            ).props("unelevated dense color=purple")
                     answer = await cdlg
                     cdlg.delete()
-                    return bool(answer)
+                    return answer
 
                 async def _reingest() -> None:
                     """Re-run extraction+embedding for this document (fix bad ingests)."""
-                    if not await _confirm_reingest():
+                    hint = await _confirm_reingest()
+                    if hint is None:
                         return
                     _id = doc.id
                     from pipelines.delete import delete_document
                     from pipelines.ingest import ingest_document
+                    from services import ingest_hints
                     from services.clients import (
                         chroma as _chroma,
                         thumbnail_service as _thumb,
                         vision as _vision,
+                    )
+                    from nicegui import app as ng_app
+
+                    hint = ingest_hints.set_hint(
+                        _id, hint, user=ng_app.storage.user.get("paperless_user", "")
                     )
                     _note = ui.notification(
                         _("Re-ingesting document #{id} …").format(id=_id),
@@ -820,7 +848,8 @@ def _render_content(
                     try:
                         await delete_document(_id, _chroma, sidecar_service, _thumb)
                         await ingest_document(
-                            _id, paperless, _chroma, _vision, sidecar_service, _thumb
+                            _id, paperless, _chroma, _vision, sidecar_service, _thumb,
+                            hint=hint,
                         )
                         _note.dismiss()
                         ui.notify(_("#{id} re-ingested.").format(id=_id), type="positive")

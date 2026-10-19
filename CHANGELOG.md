@@ -7,6 +7,14 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Added
+
+- **Tell the vision model what it misread.** The re-ingest dialog in the
+  document details has a hint field: "the blood pressure is handwritten, the
+  second value reads 210/80, not 210/180". The hint goes into the prompt of
+  every page of that document and stays with it, so later re-ingests — by hand
+  or after a prompt update — keep the correction. Clear the field to remove it.
+
 ## [0.10.0] — 2026-10-18
 
 **Pictures in chat, and AI models grouped by service.**

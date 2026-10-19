@@ -29,6 +29,7 @@ from config.extraction_rules.base import (
     PROMPT_VERSION,
     TABLE_CONTINUATION_CONTEXT,
     TITLE_DESCRIPTION_PROMPT,
+    USER_READING_HINT,
 )
 
 log = logging.getLogger(__name__)
@@ -83,6 +84,7 @@ __all__ = [
     "PROMPT_VERSION",
     "TABLE_CONTINUATION_CONTEXT",
     "TITLE_DESCRIPTION_PROMPT",
+    "USER_READING_HINT",
     "get_active_profile",
     "get_extraction_rules",
 ]

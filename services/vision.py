@@ -31,6 +31,7 @@ from config.extraction_rules import (
     EXTRACTION_JSON_SCHEMA,
     TABLE_CONTINUATION_CONTEXT,
     TITLE_DESCRIPTION_PROMPT,
+    USER_READING_HINT,
     get_extraction_rules,
 )
 from services.extraction_guard import (
@@ -81,6 +82,7 @@ class VisionClient(ABC):
         document_type: str,
         ai_doc_type: str,
         prev_table: dict | None = None,
+        hint: str = "",
     ) -> ExtractedContent:
         # Resolved per call: the profile is settable in Settings > Processing,
         # so binding the rules once at import would serve stale ones until restart.
@@ -95,6 +97,8 @@ class VisionClient(ABC):
                 caption=prev_table.get("caption", ""),
                 columns=list(prev_table["rows"][-1].keys()),
             )
+        if hint.strip():
+            prompt += USER_READING_HINT.format(hint=hint.strip())
         result = await self._extract_once(page, prompt, ai_doc_type)
 
         # Guard against repetition loops. The sampling settings below keep

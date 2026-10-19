@@ -160,6 +160,18 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   Add a pair there only if nothing else in the prompt changed — otherwise documents silently keep
   an outdated extraction. `outdated_ids()` orders documents with pictures first, then newest.
 
+### Reading hints on re-ingest
+
+`services/ingest_hints.py`, field in the re-ingest dialog (`app_ui/document_dialog.py`).
+
+- **The hint lives in `data/ingest_hints.json`, not in the sidecar.** Every re-ingest deletes the
+  sidecar first; a correction kept there would be gone after the next `PROMPT_VERSION` re-ingest
+  and the misreading would come back unnoticed.
+- **`ingest_document(hint=None)` reads the stored hint**, so the sync path needs no change.
+  Pass `hint=` only where the user just typed one.
+- **`USER_READING_HINT` is appended only for documents that have a hint** — it is not part of
+  `PROMPT_VERSION`, and changing its wording does not make the archive outdated.
+
 ### Ollama watchdog
 
 `services/ollama_watchdog.py`: sends Wake-on-LAN to the Ollama server MAC on first use, shuts it down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity. `touch()` resets the idle timer.
