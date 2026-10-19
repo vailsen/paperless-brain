@@ -7,6 +7,10 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-10-19
+
+**Correct what the vision model misread.**
+
 ### Added
 
 - **Tell the vision model what it misread.** The re-ingest dialog in the
