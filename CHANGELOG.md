@@ -7,6 +7,30 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Added
+
+- **Every fact in an answer shows where it comes from.** A small number after a
+  sentence names its source; two facts from two places get two numbers. Tap one
+  and the results panel switches to a new "Source" tab: the cited page of the
+  PDF, the passage marked on it, and the passage quoted above the page. A line
+  under the answer lists all sources of that answer, each one tappable. On a
+  phone the panel slides in — you tapped on purpose. Saved as PDF, the numbers
+  stay and the source list is printed below the answer.
+- **Formulas stay formulas.** The vision model now writes mathematical formulas
+  as LaTeX, so the chat can read them and shows them typeset — also in its own
+  answers. Only documents with something formula-like on a page are read again
+  after the update (16 of 524 on the reference archive), not the whole archive.
+
+### Fixed
+
+- **A document opened from an answer shows the matching passage.** Clicking
+  "#241" in an answer opened the document without the passages the search had
+  found, so nothing was marked; and where something was marked, the dialog
+  started on the summary tab. It now opens on the full text, scrolled to the
+  first marked passage.
+- **Links to other websites open in a new tab**, so a click in an answer no
+  longer leaves the chat.
+
 ## [0.10.1] — 2026-10-19
 
 **Correct what the vision model misread.**

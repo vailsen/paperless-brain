@@ -7,7 +7,10 @@ instructions prepended to every per-type prompt, and the condensed-summary
 prompt. The per-document-type rules live in the profile modules (de.py, en.py).
 """
 
-PROMPT_VERSION = "0.3"  # 0.3: pictures in a structured "images" field, not inline
+PROMPT_VERSION = "0.4"
+# 0.3: pictures in a structured "images" field, not inline
+# 0.4: formulas as LaTeX — re-ingests only pages that show one
+#      (sidecar_service._SCOPED_CHANGES); change nothing else in the same step
 
 CONDENSED_SUMMARY_PROMPT = """\
 You receive the page summaries of a scanned document — one summary per page.
@@ -64,6 +67,11 @@ Tasks:
    - Pictures (photos, illustrations, diagrams, charts, maps, X-rays, drawings)
      do NOT go into page_text — they go into "images" (task 1b). Text printed
      around a picture (headings, captions, recipe text) stays in page_text.
+   - Mathematical formulas and equations: write them as LaTeX — inline
+     between $…$, a formula set apart on its own line between $$…$$
+     (e.g. $$U = R \\cdot I$$, $\\sigma = \\frac{F}{A}$). Copy every symbol, index
+     and exponent exactly; do NOT simplify, solve or rename anything. Values
+     with units are not formulas: "5 m²", "210/80 mmHg", "19 % VAT" stay plain text.
    - Logos, letterheads, decorative elements: skip.
 
 1b. List EVERY picture on the page in "images" — one entry per picture:

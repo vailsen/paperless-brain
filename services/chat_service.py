@@ -22,6 +22,7 @@ from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
 from models.web_result import WebSearchResult
 from pipelines.search import search
+from services.citations import cite_ref
 from services.clients import chroma, cross_ref_index, paperless, sidecar_service, vision
 from services.ollama_watchdog import touch as _wol_touch
 from services.paperless import PaperlessClient as _PaperlessClient
@@ -1371,12 +1372,20 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
             pictures_line = _search_hit_pictures(sc)
             if pictures_line:
                 lines.append(f"   {pictures_line}")
-        if r.matched_chunks:
-            snippet = r.matched_chunks[0][:150].replace("\n", " ")
-            lines.append(f"   …{snippet}…")
+        lines.append(f"   {_hit_snippet(r, 150)}")
         lines.append("")
 
     return "\n".join(lines), results
+
+
+def _hit_snippet(r: DocumentResult, limit: int) -> str:
+    """The matched passage with the reference to cite it by, or only the reference."""
+    page = r.matched_pages[0] if r.matched_pages else 0
+    ref = cite_ref(r.document.id, page or None)
+    if not r.matched_chunks:
+        return f"cite as {ref}"
+    snippet = r.matched_chunks[0][:limit].replace("\n", " ")
+    return f"…{snippet}… {ref}"
 
 
 _SEARCH_HIT_MAX_PICTURES = 4
@@ -1485,9 +1494,7 @@ async def _tool_find_similar_documents(inputs: dict) -> tuple[str, list[Document
             pictures_line = _search_hit_pictures(sc)
             if pictures_line:
                 lines.append(f"   {pictures_line}")
-        if r.matched_chunks:
-            snippet = r.matched_chunks[0][:150].replace("\n", " ")
-            lines.append(f"   …{snippet}…")
+        lines.append(f"   {_hit_snippet(r, 150)}")
         lines.append("")
 
     return "\n".join(lines), results
@@ -1687,9 +1694,7 @@ async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
         )
         if meta:
             lines.append(f"   {meta}")
-        if r.matched_chunks:
-            snippet = r.matched_chunks[0][:200].replace("\n", " ")
-            lines.append(f"   …{snippet}…")
+        lines.append(f"   {_hit_snippet(r, 200)}")
         lines.append("")
     return "\n".join(lines), results
 
@@ -1753,7 +1758,10 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
     except Exception as e:
         return f"Error loading document {doc_id}: {e}", []
 
-    lines = [f"Details for document #{doc_id}\n"]
+    lines = [
+        f"Details for document #{doc_id} — cite it as {cite_ref(doc_id)}, "
+        f"a page as [^{doc_id}-pN]\n"
+    ]
 
     # Paperless metadata
     lines += [
@@ -1811,7 +1819,10 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
                 caption = t.get("caption") or t.get("title", "")
                 page_n = t.get("page_number", "?")
                 n_rows = len(_table_rows(t))
-                lines.append(f'  [Table {idx}] page {page_n}: "{caption}" ({n_rows} rows)')
+                lines.append(
+                    f'  [Table {idx}] page {page_n}: "{caption}" ({n_rows} rows) '
+                    + cite_ref(doc_id, page_n if isinstance(page_n, int) else None)
+                )
                 preview = _render_table_md(t, offset=0, limit=_PREVIEW)
                 lines += ["  " + ln for ln in preview.splitlines()]
                 if n_rows > _PREVIEW:
@@ -1831,7 +1842,8 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
                 page_n = p.get("page_number", p.get("page", "?"))
                 ps = p.get("page_summary", "").strip()
                 if ps:
-                    lines.append(f"  page {page_n}: {ps}")
+                    ref = cite_ref(doc_id, page_n if isinstance(page_n, int) else None)
+                    lines.append(f"  page {page_n} {ref}: {ps}")
                 pictures = page_images(p)
                 if pictures:
                     listing = "; ".join(
@@ -1887,7 +1899,8 @@ async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResu
     page_n = t.get("page_number", "?")
 
     header = (
-        f'Table {table_index} — document #{doc_id}, page {page_n}: "{caption}"\n'
+        f'Table {table_index} — document #{doc_id}, page {page_n}: "{caption}" '
+        f"{cite_ref(doc_id, page_n if isinstance(page_n, int) else None)}\n"
         f"Rows {offset}–{min(offset + limit, total) - 1 if total else 0} of {total}\n"
     )
     body = _render_table_md(t, offset=offset, limit=limit)
@@ -1919,7 +1932,8 @@ async def _tool_get_document_page_text(
                 if text or pictures:
                     body = "\n\n".join(part for part in (text, pictures) if part)
                     return (
-                        f"Page {page_number} of document #{doc_id}:\n\n{body}",
+                        f"Page {page_number} of document #{doc_id} — cite as "
+                        f"{cite_ref(doc_id, page_number)}:\n\n{body}",
                         [],
                     )
     return (

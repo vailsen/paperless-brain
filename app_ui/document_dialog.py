@@ -114,11 +114,23 @@ def highlight_text(full_text: str, chunks: list[str], text_query: str = "") -> s
     for s, e, style in covered:
         parts.append(_html.escape(full_text[pos:s]))
         parts.append(
-            f'<mark style="{style_map[style]}">{_html.escape(full_text[s:e])}</mark>'
+            f'<mark class="pb-mark-{style}" style="{style_map[style]}">'
+            f"{_html.escape(full_text[s:e])}</mark>"
         )
         pos = e
     parts.append(_html.escape(full_text[pos:]))
     return _wrap_pre("".join(parts))
+
+
+def _scroll_to_first_mark() -> None:
+    ui.run_javascript(
+        """
+        var box = Array.from(document.querySelectorAll('.dl-marked'))
+            .filter(function (x) { return x.offsetParent; }).pop();
+        var m = box && (box.querySelector('mark.pb-mark-chunk') || box.querySelector('mark'));
+        if (m) m.scrollIntoView({block: 'center'});
+        """
+    )
 
 
 # ── Dialog factory ────────────────────────────────────────────────────────────
@@ -296,11 +308,19 @@ def render_document_body(
     sidecar = sidecar_service.load_sidecar(doc.id)
     style = outer_style or "flex:1; min-height:0; overflow:hidden; width:100%;"
 
+    full_text: str = (sidecar or {}).get("full_text") or ""
+    marked_html = ""
+    if full_text and (result.matched_chunks or result.text_query):
+        marked_html = highlight_text(full_text, result.matched_chunks, result.text_query)
+    # Opened from a search hit: start on the full text where the hit is marked —
+    # on the summary tab the marks exist but nobody sees them.
+    start_tab = "volltext" if "<mark" in marked_html else "zusammenfassung"
+
     with ui.splitter(value=50).classes("dl-splitter").style(style) as _splitter:
         # ── Left: tabs ────────────────────────────────────────────────────────
         with _splitter.before:
             with (
-                ui.tabs(value="zusammenfassung")
+                ui.tabs(value=start_tab)
                 .props("dense align='left'")
                 .classes("bg-gray-800 text-gray-300")
                 .style(
@@ -313,7 +333,7 @@ def render_document_body(
                 ui.tab("tabellen", label=_("Tables"), icon="table_chart")
 
             with (
-                ui.tab_panels(tabs, value="zusammenfassung")
+                ui.tab_panels(tabs, value=start_tab)
                 .style(
                     f"position:absolute; top:{_TABS_H}; left:0; right:0; bottom:0;"
                     "overflow:hidden;"
@@ -433,17 +453,11 @@ def render_document_body(
                 ):
                     with ui.scroll_area().style("height:100%; width:100%;"):
                         with ui.column().classes("p-4 gap-2"):
-                            if sidecar and sidecar.get("full_text"):
-                                full_text: str = sidecar["full_text"]
-                                if result.matched_chunks or result.text_query:
-                                    ui.html(
-                                        highlight_text(
-                                            full_text,
-                                            result.matched_chunks,
-                                            result.text_query,
-                                        ),
-                                        sanitize=False,
-                                    )
+                            if full_text:
+                                if marked_html:
+                                    ui.html(marked_html, sanitize=False).classes("dl-marked")
+                                    if start_tab == "volltext":
+                                        ui.timer(0.4, _scroll_to_first_mark, once=True)
                                 else:
                                     ui.label(full_text).classes(
                                         "text-sm text-gray-300 whitespace-pre-wrap"

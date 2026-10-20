@@ -95,6 +95,22 @@ def require_auth() -> bool:
     return True
 
 
+# A link to another site opens in a new tab — everywhere, including links a
+# model writes into an answer, which arrive as plain markdown without a target.
+# Leaving PaperlessBrain mid-conversation would drop the chat's live state.
+_EXTERNAL_LINKS_JS = """<script>
+document.addEventListener('click', function(e) {
+  if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  var a = e.target.closest && e.target.closest('a[href]');
+  if (!a || a.target) return;
+  var href = a.getAttribute('href') || '';
+  if (!/^https?:/i.test(href)) return;
+  try { if (new URL(href).origin === location.origin) return; } catch (_) { return; }
+  e.preventDefault();
+  window.open(href, '_blank', 'noopener');
+});
+</script>"""
+
 # The browser spellchecks with whatever dictionary it has — English, in practice —
 # and underlines every German word the user types. There is no per-field setting
 # that survives Quasar re-rendering its inputs, so this runs once per page and
@@ -147,6 +163,7 @@ def page_layout() -> None:
     )
     ui.add_head_html(_MOBILE_HEADER_CSS)
     ui.add_head_html(_NO_SPELLCHECK_JS)
+    ui.add_head_html(_EXTERNAL_LINKS_JS)
 
     _ = get_translator()
 

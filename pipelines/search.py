@@ -118,12 +118,14 @@ async def search(
 
     best_score: dict[int, float] = {}
     all_chunks: dict[int, list[str]] = {}
+    all_pages: dict[int, list[int]] = {}
     for hit in hits[0]:
         pid = hit["metadata"]["paperless_id"]
         score = hit["distance"]
         if pid not in best_score or score < best_score[pid]:
             best_score[pid] = score
         all_chunks.setdefault(pid, []).append(hit["document"])
+        all_pages.setdefault(pid, []).append(int(hit["metadata"].get("page_number") or 0))
 
     sorted_pids = sorted(best_score, key=lambda pid: best_score[pid])[:n_results]
 
@@ -148,6 +150,7 @@ async def search(
                 document=doc,
                 relevance_score=best_score[pid],
                 matched_chunks=all_chunks.get(pid, []),
+                matched_pages=all_pages.get(pid, []),
                 has_actions=sidecar_service.has_actions(pid),
                 text_query=text_query,
             )

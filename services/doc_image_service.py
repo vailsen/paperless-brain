@@ -38,7 +38,7 @@ PAGE_LONG_SIDE = 1600
 CROP_LONG_SIDE = 1200
 
 # pdfium is not thread-safe; renders run off the event loop but one at a time.
-_pdfium_lock = threading.Lock()
+pdfium_lock = threading.Lock()
 # One download per document at a time — a page with three pictures asks for the
 # same PDF three times within milliseconds.
 _doc_locks: dict[int, asyncio.Lock] = {}
@@ -99,6 +99,63 @@ def crop_bbox(doc_id: int, page: int, index: int | None) -> list[float] | None:
     return None
 
 
+async def _visible_doc(doc_id: int, token: str):
+    """``(client, document)`` when the user behind ``token`` may see it, else None."""
+    if not token:
+        return None
+    from services.paperless import PaperlessClient
+
+    client = PaperlessClient(settings.paperless_url, token)
+    try:
+        docs = await client.list_documents(ids=[doc_id])
+    except Exception as exc:
+        _log.warning("doc-image: access check for #%s failed: %s", doc_id, exc)
+        return None
+    if not docs:
+        return None
+    return client, docs[0]
+
+
+def _base(doc_id: int, doc, cache_dir: Path | None) -> Path:
+    return (cache_dir or CACHE_DIR) / str(doc_id) / _stamp(doc.modified)
+
+
+async def _source_pdf(client, doc_id: int, base: Path) -> bytes | None:
+    """The document's PDF, from the cache or downloaded into it. Hold the doc lock."""
+    pdf_path = base / "source.pdf"
+    if pdf_path.is_file():
+        _touch(pdf_path)
+        return pdf_path.read_bytes()
+    try:
+        pdf_bytes = await client.download_document(doc_id)
+    except Exception as exc:
+        _log.warning("doc-image: download of #%s failed: %s", doc_id, exc)
+        return None
+    base.mkdir(parents=True, exist_ok=True)
+    pdf_path.write_bytes(pdf_bytes)
+    return pdf_bytes
+
+
+async def fetch_source(
+    doc_id: int, token: str, cache_dir: Path | None = None
+) -> tuple[object, bytes] | None:
+    """``(document, pdf_bytes)`` for the user behind ``token``, or None.
+
+    The same access gate and cache as the page renders: a citation preview
+    reads the text layer of the very file whose pages it shows.
+    """
+    found = await _visible_doc(doc_id, token)
+    if found is None:
+        return None
+    client, doc = found
+    base = _base(doc_id, doc, cache_dir)
+    async with _doc_locks.setdefault(doc_id, asyncio.Lock()):
+        pdf_bytes = await _source_pdf(client, doc_id, base)
+    if pdf_bytes is None:
+        return None
+    return doc, pdf_bytes
+
+
 async def get_image(
     doc_id: int,
     page: int,
@@ -112,20 +169,14 @@ async def get_image(
     whole page: the user asked to see something on that page, and the page is
     always a correct answer — a 404 would be a broken image in the chat.
     """
-    if not token or page < 1:
+    if page < 1:
         return None
-    from services.paperless import PaperlessClient
+    found = await _visible_doc(doc_id, token)
+    if found is None:
+        return None
+    client, doc = found
 
-    client = PaperlessClient(settings.paperless_url, token)
-    try:
-        docs = await client.list_documents(ids=[doc_id])
-    except Exception as exc:
-        _log.warning("doc-image: access check for #%s failed: %s", doc_id, exc)
-        return None
-    if not docs:
-        return None
-
-    base = (cache_dir or CACHE_DIR) / str(doc_id) / _stamp(docs[0].modified)
+    base = _base(doc_id, doc, cache_dir)
     bbox = crop_bbox(doc_id, page, index)
     name = f"{page}_{index}.jpg" if bbox else f"{page}.jpg"
     target = base / name
@@ -137,20 +188,12 @@ async def get_image(
     async with lock:
         if target.is_file():
             return target.read_bytes()
-        pdf_path = base / "source.pdf"
-        if pdf_path.is_file():
-            pdf_bytes = pdf_path.read_bytes()
-        else:
-            try:
-                pdf_bytes = await client.download_document(doc_id)
-            except Exception as exc:
-                _log.warning("doc-image: download of #%s failed: %s", doc_id, exc)
-                return None
-            base.mkdir(parents=True, exist_ok=True)
-            pdf_path.write_bytes(pdf_bytes)
+        pdf_bytes = await _source_pdf(client, doc_id, base)
+        if pdf_bytes is None:
+            return None
 
         def _render() -> bytes | None:
-            with _pdfium_lock:
+            with pdfium_lock:
                 return render_page_jpeg(
                     pdf_bytes,
                     page,

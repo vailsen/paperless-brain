@@ -7,6 +7,7 @@ from datetime import datetime
 
 import markdown2
 
+from services.citations import plain_citations
 from services.markdown_text import escape_intraword_underscores
 from weasyprint import CSS, HTML
 
@@ -144,6 +145,11 @@ def generate_chat_pdf(
     # doc_image_service.embed_images). One that was not — e.g. markdown handed
     # over by another path — cannot be fetched by WeasyPrint; drop it.
     content_markdown = _UNRESOLVED_DOC_IMAGE_RE.sub("", content_markdown or "")
+    # [^241-p3] → a superscript number and a source list; the link behind it
+    # only exists in the chat.
+    content_markdown = plain_citations(
+        content_markdown, "S. {n}" if lang == "de" else "p. {n}"
+    )
     body_html = markdown2.markdown(
         escape_intraword_underscores(content_markdown),
         extras=["fenced-code-blocks", "tables", "strike", "cuddled-lists", "header-ids",

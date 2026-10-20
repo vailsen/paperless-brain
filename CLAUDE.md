@@ -155,9 +155,9 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 - **Pictures in an answer are Markdown in the stored message** (`chat_images.with_images`), so
   they survive a reload; the PDF export inlines them as data URIs after the same access check.
 - **Re-ingest goes through `PROMPT_VERSION`**, not a second versioning mechanism.
-  `sidecar_service.is_outdated` decides; `_PICTURES_ONLY_CHANGES` lists version steps that changed
-  nothing but picture handling (0.2 → 0.3), across which a sidecar without a picture is current.
-  Add a pair there only if nothing else in the prompt changed — otherwise documents silently keep
+  `sidecar_service.is_outdated` decides; `_SCOPED_CHANGES` maps version steps that concern only
+  some documents to a test (0.2 → 0.3: pictures), and a sidecar the test does not match is current.
+  Add a step there only if nothing else in the prompt changed — otherwise documents silently keep
   an outdated extraction. `outdated_ids()` orders documents with pictures first, then newest.
 
 ### Reading hints on re-ingest
@@ -171,6 +171,33 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   Pass `hint=` only where the user just typed one.
 - **`USER_READING_HINT` is appended only for documents that have a hint** — it is not part of
   `PROMPT_VERSION`, and changing its wording does not make the archive outdated.
+
+### Citations in chat answers
+
+`services/citations.py`, rendering in `app_ui/pages/chat.py` (`_inject_doc_links`, "Source" tab).
+
+- **The model names the page, never the passage.** Tool results print a reference next to
+  document content (`[^241-p3]`, `[^241]`, `services.citations.cite_ref`); the model copies it.
+  Asking it to quote would be one more thing to get wrong.
+- **The passage is found in code**, from the claim (the sentence before the marker, read from the
+  rendered bubble in the browser) and the search's own matched chunks: `best_passage` picks the
+  1–3 segments covering most of the claim's words, numbers counting triple. No overlap → no
+  highlight. A wrong highlight is a confident false statement; a missing one is not.
+- **Boxes come from the PDF's own text layer** (`pdf_words` / `align_words`), the same cached file
+  the page render uses, behind the same access check (`doc_image_service.fetch_source`). OCR text
+  and vision text differ, so the match is a best window, not a search — and a scan without a
+  text layer just shows the page.
+- **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
+  link mid-marker.
+
+### Formulas
+
+- **`PROMPT_VERSION` 0.4 asks for LaTeX**, and is a *scoped* step: `sidecar_service._SCOPED_CHANGES`
+  re-ingests only sidecars whose text shows mathematics (`_mentions_math`). Steps are walked from
+  the sidecar's version, so 0.2 → 0.4 checks pictures and formulas.
+- **`vision.repair_latex_escapes` runs on every page answer.** `\frac`, `\times`, `\beta` are
+  valid JSON escapes (form feed, tab, backspace) — a model that forgets to double the backslash
+  loses the command without any parse error.
 
 ### Ollama watchdog
 
