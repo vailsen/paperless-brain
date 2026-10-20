@@ -186,7 +186,11 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 - **Boxes come from the PDF's own text layer** (`pdf_words` / `align_words`), the same cached file
   the page render uses, behind the same access check (`doc_image_service.fetch_source`). OCR text
   and vision text differ, so the match is a best window, not a search — and a scan without a
-  text layer just shows the page.
+  text layer just shows the page. A filled-in form stores its values at the end of the text
+  stream, far from their labels; for a short passage no window holds both, so `_anchor_boxes`
+  marks the passage's tokens that occur exactly once on the page (a number, or two long words).
+- **Titles in the source box come from Paperless as the user** (`_resolve_cite_titles`), never
+  from the sidecar: a made-up `[^id]` must not reveal the title of a document they cannot see.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
   link mid-marker.
 

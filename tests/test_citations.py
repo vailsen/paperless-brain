@@ -89,6 +89,13 @@ def test_amounts_match_across_number_formats():
     assert best_passage(page, "The total is 1014.01 EUR.")[0] == "Gesamtbetrag: 1.014,01 EUR"
 
 
+def test_an_amount_matches_with_trailing_decimal_zeros():
+    # The sidecar keeps the document's "176,000 cbm"; the answer says "176 m³".
+    page = "Abrechnungsgebühr Wasser: 26,78 EUR\nZu- u. Abwasser: 914,97 EUR : 176,000 cbm"
+    claim = "Euer Wasserverbrauch (Zu- und Abwasser) lag bei 176 m³."
+    assert best_passage(page, claim)[0] == "Zu- u. Abwasser: 914,97 EUR : 176,000 cbm"
+
+
 def test_claim_in_another_language_falls_back_to_the_hint_chunk():
     hint = "Dokument: Merkblatt, Stadt — Ausnahmen regelt § 102 GEG."
     passage, score = best_passage(PAGE, "Exceptions are regulated elsewhere.", [hint])
@@ -158,6 +165,27 @@ def test_passage_is_found_in_the_pdf_and_boxed_per_line(pdf_bytes):
     assert bottom < kontakt.box[1]  # the next paragraph is not marked
 
 
+def _w(text: str, y: float) -> citations.Word:
+    return citations.Word(text, (0.1, y, 0.1, 0.01))
+
+
+def test_a_form_value_far_from_its_label_is_still_found():
+    # A filled-in form: the value sits at the end of the text stream.
+    words = [_w(t, 0.1 + i * 0.01) for i, t in enumerate(
+        "Datum: ____ Unterschrift Eigentümer: ____ Bitte immer angeben Datum".split()
+        + ["66,6", "22.03.2026", "Valentin"]
+    )]
+    boxes = align_words(words, "Datum: 22.03.2026")
+    assert boxes == [pytest.approx(words[-2].box)]  # the date — "Datum" occurs twice, so not an anchor
+
+
+def test_anchors_need_a_number_or_two_words():
+    words = [_w(t, 0.1 + i * 0.01) for i, t in enumerate(
+        "Biomethan steht hier und viel später irgendwo Datum Unterschrift".split()
+    )]
+    assert align_words(words, "Biomethan ist kein Treffer allein") == []
+
+
 def test_a_passage_not_on_the_page_gets_no_boxes(pdf_bytes):
     words = pdf_words(pdf_bytes, 1)
     assert align_words(words, "Die Kündigungsfrist beträgt drei Monate zum Quartalsende.") == []
@@ -181,7 +209,19 @@ def test_markers_become_numbered_pills_and_a_source_line(chat):
     assert '<sup class="pb-cite" data-cite="255-0" data-n="2">2</sup>' in html
     assert 'data-doc-id="241"' in html  # the plain #241 is still a document link
     assert '<div class="pb-cite-list">' in html
-    assert "<b>1</b>#241 · p. 3" in html
+    assert '<b>1</b>p. 3</span>' in html
+    assert 'class="pb-cite-item is-bare" data-cite="255-0" data-n="2"><b>2</b></span>' in html
+
+
+def test_the_source_box_groups_pages_under_the_documents_title(chat):
+    html = chat._inject_doc_links(
+        "A.[^577-p2] B.[^577-p1] C.[^577-p2] D.[^9]", titles={577: "Nebenkosten <2025>"}
+    )
+    box = html.split('<div class="pb-cite-list">')[1]
+    assert box.count('class="pb-cite-doc"') == 2
+    assert "Nebenkosten &lt;2025&gt;" in box  # escaped
+    assert box.index('data-cite="577-2"') < box.index('data-cite="577-1"')
+    assert '<span class="pb-cite-title" data-doc="9"></span>' in box  # filled in later
 
 
 def test_a_hash_inside_a_marker_is_not_turned_into_a_link(chat):

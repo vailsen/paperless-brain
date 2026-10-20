@@ -137,6 +137,13 @@ def _stem(tok: str) -> str:
     return tok if tok[0].isdigit() or len(tok) < 7 else tok[:6]
 
 
+def _same_amount(a: str, b: str) -> bool:
+    # Separators are gone, so "176 m³" and "176,000 cbm" read 176 and 176000.
+    # Trailing zeros are decimals often enough to count — at reduced weight.
+    a0, b0 = a.rstrip("0"), b.rstrip("0")
+    return a0 == b0 and len(a0) >= 2 and abs(len(a) - len(b)) <= 3
+
+
 def _score(seg_tokens: set[str], claim: set[str]) -> float:
     """How much of the claim ``seg_tokens`` covers — each claim word counts once.
 
@@ -150,6 +157,9 @@ def _score(seg_tokens: set[str], claim: set[str]) -> float:
     for t in claim:
         if t in seg_tokens:
             score += _weight(t)
+        elif t[0].isdigit():
+            if any(s[0].isdigit() and _same_amount(t, s) for s in seg_tokens):
+                score += 0.7 * _weight(t)
         elif _stem(t) in seg_stems or (
             # German compounds: "Wärme" is in "Wärmebedarfs".
             len(t) >= 4 and not t[0].isdigit() and any(s.startswith(t) for s in seg_tokens)
@@ -361,7 +371,7 @@ def align_words(words: list[Word], passage: str) -> list[Box]:
         if matched > best[0]:
             best = (matched, max(start, 0), end)
     if best[0] < max(2, MIN_MATCH * size):
-        return []
+        return _anchor_boxes(words, wtoks, target)
 
     _, s, e = best
     # Trim the window to its first and last token that belongs to the passage.
@@ -370,6 +380,31 @@ def align_words(words: list[Word], passage: str) -> list[Box]:
     while e > s and flat[e][0] not in need:
         e -= 1
     picked = sorted({flat[k][1] for k in range(s, e + 1)})
+    return _line_boxes([words[i].box for i in picked])
+
+
+# A form puts the label where the template has it and the filled-in value at
+# the end of the text stream: "Datum:" and "22.03.2026" are 40 words apart, and
+# no window holds both. Short passages fall back to their distinctive tokens.
+ANCHOR_MAX_TOKENS = 12
+
+
+def _anchor_boxes(words: list[Word], wtoks: list[list[str]], target: list[str]) -> list[Box]:
+    """Boxes of the passage's tokens that occur exactly once on the page.
+
+    Only numbers and long words count — "in" or "Datum" occur anywhere — and
+    at least one number or two words must be found, or nothing is returned.
+    """
+    if len(target) > ANCHOR_MAX_TOKENS:
+        return []
+    counts = Counter(t for ts in wtoks for t in ts)
+    anchors = {
+        t for t in target
+        if counts.get(t) == 1 and (len(t) >= 2 if t[0].isdigit() else len(t) >= 6)
+    }
+    if not any(t[0].isdigit() for t in anchors) and len(anchors) < 2:
+        return []
+    picked = [i for i, ts in enumerate(wtoks) if anchors.intersection(ts)]
     return _line_boxes([words[i].box for i in picked])
 
 
@@ -399,6 +434,25 @@ class CiteTarget:
     page_count: int
     passage: str = ""
     boxes: list[Box] = field(default_factory=list)
+    # width / height of every page, so the preview can reserve each page's
+    # space before its image loads — the scroll position stays put.
+    ratios: list[float] = field(default_factory=list)
+
+
+def page_ratios(pdf_bytes: bytes) -> list[float]:
+    import pypdfium2 as pdfium
+
+    doc = pdfium.PdfDocument(pdf_bytes)
+    try:
+        out = []
+        for i in range(len(doc)):
+            w, h = doc[i].get_size()
+            if doc[i].get_rotation() in (90, 270):
+                w, h = h, w
+            out.append(w / h if w > 0 and h > 0 else 1 / 1.414)
+        return out
+    finally:
+        doc.close()
 
 
 def _sidecar_pages(doc_id: int) -> list[tuple[int, str]]:
@@ -434,13 +488,16 @@ async def locate(
     text = dict(pages).get(page, "")
     passage, _score = best_passage(text, claim, hints)
     target = CiteTarget(doc_id, doc.title or f"#{doc_id}", page, page_count, passage)
-    if passage and pdf_bytes:
-        def _boxes() -> list[Box]:
+    if pdf_bytes:
+        def _read() -> tuple[list[Box], list[float]]:
             with doc_image_service.pdfium_lock:
-                return align_words(pdf_words(pdf_bytes, page), passage)
+                boxes = align_words(pdf_words(pdf_bytes, page), passage) if passage else []
+                return boxes, page_ratios(pdf_bytes)
 
         try:
-            target.boxes = await asyncio.to_thread(_boxes)
+            target.boxes, target.ratios = await asyncio.to_thread(_read)
         except Exception as exc:
             _log.warning("citation: text layer of #%s p%s unreadable: %s", doc_id, page, exc)
+    if passage and not target.boxes:
+        _log.info("citation #%s p%s: passage not on the text layer: %.80r", doc_id, page, passage)
     return target

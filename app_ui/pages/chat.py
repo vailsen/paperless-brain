@@ -117,7 +117,9 @@ def _extract_markdown_csvs(text: str) -> list[bytes]:
     return results
 
 
-def _inject_doc_links(text: str, vault_index: dict | None = None) -> str:
+def _inject_doc_links(
+    text: str, vault_index: dict | None = None, titles: dict[int, str] | None = None
+) -> str:
     # Before any link injection: a document filename is full of underscores and
     # markdown2 would eat them as emphasis markers.
     text = escape_intraword_underscores(text)
@@ -174,20 +176,37 @@ def _inject_doc_links(text: str, vault_index: dict | None = None) -> str:
     if not sources:
         return text
     text = re.sub("\x00(\\d+)\x00", lambda m: sups[int(m.group(1))], text)
-    return text.rstrip() + "\n\n" + _citation_list(sources) + "\n"
+    return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}) + "\n"
 
 
-def _citation_list(sources: list[tuple[int, int, int]]) -> str:
-    """The small source line under an answer; each entry opens the cited page."""
+def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str]) -> str:
+    """The source box under an answer: one row per document, its cited pages as
+    numbered chips that open the page. A title not known yet is filled in by
+    the browser once ``_fill_cite_titles`` has it."""
     _ = get_translator()
-    items = "".join(
-        f'<span class="pb-cite-item" data-cite="{doc}-{page}" data-n="{n}">'
-        f"<b>{n}</b>#{doc}"
-        + (" · " + _html.escape(_("p. {n}").format(n=page)) if page else "")
-        + "</span>"
-        for n, doc, page in sources
-    )
-    return f'<div class="pb-cite-list">{items}</div>'
+    page_label = _("p. {n}")
+    by_doc: dict[int, list[tuple[int, int]]] = {}
+    for n, doc, page in sources:
+        by_doc.setdefault(doc, []).append((n, page))
+    rows = []
+    for doc, cited in by_doc.items():
+        chips = "".join(
+            f'<span class="pb-cite-item" data-cite="{doc}-{page}" data-n="{n}">'
+            f"<b>{n}</b>{_html.escape(page_label.format(n=page))}</span>"
+            if page
+            else f'<span class="pb-cite-item is-bare" data-cite="{doc}-0" data-n="{n}">'
+            f"<b>{n}</b></span>"
+            for n, page in cited
+        )
+        title = _html.escape(titles.get(doc, ""))
+        rows.append(
+            f'<div class="pb-cite-doc"><a href="#" class="pb-cite-doclink" data-doc-id="{doc}">'
+            f'<span class="pb-cite-title" data-doc="{doc}">{title}</span>'
+            f'<span class="pb-cite-id">#{doc}</span></a>'
+            f'<span class="pb-cite-pages">{chips}</span></div>'
+        )
+    head = _html.escape(_("Sources"))
+    return f'<div class="pb-cite-list"><div class="pb-cite-head">{head}</div>{"".join(rows)}</div>'
 
 
 async def _resolve_vault_wiki_links(text: str, index: dict, username: str) -> None:
@@ -546,15 +565,35 @@ html, body { overflow: hidden !important; }
 .pb-cite:hover, .pb-cite-item:hover { color: var(--c-text); }
 .pb-cite.is-active { background: var(--c-accent); color: #fff; }
 .pb-cite-list {
-    display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; padding-top: 6px;
-    border-top: 1px solid var(--c-border); font-size: .72rem; color: var(--c-text-muted);
+    display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 8px 10px;
+    border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface-2);
+    font-size: .75rem; line-height: 1.45; color: var(--c-text-muted);
 }
-.pb-cite-item { cursor: pointer; white-space: nowrap; touch-action: manipulation; }
+.pb-cite-head { font-size: .7rem; font-weight: 600; color: var(--c-text-muted); }
+/* Title and chips share a row while the title has room; on a phone the
+   chips drop below it instead of squeezing the title to a few letters. */
+.pb-cite-doc {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0;
+}
+.chat-md a.pb-cite-doclink {
+    flex: 1 1 18em; display: flex; align-items: baseline; gap: 6px; min-width: 0;
+    color: var(--c-text-2); text-decoration: none; touch-action: manipulation;
+}
+.chat-md a.pb-cite-doclink:hover .pb-cite-title { color: var(--c-text); text-decoration: underline; }
+.pb-cite-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-cite-id { flex-shrink: 0; color: var(--c-text-muted); font-size: .7rem; }
+.pb-cite-pages { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.pb-cite-item {
+    display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 0;
+    border-radius: .7em; background: var(--c-surface-3); color: var(--c-text-2);
+    cursor: pointer; white-space: nowrap; touch-action: manipulation;
+}
 .pb-cite-item b {
-    display: inline-block; min-width: 1.3em; margin-right: 3px; border-radius: .6em;
-    text-align: center; background: var(--c-border); color: var(--c-text-2);
+    display: inline-block; min-width: 1.45em; padding: 0 .3em; border-radius: .7em;
+    text-align: center; background: var(--c-border-strong); color: var(--c-text);
     font-weight: 600;
 }
+.pb-cite-item.is-bare { padding-right: 0; }
 .pb-cite-item.is-active b { background: var(--c-accent); color: #fff; }
 .pb-drawer-tabbar {
     position: absolute; top: 0; left: 0; right: 0; height: 40px; gap: 4px;
@@ -585,7 +624,7 @@ html, body { overflow: hidden !important; }
     overflow-wrap: anywhere; white-space: pre-wrap;
 }
 .pb-src-page { position: relative; margin: 8px; background: #fff; }
-.pb-src-img { display: block; width: 100%; height: auto; }
+.pb-src-img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .pb-src-hl {
     position: absolute; pointer-events: none; border-radius: 2px;
     background: rgba(139, 92, 246, .28); box-shadow: 0 0 0 1px rgba(139, 92, 246, .55);
@@ -1127,8 +1166,40 @@ async def chat():
                     "padding:10px 14px;max-width:85%;min-width:0;font-size:0.875rem;color:var(--c-text-2);"
                 ):
                     ui.markdown(
-                        _inject_doc_links(msg["content"]), sanitize=False, extras=_MD_EXTRAS
+                        _inject_doc_links(msg["content"], None, _rs.get("doc_titles")),
+                        sanitize=False,
+                        extras=_MD_EXTRAS,
                     ).classes("chat-md")
+
+    async def _resolve_cite_titles(texts: list[str]) -> dict[int, str]:
+        """Titles of the documents cited in ``texts`` — asked of Paperless as
+        this user, so a made-up marker cannot reveal a title they may not see."""
+        titles: dict[int, str] = _rs.setdefault("doc_titles", {})
+        ids = {int(m.group(1)) for t in texts for m in citations.CITE_RE.finditer(t or "")}
+        missing = ids - titles.keys()
+        if missing:
+            paperless = get_session_paperless()
+
+            async def _one(doc_id: int) -> None:
+                try:
+                    titles[doc_id] = (await paperless.get_document(doc_id)).title or ""
+                except Exception:
+                    titles[doc_id] = ""
+
+            await asyncio.gather(*(_one(i) for i in missing))
+        return titles
+
+    async def _fill_cite_titles(texts: list[str]) -> None:
+        """Put the titles into source boxes rendered before they were known."""
+        titles = await _resolve_cite_titles(texts)
+        known = {str(k): v for k, v in titles.items() if v}
+        if known:
+            ui.run_javascript(f"window.__pbFillCiteTitles({json.dumps(known)})")
+
+    def _fill_titles_later(messages: list[dict]) -> None:
+        texts = [m["content"] for m in messages if m.get("role") == "assistant"]
+        if any(citations.CITE_RE.search(t or "") for t in texts):
+            ui.timer(0.05, lambda: _fill_cite_titles(texts), once=True)
 
     def _active_groups() -> set[str]:
         return {
@@ -1298,6 +1369,7 @@ async def chat():
             else:
                 for _msg in messages:
                     _render_stored_msg(_msg)
+                _fill_titles_later(messages)
         _update_context_progress()
         _set_history_visible(False)
 
@@ -2290,53 +2362,52 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                 ui.spinner(size="lg").classes("text-gray-400")
             return
         t = st["target"]
-        page = st["page"]
-        with ui.column().classes("w-full h-full gap-0 no-wrap").style("min-width:0;"):
+        total = max(t.page_count, 1)
+        ratios = t.ratios if len(t.ratios) >= total else [1 / 1.414] * total
+        # Every page of the document, one under the other; each reserves its
+        # space from the PDF's page size so a lazy image never moves the view.
+        with ui.column().classes("pb-src w-full h-full gap-0 no-wrap").style("min-width:0;"):
             with ui.row().classes("pb-src-head w-full items-center no-wrap gap-1"):
                 ui.label(f"#{t.doc_id} · {t.title}").classes(
                     "pb-src-title text-sm text-gray-200 font-semibold"
                 ).tooltip(t.title)
-                ui.button(
-                    color=None, icon="chevron_left", on_click=lambda: _preview_page(-1)
-                ).props("flat dense round size=sm" + (" disable" if page <= 1 else ""))
-                ui.label(
-                    _("Page {n} of {total}").format(n=page, total=t.page_count)
-                ).classes("text-xs text-gray-400").style("white-space:nowrap;")
-                ui.button(
-                    color=None, icon="chevron_right", on_click=lambda: _preview_page(1)
-                ).props(
-                    "flat dense round size=sm" + (" disable" if page >= t.page_count else "")
+                ui.button(color=None, icon="chevron_left").props(
+                    "flat dense round size=sm"
+                ).on("click", js_handler="() => window.__pbSrcStep(-1)")
+                pageno = ui.label(
+                    _("Page {n} of {total}").format(n=t.page, total=total)
+                ).classes("pb-src-pageno text-xs text-gray-400").style("white-space:nowrap;")
+                pageno._props["data-fmt"] = _("Page {n} of {total}").replace(
+                    "{total}", str(total)
                 )
+                ui.button(color=None, icon="chevron_right").props(
+                    "flat dense round size=sm"
+                ).on("click", js_handler="() => window.__pbSrcStep(1)")
                 ui.button(
                     color=None, icon="open_in_full", on_click=lambda: open_doc_by_id(t.doc_id)
                 ).props("flat dense round size=sm").tooltip(_("Open document"))
             with ui.element("div").classes("pb-src-scroll"):
-                on_cited_page = page == t.page
-                if on_cited_page and t.passage:
-                    ui.label(t.passage).classes("pb-src-quote")
-                    if not t.boxes:
-                        ui.label(
-                            _("The passage could not be located on the page image.")
-                        ).classes("text-xs text-gray-500 px-3")
-                with ui.element("div").classes("pb-src-page"):
-                    img = ui.element("img").classes("pb-src-img")
-                    img._props["src"] = doc_image_service.image_url(t.doc_id, page)
-                    img._props["alt"] = _("Page {n}").format(n=page)
-                    if on_cited_page:
-                        for x, y, w, h in t.boxes:
-                            ui.element("div").classes("pb-src-hl").style(
-                                f"left:{x * 100:.2f}%; top:{y * 100:.2f}%;"
-                                f"width:{w * 100:.2f}%; height:{h * 100:.2f}%;"
-                            )
-
-    def _preview_page(step: int) -> None:
-        st = _rs.get("preview")
-        if not st or st.get("loading"):
-            return
-        new = min(max(1, st["page"] + step), st["target"].page_count)
-        if new != st["page"]:
-            st["page"] = new
-            _render_preview()
+                for n in range(1, total + 1):
+                    if n == t.page and t.passage:
+                        ui.label(t.passage).classes("pb-src-quote")
+                        if not t.boxes:
+                            ui.label(
+                                _("The passage could not be located on the page image.")
+                            ).classes("text-xs text-gray-500 px-3")
+                    with ui.element("div").classes("pb-src-page").style(
+                        f"aspect-ratio:{ratios[n - 1]:.4f};"
+                    ) as frame:
+                        frame._props["data-page"] = str(n)
+                        img = ui.element("img").classes("pb-src-img")
+                        img._props["src"] = doc_image_service.image_url(t.doc_id, n)
+                        img._props["alt"] = _("Page {n}").format(n=n)
+                        img._props["loading"] = "eager" if abs(n - t.page) <= 1 else "lazy"
+                        if n == t.page:
+                            for x, y, w, h in t.boxes:
+                                ui.element("div").classes("pb-src-hl").style(
+                                    f"left:{x * 100:.2f}%; top:{y * 100:.2f}%;"
+                                    f"width:{w * 100:.2f}%; height:{h * 100:.2f}%;"
+                                )
 
     async def _open_citation(doc_id: int, page: int, claim: str) -> None:
         _rs["preview"] = {"loading": True}
@@ -2363,9 +2434,11 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                 _("Document #{id} not found or no access.").format(id=doc_id), type="warning"
             )
             return
-        _rs["preview"] = {"target": target, "page": target.page}
+        _rs["preview"] = {"target": target}
         _render_preview()
-        ui.run_javascript("window.__pbScrollToHighlight && window.__pbScrollToHighlight()")
+        ui.run_javascript(
+            f"window.__pbScrollToHighlight && window.__pbScrollToHighlight({target.page})"
+        )
 
     _render_preview()  # the empty state, until a reference is clicked
 
@@ -2471,21 +2544,63 @@ window.__openCite = function(el) {{
         args: [JSON.stringify({{c: el.getAttribute('data-cite'), claim: window.__citeClaim(el)}})]
     }});
 }};
-// Once the page image has its size, bring the first highlight into view.
-window.__pbScrollToHighlight = function(tries) {{
-    tries = tries || 0;
-    var hosts = Array.prototype.filter.call(
+// The Source tab: bring the cited passage into view, track and step pages.
+window.__pbSrcHost = function() {{
+    return Array.prototype.find.call(
         document.querySelectorAll('.pb-src-scroll'), function(x) {{ return x.offsetParent; }});
-    var host = hosts[0];
-    var img = host && host.querySelector('.pb-src-img');
-    if (!img || !img.complete || !img.naturalHeight) {{
-        if (tries < 60) setTimeout(function() {{ window.__pbScrollToHighlight(tries + 1); }}, 100);
+}};
+window.__pbScrollToHighlight = function(page, tries) {{
+    tries = tries || 0;
+    var host = window.__pbSrcHost();
+    var frame = host && host.querySelector('.pb-src-page[data-page="' + page + '"]');
+    if (!frame || !frame.offsetHeight) {{
+        if (tries < 60) setTimeout(function() {{ window.__pbScrollToHighlight(page, tries + 1); }}, 100);
         return;
     }}
-    var hl = host.querySelector('.pb-src-hl');
-    if (!hl) {{ host.scrollTop = 0; return; }}
-    var off = hl.getBoundingClientRect().top - host.getBoundingClientRect().top;
-    host.scrollTop = Math.max(0, host.scrollTop + off - host.clientHeight / 3);
+    var hl = frame.querySelector('.pb-src-hl');
+    var quote = host.querySelector('.pb-src-quote');
+    var top = host.getBoundingClientRect().top;
+    if (hl) {{
+        var off = hl.getBoundingClientRect().top - top;
+        host.scrollTop = Math.max(0, host.scrollTop + off - host.clientHeight / 3);
+    }} else {{
+        host.scrollTop += (quote || frame).getBoundingClientRect().top - top - 8;
+    }}
+    window.__pbSrcTrack(host);
+}};
+window.__pbSrcCurrent = function(host) {{
+    var line = host.getBoundingClientRect().top + host.clientHeight / 3, cur = 1;
+    host.querySelectorAll('.pb-src-page').forEach(function(p) {{
+        if (p.getBoundingClientRect().top <= line) cur = +p.getAttribute('data-page');
+    }});
+    return cur;
+}};
+window.__pbSrcTrack = function(host) {{
+    var label = host.closest('.pb-src').querySelector('.pb-src-pageno');
+    var fmt = label && label.getAttribute('data-fmt');
+    if (fmt) label.textContent = fmt.replace('{{n}}', window.__pbSrcCurrent(host));
+}};
+window.__pbSrcStep = function(step) {{
+    var host = window.__pbSrcHost();
+    if (!host) return;
+    var frame = host.querySelector(
+        '.pb-src-page[data-page="' + (window.__pbSrcCurrent(host) + step) + '"]');
+    if (frame) host.scrollTo({{
+        top: host.scrollTop + frame.getBoundingClientRect().top - host.getBoundingClientRect().top,
+        behavior: 'smooth'}});
+}};
+document.addEventListener('scroll', function(e) {{
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('pb-src-scroll')) window.__pbSrcTrack(t);
+}}, true);
+// Source boxes rendered before their documents' titles were known.
+window.__pbDocTitles = window.__pbDocTitles || {{}};
+window.__pbFillCiteTitles = function(map) {{
+    Object.assign(window.__pbDocTitles, map || {{}});
+    document.querySelectorAll('.pb-cite-title').forEach(function(el) {{
+        var t = window.__pbDocTitles[el.getAttribute('data-doc')];
+        if (!el.textContent && t) el.textContent = t;
+    }});
 }};
 window.__openVaultNote = function(noteId) {{
     console.log('[PaperlessBrain] __openVaultNote called, noteId=', noteId, 'socket=', !!window.socket, 'handshake=', window.did_handshake);
@@ -3116,7 +3231,11 @@ window.__openVaultNote = function(noteId) {{
                     accumulated[0], _rs.setdefault("vault_index", {}), _username
                 )
                 streaming_label[0].set_content(
-                    _inject_doc_links(accumulated[0], _rs.get("vault_index"))
+                    _inject_doc_links(
+                        accumulated[0],
+                        _rs.get("vault_index"),
+                        await _resolve_cite_titles([accumulated[0]]),
+                    )
                 )
                 _s["messages"].append({"role": "assistant", "content": accumulated[0]})
                 _update_context_progress()  # re-estimate now that assistant msg is in history
@@ -3878,6 +3997,7 @@ window.__openVaultNote = function(noteId) {{
         with messages_container:
             for _msg in _s["messages"]:
                 _render_stored_msg(_msg)
+            _fill_titles_later(_s["messages"])
         _update_context_progress()
         messages_scroll.scroll_to(percent=1.0)
     else:

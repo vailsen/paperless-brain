@@ -11,10 +11,12 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 - **Every fact in an answer shows where it comes from.** A small number after a
   sentence names its source; two facts from two places get two numbers. Tap one
-  and the results panel switches to a new "Source" tab: the cited page of the
-  PDF, the passage marked on it, and the passage quoted above the page. A line
-  under the answer lists all sources of that answer, each one tappable. On a
-  phone the panel slides in — you tapped on purpose. Saved as PDF, the numbers
+  and the results panel switches to a new "Source" tab: the whole PDF to scroll
+  through, opened at the cited page with the passage marked on it and quoted
+  above it. A box under the answer lists its sources by document title, each
+  cited page tappable. On a phone the panel slides in — you tapped on purpose.
+  Filled-in forms work too: there the value ("22.03.2026") is marked even
+  though the PDF stores it far away from its label ("Datum:"). Saved as PDF, the numbers
   stay and the source list is printed below the answer.
 - **Formulas stay formulas.** The vision model now writes mathematical formulas
   as LaTeX, so the chat can read them and shows them typeset — also in its own
