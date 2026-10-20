@@ -38,7 +38,9 @@ _wb2_runs: set[asyncio.Task] = set()
 # `task_list`: "- [ ] foo" becomes a real checkbox instead of a bullet with
 # literal brackets. Vault notes carry Obsidian task lines, and the model
 # writes checklists back in the same syntax.
-_MD_EXTRAS = ["fenced-code-blocks", "tables", "latex", "task_list"]
+# cuddled-lists: models write a list right under a bold heading line, with no
+# blank line in between — without it the items run on as one paragraph.
+_MD_EXTRAS = ["fenced-code-blocks", "tables", "latex", "task_list", "cuddled-lists"]
 from services.chat_service import (
     TOOL_DEFINITIONS,
     ClaudeChatBackend,
@@ -630,6 +632,7 @@ html, body { overflow: hidden !important; }
     background: rgba(139, 92, 246, .28); box-shadow: 0 0 0 1px rgba(139, 92, 246, .55);
     mix-blend-mode: multiply;
 }
+.pb-src-hl.is-other { background: rgba(139, 92, 246, .12); box-shadow: 0 0 0 1px rgba(139, 92, 246, .3); }
 /* Same trap, message list: without the cap the content box grows to the
    max-content width of the widest thing in the conversation — one wide table
    and every bubble's `max-width: 85%` is suddenly 85% of something far larger
@@ -2403,13 +2406,17 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                         img._props["alt"] = _("Page {n}").format(n=n)
                         img._props["loading"] = "eager" if abs(n - t.page) <= 1 else "lazy"
                         if n == t.page:
-                            for x, y, w, h in t.boxes:
-                                ui.element("div").classes("pb-src-hl").style(
+                            marks = [(b, "pb-src-hl is-other") for b in t.other_boxes]
+                            marks += [(b, "pb-src-hl") for b in t.boxes]
+                            for (x, y, w, h), cls in marks:
+                                ui.element("div").classes(cls).style(
                                     f"left:{x * 100:.2f}%; top:{y * 100:.2f}%;"
                                     f"width:{w * 100:.2f}%; height:{h * 100:.2f}%;"
                                 )
 
-    async def _open_citation(doc_id: int, page: int, claim: str) -> None:
+    async def _open_citation(
+        doc_id: int, page: int, claim: str, other_claims: list[str] = ()
+    ) -> None:
         _rs["preview"] = {"loading": True}
         _render_preview()
         _show_drawer_tab("preview")
@@ -2422,7 +2429,7 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
         ] if known else []
         try:
             target = await citations.locate(
-                doc_id, page or None, claim, get_session_token(), hints
+                doc_id, page or None, claim, get_session_token(), hints, other_claims
             )
         except Exception as exc:
             _log.warning("citation #%s p%s failed: %s", doc_id, page, exc)
@@ -2451,7 +2458,10 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                 args = args[0] if args else None
             data = json.loads(args) if isinstance(args, str) else (args or {})
             doc_s, _sep, page_s = str(data.get("c", "")).partition("-")
-            await _open_citation(int(doc_s), int(page_s or 0), str(data.get("claim", ""))[:500])
+            others = [str(c)[:500] for c in (data.get("others") or [])[:8]]
+            await _open_citation(
+                int(doc_s), int(page_s or 0), str(data.get("claim", ""))[:500], others
+            )
         except (TypeError, ValueError, json.JSONDecodeError):
             pass
 
@@ -2534,6 +2544,7 @@ window.__openCite = function(el) {{
         x.classList.remove('is-active');
     }});
     var md = el.closest('.chat-md');
+    var claim = window.__citeClaim(el);
     if (md) md.querySelectorAll('[data-n="' + el.getAttribute('data-n') + '"]').forEach(function(x) {{
         x.classList.add('is-active');
     }});
@@ -2541,7 +2552,14 @@ window.__openCite = function(el) {{
         id: {_cite_handler.id},
         client_id: window.clientId,
         listener_id: '{_cite_listener_id}',
-        args: [JSON.stringify({{c: el.getAttribute('data-cite'), claim: window.__citeClaim(el)}})]
+        args: [JSON.stringify({{
+            c: el.getAttribute('data-cite'),
+            claim: claim,
+            // The same number behind other sentences: their passages are marked too.
+            others: md ? Array.prototype.map.call(
+                md.querySelectorAll('sup.pb-cite[data-n="' + el.getAttribute('data-n') + '"]'),
+                window.__citeClaim).filter(function(x) {{ return x && x !== claim; }}) : []
+        }})]
     }});
 }};
 // The Source tab: bring the cited passage into view, track and step pages.
@@ -2557,7 +2575,7 @@ window.__pbScrollToHighlight = function(page, tries) {{
         if (tries < 60) setTimeout(function() {{ window.__pbScrollToHighlight(page, tries + 1); }}, 100);
         return;
     }}
-    var hl = frame.querySelector('.pb-src-hl');
+    var hl = frame.querySelector('.pb-src-hl:not(.is-other)') || frame.querySelector('.pb-src-hl');
     var quote = host.querySelector('.pb-src-quote');
     var top = host.getBoundingClientRect().top;
     if (hl) {{
@@ -2755,6 +2773,13 @@ window.__openVaultNote = function(noteId) {{
             docs_edge_handle.classes(remove="has-results pulse")
         if pulse and total and not _s["docs_visible"]:
             docs_edge_handle.classes(add="pulse")
+
+    def _merge_doc_hits(hits: list[DocumentResult]) -> None:
+        """A document the model read joins the results at the top. One a search
+        already found stays as it is — its entry carries the matched passages."""
+        known = {r.document.id for r in _rs["last_results"]}
+        fresh = [h for h in hits if h.document.id not in known]
+        _rs["last_results"] = fresh + _rs["last_results"]
 
     def _render_results(activate: str | None = None, pulse: bool = False) -> None:
         if activate:
@@ -3162,7 +3187,10 @@ window.__openVaultNote = function(noteId) {{
                         _tool_trace[-1]["output"] = event.tool_output
 
                 elif isinstance(event, DocsRetrievedEvent):
-                    _rs["last_results"] = event.results
+                    if event.merge:
+                        _merge_doc_hits(event.results)
+                    else:
+                        _rs["last_results"] = event.results
                     _render_results(activate="docs", pulse=True)
                     await asyncio.sleep(0)
 

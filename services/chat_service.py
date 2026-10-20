@@ -156,6 +156,17 @@ class ToolResultEvent:
 @dataclass
 class DocsRetrievedEvent:
     results: list[DocumentResult]
+    # A search replaces the result list; a tool that reads one document adds
+    # it, so the hits of the search before it stay visible.
+    merge: bool = False
+
+
+# Tools that open one known document. Their result is that document, shown in
+# the results panel like a search hit.
+_DOC_READ_TOOLS = frozenset(
+    {"get_document_details", "get_document_table", "get_document_page_text",
+     "view_document_page", "show_document_image"}
+)
 
 
 @dataclass
@@ -1067,7 +1078,11 @@ async def _execute_tool_dispatch(
         return text, [], [DownloadRequestEvent(params=inputs)]
     if name == "show_document_image":
         text, event = await _tool_show_document_image(inputs)
-        return text, [], ([event] if event else [])
+        if not event:
+            return text, [], []
+        docs = await _user_paperless().list_documents(ids=[event.doc_id])
+        hits = [DocumentResult(document=d, matched_pages=[event.page]) for d in docs]
+        return text, hits, [event]
     if name == "search_memory":
         text, facts, vault_notes = await _tool_search_memory(inputs)
         extras = []
@@ -1858,7 +1873,7 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
                     f"show_document_image(document_id={doc_id}, page_number=…, image_index=…)."
                 )
 
-    return "\n".join(lines), []
+    return "\n".join(lines), [DocumentResult(document=doc)]
 
 
 def _clip(text: str, limit: int) -> str:
@@ -1877,7 +1892,8 @@ async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResu
     # missing session surfaces as such instead of a generic access error)
     pl = _user_paperless()
     try:
-        if not await pl.list_documents(ids=[doc_id]):
+        found = await pl.list_documents(ids=[doc_id])
+        if not found:
             return f"Document #{doc_id} not found or no access.", []
     except Exception as e:
         return f"Error accessing document {doc_id}: {e}", []
@@ -1910,7 +1926,10 @@ async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResu
             f"… more rows: get_document_table(document_id={doc_id}, "
             f"table_index={table_index}, offset={offset + limit})"
         )
-    return header + body + footer, []
+    hit = DocumentResult(
+        document=found[0], matched_pages=[page_n] if isinstance(page_n, int) else []
+    )
+    return header + body + footer, [hit]
 
 
 async def _tool_get_document_page_text(
@@ -1919,8 +1938,10 @@ async def _tool_get_document_page_text(
     doc_id = int(inputs.get("document_id", 0))
     page_number = int(inputs.get("page_number", 1))
     # Permission check — sidecar is file-based, has no access control
-    if not await _user_paperless().list_documents(ids=[doc_id]):
+    found = await _user_paperless().list_documents(ids=[doc_id])
+    if not found:
         return f"Document #{doc_id} not found or no access.", []
+    hits = [DocumentResult(document=found[0], matched_pages=[page_number])]
     sc = sidecar_service.load_sidecar(doc_id)
     if sc:
         for p in sc.get("pages") or []:
@@ -1934,11 +1955,11 @@ async def _tool_get_document_page_text(
                     return (
                         f"Page {page_number} of document #{doc_id} — cite as "
                         f"{cite_ref(doc_id, page_number)}:\n\n{body}",
-                        [],
+                        hits,
                     )
     return (
         f"No extracted text found for page {page_number} of document #{doc_id}.",
-        [],
+        hits,
     )
 
 
@@ -1951,8 +1972,10 @@ async def _tool_view_document_page(inputs: dict) -> tuple[str, list[DocumentResu
     )
 
     # Permission check before serving cached PDF
-    if not await _user_paperless().list_documents(ids=[doc_id]):
+    found = await _user_paperless().list_documents(ids=[doc_id])
+    if not found:
         return f"Document #{doc_id} not found or no access.", []
+    hits = [DocumentResult(document=found[0], matched_pages=[page_number])]
     cached = os.path.join(_PDF_CACHE, f"{doc_id}.pdf")
     if not os.path.exists(cached):
         try:
@@ -1980,7 +2003,7 @@ async def _tool_view_document_page(inputs: dict) -> tuple[str, list[DocumentResu
         result = await _vision.describe_page(page_image, question)
         return (
             f"Vision analysis of page {page_number} (document {doc_id}):\n\n{result}",
-            [],
+            hits,
         )
     except Exception as e:
         return f"Vision analysis failed: {e}", []
@@ -3418,7 +3441,7 @@ class ClaudeChatBackend:
                     )
                     yield ToolResultEvent(tool_output=result_text[:2000])
                     if docs:
-                        yield DocsRetrievedEvent(docs)
+                        yield DocsRetrievedEvent(docs, merge=block.name in _DOC_READ_TOOLS)
                     for extra in extras:
                         yield extra
                     tool_results.append(
@@ -3936,7 +3959,7 @@ class OpenAICompatibleChatBackend:
                 result_text, docs, extras = await execute_tool(tool_name, tool_args)
                 yield ToolResultEvent(tool_output=result_text[:2000])
                 if docs:
-                    yield DocsRetrievedEvent(docs)
+                    yield DocsRetrievedEvent(docs, merge=tool_name in _DOC_READ_TOOLS)
                 for extra in extras:
                     yield extra
 

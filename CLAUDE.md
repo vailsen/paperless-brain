@@ -143,6 +143,9 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 - **Coordinates are stored resolution-free** — `bbox` = `[x, y, w, h]` in page fractions,
   top-left origin. The model answers on a 0–1000 grid (calibrated with Qwen3.8; a coordinate above
   1000 means pixels and is converted with the render size, never guessed without it).
+- **Stamps, seals and signatures are pictures** (since `PROMPT_VERSION` 0.5, an unscoped step —
+  the old text cannot tell which page has one). Logos, letterheads and QR codes are not. A
+  signature's owner comes from a printed name next to it, never from reading the scribble.
 - **Picture descriptions live in `pages[i]["images"]`, never inline in `page_text`.** The old
   `[Image description: …]` marker was translated by the model and is unparseable. Descriptions
   reach the embedding as `[Image n: …]` lines appended in ingest only — `page_text` / `full_text`
@@ -189,6 +192,10 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   text layer just shows the page. A filled-in form stores its values at the end of the text
   stream, far from their labels; for a short passage no window holds both, so `_anchor_boxes`
   marks the passage's tokens that occur exactly once on the page (a number, or two long words).
+- **A number is one source page, so every tap on it marks the same set**: the passages of all
+  sentences carrying that number in the bubble (`locate(other_claims=…)`, `.pb-src-hl.is-other`),
+  the tapped sentence's one strongest. Marking only the tapped sentence's passage made one
+  number mean a different place each time.
 - **Titles in the source box come from Paperless as the user** (`_resolve_cite_titles`), never
   from the sidecar: a made-up `[^id]` must not reveal the title of a document they cannot see.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document

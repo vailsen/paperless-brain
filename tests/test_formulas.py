@@ -17,7 +17,6 @@ def _sidecar(version: str, text: str = "", images: list | None = None) -> dict:
 
 
 def test_prompt_asks_for_latex_but_not_for_units():
-    assert PROMPT_VERSION == "0.4"
     assert "LaTeX" in BASE_INSTRUCTIONS
     assert "5 m²" in BASE_INSTRUCTIONS  # values with units stay plain text
 
@@ -60,6 +59,13 @@ def test_steps_are_walked_from_the_sidecars_version():
     assert is_outdated(_sidecar("0.2", "[Image description: chart]"), "0.4")
     assert is_outdated(_sidecar("0.2", "σ = F / A"), "0.4")
     assert is_outdated(_sidecar("0.2", "", images=[{"description": "Foto"}]), "0.4")
+
+
+def test_signatures_step_reingests_every_document():
+    # 0.5 (stamps, seals, signatures) is not scoped: the old text cannot tell.
+    assert PROMPT_VERSION == "0.5"
+    assert is_outdated(_sidecar("0.4", "Rechnung"), "0.5")
+    assert is_outdated(_sidecar("0.2", "Rechnung"), "0.5")
 
 
 def test_unknown_versions_reingest_everything():

@@ -44,7 +44,7 @@ def _mentions_math(sidecar: dict) -> bool:
 # every document). Without this, each such step would re-run the vision model
 # over the whole archive: 0.2 → 0.3 touched 9 of 523 documents on the live one.
 # Add a test only when nothing else in the prompt changed in that step.
-_VERSIONS: list[str] = ["0.2", "0.3", "0.4"]
+_VERSIONS: list[str] = ["0.2", "0.3", "0.4", "0.5"]
 _SCOPED_CHANGES: dict[tuple[str, str], object] = {
     ("0.2", "0.3"): _mentions_pictures,  # pictures in "images", not inline
     ("0.3", "0.4"): _mentions_math,  # formulas as LaTeX

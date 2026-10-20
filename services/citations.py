@@ -434,6 +434,9 @@ class CiteTarget:
     page_count: int
     passage: str = ""
     boxes: list[Box] = field(default_factory=list)
+    # The same number stands behind other sentences of the answer too: their
+    # passages on this page, marked more lightly than the clicked one.
+    other_boxes: list[Box] = field(default_factory=list)
     # width / height of every page, so the preview can reserve each page's
     # space before its image loads — the scroll position stays put.
     ratios: list[float] = field(default_factory=list)
@@ -465,14 +468,23 @@ def _sidecar_pages(doc_id: int) -> list[tuple[int, str]]:
     ]
 
 
+def _overlaps(a: Box, b: Box) -> bool:
+    return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+
+
 async def locate(
     doc_id: int,
     page: int | None,
     claim: str,
     token: str,
     hints: list[str] | tuple[str, ...] = (),
+    other_claims: list[str] | tuple[str, ...] = (),
 ) -> CiteTarget | None:
-    """Resolve a citation for the user behind ``token``; None without access."""
+    """Resolve a citation for the user behind ``token``; None without access.
+
+    ``other_claims`` are the other sentences citing the same source with the
+    same number; their passages land in ``other_boxes``.
+    """
     import asyncio
 
     from services import doc_image_service
@@ -488,14 +500,22 @@ async def locate(
     text = dict(pages).get(page, "")
     passage, _score = best_passage(text, claim, hints)
     target = CiteTarget(doc_id, doc.title or f"#{doc_id}", page, page_count, passage)
+    # Another sentence's passage counts only on its own merit — no hint
+    # fallback, which would mark the search's chunk for every one of them.
+    others = [p for c in other_claims if (p := best_passage(text, c)[0]) and p != passage]
     if pdf_bytes:
-        def _read() -> tuple[list[Box], list[float]]:
+        def _read() -> tuple[list[Box], list[Box], list[float]]:
             with doc_image_service.pdfium_lock:
-                boxes = align_words(pdf_words(pdf_bytes, page), passage) if passage else []
-                return boxes, page_ratios(pdf_bytes)
+                words = pdf_words(pdf_bytes, page) if passage or others else []
+                boxes = align_words(words, passage) if passage else []
+                more = [
+                    b for o in others for b in align_words(words, o)
+                    if not any(_overlaps(b, x) for x in boxes)
+                ]
+                return boxes, more, page_ratios(pdf_bytes)
 
         try:
-            target.boxes, target.ratios = await asyncio.to_thread(_read)
+            target.boxes, target.other_boxes, target.ratios = await asyncio.to_thread(_read)
         except Exception as exc:
             _log.warning("citation: text layer of #%s p%s unreadable: %s", doc_id, page, exc)
     if passage and not target.boxes:

@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
+
+from models.paperless_document import PaperlessDocument
 from PIL import Image
 from weasyprint import HTML
 
@@ -59,18 +61,13 @@ SIDECAR = {
 }
 
 
-@dataclass
-class _Doc:
-    id: int
-    title: str = "Kochmagazin"
-    modified: datetime = datetime(2026, 10, 1, 12, 0)
-    correspondent: str | None = None
-    document_type: str | None = None
-    tags: tuple = ()
-    created: datetime | None = None
-    page_count: int = 2
-    owner_name: str | None = None
-    notes: tuple = ()
+def _Doc(doc_id: int) -> PaperlessDocument:
+    when = datetime(2026, 10, 1, 12, 0)
+    return PaperlessDocument(
+        id=doc_id, title="Kochmagazin", original_file_name="k.pdf", notes=[],
+        mime_type="application/pdf", tags=[], added=when, created=when, modified=when,
+        page_count=2, pdf_url=f"http://example.invalid/{doc_id}",
+    )
 
 
 class _FakePaperless:
@@ -117,7 +114,9 @@ def _show(**inputs):
 def test_whole_page_emits_an_event_and_tells_the_model(user):
     text, docs, events = _show(document_id=7, page_number=2)
     assert events == [ImageDisplayEvent(doc_id=7, page=2, index=None, caption="Kochmagazin – 2")]
-    assert "Shown to the user" in text and docs == []
+    assert "Shown to the user" in text
+    # The document joins the results panel, at the page shown.
+    assert [(d.document.id, d.matched_pages) for d in docs] == [(7, [2])]
 
 
 def test_picture_index_uses_what_it_belongs_to_as_caption(user):
@@ -167,6 +166,16 @@ def test_page_text_and_details_list_the_pictures_with_index(user):
     details, _ = _run(chat_service._tool_get_document_details({"document_id": 7}))
     assert "Images on page 2: [0]" in details
     assert "page ?" not in details
+
+
+def test_reading_one_document_puts_it_into_the_results(user):
+    _t, hits = _run(chat_service._tool_get_document_page_text({"document_id": 7, "page_number": 2}))
+    assert [(h.document.id, h.matched_pages) for h in hits] == [(7, [2])]
+    _t, hits = _run(chat_service._tool_get_document_details({"document_id": 7}))
+    assert [h.document.id for h in hits] == [7]
+    _t, hits = _run(chat_service._tool_get_document_details({"document_id": 8}))
+    assert hits == []  # no access, no result
+    assert "get_document_table" in chat_service._DOC_READ_TOOLS
 
 
 def test_search_hit_lists_pictures_with_page_and_index():

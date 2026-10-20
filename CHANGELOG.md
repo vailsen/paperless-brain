@@ -18,12 +18,29 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   Filled-in forms work too: there the value ("22.03.2026") is marked even
   though the PDF stores it far away from its label ("Datum:"). Saved as PDF, the numbers
   stay and the source list is printed below the answer.
+- **Stamps, seals and signatures count as pictures.** The vision model lists
+  them with their position, the text of the imprint and — when a printed name
+  next to it says so — whose signature it is, so the chat can show them.
+  This changes the reading prompt for every document (version 0.5): the next
+  sync with re-ingest reads the whole archive again. Set a limit in the sync
+  dialog to try it on a few documents first.
 - **Formulas stay formulas.** The vision model now writes mathematical formulas
   as LaTeX, so the chat can read them and shows them typeset — also in its own
   answers. Only documents with something formula-like on a page are read again
   after the update (16 of 524 on the reference archive), not the whole archive.
 
 ### Fixed
+
+- **One number, one source.** A number cited behind several sentences marked a
+  different passage depending on which of them you tapped. Now every tap on
+  that number marks all passages it stands for, the tapped sentence's one
+  strongest.
+- **Documents the assistant read show up under "Results".** Only a search
+  filled the list; a document opened by its details, a table, a page or a
+  picture did not. It now joins the list on top, and the documents section
+  opens while web results fold away.
+- **Lists right under a bold heading line render as lists**, not as one run-on
+  paragraph.
 
 - **A document opened from an answer shows the matching passage.** Clicking
   "#241" in an answer opened the document without the passages the search had
