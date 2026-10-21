@@ -9,6 +9,7 @@ from services.citations import (
     best_passage,
     best_pictures,
     cite_ref,
+    document_page,
     number_citations,
     pdf_words,
     plain_citations,
@@ -127,6 +128,13 @@ def test_a_page_number_is_not_what_a_claim_is_about():
     page = "Verlauf Gleitwirbel\n09.01.2025 – 2,5 Monate nach 2. OP\nSeite 5 von 5"
     claim = "Seite 5: Vier Lateralradiogramme mit Messwerten (10,92 mm)"
     assert "Seite 5 von 5" not in best_passage(page, claim)[0]
+
+
+def test_a_number_without_a_page_is_one_page_whichever_sentence_is_tapped():
+    pages = [(1, "Deckblatt"), (2, PAGE), (3, "Anhang: Stadtwerke Bretten")]
+    claims = ["Mindestens 65 % aus erneuerbaren Energien.", "Die Stadtwerke Bretten."]
+    picked = {document_page(pages, {}, [c, *[o for o in claims if o != c]]) for c in claims}
+    assert picked == {2}
 
 
 XRAYS = [

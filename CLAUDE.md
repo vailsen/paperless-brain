@@ -199,6 +199,8 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   sentences carrying that number in the bubble (`locate(other_claims=…)`, `.pb-src-hl.is-other`),
   the tapped sentence's one strongest. Marking only the tapped sentence's passage made one
   number mean a different place each time.
+  A number without a page (`[^361]`) gets its one page from all its sentences together
+  (`document_page`); picked per tapped sentence, one "1" went to pages 2, 1, 5 and 5.
 - **Titles in the source box come from Paperless as the user** (`_resolve_cite_titles`), never
   from the sidecar: a made-up `[^id]` must not reveal the title of a document they cannot see.
 - **A picture is a passage too.** On an X-ray page the text is a header and "Seite 5 von 5";

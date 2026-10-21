@@ -508,6 +508,25 @@ def best_pictures(pictures: list[tuple[str, Box]], claim: str) -> tuple[list[Box
     return [b for sc, _t, b in scored if sc >= 0.4 * top and sc > 1.0], top, best_text
 
 
+def document_page(
+    pages: list[tuple[int, str]],
+    pictures: dict[int, list[tuple[str, Box]]],
+    claims: list[str],
+    hints: list[str] | tuple[str, ...] = (),
+) -> int:
+    """The one page a citation without a page stands for.
+
+    Chosen for all sentences carrying the number together, never per sentence:
+    picking per tapped sentence sent one "1" to pages 2, 1, 5 and 5.
+    """
+    if not pages:
+        return 1
+    with_pictures = [
+        (n, "\n".join([t, *(pt for pt, _b in pictures.get(n, []))])) for n, t in pages
+    ]
+    return best_page(with_pictures, " ".join(claims), hints)
+
+
 def _overlaps(a: Box, b: Box) -> bool:
     return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
 
@@ -537,10 +556,7 @@ async def locate(
     pictures = _sidecar_pictures(doc_id)
     page_count = doc.page_count or len(pages) or 1
     if not page or not 1 <= page <= page_count:
-        with_pictures = [
-            (n, "\n".join([t, *(pt for pt, _b in pictures.get(n, []))])) for n, t in pages
-        ]
-        page = best_page(with_pictures, claim, hints) if pages else 1
+        page = document_page(pages, pictures, [claim, *other_claims], hints)
     text = dict(pages).get(page, "")
     on_page = pictures.get(page, [])
     passage, score = best_passage(text, claim, hints)
