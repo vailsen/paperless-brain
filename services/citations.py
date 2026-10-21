@@ -263,6 +263,55 @@ def best_page(
     return best_no or (pages[0][0] if pages else 1)
 
 
+def sidecar_page_texts(sidecar: dict | None) -> list[tuple[int, str]]:
+    """Per page: its text and the text of its pictures (title + description)."""
+    from services.page_images import page_images
+
+    out = []
+    for n, p in enumerate((sidecar or {}).get("pages") or [], 1):
+        pics = [
+            " ".join(x for x in (i.get("belongs_to"), i.get("description")) if x)
+            for i in page_images(p)
+        ]
+        out.append((int(p.get("page_number") or n), "\n".join([p.get("page_text") or "", *pics])))
+    return out
+
+
+# A number counts 3, so a page reaches this with one shared number or three words.
+PAGE_FOR_MIN = 3.0
+
+
+def page_for(pages: list[tuple[int, str]], text: str) -> int | None:
+    """The page ``text`` (a summary sentence, a reference number) comes from —
+    None unless one page clearly wins. Lets a tool print [^241-p3] next to a
+    fact that has a place, instead of the bare [^241] that has none."""
+    scored = sorted(((best_passage(t, text)[1], n) for n, t in pages), reverse=True)
+    if not scored or scored[0][0] < PAGE_FOR_MIN:
+        return None
+    if len(scored) > 1 and scored[1][0] > scored[0][0] - 1.0:
+        return None
+    return scored[0][1]
+
+
+# Title abbreviations end in a period but not a sentence: "für die Dr. Möldner".
+_ABBREVIATIONS = frozenset(
+    "dr prof nr hr fr st ca bzw inkl ggf vgl mr mrs ms no".split()
+)
+
+
+def split_sentences(text: str) -> list[str]:
+    out: list[str] = []
+    for piece in _SENTENCE_SPLIT_RE.split(" ".join((text or "").split())):
+        if not piece.strip():
+            continue
+        last = out[-1].rsplit(" ", 1)[-1].rstrip(".").lower() if out else ""
+        if out and out[-1].endswith(".") and last in _ABBREVIATIONS:
+            out[-1] += " " + piece.strip()
+        else:
+            out.append(piece.strip())
+    return out
+
+
 # ── PDF text layer ───────────────────────────────────────────────────────────
 
 Box = tuple[float, float, float, float]  # x, y, w, h — page fractions, top-left

@@ -11,6 +11,8 @@ from services.citations import (
     cite_ref,
     document_page,
     number_citations,
+    page_for,
+    split_sentences,
     pdf_words,
     plain_citations,
 )
@@ -135,6 +137,20 @@ def test_a_number_without_a_page_is_one_page_whichever_sentence_is_tapped():
     claims = ["Mindestens 65 % aus erneuerbaren Energien.", "Die Stadtwerke Bretten."]
     picked = {document_page(pages, {}, [c, *[o for o in claims if o != c]]) for c in claims}
     assert picked == {2}
+
+
+def test_a_fact_gets_the_page_it_is_on_when_one_page_clearly_wins():
+    pages = [(1, "Erstdiagnose 15.11.2022"), (2, "Nach 1. OP 12.04.2024"), (3, "Seite 3 von 3")]
+    assert page_for(pages, "Dr. Möldner stellte am 15.11.2022 die Erstdiagnose.") == 1
+    assert page_for(pages, "RZ-59211") is None  # nowhere
+    assert page_for(pages + [(4, "Erstdiagnose 15.11.2022")], "Erstdiagnose 15.11.2022") is None
+
+
+def test_a_title_abbreviation_does_not_end_the_sentence():
+    assert split_sentences("Für die Dr. Möldner die Diagnose stellte. Danach OP.") == [
+        "Für die Dr. Möldner die Diagnose stellte.",
+        "Danach OP.",
+    ]
 
 
 XRAYS = [

@@ -22,7 +22,7 @@ from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
 from models.web_result import WebSearchResult
 from pipelines.search import search
-from services.citations import cite_ref
+from services.citations import cite_ref, page_for, sidecar_page_texts, split_sentences
 from services.clients import chroma, cross_ref_index, paperless, sidecar_service, vision
 from services.ollama_watchdog import touch as _wol_touch
 from services.paperless import PaperlessClient as _PaperlessClient
@@ -1774,8 +1774,8 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
         return f"Error loading document {doc_id}: {e}", []
 
     lines = [
-        f"Details for document #{doc_id} — cite it as {cite_ref(doc_id)}, "
-        f"a page as [^{doc_id}-pN]\n"
+        f"Details for document #{doc_id} — cite a fact with the page reference "
+        f"printed next to it ([^{doc_id}-pN]); {cite_ref(doc_id)} only where none is\n"
     ]
 
     # Paperless metadata
@@ -1805,9 +1805,20 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
     # AI sidecar content
     sc = sidecar_service.load_sidecar(doc_id)
     if sc:
+        # Each fact gets the page it is on, where code can tell — a bare [^id]
+        # opens no particular place when the user taps it.
+        page_texts = sidecar_page_texts(sc)
+
+        def _ref(text: str) -> str:
+            return cite_ref(doc_id, page_for(page_texts, text))
+
         summary = sc.get("full_summary_summarized") or sc.get("full_summary") or ""
         if summary:
-            lines += ["Summary:", summary[:500], ""]
+            lines += [
+                "Summary:",
+                " ".join(f"{s}{_ref(s)}" for s in split_sentences(summary[:500])),
+                "",
+            ]
 
         actions = sc.get("actions") or []
         if actions:
@@ -1815,7 +1826,8 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
             for a in actions:
                 certain = "✓" if a.get("deadline_certain") else "~"
                 lines.append(
-                    f"  {certain} {a.get('description', '')} — {a.get('deadline', "no date")}"
+                    f"  {certain} {a.get('description', '')} — {a.get('deadline', "no date")} "
+                    + _ref(str(a.get("description", "")))
                 )
             lines.append("")
 
@@ -1823,7 +1835,9 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
         if cross_refs:
             lines.append(f"Cross-references ({len(cross_refs)}):")
             for r in cross_refs:
-                lines.append(f"  {r.get('type', '')}: {r.get('value', '')}")
+                lines.append(
+                    f"  {r.get('type', '')}: {r.get('value', '')} " + _ref(str(r.get("value", "")))
+                )
             lines.append("")
 
         tables = sc.get("tables") or []

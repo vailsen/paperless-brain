@@ -209,6 +209,10 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   pictures close to the best, since "four radiographs" is four. Page numbers ("Seite 5 von 5",
   a claim headed "Seite 5:") are dropped before scoring: the 5 alone, counting triple, marked
   the footer.
+- **A tool prints the page next to a fact wherever code can find it.** `get_document_details`
+  tags each summary sentence, action and cross-reference with `page_for` (one page clearly
+  best, else the bare `[^id]`). The model copies what it is shown; given only `[^361]` it cites
+  the whole document, and that number opens no particular place.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
   link mid-marker.
 
