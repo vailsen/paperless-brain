@@ -11,7 +11,8 @@ PROMPT_VERSION = "0.5"
 # 0.3: pictures in a structured "images" field, not inline
 # 0.4: formulas as LaTeX — re-ingests only pages that show one
 #      (sidecar_service._SCOPED_CHANGES); change nothing else in the same step
-# 0.5: stamps, seals and signatures are pictures — a full re-ingest; which
+# 0.5: stamps, seals and signatures are pictures (initials in the margin are
+#      not) — a full re-ingest; which
 #      page has a signature cannot be told from the old text
 
 CONDENSED_SUMMARY_PROMPT = """\
@@ -78,9 +79,10 @@ Tasks:
 
 1b. List EVERY picture on the page in "images" — one entry per picture:
    photos, illustrations, diagrams, charts, maps, X-rays and other medical
-   images, technical drawings, product images, and official marks: stamps,
-   seals and handwritten signatures. NOT pictures: logos, letterheads, icons,
-   barcodes, QR codes, decorative lines and frames, the page background. A page without pictures
+   images, technical drawings, product images, stamps, seals and handwritten
+   signatures. NOT pictures: logos, letterheads, icons, barcodes, QR codes,
+   initials in the page margin, decorative lines and frames, the page
+   background. A page without pictures
    has "images": [].
    - "description": describe the picture in detail — it is the only place the
      picture exists as text. Especially on pages that consist mostly of
@@ -107,10 +109,8 @@ Tasks:
      of recognizable findings (e.g. vertebral slippage, fractures, wear,
      position of the hardware) — phrased as an image impression ("shows",
      "consistent with"), not as a confirmed diagnosis. Mark uncertainty.
-   - Stamps and seals: shape, colour, every legible word and number of the
-     imprint verbatim (authority, company, date). Signatures: that it is a
-     handwritten signature, and whose — only if a printed name or role next
-     to it says so; never read a name out of the scribble.
+   - Stamps, seals, signatures: the legible imprint text; whose signature
+     only if a printed name next to it says so.
    - Technical drawings/plans: depicted part/object, views
      (top view, section), dimensions and tolerances verbatim, parts lists,
      material specifications, scale.

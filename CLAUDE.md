@@ -144,7 +144,8 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   top-left origin. The model answers on a 0–1000 grid (calibrated with Qwen3.8; a coordinate above
   1000 means pixels and is converted with the render size, never guessed without it).
 - **Stamps, seals and signatures are pictures** (since `PROMPT_VERSION` 0.5, an unscoped step —
-  the old text cannot tell which page has one). Logos, letterheads and QR codes are not. A
+  the old text cannot tell which page has one). Logos, letterheads, QR codes and margin
+  initials are not — every letter has a logo, every contract page initials. A
   signature's owner comes from a printed name next to it, never from reading the scribble.
 - **Picture descriptions live in `pages[i]["images"]`, never inline in `page_text`.** The old
   `[Image description: …]` marker was translated by the model and is unparseable. Descriptions
