@@ -145,7 +145,9 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   1000 means pixels and is converted with the render size, never guessed without it).
 - **Stamps, seals and signatures are pictures** (since `PROMPT_VERSION` 0.5, an unscoped step —
   the old text cannot tell which page has one). Logos, letterheads, QR codes and margin
-  initials are not — every letter has a logo, every contract page initials. A
+  initials are not — every letter has a logo, every contract page initials. The letterhead's
+  *text* (address, phone, IBAN, opening hours) stays in `page_text`: Qwen3.8 read "skip
+  letterheads" as dropping it, until 0.6 said otherwise. A
   signature's owner comes from a printed name next to it, never from reading the scribble.
 - **Picture descriptions live in `pages[i]["images"]`, never inline in `page_text`.** The old
   `[Image description: …]` marker was translated by the model and is unparseable. Descriptions

@@ -7,13 +7,16 @@ instructions prepended to every per-type prompt, and the condensed-summary
 prompt. The per-document-type rules live in the profile modules (de.py, en.py).
 """
 
-PROMPT_VERSION = "0.5"
+PROMPT_VERSION = "0.6"
 # 0.3: pictures in a structured "images" field, not inline
 # 0.4: formulas as LaTeX — re-ingests only pages that show one
 #      (sidecar_service._SCOPED_CHANGES); change nothing else in the same step
 # 0.5: stamps, seals and signatures are pictures (initials in the margin are
 #      not) — a full re-ingest; which page has a signature cannot be told
 #      from the old text
+# 0.6: letterhead and footer TEXT stays in page_text (Qwen3.8 dropped IBAN,
+#      phone and opening hours as "letterhead"); picture descriptions in the
+#      document's language
 
 CONDENSED_SUMMARY_PROMPT = """\
 You receive the page summaries of a scanned document — one summary per page.
@@ -75,18 +78,21 @@ Tasks:
      (e.g. $$U = R \\cdot I$$, $\\sigma = \\frac{F}{A}$). Copy every symbol, index
      and exponent exactly; do NOT simplify, solve or rename anything. Values
      with units are not formulas: "5 m²", "210/80 mmHg", "19 % VAT" stay plain text.
-   - Logos, letterheads, decorative elements: skip.
+   - Logos and decorative elements: skip. The TEXT of a letterhead or footer
+     stays: sender, address, phone, e-mail, bank details (IBAN, BIC),
+     opening hours, register numbers.
 
 1b. List EVERY picture on the page in "images" — one entry per picture:
    photos, illustrations, diagrams, charts, maps, X-rays and other medical
    images, technical drawings, product images, stamps, seals and handwritten
-   signatures. NOT pictures: logos, letterheads, icons, barcodes, QR codes,
-   initials in the page margin, decorative lines and frames, the page
-   background. A page without pictures
-   has "images": [].
-   - "description": describe the picture in detail — it is the only place the
-     picture exists as text. Especially on pages that consist mostly of
-     pictures, the descriptions are the main content of the page.
+   signatures. NOT pictures: logos, letterheads and the coats of arms or
+   emblems in them, icons, barcodes, QR codes, initials in the page margin,
+   decorative lines and frames, the page background. A page without
+   pictures has "images": [].
+   - "description": in the language of the document. Describe the picture
+     in detail — it is the only place the picture exists as text. Especially
+     on pages that consist mostly of pictures, the descriptions are the main
+     content of the page.
    - "belongs_to": what the picture illustrates or belongs to, in a few words
      (e.g. "Recipe: Lasagne al forno", "Heating costs 2025", "Lumbar spine
      follow-up"). "" when nothing on the page says.

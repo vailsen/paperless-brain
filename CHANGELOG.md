@@ -21,7 +21,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **Stamps, seals and signatures count as pictures.** The vision model lists
   them with their position, the text of the imprint and — when a printed name
   next to it says so — whose signature it is, so the chat can show them.
-  This changes the reading prompt for every document (version 0.5): the next
+  The text of a letterhead or footer — address, phone, bank details, opening
+  hours — is now explicitly kept; the new model had started leaving it out.
+  This changes the reading prompt for every document (version 0.6): the next
   sync with re-ingest reads the whole archive again. Set a limit in the sync
   dialog to try it on a few documents first.
 - **Formulas stay formulas.** The vision model now writes mathematical formulas

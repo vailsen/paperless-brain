@@ -63,15 +63,15 @@ def test_steps_are_walked_from_the_sidecars_version():
 
 def test_signatures_step_reingests_every_document():
     # 0.5 (stamps, seals, signatures) is not scoped: the old text cannot tell.
-    assert PROMPT_VERSION == "0.5"
+    assert PROMPT_VERSION == "0.6"
     assert is_outdated(_sidecar("0.4", "Rechnung"), "0.5")
+    assert is_outdated(_sidecar("0.5", "Rechnung"), "0.6")
     assert is_outdated(_sidecar("0.2", "Rechnung"), "0.5")
 
 
 def test_unknown_versions_reingest_everything():
     assert is_outdated(_sidecar("0.1", "Rechnung"), "0.4")
     assert is_outdated(_sidecar("", "Rechnung"), "0.4")
-    assert is_outdated(_sidecar("0.4", "Rechnung"), "0.5")
     assert not is_outdated(_sidecar("0.4", "σ"), "0.4")
 
 
