@@ -420,7 +420,12 @@ def render_document_body(
                                     if doc.page_count:
                                         with ui.row().classes("items-center gap-2"):
                                             ui.icon("pages", size="xs").classes("text-gray-400")
-                                            ui.label(_("{n} pages").format(n=doc.page_count)).classes("text-sm text-gray-300")
+                                            # TODO i18n-plural: two msgids until ngettext exists
+                                            pages_label = (
+                                                _("1 page") if doc.page_count == 1
+                                                else _("{n} pages").format(n=doc.page_count)
+                                            )
+                                            ui.label(pages_label).classes("text-sm text-gray-300")
                                     if doc.owner_name:
                                         with ui.row().classes("items-center gap-2"):
                                             ui.icon("account_circle", size="xs").classes("text-gray-400")
