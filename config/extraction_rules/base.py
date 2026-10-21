@@ -12,8 +12,8 @@ PROMPT_VERSION = "0.5"
 # 0.4: formulas as LaTeX — re-ingests only pages that show one
 #      (sidecar_service._SCOPED_CHANGES); change nothing else in the same step
 # 0.5: stamps, seals and signatures are pictures (initials in the margin are
-#      not) — a full re-ingest; which
-#      page has a signature cannot be told from the old text
+#      not) — a full re-ingest; which page has a signature cannot be told
+#      from the old text
 
 CONDENSED_SUMMARY_PROMPT = """\
 You receive the page summaries of a scanned document — one summary per page.
