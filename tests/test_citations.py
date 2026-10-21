@@ -54,6 +54,12 @@ def test_half_remembered_formats_still_count(variant):
     assert sources == [(1, 241, 3)]
 
 
+def test_a_doubled_caret_goes_with_the_marker():
+    out, sources = number_citations("343,56 € (66,085 cbm)^[^577-p1]", lambda n, d, p: f"<{n}>")
+    assert out == "343,56 € (66,085 cbm)<1>"
+    assert sources == [(1, 577, 1)]
+
+
 def test_footnote_style_text_is_not_a_citation():
     _, sources = number_citations("see [^note] and [^a1]", lambda n, d, p: "")
     assert sources == []

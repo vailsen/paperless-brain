@@ -73,7 +73,7 @@ import services.chat_history_service as _chat_hist
 _DOC_ID_RE = re.compile(r"(?<!\]\()(?<![`\w])(#)(\d+)\b")
 _VAULT_LINK_RE = re.compile(r"\[([^\]]+)\]\(vault:([a-f0-9-]{32,})\)")
 _VAULT_WIKI_RE = re.compile(r"`?\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]`?")
-_PARTIAL_CITE_RE = re.compile(r"\[\^[^\]\s]{0,16}$")
+_PARTIAL_CITE_RE = re.compile(r"\^?\[\^[^\]\s]{0,16}$|\^$")
 _MD_TABLE_RE = re.compile(r"^\|.+\|[ \t]*\n\|[-: |]+\|", re.MULTILINE)
 
 
