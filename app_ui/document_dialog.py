@@ -17,7 +17,9 @@ from app_ui.tag_style import tag_chip
 from config.settings import settings
 from i18n import get_translator
 from models.result_document import DocumentResult
+from services import doc_image_service
 from services.clients import cross_ref_index, paperless, sidecar_service
+from services.page_images import page_images
 
 _PDF_CACHE = str(settings.app_path / "data" / "pdf_cache")
 os.makedirs(_PDF_CACHE, exist_ok=True)
@@ -160,6 +162,21 @@ def create_document_dialog(
             ui.notify(_("#{id} not found").format(id=doc_id), type="warning")
 
     ui.add_head_html("""<style>
+/* Pictures tab: thumbnail beside its description; on a phone, above it. */
+.dl-pic {
+    display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-start;
+    padding: 10px; border: 1px solid var(--c-border); border-radius: 6px;
+    background: var(--c-surface);
+}
+.dl-pic-thumb {
+    flex: 0 0 160px; height: 120px; display: flex; align-items: center;
+    justify-content: center; background: #fff; border-radius: 4px; overflow: hidden;
+}
+.dl-pic-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.dl-pic-text { flex: 1 1 14em; min-width: 0; font-size: 0.8rem; line-height: 1.5;
+    color: var(--c-text-2); overflow-wrap: anywhere; }
+.dl-pic-meta { font-size: 0.72rem; color: var(--c-text-muted); margin-bottom: 2px; }
+.dl-pic-title { font-weight: 600; color: var(--c-text); }
 .dl-table th {
     background: var(--c-surface) !important;
     color: var(--c-text-muted) !important;
@@ -290,6 +307,36 @@ def create_document_dialog(
 _TABS_H = "48px"
 
 
+def _render_pictures(doc_id: int, sidecar: dict | None) -> None:
+    """Every picture the extraction found: a thumbnail cropped from its page
+    (through the same access-checked route the chat uses) and its description."""
+    _ = get_translator()
+    found = [
+        (page.get("page_number") or n, i, img)
+        for n, page in enumerate((sidecar or {}).get("pages") or [], 1)
+        for i, img in enumerate(page_images(page))
+    ]
+    with ui.column().classes("p-4 gap-3 w-full"):
+        if not found:
+            ui.label(_("No pictures detected.")).classes("text-sm text-gray-500")
+            return
+        for page_no, index, img in found:
+            url = doc_image_service.image_url(doc_id, page_no, index)
+            with ui.element("div").classes("dl-pic w-full"):
+                with ui.element("a").classes("dl-pic-thumb") as link:
+                    link._props.update(href=url, target="_blank", rel="noopener")
+                    thumb = ui.element("img")
+                    thumb._props.update(src=url, loading="lazy", alt=img.get("belongs_to") or "")
+                with ui.element("div").classes("dl-pic-text"):
+                    meta = _("Page {page}").format(page=page_no)
+                    if not img.get("bbox"):
+                        meta += " · " + _("whole page — position unknown")
+                    ui.label(meta).classes("dl-pic-meta")
+                    if img.get("belongs_to"):
+                        ui.label(img["belongs_to"]).classes("dl-pic-title")
+                    ui.label(img["description"])
+
+
 def render_document_body(
     result: DocumentResult,
     file_url: str,
@@ -331,6 +378,7 @@ def render_document_body(
                 ui.tab("volltext", label=_("Full text"), icon="article")
                 ui.tab("aktionen", label=_("Dates / References"), icon="event_note")
                 ui.tab("tabellen", label=_("Tables"), icon="table_chart")
+                ui.tab("bilder", label=_("Pictures"), icon="image")
 
             with (
                 ui.tab_panels(tabs, value=start_tab)
@@ -673,6 +721,13 @@ def render_document_body(
                                 ui.label(_("No tables detected.")).classes(
                                     "text-sm text-gray-500"
                                 )
+
+                # ── Bilder ────────────────────────────────────────────────────
+                with ui.tab_panel("bilder").style(
+                    "padding:0; height:100%; overflow:hidden;"
+                ):
+                    with ui.scroll_area().style("height:100%; width:100%;"):
+                        _render_pictures(doc.id, sidecar)
 
         # ── Right: PDF viewer ─────────────────────────────────────────────────
         with _splitter.after:

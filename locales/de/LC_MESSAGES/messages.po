@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-21 07:49+0200\n"
+"POT-Creation-Date: 2026-10-21 08:44+0200\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -100,7 +100,7 @@ msgid "Service saved."
 msgstr "Dienst gespeichert."
 
 #: app_ui/ai_models_settings.py:172 app_ui/ai_models_settings.py:325
-#: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:828
+#: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:883
 #: app_ui/pages/brain.py:278 app_ui/pages/brain.py:292
 #: app_ui/pages/brain.py:773 app_ui/pages/chat.py:1401
 #: app_ui/pages/chat.py:3591 app_ui/pages/chat.py:3855
@@ -419,137 +419,154 @@ msgstr "{type}: {value}  ({n} Dok.)"
 msgid "Loading…"
 msgstr "Lade…"
 
-#: app_ui/document_dialog.py:160
+#: app_ui/document_dialog.py:162
 #, python-brace-format
 msgid "#{id} not found"
 msgstr "#{id} nicht gefunden"
 
-#: app_ui/document_dialog.py:330 app_ui/document_dialog.py:398
+#: app_ui/document_dialog.py:321
+msgid "No pictures detected."
+msgstr "Keine Bilder erkannt."
+
+#: app_ui/document_dialog.py:331
+#, python-brace-format
+msgid "Page {page}"
+msgstr "Seite {page}"
+
+#: app_ui/document_dialog.py:333
+msgid "whole page — position unknown"
+msgstr "ganze Seite — Position unbekannt"
+
+#: app_ui/document_dialog.py:377 app_ui/document_dialog.py:446
 msgid "Summary"
 msgstr "Zusammenfassung"
 
-#: app_ui/document_dialog.py:331
+#: app_ui/document_dialog.py:378
 msgid "Full text"
 msgstr "Volltext"
 
-#: app_ui/document_dialog.py:332
+#: app_ui/document_dialog.py:379
 msgid "Dates / References"
 msgstr "Termine / Referenzen"
 
-#: app_ui/document_dialog.py:333
+#: app_ui/document_dialog.py:380
 msgid "Tables"
 msgstr "Tabellen"
 
-#: app_ui/document_dialog.py:349
+#: app_ui/document_dialog.py:381
+msgid "Pictures"
+msgstr "Bilder"
+
+#: app_ui/document_dialog.py:397
 msgid "Metadata"
 msgstr "Metadaten"
 
-#: app_ui/document_dialog.py:371
+#: app_ui/document_dialog.py:419
 #, python-brace-format
 msgid "{n} pages"
 msgstr "{n} Seiten"
 
-#: app_ui/document_dialog.py:407 app_ui/pages/chat.py:2753
+#: app_ui/document_dialog.py:455 app_ui/pages/chat.py:2753
 msgid "Notes"
 msgstr "Notizen"
 
-#: app_ui/document_dialog.py:430
+#: app_ui/document_dialog.py:478
 msgid "Deadlines / Actions"
 msgstr "Fristen / Aktionen"
 
-#: app_ui/document_dialog.py:447
+#: app_ui/document_dialog.py:495
 #, python-brace-format
 msgid "+{n} more in the \"Dates / References\" tab"
 msgstr "+{n} weitere im Tab „Termine / Referenzen“"
 
-#: app_ui/document_dialog.py:467
+#: app_ui/document_dialog.py:515
 msgid "No extracted text available."
 msgstr "Kein extrahierter Text verfügbar."
 
-#: app_ui/document_dialog.py:481
+#: app_ui/document_dialog.py:529
 msgid "Actions"
 msgstr "Aktionen"
 
-#: app_ui/document_dialog.py:489 app_ui/pages/dashboard.py:1718
+#: app_ui/document_dialog.py:537 app_ui/pages/dashboard.py:1718
 msgid "Description"
 msgstr "Beschreibung"
 
-#: app_ui/document_dialog.py:496
+#: app_ui/document_dialog.py:544
 msgid "Deadline"
 msgstr "Frist"
 
-#: app_ui/document_dialog.py:503 app_ui/pages/dashboard.py:1674
+#: app_ui/document_dialog.py:551 app_ui/pages/dashboard.py:1674
 msgid "Certain"
 msgstr "Sicher"
 
-#: app_ui/document_dialog.py:513
+#: app_ui/document_dialog.py:561
 msgid "Yes"
 msgstr "Ja"
 
-#: app_ui/document_dialog.py:515
+#: app_ui/document_dialog.py:563
 msgid "No"
 msgstr "Nein"
 
-#: app_ui/document_dialog.py:521
+#: app_ui/document_dialog.py:569
 msgid "No actions detected."
 msgstr "Keine Aktionen erkannt."
 
-#: app_ui/document_dialog.py:526
+#: app_ui/document_dialog.py:574
 msgid "Cross-references"
 msgstr "Querverweise"
 
-#: app_ui/document_dialog.py:606
+#: app_ui/document_dialog.py:654
 #, python-brace-format
 msgid "Page: {page}"
 msgstr "Seite: {page}"
 
-#: app_ui/document_dialog.py:635
+#: app_ui/document_dialog.py:683
 msgid "Field"
 msgstr "Feld"
 
-#: app_ui/document_dialog.py:636
+#: app_ui/document_dialog.py:684
 msgid "Value"
 msgstr "Wert"
 
-#: app_ui/document_dialog.py:667
+#: app_ui/document_dialog.py:715
 msgid "(empty table)"
 msgstr "(leere Tabelle)"
 
-#: app_ui/document_dialog.py:673
+#: app_ui/document_dialog.py:721
 msgid "No tables detected."
 msgstr "Keine Tabellen erkannt."
 
-#: app_ui/document_dialog.py:685
+#: app_ui/document_dialog.py:740
 msgid "PDF cannot be displayed."
 msgstr "PDF kann nicht angezeigt werden."
 
-#: app_ui/document_dialog.py:748 app_ui/pages/browser.py:537
+#: app_ui/document_dialog.py:803 app_ui/pages/browser.py:537
 #, python-brace-format
 msgid "Relevance: {score:.0%}"
 msgstr "Relevanz: {score:.0%}"
 
-#: app_ui/document_dialog.py:762
+#: app_ui/document_dialog.py:817
 msgid "Cross-reference cluster"
 msgstr "Querverweis-Cluster"
 
-#: app_ui/document_dialog.py:772
+#: app_ui/document_dialog.py:827
 msgid "Similar documents"
 msgstr "Ähnliche Dokumente"
 
-#: app_ui/document_dialog.py:787
+#: app_ui/document_dialog.py:842
 msgid "Pinned — unpin"
 msgstr "Angeheftet — Lösen"
 
-#: app_ui/document_dialog.py:787 app_ui/pages/browser.py:574
+#: app_ui/document_dialog.py:842 app_ui/pages/browser.py:574
 msgid "Pin"
 msgstr "Anheften"
 
-#: app_ui/document_dialog.py:803
+#: app_ui/document_dialog.py:858
 #, python-brace-format
 msgid "Re-ingest document #{id}?"
 msgstr "Dokument #{id} neu einlesen?"
 
-#: app_ui/document_dialog.py:806
+#: app_ui/document_dialog.py:861
 msgid ""
 "Its extraction and search index are deleted and built again from the PDF."
 " Every page goes through the vision model once more, which can take a few"
@@ -559,11 +576,11 @@ msgstr ""
 "Jede Seite läuft dafür noch einmal durch das Vision-Modell – das kann "
 "einige Minuten dauern."
 
-#: app_ui/document_dialog.py:812
+#: app_ui/document_dialog.py:867
 msgid "Hint for the vision model (optional)"
 msgstr "Hinweis für das Vision-Modell (optional)"
 
-#: app_ui/document_dialog.py:814
+#: app_ui/document_dialog.py:869
 msgid ""
 "e.g. The blood pressure values are handwritten; the second one reads "
 "210/80, not 210/180."
@@ -571,7 +588,7 @@ msgstr ""
 "z. B. Die Blutdruckwerte sind handschriftlich; der zweite lautet 210/80, "
 "nicht 210/180."
 
-#: app_ui/document_dialog.py:823
+#: app_ui/document_dialog.py:878
 msgid ""
 "Tell the model what it misread and how to read it. The hint stays with "
 "the document and is used on every later re-ingest too; clear the field to"
@@ -581,26 +598,26 @@ msgstr ""
 "ist. Der Hinweis bleibt am Dokument und gilt bei jedem späteren Neu-"
 "Einlesen; leere das Feld, um ihn zu entfernen."
 
-#: app_ui/document_dialog.py:832
+#: app_ui/document_dialog.py:887
 msgid "Re-ingest"
 msgstr "Neu einlesen"
 
-#: app_ui/document_dialog.py:859
+#: app_ui/document_dialog.py:914
 #, python-brace-format
 msgid "Re-ingesting document #{id} …"
 msgstr "Dokument #{id} wird neu eingelesen …"
 
-#: app_ui/document_dialog.py:869
+#: app_ui/document_dialog.py:924
 #, python-brace-format
 msgid "#{id} re-ingested."
 msgstr "#{id} neu eingelesen."
 
-#: app_ui/document_dialog.py:874
+#: app_ui/document_dialog.py:929
 #, python-brace-format
 msgid "Error during re-ingest: {err}"
 msgstr "Fehler beim Neu-Einlesen: {err}"
 
-#: app_ui/document_dialog.py:882
+#: app_ui/document_dialog.py:937
 msgid "Re-ingest (extraction + embedding)"
 msgstr "Neu einlesen (Extraktion + Embedding)"
 
@@ -1862,7 +1879,9 @@ msgstr "Kein Modell konfiguriert — bitte in Einstellungen > KI-Modelle einrich
 
 #: app_ui/pages/chat.py:3260
 msgid "The model ended without an answer. Please send your message again."
-msgstr "Das Modell hat ohne Antwort aufgehört. Bitte schick deine Nachricht noch einmal."
+msgstr ""
+"Das Modell hat ohne Antwort aufgehört. Bitte schick deine Nachricht noch "
+"einmal."
 
 #: app_ui/pages/chat.py:3279
 msgid "answer.md"

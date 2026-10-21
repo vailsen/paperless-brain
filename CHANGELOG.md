@@ -26,6 +26,10 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   This changes the reading prompt for every document (version 0.6): the next
   sync with re-ingest reads the whole archive again. Set a limit in the sync
   dialog to try it on a few documents first.
+- **A "Pictures" tab in the document view** lists every picture the reading
+  found — photos, charts, drawings, stamps, signatures — with a thumbnail cut
+  from its page, the page number and the description. A click opens it full
+  size.
 - **Formulas stay formulas.** The vision model now writes mathematical formulas
   as LaTeX, so the chat can read them and shows them typeset — also in its own
   answers. Only documents with something formula-like on a page are read again
