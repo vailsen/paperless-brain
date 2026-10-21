@@ -370,3 +370,14 @@ def test_ingest_stores_pictures_and_embeds_their_descriptions_only(tmp_sidecar_d
     assert page["images"][0]["source"] in ("pdf", "model")
     assert "[Image" not in page["page_text"] and "[Image" not in sc["full_text"]
     assert any("[Image 0: Lasagne in der Form — Rezept: Lasagne]" in d for d in chroma.documents)
+
+
+def test_pictures_tab_lists_only_described_pictures():
+    from app_ui.document_dialog import _pictures
+
+    sidecar = {"pages": [
+        {"page_number": 1, "images": []},
+        {"page_number": 2, "images": [{"description": "Chart"}, {"description": ""}]},
+    ]}
+    assert [(p, i) for p, i, _img in _pictures(sidecar)] == [(2, 0)]
+    assert _pictures(None) == [] and _pictures({"pages": [{"page_text": "old"}]}) == []

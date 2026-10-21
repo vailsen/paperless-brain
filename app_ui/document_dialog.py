@@ -307,19 +307,20 @@ def create_document_dialog(
 _TABS_H = "48px"
 
 
-def _render_pictures(doc_id: int, sidecar: dict | None) -> None:
-    """Every picture the extraction found: a thumbnail cropped from its page
-    (through the same access-checked route the chat uses) and its description."""
-    _ = get_translator()
-    found = [
+def _pictures(sidecar: dict | None) -> list[tuple[int, int, dict]]:
+    """``(page number, index on the page, picture)`` for every picture found."""
+    return [
         (page.get("page_number") or n, i, img)
         for n, page in enumerate((sidecar or {}).get("pages") or [], 1)
         for i, img in enumerate(page_images(page))
     ]
+
+
+def _render_pictures(doc_id: int, found: list[tuple[int, int, dict]]) -> None:
+    """Every picture the extraction found: a thumbnail cropped from its page
+    (through the same access-checked route the chat uses) and its description."""
+    _ = get_translator()
     with ui.column().classes("p-4 gap-3 w-full"):
-        if not found:
-            ui.label(_("No pictures detected.")).classes("text-sm text-gray-500")
-            return
         for page_no, index, img in found:
             url = doc_image_service.image_url(doc_id, page_no, index)
             with ui.element("div").classes("dl-pic w-full"):
@@ -362,6 +363,8 @@ def render_document_body(
     # Opened from a search hit: start on the full text where the hit is marked —
     # on the summary tab the marks exist but nobody sees them.
     start_tab = "volltext" if "<mark" in marked_html else "zusammenfassung"
+    # No tab for a document without pictures — most of the archive has none.
+    pictures = _pictures(sidecar)
 
     with ui.splitter(value=50).classes("dl-splitter").style(style) as _splitter:
         # ── Left: tabs ────────────────────────────────────────────────────────
@@ -378,7 +381,8 @@ def render_document_body(
                 ui.tab("volltext", label=_("Full text"), icon="article")
                 ui.tab("aktionen", label=_("Dates / References"), icon="event_note")
                 ui.tab("tabellen", label=_("Tables"), icon="table_chart")
-                ui.tab("bilder", label=_("Pictures"), icon="image")
+                if pictures:
+                    ui.tab("bilder", label=_("Pictures"), icon="image")
 
             with (
                 ui.tab_panels(tabs, value=start_tab)
@@ -723,11 +727,12 @@ def render_document_body(
                                 )
 
                 # ── Bilder ────────────────────────────────────────────────────
-                with ui.tab_panel("bilder").style(
-                    "padding:0; height:100%; overflow:hidden;"
-                ):
-                    with ui.scroll_area().style("height:100%; width:100%;"):
-                        _render_pictures(doc.id, sidecar)
+                if pictures:
+                    with ui.tab_panel("bilder").style(
+                        "padding:0; height:100%; overflow:hidden;"
+                    ):
+                        with ui.scroll_area().style("height:100%; width:100%;"):
+                            _render_pictures(doc.id, pictures)
 
         # ── Right: PDF viewer ─────────────────────────────────────────────────
         with _splitter.after:
