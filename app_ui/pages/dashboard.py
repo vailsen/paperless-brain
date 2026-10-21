@@ -47,6 +47,10 @@ _SYNC_LOG: list[str] = []
 # painted, so they drop the previous run's lines instead of appending to them.
 _SYNC_RUN: list[int] = [0]
 
+
+class _SyncStopped(Exception):
+    """The user stopped the sync; skips the optional steps after ingest."""
+
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 
@@ -489,6 +493,13 @@ async def dashboard():
                                     .classes("footer-icon")
                                     .tooltip(_("Synchronize Paperless now"))
                                 )
+                                stop_sync_btn = (
+                                    ui.button(icon="stop")
+                                    .props("flat dense round size=sm")
+                                    .classes("footer-icon")
+                                    .tooltip(_("Stop the sync after the current document"))
+                                )
+                                stop_sync_btn.set_visibility(False)
                                 log_btn = (
                                     ui.button(icon="info")
                                     .props("flat dense round size=sm")
@@ -766,6 +777,9 @@ window.__toggleHideAction = function(key) {{
             ui.notify(_("Sync already running…"), type="warning")
             return
         sync_state.is_running[0] = True
+        sync_state.stop_requested[0] = False
+        stop_sync_btn.set_visibility(True)
+        stop_sync_btn.enable()
         _SYNC_LOG.clear()
         _SYNC_RUN[0] += 1
         sync_btn.props("loading")
@@ -806,9 +820,14 @@ window.__toggleHideAction = function(key) {{
                 f"{len(state.current_ids)} current"
             )
 
+            def _stopped() -> bool:
+                return sync_state.stop_requested[0]
+
             batch = state.new_ids
             _ingested: list[int] = []
             for i, doc_id in enumerate(batch, 1):
+                if _stopped():
+                    break
                 _log(f"Ingest #{doc_id} ({i}/{len(batch)})…")
                 try:
                     await ingest_document(
@@ -843,7 +862,7 @@ window.__toggleHideAction = function(key) {{
             # Re-ingest documents whose sidecar has an old prompt version.
             # Capped at reingest_limit (None = all) — re-ingesting the whole
             # backlog can take very long.
-            outdated = sidecar_service.outdated_ids(PROMPT_VERSION)
+            outdated = [] if _stopped() else sidecar_service.outdated_ids(PROMPT_VERSION)
             if outdated:
                 to_redo = outdated if reingest_limit is None else outdated[:reingest_limit]
                 _log(
@@ -851,6 +870,8 @@ window.__toggleHideAction = function(key) {{
                     + ("" if reingest_limit is None else f" (limit {reingest_limit})")
                 )
                 for j, doc_id in enumerate(to_redo, 1):
+                    if _stopped():
+                        break
                     _log(f"Re-ingesting #{doc_id} ({j}/{len(to_redo)})…")
                     try:
                         await delete_document(
@@ -869,7 +890,11 @@ window.__toggleHideAction = function(key) {{
             # Drops content-free entries and cross-document duplicates of the
             # same real deadline before the index is rebuilt. Verdicts persist
             # (action_review.json) — only new actions hit the LLM.
+            # Stopped: skip the optional steps below — each is one more model
+            # run — but still rebuild the index over what was ingested.
             try:
+                if _stopped():
+                    raise _SyncStopped
                 _review_creds = (
                     load_credentials(_username, _token) if _username and _token else {}
                 )
@@ -894,6 +919,8 @@ window.__toggleHideAction = function(key) {{
                         "Deadline review skipped (no model configured under "
                         "Settings > Memory maintenance)"
                     )
+            except _SyncStopped:
+                pass
             except Exception as exc:
                 _log(f"  ✗ Deadline review failed: {exc}")
 
@@ -901,7 +928,7 @@ window.__toggleHideAction = function(key) {{
             # wherever it differs from the OCR text. Uses the signed-in user's
             # own client — the PATCH needs write permission per document, and
             # the superuser client would edit documents they cannot see.
-            if get_pref("push_text_to_paperless", False):
+            if get_pref("push_text_to_paperless", False) and not _stopped():
                 try:
                     from pipelines.text_push import push_vision_texts
                     from services.clients import get_session_paperless
@@ -916,7 +943,7 @@ window.__toggleHideAction = function(key) {{
             # Optional: title the documents this sync ingested from the user's
             # template. Only these — the rest of the archive is renamed through
             # the dry run in Settings, never behind the user's back.
-            if get_pref("rename_titles", False) and _ingested:
+            if get_pref("rename_titles", False) and _ingested and not _stopped():
                 try:
                     from pipelines.title_rename import DEFAULT_TEMPLATE, rename_documents
                     from services.clients import get_session_paperless
@@ -940,8 +967,12 @@ window.__toggleHideAction = function(key) {{
             )
             _log("Index updated")
             _refresh_outdated()
-            _log("✅ Sync complete")
-            _notify(_("Sync complete"), type="positive")
+            if _stopped():
+                _log("⏹ Sync stopped")
+                _notify(_("Sync stopped"), type="warning")
+            else:
+                _log("✅ Sync complete")
+                _notify(_("Sync complete"), type="positive")
 
             new_p = await _fetch_paperless_count()
             new_c = await _safe_chroma_count()
@@ -962,7 +993,9 @@ window.__toggleHideAction = function(key) {{
             _notify(_("Sync error: {err}").format(err=exc), type="negative")
         finally:
             sync_state.is_running[0] = False
+            sync_state.stop_requested[0] = False
             try:
+                stop_sync_btn.set_visibility(False)
                 sync_btn.props(remove="loading")
                 vault_sync_btn.enable()
             except RuntimeError:
@@ -999,6 +1032,18 @@ window.__toggleHideAction = function(key) {{
             ).classes("text-white")
 
     sync_btn.on_click(_sync_dlg.open)
+
+    def _request_stop() -> None:
+        if not sync_state.is_running[0] or sync_state.stop_requested[0]:
+            return
+        sync_state.stop_requested[0] = True
+        _SYNC_LOG.append(
+            f"[{datetime.now().strftime('%H:%M:%S')}] Stop requested — finishing the current document…"
+        )
+        stop_sync_btn.disable()
+        ui.notify(_("Stopping after the current document…"), type="info")
+
+    stop_sync_btn.on_click(_request_stop)
     log_btn.on_click(log_dialog.open)
 
     async def dream_brain() -> None:
@@ -1220,9 +1265,13 @@ window.__toggleHideAction = function(key) {{
     # Restore sync state when navigating back to this page
     if sync_state.is_running[0]:
         sync_btn.props(add="loading")
+        stop_sync_btn.set_visibility(True)
+        if sync_state.stop_requested[0]:
+            stop_sync_btn.disable()
 
         async def _watch_sync_done() -> None:
             if not sync_state.is_running[0]:
+                stop_sync_btn.set_visibility(False)
                 sync_btn.props(remove="loading")
                 _sync_watch_timer.active = False
 

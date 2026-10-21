@@ -9,6 +9,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **A running sync can be stopped.** A stop button appears next to the sync
+  button while a sync runs. The document being read is finished first, so
+  nothing is left half-ingested; the optional steps after it (deadline
+  review, text push, renaming) are skipped, the index is still rebuilt.
+
 - **Every fact in an answer shows where it comes from.** A small number after a
   sentence names its source; two facts from two places get two numbers. Tap one
   and the results panel switches to a new "Source" tab: the whole PDF to scroll
