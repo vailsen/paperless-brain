@@ -3254,6 +3254,11 @@ window.__openVaultNote = function(noteId) {{
                 _update_thinking()
             if _shown_images:
                 accumulated[0] = with_images(accumulated[0], _shown_images, _)
+            if not accumulated[0] and not _s["stop_requested"]:
+                # Not saved: it is no answer. But an empty bubble looks like a hang.
+                streaming_label[0].set_content(
+                    "*" + _("The model ended without an answer. Please send your message again.") + "*"
+                )
             if accumulated[0]:
                 await _resolve_vault_wiki_links(
                     accumulated[0], _rs.setdefault("vault_index", {}), _username

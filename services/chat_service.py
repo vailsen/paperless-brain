@@ -3642,6 +3642,14 @@ def _api_error_text(body: str) -> str:
     return body.strip()[:500]
 
 
+# A thinking model can end its turn with everything said in its reasoning and
+# no answer text — seen with a prompt ending in a stray backtick. The user gets
+# an empty bubble and nothing is saved, so ask once for the answer itself.
+_EMPTY_ANSWER_MSG = (
+    "You ended your turn without writing an answer. Write your answer to my "
+    "last message now, as plain text."
+)
+
 _TOOL_REMINDER = (
     "Reminder: statements about this user's documents, emails, purchases, "
     "appointments or other personal facts may only be based on tool results. "
@@ -3719,6 +3727,7 @@ class OpenAICompatibleChatBackend:
         guard_applies = bool(active_tools) and _needs_tool_use(_last_user_text(messages))
         force_tools = guard_applies and self.force_tool_first_turn
         guard_retried = False
+        empty_retried = False
 
         prompt_tokens = 0
         for _i in range(max_iterations):
@@ -3907,6 +3916,12 @@ class OpenAICompatibleChatBackend:
                     # endpoint rejects a system message anywhere but position 0
                     # with a 500 ("system message must be at the beginning").
                     working.append({"role": "user", "content": _TOOL_REMINDER})
+                    continue
+                if not content and not empty_retried:
+                    empty_retried = True
+                    force_tools = False
+                    _log.info("Empty answer from %s — asking once more", self.model)
+                    working.append({"role": "user", "content": _EMPTY_ANSWER_MSG})
                     continue
                 if content:
                     yield TextTokenEvent(content)

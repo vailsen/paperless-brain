@@ -31,6 +31,12 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **No more empty answer bubbles.** A local thinking model could end its turn
+  with everything said in its reasoning and no answer text — seen with a
+  message ending in a stray backtick. The chat now asks it once for the answer
+  itself; if it still says nothing, the bubble says so instead of staying
+  empty.
+
 - **One number, one source.** A number cited behind several sentences marked a
   different passage depending on which of them you tapped. Now every tap on
   that number marks all passages it stands for, the tapped sentence's one
