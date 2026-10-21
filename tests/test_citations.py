@@ -7,6 +7,7 @@ from services.citations import (
     align_words,
     best_page,
     best_passage,
+    best_pictures,
     cite_ref,
     number_citations,
     pdf_words,
@@ -118,6 +119,34 @@ def test_document_level_citation_picks_the_page():
     pages = [(1, "Deckblatt\nInhaltsverzeichnis"), (2, PAGE), (3, "Anhang")]
     assert best_page(pages, "Mindestens 65 % aus erneuerbaren Energien.") == 2
     assert best_page(pages, "Nothing related.") == 1
+
+
+def test_a_page_number_is_not_what_a_claim_is_about():
+    """Seen live: "Seite 5: Vier Lateralradiogramme …" marked the footer
+    "Seite 5 von 5" — the 5 alone, counting triple."""
+    page = "Verlauf Gleitwirbel\n09.01.2025 – 2,5 Monate nach 2. OP\nSeite 5 von 5"
+    claim = "Seite 5: Vier Lateralradiogramme mit Messwerten (10,92 mm)"
+    assert "Seite 5 von 5" not in best_passage(page, claim)[0]
+
+
+XRAYS = [
+    ("Implantatkontrolle, 08.01.2025 Lateralradiogramm der LWS", (0.05, 0.1, 0.4, 0.4)),
+    ("Implantatkontrolle, 31.10.2024 Lateralradiogramm der LWS", (0.55, 0.1, 0.4, 0.4)),
+    ("Winkelmessung 10,92 mm, 08.01.2025 Lateralradiogramm", (0.05, 0.5, 0.4, 0.4)),
+    ("Winkelmessung 10,48 mm, 31.10.2024 Lateralradiogramm", (0.55, 0.5, 0.4, 0.4)),
+]
+
+
+def test_what_a_picture_shows_is_marked_on_the_picture():
+    claim = "Vier Lateralradiogramme (31.10.2024 und 08.01.2025) mit Messwerten (10,92 mm bzw. 10,48 mm)"
+    boxes, score, text = best_pictures(XRAYS, claim)
+    assert len(boxes) == 4  # "four radiographs" is all four
+    assert score > best_passage("Verlauf Gleitwirbel\nSeite 5 von 5", claim)[1]
+    assert "Winkelmessung" in text
+
+
+def test_an_unrelated_picture_is_not_marked():
+    assert best_pictures(XRAYS, "Die Rechnung über 120 EUR ist bezahlt.") == ([], 0.0, "")
 
 
 # ── PDF text layer ───────────────────────────────────────────────────────────

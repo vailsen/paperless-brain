@@ -120,9 +120,17 @@ def tokens(text: str) -> list[str]:
     return out
 
 
+# "Seite 5 von 5", "Page 2", "S. 3": a page number is where the text sits, not
+# what it says. A claim headed "Seite 5: …" matched the footer "Seite 5 von 5"
+# for its number alone, which counts triple.
+_PAGE_NO_RE = re.compile(
+    r"\b(?:seite|page|s\.|p\.)\s*\d+(?:\s*(?:von|of|/)\s*\d+)?", re.IGNORECASE
+)
+
+
 def content_tokens(text: str) -> set[str]:
     return {
-        t for t in tokens(text)
+        t for t in tokens(_PAGE_NO_RE.sub(" ", text or ""))
         if t[0].isdigit() or (len(t) >= 3 and t not in _STOPWORDS)
     }
 
@@ -468,6 +476,38 @@ def _sidecar_pages(doc_id: int) -> list[tuple[int, str]]:
     ]
 
 
+def _sidecar_pictures(doc_id: int) -> dict[int, list[tuple[str, Box]]]:
+    """Per page: each located picture's text (title + description) and box."""
+    from services.clients import sidecar_service
+    from services.page_images import page_images
+
+    sc = sidecar_service.load_sidecar(doc_id) or {}
+    out: dict[int, list[tuple[str, Box]]] = {}
+    for n, p in enumerate(sc.get("pages") or [], 1):
+        for img in page_images(p):
+            box = img.get("bbox")
+            if box and len(box) == 4:
+                text = " ".join(x for x in (img.get("belongs_to"), img.get("description")) if x)
+                out.setdefault(int(p.get("page_number") or n), []).append((text, tuple(box)))
+    return out
+
+
+def best_pictures(pictures: list[tuple[str, Box]], claim: str) -> tuple[list[Box], float, str]:
+    """The pictures that support ``claim``: ``(boxes, score, text of the best)``.
+
+    An X-ray page carries one line of text; what the answer says about it comes
+    from the picture's description, so the picture is the place to mark. Every
+    picture close to the best counts — "four radiographs" is all four.
+    """
+    claim_toks = content_tokens(claim)
+    scored = [(_score(content_tokens(t), claim_toks), t, b) for t, b in pictures]
+    top = max((sc for sc, _t, _b in scored), default=0.0)
+    if top <= 0.5:
+        return [], 0.0, ""
+    best_text = next(t for sc, t, _b in scored if sc == top)
+    return [b for sc, _t, b in scored if sc >= 0.4 * top and sc > 1.0], top, best_text
+
+
 def _overlaps(a: Box, b: Box) -> bool:
     return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
 
@@ -494,25 +534,48 @@ async def locate(
         return None
     doc, pdf_bytes = src
     pages = _sidecar_pages(doc_id)
+    pictures = _sidecar_pictures(doc_id)
     page_count = doc.page_count or len(pages) or 1
     if not page or not 1 <= page <= page_count:
-        page = best_page(pages, claim, hints) if pages else 1
+        with_pictures = [
+            (n, "\n".join([t, *(pt for pt, _b in pictures.get(n, []))])) for n, t in pages
+        ]
+        page = best_page(with_pictures, claim, hints) if pages else 1
     text = dict(pages).get(page, "")
-    passage, _score = best_passage(text, claim, hints)
-    target = CiteTarget(doc_id, doc.title or f"#{doc_id}", page, page_count, passage)
+    on_page = pictures.get(page, [])
+    passage, score = best_passage(text, claim, hints)
+    pic_boxes, pic_score, pic_text = best_pictures(on_page, claim)
+    if pic_score > score:
+        passage = ""
+        if len(pic_text) > 240:
+            pic_text = pic_text[:240].rsplit(" ", 1)[0] + " …"
+    target = CiteTarget(
+        doc_id, doc.title or f"#{doc_id}", page, page_count, passage or pic_text
+    )
     # Another sentence's passage counts only on its own merit — no hint
     # fallback, which would mark the search's chunk for every one of them.
-    others = [p for c in other_claims if (p := best_passage(text, c)[0]) and p != passage]
+    others: list[str] = []
+    other_pics: list[Box] = []
+    for c in other_claims:
+        p, ps = best_passage(text, c)
+        boxes, bs, _t = best_pictures(on_page, c)
+        if bs > ps:
+            other_pics += [b for b in boxes if b not in pic_boxes]
+        elif p and p != passage:
+            others.append(p)
+    if pic_score > score:
+        target.boxes = pic_boxes
+    target.other_boxes = [b for b in other_pics if b not in target.boxes]
     if pdf_bytes:
         def _read() -> tuple[list[Box], list[Box], list[float]]:
             with doc_image_service.pdfium_lock:
                 words = pdf_words(pdf_bytes, page) if passage or others else []
-                boxes = align_words(words, passage) if passage else []
+                boxes = align_words(words, passage) if passage else target.boxes
                 more = [
                     b for o in others for b in align_words(words, o)
                     if not any(_overlaps(b, x) for x in boxes)
                 ]
-                return boxes, more, page_ratios(pdf_bytes)
+                return boxes, target.other_boxes + more, page_ratios(pdf_bytes)
 
         try:
             target.boxes, target.other_boxes, target.ratios = await asyncio.to_thread(_read)

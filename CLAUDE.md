@@ -201,6 +201,12 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   number mean a different place each time.
 - **Titles in the source box come from Paperless as the user** (`_resolve_cite_titles`), never
   from the sidecar: a made-up `[^id]` must not reveal the title of a document they cannot see.
+- **A picture is a passage too.** On an X-ray page the text is a header and "Seite 5 von 5";
+  what the answer says comes from the picture's description, so when a description covers the
+  claim better than any text window, the picture's `bbox` is marked (`best_pictures`) — all
+  pictures close to the best, since "four radiographs" is four. Page numbers ("Seite 5 von 5",
+  a claim headed "Seite 5:") are dropped before scoring: the 5 alone, counting triple, marked
+  the footer.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
   link mid-marker.
 

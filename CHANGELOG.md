@@ -18,6 +18,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   Filled-in forms work too: there the value ("22.03.2026") is marked even
   though the PDF stores it far away from its label ("Datum:"). Saved as PDF, the numbers
   stay and the source list is printed below the answer.
+  When a sentence is about a picture (an X-ray, a chart), the picture is
+  marked rather than a stray line of text; a page number such as
+  "Seite 5 von 5" is never taken for the source.
 - **Stamps, seals and signatures count as pictures.** The vision model lists
   them with their position, the text of the imprint and — when a printed name
   next to it says so — whose signature it is, so the chat can show them.
