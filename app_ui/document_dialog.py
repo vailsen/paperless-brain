@@ -8,6 +8,7 @@ register the dialog in that page's context.  The returned coroutine
 
 import asyncio
 import html as _html
+import json
 import os
 import re
 
@@ -177,6 +178,7 @@ def create_document_dialog(
     color: var(--c-text-2); overflow-wrap: anywhere; }
 .dl-pic-meta { font-size: 0.72rem; color: var(--c-text-muted); margin-bottom: 2px; }
 .dl-pic-title { font-weight: 600; color: var(--c-text); }
+.dl-pic-jump { margin-top: 4px; margin-left: -6px; color: var(--c-text-2) !important; }
 .dl-table th {
     background: var(--c-surface) !important;
     color: var(--c-text-muted) !important;
@@ -316,10 +318,53 @@ def _pictures(sidecar: dict | None) -> list[tuple[int, int, dict]]:
     ]
 
 
-def _render_pictures(doc_id: int, found: list[tuple[int, int, dict]]) -> None:
+def _page_heights(doc_id: int) -> list[float]:
+    """Page heights in PDF points of the file the viewer shows, [] if unreadable."""
+    import pypdfium2 as pdfium
+
+    try:
+        pdf = pdfium.PdfDocument(os.path.join(_PDF_CACHE, f"{doc_id}.pdf"))
+    except Exception:
+        return []
+    try:
+        return [pdf[i].get_height() for i in range(len(pdf))]
+    finally:
+        pdf.close()
+
+
+def _pdf_anchor(file_url: str, page: int, bbox, heights: list[float]) -> str:
+    """Viewer URL that opens ``page`` scrolled to the picture's top edge.
+
+    Chrome reads ``view=FitH,top``, pdf.js (Firefox) ``zoom=FitH,top``; each
+    ignores the other. ``top`` counts PDF points from the page's bottom.
+    """
+    url = f"{file_url}#page={page}"
+    if bbox and 0 < page <= len(heights):
+        h = heights[page - 1]
+        top = round(min(h, h * (1 - bbox[1]) + 0.02 * h))
+        url += f"&zoom=FitH,{top}&view=FitH,{top}"
+    return url
+
+
+# The <object> does not navigate on a fragment-only change, so the jump swaps in
+# a copy. Without a visible viewer (phone layout) the PDF opens in a new tab.
+_JUMP_JS = """() => {
+  const href = %s;
+  const o = document.querySelector('.dl-pdf-obj');
+  if (!o || !o.offsetParent) { window.open(href, '_blank'); return; }
+  const n = o.cloneNode(true);
+  n.setAttribute('data', href);
+  o.replaceWith(n);
+}"""
+
+
+def _render_pictures(
+    doc_id: int, found: list[tuple[int, int, dict]], file_url: str
+) -> None:
     """Every picture the extraction found: a thumbnail cropped from its page
     (through the same access-checked route the chat uses) and its description."""
     _ = get_translator()
+    heights = _page_heights(doc_id)
     with ui.column().classes("p-4 gap-3 w-full"):
         for page_no, index, img in found:
             url = doc_image_service.image_url(doc_id, page_no, index)
@@ -336,6 +381,12 @@ def _render_pictures(doc_id: int, found: list[tuple[int, int, dict]]) -> None:
                     if img.get("belongs_to"):
                         ui.label(img["belongs_to"]).classes("dl-pic-title")
                     ui.label(img["description"])
+                    href = _pdf_anchor(file_url, page_no, img.get("bbox"), heights)
+                    ui.button(_("Show in PDF"), icon="my_location").props(
+                        "flat dense no-caps size=sm"
+                    ).classes("dl-pic-jump").on(
+                        "click", js_handler=_JUMP_JS % json.dumps(href)
+                    )
 
 
 def render_document_body(
@@ -737,12 +788,12 @@ def render_document_body(
                         "padding:0; height:100%; overflow:hidden;"
                     ):
                         with ui.scroll_area().style("height:100%; width:100%;"):
-                            _render_pictures(doc.id, pictures)
+                            _render_pictures(doc.id, pictures, file_url)
 
         # ── Right: PDF viewer ─────────────────────────────────────────────────
         with _splitter.after:
             ui.html(
-                f'<object data="{file_url}" type="application/pdf"'
+                f'<object class="dl-pdf-obj" data="{file_url}" type="application/pdf"'
                 f' width="100%" height="100%"'
                 f' style="border:none;position:absolute;top:0;left:0;'
                 f'width:100%;height:100%;">'
