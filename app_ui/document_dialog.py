@@ -411,9 +411,15 @@ def render_document_body(
     marked_html = ""
     if full_text and (result.matched_chunks or result.text_query):
         marked_html = highlight_text(full_text, result.matched_chunks, result.text_query)
-    # Opened from a search hit: start on the full text where the hit is marked —
-    # on the summary tab the marks exist but nobody sees them.
-    start_tab = "volltext" if "<mark" in marked_html else "zusammenfassung"
+    # Always open on the summary, also from a search hit; the full text scrolls
+    # to the hit the first time its tab is opened.
+    start_tab = "zusammenfassung"
+    scrolled = [False]
+
+    def _on_tab(e) -> None:
+        if e.value == "volltext" and "<mark" in marked_html and not scrolled[0]:
+            scrolled[0] = True
+            ui.timer(0.3, _scroll_to_first_mark, once=True)
     # No tab for a document without pictures — most of the archive has none.
     pictures = _pictures(sidecar)
 
@@ -421,7 +427,7 @@ def render_document_body(
         # ── Left: tabs ────────────────────────────────────────────────────────
         with _splitter.before:
             with (
-                ui.tabs(value=start_tab)
+                ui.tabs(value=start_tab, on_change=_on_tab)
                 .props("dense align='left'")
                 .classes("bg-gray-800 text-gray-300")
                 .style(
@@ -564,8 +570,6 @@ def render_document_body(
                             if full_text:
                                 if marked_html:
                                     ui.html(marked_html, sanitize=False).classes("dl-marked")
-                                    if start_tab == "volltext":
-                                        ui.timer(0.4, _scroll_to_first_mark, once=True)
                                 else:
                                     ui.label(full_text).classes(
                                         "text-sm text-gray-300 whitespace-pre-wrap"
