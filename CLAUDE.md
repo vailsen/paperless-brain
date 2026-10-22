@@ -876,6 +876,12 @@ work that established them: `docs/ui-polish-tasks.md`.
   and drive it with Playwright at a 390px viewport (both traps above passed review and a
   hand-built replica, and were caught only by measuring the real page).
 
+- **The app does not pinch-zoom; pages do.** The viewport is fixed (`user-scalable=no`,
+  `body { touch-action: pan-x pan-y }`) because zooming the whole UI stuttered even on an S24
+  Ultra. Anything a user must read up close opens in `app_ui/page_viewer.py`
+  (`window.__pbViewer`), which zooms only its pages: a CSS transform while the fingers move,
+  committed as a width on release so native scrolling pans.
+
 Practical consequences:
 
 - Tag chips go through `app_ui/tag_style.py` (`render_tag_chips` / `tag_chip`), never a raw

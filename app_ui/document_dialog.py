@@ -216,6 +216,10 @@ def create_document_dialog(
 @media (max-width: 767px) {
     .dl-pdf-btn { display: flex !important; }
     .dl-thumb { display: block; flex-shrink: 0; }
+    /* All tabs at a glance: icons only, the open tab keeps its label. */
+    .dl-tabs .q-tab { padding: 0 10px; min-width: 0; }
+    .dl-tabs .q-tab:not(.q-tab--active) .q-tab__label { display: none; }
+    .dl-tabs .q-tab__label { font-size: .72rem; }
     /* Hide PDF panel on mobile — tabs take full width */
     .dl-splitter > .q-splitter__panel.q-splitter__after { display: none !important; }
     .dl-splitter > .q-splitter__panel.q-splitter__before { width: 100% !important; min-width: 100% !important; }
@@ -429,7 +433,7 @@ def render_document_body(
             with (
                 ui.tabs(value=start_tab, on_change=_on_tab)
                 .props("dense align='left'")
-                .classes("bg-gray-800 text-gray-300")
+                .classes("dl-tabs bg-gray-800 text-gray-300")
                 .style(
                     f"position:absolute; top:0; left:0; right:0; height:{_TABS_H};"
                 ) as tabs
@@ -494,7 +498,12 @@ def render_document_body(
                                             # the user came to see everything.
                                             for _tag in sorted(doc.tags):
                                                 tag_chip(_tag)
-                                with ui.element("div").classes("dl-thumb"):
+                                # Tap: every page full screen, with its own pinch zoom.
+                                with ui.element("div").classes("dl-thumb").on(
+                                    "click",
+                                    js_handler=f"() => window.__pbViewer.openDoc({doc.id}, "
+                                    f"{max(doc.page_count or 1, 1)}, 0)",
+                                ):
                                     ui.image(f"/thumbnails/{doc.id}.jpg").style(
                                         "width:33vw;max-width:190px;"
                                         "border-radius:4px;"

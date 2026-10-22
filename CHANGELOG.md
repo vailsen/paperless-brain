@@ -9,6 +9,14 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Pages open full screen with their own pinch zoom.** Tap a page in the
+  Source tab, or the thumbnail in a document's details on a phone: every page
+  opens in a viewer that zooms by pinching, double tap, Ctrl+wheel or the
+  +/- buttons; Back closes it. The app itself no longer zooms — pinching the
+  whole interface stuttered even on fast phones. On a phone the document
+  details show their tabs as icons, the open one with its name, so all of
+  them fit.
+
 - **A running sync can be stopped.** A stop button appears next to the sync
   button while a sync runs. The document being read is finished first, so
   nothing is left half-ingested; the optional steps after it (deadline

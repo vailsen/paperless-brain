@@ -3,6 +3,7 @@
 from nicegui import app as ng_app
 from nicegui import ui
 
+from app_ui.page_viewer import PAGE_VIEWER_HTML
 from app_ui.theme import apply_theme
 from config.version import __version__
 from i18n import N_, get_translator
@@ -142,7 +143,10 @@ def page_layout() -> None:
     """Call at the top of every page to inject the shared header + drawer."""
     apply_theme()
     ui.add_head_html(
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">'
+        # No pinch zoom on the app itself — zooming the whole UI stuttered even
+        # on fast phones. Pages zoom in their own viewer (page_viewer.py).
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0, '
+        'maximum-scale=1.0, user-scalable=no">'
         '<meta name="theme-color" content="#6d28d9">'
         # SVG first for browsers that support it; the PNGs are the fallback
         # Chrome (especially on Android) actually uses.
@@ -155,15 +159,16 @@ def page_layout() -> None:
         # "Install app" flow instead of a plain home-screen shortcut.
         "<script>if('serviceWorker' in navigator){window.addEventListener('load',"
         "function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>"
-        "<style>html,body{background:var(--c-bg);}</style>"
+        "<style>html,body{background:var(--c-bg);}body{touch-action:pan-x pan-y;}</style>"
         "<script>(function(){var m=document.querySelector('meta[name=\"viewport\"]');"
-        "var c='width=device-width,initial-scale=1.0,user-scalable=yes';"
+        "var c='width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no';"
         "if(m){m.content=c;}else{m=document.createElement('meta');m.name='viewport';"
         "m.content=c;document.head.appendChild(m);}})();</script>"
     )
     ui.add_head_html(_MOBILE_HEADER_CSS)
     ui.add_head_html(_NO_SPELLCHECK_JS)
     ui.add_head_html(_EXTERNAL_LINKS_JS)
+    ui.add_head_html(PAGE_VIEWER_HTML)
 
     _ = get_translator()
 
