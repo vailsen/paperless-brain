@@ -846,7 +846,21 @@ work that established them: `docs/ui-polish-tasks.md`.
   user must react to.
 - **Tag row = Paperless data only.** Anything PaperSage generates (action flags, ingestion
   status, confidence) renders outside the tag row with its own treatment.
-- **One accent meaning.** Purple = the user's own input and the active selection. Nothing else.
+- **One accent meaning.** Steel (`--c-accent`) = the user's own input, the active selection
+  and the primary action. Nothing else. Its lighter forms are tokens too (`--c-accent-text`,
+  `-soft`, `-border`); never write a hex. The base is uncoloured: graphite in dark mode, a
+  soft paper grey in light mode (the default) — no pure-white surface, which is what glared.
+- **No Tailwind/Quasar colour classes for the accent** (`bg-purple-700`, `color="purple"`, …).
+  Quasar's colour classes are `!important` inside a CSS layer, and nothing outside the layer
+  can override them — a palette change would leave them behind. Use `bg-primary` /
+  `color="primary"` (follows `--q-primary`, set per theme) or `pb-accent-text`.
+- **Marked passages on a page are a yellow highlighter** (`--c-hl`), not the accent: it reads
+  on white paper in both themes.
+- **The mark and word mark live in `app_ui/brand.py`.** Inline SVG, so the header can never
+  show a broken image. "PaperlessBrain" is one word, split by weight and colour — two spans in
+  a flex row put the row's gap between them. Icon files are rendered from the same path by
+  `scripts/make_icons.py` and carry `ICON_VERSION` in their names: installed PWAs cache an
+  icon by URL, so a new look needs a new URL (and a `CACHE_NAME` bump in `sw.js`).
 - **Icons inherit text colour.** No coloured icons anywhere. Active state is the only
   differentiator in navigation.
 - **Sentence case everywhere.** No ALL CAPS labels, no emoji in UI chrome.

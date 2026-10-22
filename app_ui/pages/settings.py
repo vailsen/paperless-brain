@@ -217,7 +217,7 @@ def voice_memo_setting(username: str = "", token: str = "") -> None:
 
     ui.button(_("Save"), icon="save", on_click=_save_memo_model).props(
         "unelevated dark dense"
-    ).classes("bg-purple-700 text-white mt-3")
+    ).classes("bg-primary text-white mt-3")
 
 
 # ── Tiny UI helpers ───────────────────────────────────────────────────────────
@@ -250,7 +250,7 @@ def _hint(html: str) -> None:
 def _status_row() -> tuple[ui.label, ui.spinner]:
     with ui.row().classes("items-center gap-2 h-6"):
         lbl = ui.label("").classes("text-xs")
-        spin = ui.spinner(size="xs").classes("text-purple-400")
+        spin = ui.spinner(size="xs").classes("pb-accent-text")
         spin.set_visibility(False)
     return lbl, spin
 
@@ -532,7 +532,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_ingest_cfg).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white")
+            ).classes("bg-primary text-white")
 
         # ── Suche & Gedächtnis-Schwellenwerte ─────────────────────────────────
         with _card("memory"):
@@ -588,7 +588,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_search_cfg).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white")
+            ).classes("bg-primary text-white")
 
         # ── Gedächtnis-Pflege (Träumen) ───────────────────────────────────────
         with _card("memory"):
@@ -638,7 +638,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_dream_cfg).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white mt-3")
+            ).classes("bg-primary text-white mt-3")
 
         # ── IMAP ──────────────────────────────────────────────────────────────
         with _card("connect"):
@@ -675,7 +675,7 @@ async def settings_page() -> None:
 
             _hint(
                 _(
-                    "<b style='color:#a78bfa'>Gmail:</b> IMAP must be enabled (Gmail → Settings → Forwarding and POP/IMAP). Password = Google <b>app password</b> (2FA must be active): Google Account → Security → App passwords."
+                    "<b style='color:var(--c-accent-text)'>Gmail:</b> IMAP must be enabled (Gmail → Settings → Forwarding and POP/IMAP). Password = Google <b>app password</b> (2FA must be active): Google Account → Security → App passwords."
                 )
             )
 
@@ -715,7 +715,7 @@ async def settings_page() -> None:
 
                 ui.button(_("Save"), icon="save", on_click=_save_imap).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
         # ── Calendar ──────────────────────────────────────────────────────────
         with _card("connect"):
@@ -743,7 +743,7 @@ async def settings_page() -> None:
 
                 _hint(
                     _(
-                        "<b style='color:#a78bfa'>Google Calendar:</b> Calendar settings &rarr; [select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy URL.<br>The URL contains a secret token — it works without a password.<br>Up to 3 calendars are searched in parallel."
+                        "<b style='color:var(--c-accent-text)'>Google Calendar:</b> Calendar settings &rarr; [select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy URL.<br>The URL contains a secret token — it works without a password.<br>Up to 3 calendars are searched in parallel."
                     )
                 )
 
@@ -763,7 +763,7 @@ async def settings_page() -> None:
 
                 _hint(
                     _(
-                        "<b style='color:#a78bfa'>iCloud:</b> <code>https://caldav.icloud.com/</code>, app-specific password.<br><b style='color:#a78bfa'>Nextcloud:</b> copy the remote URL from the calendar app."
+                        "<b style='color:var(--c-accent-text)'>iCloud:</b> <code>https://caldav.icloud.com/</code>, app-specific password.<br><b style='color:var(--c-accent-text)'>Nextcloud:</b> copy the remote URL from the calendar app."
                     )
                 )
 
@@ -820,7 +820,7 @@ async def settings_page() -> None:
 
                 ui.button(_("Save"), icon="save", on_click=_save_cal).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
         # ── Absender-Profil ───────────────────────────────────────────────────
         with _card("connect"):
@@ -871,7 +871,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_sender).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white mt-2")
+            ).classes("bg-primary text-white mt-2")
 
         # ── PDF → Paperless: Standard-Tags ───────────────────────────────────
         with _card("docs"):
@@ -916,7 +916,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_pdf_tags).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white")
+            ).classes("bg-primary text-white")
 
         # ── Eigene Chat-Anweisungen / custom instructions ─────────────────────
         with _card("ai"):
@@ -1003,7 +1003,7 @@ async def settings_page() -> None:
                 ).classes("text-gray-400")
                 ui.button(_("Save"), icon="save", on_click=_save_custom_instructions).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
         # ── KI-Tiefenrecherche ───────────────────────────────────────────────────────
         with _card("ai"):
@@ -1083,7 +1083,7 @@ async def settings_page() -> None:
                 ).classes("text-gray-500")
                 ui.button(_("Save"), icon="save", on_click=_save_werkbank).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
         # ── Import / Export ───────────────────────────────────────────────────
         with _card("data"):
@@ -1147,7 +1147,7 @@ async def settings_page() -> None:
             with ui.row().classes("gap-3 mt-2"):
                 ui.button(_("Create export"), icon="download", on_click=_do_export).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
                 ui.button(_("Copy"), icon="content_copy", on_click=_copy_export).props(
                     "flat dark dense"
                 ).classes("text-gray-300 border border-gray-600")
@@ -1197,7 +1197,7 @@ async def settings_page() -> None:
                         ).classes("text-gray-400")
                         ui.button(_("Apply"), icon="check", on_click=lambda: _dlg.submit(True)).props(
                             "unelevated dark dense"
-                        ).classes("bg-purple-700 text-white")
+                        ).classes("bg-primary text-white")
 
                 if not await _dlg:
                     return
@@ -1217,7 +1217,7 @@ async def settings_page() -> None:
 
             ui.button(_("Import"), icon="upload", on_click=_do_import).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white mt-2")
+            ).classes("bg-primary text-white mt-2")
 
             _hint(
                 _(

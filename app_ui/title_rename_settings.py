@@ -78,7 +78,7 @@ def title_rename_setting(username: str, token: str) -> None:
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button(_("Cancel"), on_click=lambda: dlg.submit(False)).props("flat dense")
                 ui.button(_("Turn on"), on_click=lambda: dlg.submit(True)).props(
-                    "unelevated dense color=purple"
+                    "unelevated dense color=primary"
                 )
         answer = await dlg
         dlg.delete()
@@ -185,7 +185,7 @@ async def _explain_backfill(username: str, token: str) -> None:
         with ui.row().classes("w-full justify-end gap-2"):
             ui.button(_("Cancel"), on_click=lambda: dlg.submit(False)).props("flat dense")
             ui.button(_("Start dry run"), on_click=lambda: dlg.submit(True)).props(
-                "unelevated dense color=purple"
+                "unelevated dense color=primary"
             )
     go = await dlg
     dlg.delete()
@@ -248,7 +248,7 @@ def _open_backfill(username: str, token: str) -> None:
                             # TODO i18n-plural
                             _("Rename all {n} documents").format(n=view["total"]),
                             on_click=_start,
-                        ).props("unelevated dense color=purple")
+                        ).props("unelevated dense color=primary")
                 return
             if phase == "running":
                 job = _JOBS.get(username) or {}

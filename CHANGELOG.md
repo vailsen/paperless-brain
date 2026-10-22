@@ -9,6 +9,16 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **A calmer, more professional look.** Light mode is now the default, on a
+  soft paper grey instead of glaring white; dark mode is graphite instead of
+  blue-grey. One steel-blue accent replaces the violet everywhere, used for
+  your own messages, the reference numbers, the active tab and the primary
+  buttons. Marked passages on a page are a yellow highlighter. The font is
+  Inter, shipped with the app.
+- **New logo:** a leaf folded from a sheet of paper. "PaperlessBrain" is
+  written as one word. The browser tab and the installed app get the new
+  icon (an installed app may need a while to pick it up, or a reinstall).
+
 - **Pages open full screen with their own pinch zoom.** Tap a page in the
   Source tab, or the thumbnail in a document's details on a phone: every page
   opens in a viewer that zooms by pinching, double tap, Ctrl+wheel or the

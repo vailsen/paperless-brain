@@ -1,6 +1,6 @@
 // Bump on every rebrand/icon change: the activate handler deletes all caches
 // whose name differs, which is what evicts stale icons from installed PWAs.
-const CACHE_NAME = 'paperlessbrain-v3';
+const CACHE_NAME = 'paperlessbrain-v4';
 const WS_PREFIXES = ['wss://', 'ws://'];
 const SKIP_PATHS = ['/_nicegui/', '/socket.io', '/manifest.json', '/sw.js'];
 

@@ -94,7 +94,7 @@ def _archetype_list(user_id: str, list_area, edit_area) -> None:
             _show_edit_form(user_id, None, list_area, edit_area)
 
         ui.button(_("New archetype"), icon="add", on_click=_new).props("flat dark").classes(
-            "text-purple-400 mt-2"
+            "pb-accent-text mt-2"
         )
 
 
@@ -182,7 +182,7 @@ def _show_edit_form(
 
         ui.button(_("Save"), icon="save", on_click=_save).props(
             "unelevated dark"
-        ).classes("bg-purple-700 text-white mt-3")
+        ).classes("bg-primary text-white mt-3")
 
     # Stacked layout: the form is below the list, so tapping "edit" would
     # otherwise change something the user cannot see.

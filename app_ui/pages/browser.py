@@ -106,7 +106,7 @@ async def browser():
     .doc-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 10px 28px rgba(0,0,0,.45);
-        border-color: rgba(167,139,250,.55);
+        border-color: var(--c-accent-border);
     }
     .doc-thumb { cursor: pointer; transition: opacity .15s ease; }
     .doc-thumb:hover { opacity: .85; }
@@ -278,7 +278,7 @@ async def browser():
             with ui.row().classes("w-full items-center gap-3"):
                 with ui.row().classes(
                     "items-center gap-3 flex-1 bg-gray-800 rounded-xl"
-                    " px-4 py-2 border-2 border-purple-600/70"
+                    " px-4 py-2 border-2 pb-accent-border/70"
                 ):
                     ui.icon("auto_awesome").classes("text-gray-400 text-xl flex-shrink-0")
                     semantic_input = (
@@ -291,7 +291,7 @@ async def browser():
                     semantic_input.on("keydown.enter", do_search)
                 search_btn = (
                     ui.button(_("Search"), icon="search", on_click=do_search)
-                    .props("color=purple unelevated")
+                    .props("color=primary unelevated")
                     .classes("text-sm font-semibold px-5")
                 )
 
@@ -451,7 +451,7 @@ def _render_card(result: DocumentResult, on_eye, on_cluster=None, on_pin=None,
                  is_pinned: bool = False, show_distance: bool = False) -> None:
     _ = get_translator()
     doc = result.document
-    _pin_border = "border: 2px solid #a78bfa !important; box-shadow: 0 0 8px #a78bfa44;" if is_pinned else ""
+    _pin_border = "border: 2px solid var(--c-accent) !important;" if is_pinned else ""
     with ui.card().classes("w-52 hover:shadow-xl bg-gray-800 gap-0 doc-card").style(
         "position:relative; overflow:hidden; " + _pin_border
     ):
@@ -460,7 +460,7 @@ def _render_card(result: DocumentResult, on_eye, on_cluster=None, on_pin=None,
             "background-size:cover; background-position:top center;"
         ).on("click", lambda r=result: on_eye(r))
         if is_pinned:
-            ui.icon("push_pin", size="xs").classes("text-purple-300").style(
+            ui.icon("push_pin", size="xs").classes("pb-accent-text").style(
                 "position:absolute; top:4px; right:4px;"
                 "background:rgba(0,0,0,.55); border-radius:50%; padding:2px; z-index:1;"
             )

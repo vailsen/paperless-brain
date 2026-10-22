@@ -8,7 +8,7 @@ override keyed on Quasar's ``body--light`` class (added automatically when
 (hex sweep), and the common Tailwind gray utility classes are remapped here, so a
 single toggle flips the whole UI.
 
-Accent colors (purple brand, red/green/amber/blue status) are intentionally left
+Accent colors (steel brand, red/green/amber/blue status) are intentionally left
 as-is — they read acceptably on both backgrounds.
 
 Preference is the per-user ``get_pref("theme")`` ("dark" | "light"), the same
@@ -23,42 +23,77 @@ DEFAULT_THEME = "light"
 
 # The one accent. Kept as a literal because ui.colors() writes --q-primary
 # directly and cannot take a CSS var; it must stay in step with --c-accent below.
-BRAND_PRIMARY = "#7c3aed"
+BRAND_PRIMARY = "#3563d9"
 
 THEME_CSS = """
 <style>
 :root {
-  --c-bg:            #111827;
-  --c-bg-deep:       #0a0f1a;
-  --c-surface:       #1f2937;
-  --c-surface-2:     #172033;
-  --c-surface-3:     #1e1b2e;
-  --c-border:        #374151;
-  --c-border-strong: #4b5563;
-  --c-text:          #f1f5f9;
-  --c-text-2:        #d1d5db;
-  --c-text-muted:    #9ca3af;
+  /* Dark: graphite, no blue tint. */
+  --c-bg:            #0f1012;
+  --c-bg-deep:       #0b0c0d;
+  --c-surface:       #16171a;
+  --c-surface-2:     #1c1d21;
+  --c-surface-3:     #222328;
+  --c-border:        #27292e;
+  --c-border-strong: #363840;
+  --c-text:          #ececee;
+  --c-text-2:        #c3c5cb;
+  --c-text-muted:    #8a8d95;
   /* Warning = "you must react to this". Reserved for genuine state (the card
      action flag); never spent on identity or category. */
   --c-warn:          #fbbf24;
   --c-warn-bg:       rgba(251,191,36,0.12);
-  --c-accent:        #a855f7;
+  /* The one accent (steel). Solid for actions and the active state, -text for
+     links and accent words, -soft/-border for the user's own messages and the
+     reference pills. --c-logo-2 is the leaf's lighter half. */
+  --c-accent:        #4f7cf3;
+  --c-accent-text:   #8fb0ff;
+  --c-accent-soft:   rgba(79,124,243,0.16);
+  --c-accent-border: rgba(79,124,243,0.45);
+  --c-logo-2:        #3a5bb0;
+  /* Marked passages on a PDF page: a highlighter, readable on white paper. */
+  --c-hl:            rgba(250,204,21,0.32);
+  --c-hl-line:       rgba(234,179,8,0.8);
+  --c-hl-soft:       rgba(250,204,21,0.14);
+  --q-primary:       #4f7cf3;
 }
 body.body--light {
-  --c-bg:            #f1f5f9;
-  --c-bg-deep:       #e2e8f0;
-  --c-surface:       #ffffff;
-  --c-surface-2:     #f8fafc;
-  --c-surface-3:     #f5f3ff;
-  --c-border:        #e2e8f0;
-  --c-border-strong: #cbd5e1;
-  --c-text:          #0f172a;
-  --c-text-2:        #334155;
-  --c-text-muted:    #64748b;
+  /* Light: soft paper grey; no surface is pure white, which is what glared. */
+  --c-bg:            #ebedf0;
+  --c-bg-deep:       #e2e5e9;
+  --c-surface:       #f6f7f9;
+  --c-surface-2:     #eff1f4;
+  --c-surface-3:     #e6e9ee;
+  --c-border:        #d9dde3;
+  --c-border-strong: #c3c9d1;
+  --c-text:          #1a1d23;
+  --c-text-2:        #3a404a;
+  --c-text-muted:    #687080;
   --c-warn:          #b45309;
   --c-warn-bg:       rgba(180,83,9,0.10);
-  --c-accent:        #7c3aed;
+  --c-accent:        #3563d9;
+  --c-accent-text:   #2a55c4;
+  --c-accent-soft:   rgba(53,99,217,0.10);
+  --c-accent-border: rgba(53,99,217,0.35);
+  --c-logo-2:        #9db4ee;
+  --q-primary:       #3563d9;
 }
+
+/* Accent as classes. Never Tailwind/Quasar purple-* or color="purple": Quasar's
+   colour classes are !important inside a CSS layer, which no override outside
+   it can beat, so they would stay violet forever. */
+.pb-accent-text   { color: var(--c-accent-text) !important; }
+.pb-accent-border { border-color: var(--c-accent-border) !important; }
+
+/* Inter, shipped with the app (no font CDN). */
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url('/static/fonts/inter-latin-wght-normal.woff2') format('woff2');
+}
+body, .q-btn, .q-field, .q-tab, .q-item, .q-table, .nicegui-content {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+body { font-feature-settings: "cv11", "ss01"; letter-spacing: -0.006em; }
 
 html, body, .q-page, .nicegui-content { background: var(--c-bg) !important; }
 
@@ -128,7 +163,6 @@ body.body--light .text-orange-400 { color: #c2410c !important; }
 body.body--light .bg-blue-950   { background-color: #dbeafe !important; }
 body.body--light .bg-orange-950 { background-color: #ffedd5 !important; }
 body.body--light .bg-blue-900   { background-color: #dbeafe !important; }
-body.body--light .bg-purple-900, body.body--light .bg-purple-950 { background-color: #ede9fe !important; }
 
 /* Expansion items authored with the `dark` prop */
 body.body--light .q-expansion-item .q-item__label,
@@ -146,17 +180,13 @@ body.body--light .q-table--dark .q-table__bottom {
   border-color: var(--c-border) !important;
 }
 body.body--light .q-table--dark thead th { color: var(--c-text-muted) !important; }
-body.body--light .q-table--dark tbody tr:hover td { background: rgba(124,58,237,0.06) !important; }
+body.body--light .q-table--dark tbody tr:hover td { background: var(--c-accent-soft) !important; }
 
-/* Header polish (light): clean white bar, crisp deep-purple icons, soft elevation */
-body.body--light .app-header {
-  background: #ffffff !important;
-  border-bottom: 1px solid var(--c-border) !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-}
+/* Header (light): own surface, neutral icons, a border instead of a shadow */
 body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
-/* Dark header keeps its subtle elevation too */
-.app-header { box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.app-header { box-shadow: none !important; }
+/* Cards are separated by their border, not a shadow. */
+.q-card { box-shadow: none !important; }
 
 /* Quasar ships `text-transform: uppercase` on .q-btn and .q-tab, so editing a
    Python label string has no visible effect — the caps come from CSS. Undo it
@@ -170,14 +200,14 @@ body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
    from Paperless and enables cross-document grouping) and are styled inline by
    app_ui/tag_style.py. Everything below is deliberately hueless. */
 
-/* Top navigation — one signal for "active", not three. The purple accent plus
+/* Top navigation — one signal for "active", not three. The accent plus
    the underline carry it; the underline alone survives greyscale and
    colour-blindness, which is why it is not colour-only. */
 .app-header .desktop-nav-btn { color: var(--c-text-2) !important; }
 .app-header .desktop-nav-btn .q-icon { color: inherit !important; }
 .app-header .desktop-nav-btn:hover { color: var(--c-text) !important; }
 .app-header .desktop-nav-btn.nav-active,
-.app-header .desktop-nav-btn.nav-active .q-icon { color: var(--c-accent) !important; }
+.app-header .desktop-nav-btn.nav-active .q-icon { color: var(--c-text) !important; }
 .app-header .desktop-nav-btn.nav-active { box-shadow: inset 0 -2px 0 0 var(--c-accent); border-radius: 3px; }
 /* Mobile nav menu entries follow the same rule */
 .q-menu .nav-menu-item .q-icon { color: var(--c-text-muted) !important; }
@@ -191,7 +221,7 @@ body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
 .card-action-btn .q-icon { color: var(--c-text-muted) !important; transition: color .12s; }
 .doc-card:hover .card-action-btn .q-icon { color: var(--c-text-2) !important; }
 .card-action-btn:hover .q-icon { color: var(--c-text) !important; }
-/* Pinned is an active selection — the one thing purple is still allowed to mean. */
+/* Pinned is an active selection — one of the things the accent means. */
 .card-action-btn.is-pinned .q-icon,
 .doc-card:hover .card-action-btn.is-pinned .q-icon { color: var(--c-accent) !important; }
 
@@ -317,11 +347,11 @@ def apply_theme() -> None:
     """
     theme = get_pref("theme", DEFAULT_THEME)
     ui.dark_mode(theme != "light")  # True → dark (body--dark), False → light (body--light)
-    # Quasar's `primary` is the app's brand purple, not its stock blue. Without
+    # Quasar's `primary` is the app's brand steel, not its stock blue. Without
     # this, every ui.button() (which defaults to color='primary') picks up
     # `.bg-primary{background:var(--q-primary)!important}` — and that !important
-    # beats the Tailwind `bg-purple-700` classes the pages set, so twenty
-    # buttons that read purple in the source rendered blue on screen. Checked
+    # beats any Tailwind colour class a page sets. --q-primary is redefined
+    # per theme in THEME_CSS (dark uses a lighter steel). Checked
     # checkboxes and other Quasar accents follow the same token.
     ui.colors(primary=BRAND_PRIMARY)
     ui.add_head_html(THEME_CSS)

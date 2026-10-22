@@ -475,7 +475,7 @@ def werkbank_page() -> None:
                                     rid, user_id, m, run_list.refresh, dialog_host),
                             ).props("flat dense").style("color:var(--c-accent)")
                         if status == "briefing":
-                            ui.spinner(size="sm").props("color=purple")
+                            ui.spinner(size="sm").props("color=primary")
                         if status in ("planned", "failed"):
                             ui.button(
                                 icon="play_arrow", color=None,
@@ -535,7 +535,7 @@ def werkbank_page() -> None:
                         _("Formulating the assignment — you can leave this page.")
                     )
 
-                ui.button(_("Continue"), on_click=_go).props("unelevated dense color=purple")
+                ui.button(_("Continue"), on_click=_go).props("unelevated dense color=primary")
         dialog.open()
 
     with ui.column().classes("w-full max-w-5xl mx-auto px-4 py-6 gap-3").style("min-width:0"):
@@ -556,7 +556,7 @@ def werkbank_page() -> None:
                     _("Agents"), icon="groups", color=None, on_click=_open_archetypes
                 ).props("flat dense").style("color:var(--c-text-2)")
                 ui.button(_("New run"), icon="add", on_click=_open_new_dialog).props(
-                    "unelevated dense color=purple")
+                    "unelevated dense color=primary")
 
         run_list()
 

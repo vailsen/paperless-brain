@@ -18,6 +18,7 @@ import app_ui.memo_routes  # noqa: F401  — registers POST /api/memo/transcribe
 import app_ui.vault_routes  # noqa: F401  — registers GET /api/vault/file
 import app_ui.doc_image_routes  # noqa: F401  — registers GET /api/doc-image/{doc}/{page}
 import werkbank.v2.ui.page  # noqa: F401  — registers /werkbank
+from app_ui.brand import ICON_VERSION
 from app_ui.tag_style import refresh_tag_colors
 from config.settings import settings
 from config.version import __version__
@@ -131,7 +132,7 @@ ui.run(
     # Without this NiceGUI serves its own default icon at /favicon.ico. Chrome
     # on Android ignores SVG favicons and falls back to that path, which is why
     # only Chrome-mobile showed the generic NiceGUI logo.
-    favicon=str(settings.app_path / "app_ui" / "static" / "icon-192.png"),
+    favicon=str(settings.app_path / "app_ui" / "static" / f"icon-{ICON_VERSION}-192.png"),
     storage_secret=settings.storage_secret,
     reload=False,
     port=settings.port,

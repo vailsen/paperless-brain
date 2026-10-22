@@ -48,11 +48,11 @@ def _strip_chunk_prefix(chunk: str) -> str:
 def highlight_text(full_text: str, chunks: list[str], text_query: str = "") -> str:
     """Return an HTML <pre> block with matches highlighted.
 
-    - Semantic chunk matches → purple
+    - Semantic chunk matches → accent
     - text_query (Titel/Inhalt) substring matches → amber
     """
     # Collect tagged regions: (start, end, style_key)
-    # style_key: "chunk" = purple, "query" = amber
+    # style_key: "chunk" = accent, "query" = amber
     tagged: list[tuple[int, int, str]] = []
 
     # ── Semantic chunk regions ────────────────────────────────────────────────
@@ -93,10 +93,10 @@ def highlight_text(full_text: str, chunks: list[str], text_query: str = "") -> s
     if not tagged:
         return _wrap_pre(_html.escape(full_text))
 
-    # Merge by priority: chunk (purple) wins over query (amber) on overlap.
+    # Merge by priority: chunk (accent) wins over query (amber) on overlap.
     # Strategy: flatten into per-character style, then emit spans.
     style_map: dict[str, str] = {
-        "chunk": "background:rgba(139,92,246,0.4);color:inherit;border-radius:3px;padding:0 2px;",
+        "chunk": "background:color-mix(in srgb, var(--c-accent) 26%, transparent);color:inherit;border-radius:3px;padding:0 2px;",
         "query": "background:rgba(251,191,36,0.4);color:inherit;border-radius:3px;padding:0 2px;",
     }
     # Sort: chunks first so they win on overlap
@@ -696,7 +696,7 @@ def render_document_body(
                                                                     f"#{_mid}"
                                                                 ).style(
                                                                     "font-size:11px;"
-                                                                    "color:#a78bfa;"
+                                                                    "color:var(--c-accent-text);"
                                                                     "font-family:monospace;"
                                                                     "font-weight:600;"
                                                                     "cursor:pointer;"
@@ -882,7 +882,7 @@ def _render_content(
                 "dl-header-btns self-start mt-1 flex-shrink-0 items-center gap-1"
             ):
                 # Same treatment as the card action icons: neutral at rest,
-                # purple only for "pinned", which is an active selection.
+                # the accent only for "pinned", which is an active selection.
                 if open_cluster_fn and cross_ref_index.has_related(doc.id):
                     ui.button(
                         icon="hub",
@@ -960,7 +960,7 @@ def _render_content(
                             ui.button(
                                 _("Re-ingest"),
                                 on_click=lambda: cdlg.submit((hint_in.value or "").strip()),
-                            ).props("unelevated dense color=purple")
+                            ).props("unelevated dense color=primary")
                     answer = await cdlg
                     cdlg.delete()
                     return answer
