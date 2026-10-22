@@ -6,6 +6,7 @@ import asyncio
 from nicegui import app as ng_app, ui
 
 from app_ui.layout import page_layout, require_auth
+from app_ui.theme import DEFAULT_THEME
 from config.chat_prompts import MAX_CUSTOM_INSTRUCTIONS_CHARS
 from config.settings import settings
 from i18n import DEFAULT_LANG, SUPPORTED_LANGUAGES, get_translator
@@ -38,7 +39,7 @@ def language_setting() -> None:
 def theme_setting() -> None:
     """Render the dark/light selector. Switching = write storage + reload."""
     _ = get_translator()
-    current = get_pref("theme", "dark")
+    current = get_pref("theme", DEFAULT_THEME)
 
     def on_change(e) -> None:
         set_pref("theme", e.value)
@@ -1125,7 +1126,7 @@ async def settings_page() -> None:
                     username,
                     token,
                     language=get_pref("language", DEFAULT_LANG),
-                    theme=get_pref("theme", "dark"),
+                    theme=get_pref("theme", DEFAULT_THEME),
                     push_text_to_paperless=bool(
                         get_pref("push_text_to_paperless", False)
                     ),

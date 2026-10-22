@@ -12,14 +12,14 @@ Accent colors (purple brand, red/green/amber/blue status) are intentionally left
 as-is — they read acceptably on both backgrounds.
 
 Preference is the per-user ``get_pref("theme")`` ("dark" | "light"), the same
-store as the language setting (services/user_prefs.py). Default: dark.
+store as the language setting (services/user_prefs.py). Default: light.
 """
 
 from nicegui import ui
 
 from services.user_prefs import get_pref
 
-DEFAULT_THEME = "dark"
+DEFAULT_THEME = "light"
 
 # The one accent. Kept as a literal because ui.colors() writes --q-primary
 # directly and cannot take a CSS var; it must stay in step with --c-accent below.
