@@ -7,6 +7,77 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Added
+
+- **Pages open full screen with their own pinch zoom.** Tap a page in the
+  Source tab, or the thumbnail in a document's details on a phone: every page
+  opens in a viewer that zooms by pinching, double tap, Ctrl+wheel or the
+  +/- buttons; Back closes it. The app itself no longer zooms — pinching the
+  whole interface stuttered even on fast phones. On a phone the document
+  details show their tabs as icons, the open one with its name, so all of
+  them fit.
+
+- **A running sync can be stopped.** A stop button appears next to the sync
+  button while a sync runs. The document being read is finished first, so
+  nothing is left half-ingested; the optional steps after it (deadline
+  review, text push, renaming) are skipped, the index is still rebuilt.
+
+- **Every fact in an answer shows where it comes from.** A small number after a
+  sentence names its source; two facts from two places get two numbers. Tap one
+  and the results panel switches to a new "Source" tab: the whole PDF to scroll
+  through, opened at the cited page with the passage marked on it and quoted
+  above it. A box under the answer lists its sources by document title, each
+  cited page tappable. On a phone the panel slides in — you tapped on purpose.
+  Filled-in forms work too: there the value ("22.03.2026") is marked even
+  though the PDF stores it far away from its label ("Datum:"). Saved as PDF, the numbers
+  stay and the source list is printed below the answer.
+  When a sentence is about a picture (an X-ray, a chart), the picture is
+  marked rather than a stray line of text; a page number such as
+  "Seite 5 von 5" is never taken for the source.
+- **Stamps, seals and signatures count as pictures.** The vision model lists
+  them with their position, the text of the imprint and — when a printed name
+  next to it says so — whose signature it is, so the chat can show them.
+  The text of a letterhead or footer — address, phone, bank details, opening
+  hours — is now explicitly kept; the new model had started leaving it out.
+  This changes the reading prompt for every document (version 0.6): the next
+  sync with re-ingest reads the whole archive again. Set a limit in the sync
+  dialog to try it on a few documents first.
+- **A "Pictures" tab in the document view** lists every picture the reading
+  found — photos, charts, drawings, stamps, signatures — with a thumbnail cut
+  from its page, the page number and the description. A click opens it full
+  size.
+- **Formulas stay formulas.** The vision model now writes mathematical formulas
+  as LaTeX, so the chat can read them and shows them typeset — also in its own
+  answers. Only documents with something formula-like on a page are read again
+  after the update (16 of 524 on the reference archive), not the whole archive.
+
+### Fixed
+
+- **No more empty answer bubbles.** A local thinking model could end its turn
+  with everything said in its reasoning and no answer text — seen with a
+  message ending in a stray backtick. The chat now asks it once for the answer
+  itself; if it still says nothing, the bubble says so instead of staying
+  empty.
+
+- **One number, one source.** A number cited behind several sentences marked a
+  different passage depending on which of them you tapped. Now every tap on
+  that number marks all passages it stands for, the tapped sentence's one
+  strongest.
+- **Documents the assistant read show up under "Results".** Only a search
+  filled the list; a document opened by its details, a table, a page or a
+  picture did not. It now joins the list on top, and the documents section
+  opens while web results fold away.
+- **Lists right under a bold heading line render as lists**, not as one run-on
+  paragraph.
+
+- **A document opened from an answer shows the matching passage.** Clicking
+  "#241" in an answer opened the document without the passages the search had
+  found, so nothing was marked; and where something was marked, the dialog
+  started on the summary tab. It now opens on the full text, scrolled to the
+  first marked passage.
+- **Links to other websites open in a new tab**, so a click in an answer no
+  longer leaves the chat.
+
 ## [0.10.1] — 2026-10-19
 
 **Correct what the vision model misread.**

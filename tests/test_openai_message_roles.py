@@ -217,3 +217,53 @@ def test_a_refusal_carries_the_servers_own_message(backend, monkeypatch):
 )
 def test_error_bodies_of_every_shape_yield_their_message(body, expected):
     assert _api_error_text(body) == expected
+
+
+# ── A turn that ends in thinking only ────────────────────────────────────────
+
+
+def _thinking_only_response(text: str) -> list[str]:
+    return [_sse({"choices": [{"delta": {"reasoning": text}}]}), "data: [DONE]"]
+
+
+def test_an_answer_left_in_the_thinking_is_asked_for_once(backend, monkeypatch):
+    """Seen live: a prompt ending in a stray backtick, everything said in the
+    reasoning, no answer text — the user got an empty bubble."""
+    import asyncio
+
+    from services.chat_service import _EMPTY_ANSWER_MSG, TextTokenEvent
+
+    script = [
+        _FakeResponse(_tool_call_response()),
+        _FakeResponse(_thinking_only_response("The answer is 120 EUR.")),
+        _FakeResponse(_text_response("Eine Rechnung über 120 EUR.")),
+    ]
+    sent: list[dict] = []
+    monkeypatch.setattr(
+        "services.chat_service.httpx.AsyncClient", lambda **kw: _FakeClient(script, sent)
+    )
+
+    async def drive() -> str:
+        text = []
+        async for ev in backend.run_turn(
+            messages=[{"role": "user", "content": "What did I buy from ACME?`"}],
+            system="You are helpful.",
+            tools=TOOLS,
+        ):
+            if isinstance(ev, TextTokenEvent):
+                text.append(ev.text)
+        return "".join(text)
+
+    assert asyncio.run(drive()) == "Eine Rechnung über 120 EUR."
+    assert len(sent) == 3
+    assert sent[2]["messages"][-1] == {"role": "user", "content": _EMPTY_ANSWER_MSG}
+
+
+def test_a_second_empty_answer_ends_the_turn(backend, monkeypatch):
+    script = [
+        _FakeResponse(_tool_call_response()),
+        _FakeResponse(_thinking_only_response("hmm")),
+        _FakeResponse(_thinking_only_response("hmm again")),
+    ]
+    sent = _run(backend, monkeypatch, script)
+    assert len(sent) == 3  # one retry, no loop

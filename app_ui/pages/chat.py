@@ -20,10 +20,11 @@ from app_ui.pages.browser import _render_card
 from config.chat_prompts import build_system_prompt
 from werkbank.settings_store import get_archive_language
 from i18n import DEFAULT_LANG, detect_language, get_translator
+from services.citations import number_citations
 from models.brain_fact_result import BrainFactResult
 from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
-from services import sync_state
+from services import citations, doc_image_service, sync_state
 from services.user_prefs import get_pref, set_pref
 from services.session_auth import get_session_token
 
@@ -37,7 +38,9 @@ _wb2_runs: set[asyncio.Task] = set()
 # `task_list`: "- [ ] foo" becomes a real checkbox instead of a bullet with
 # literal brackets. Vault notes carry Obsidian task lines, and the model
 # writes checklists back in the same syntax.
-_MD_EXTRAS = ["fenced-code-blocks", "tables", "latex", "task_list"]
+# cuddled-lists: models write a list right under a bold heading line, with no
+# blank line in between — without it the items run on as one paragraph.
+_MD_EXTRAS = ["fenced-code-blocks", "tables", "latex", "task_list", "cuddled-lists"]
 from services.chat_service import (
     TOOL_DEFINITIONS,
     ClaudeChatBackend,
@@ -70,6 +73,7 @@ import services.chat_history_service as _chat_hist
 _DOC_ID_RE = re.compile(r"(?<!\]\()(?<![`\w])(#)(\d+)\b")
 _VAULT_LINK_RE = re.compile(r"\[([^\]]+)\]\(vault:([a-f0-9-]{32,})\)")
 _VAULT_WIKI_RE = re.compile(r"`?\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]`?")
+_PARTIAL_CITE_RE = re.compile(r"\^?\[\^[^\]\s]{0,16}$|\^$")
 _MD_TABLE_RE = re.compile(r"^\|.+\|[ \t]*\n\|[-: |]+\|", re.MULTILINE)
 
 
@@ -115,7 +119,9 @@ def _extract_markdown_csvs(text: str) -> list[bytes]:
     return results
 
 
-def _inject_doc_links(text: str, vault_index: dict | None = None) -> str:
+def _inject_doc_links(
+    text: str, vault_index: dict | None = None, titles: dict[int, str] | None = None
+) -> str:
     # Before any link injection: a document filename is full of underscores and
     # markdown2 would eat them as emphasis markers.
     text = escape_intraword_underscores(text)
@@ -145,7 +151,21 @@ def _inject_doc_links(text: str, vault_index: dict | None = None) -> str:
             return m.group(0)  # unknown note → leave as-is
         text = _VAULT_WIKI_RE.sub(_wiki_replace, text)
 
-    return _DOC_ID_RE.sub(
+    # Citations become placeholders first: a model writing [^#241-p3] would
+    # otherwise have its "#241" turned into a document link mid-marker.
+    sups: list[str] = []
+
+    def _sup(n: int, doc: int, page: int) -> str:
+        sups.append(
+            f'<sup class="pb-cite" data-cite="{doc}-{page}" data-n="{n}">{n}</sup>'
+        )
+        return f"\x00{len(sups) - 1}\x00"
+
+    # While streaming, a marker arrives in pieces; hide the unfinished tail.
+    text = _PARTIAL_CITE_RE.sub("", text)
+    text, sources = number_citations(text, _sup)
+
+    text = _DOC_ID_RE.sub(
         lambda m: (
             f'<a href="#" data-doc-id="{m.group(2)}" '
             f'style="color:#a78bfa;text-decoration:underline;cursor:pointer;'
@@ -155,6 +175,40 @@ def _inject_doc_links(text: str, vault_index: dict | None = None) -> str:
         ),
         text,
     )
+    if not sources:
+        return text
+    text = re.sub("\x00(\\d+)\x00", lambda m: sups[int(m.group(1))], text)
+    return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}) + "\n"
+
+
+def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str]) -> str:
+    """The source box under an answer: one row per document, its cited pages as
+    numbered chips that open the page. A title not known yet is filled in by
+    the browser once ``_fill_cite_titles`` has it."""
+    _ = get_translator()
+    page_label = _("p. {n}")
+    by_doc: dict[int, list[tuple[int, int]]] = {}
+    for n, doc, page in sources:
+        by_doc.setdefault(doc, []).append((n, page))
+    rows = []
+    for doc, cited in by_doc.items():
+        chips = "".join(
+            f'<span class="pb-cite-item" data-cite="{doc}-{page}" data-n="{n}">'
+            f"<b>{n}</b>{_html.escape(page_label.format(n=page))}</span>"
+            if page
+            else f'<span class="pb-cite-item is-bare" data-cite="{doc}-0" data-n="{n}">'
+            f"<b>{n}</b></span>"
+            for n, page in cited
+        )
+        title = _html.escape(titles.get(doc, ""))
+        rows.append(
+            f'<div class="pb-cite-doc"><a href="#" class="pb-cite-doclink" data-doc-id="{doc}">'
+            f'<span class="pb-cite-title" data-doc="{doc}">{title}</span>'
+            f'<span class="pb-cite-id">#{doc}</span></a>'
+            f'<span class="pb-cite-pages">{chips}</span></div>'
+        )
+    head = _html.escape(_("Sources"))
+    return f'<div class="pb-cite-list"><div class="pb-cite-head">{head}</div>{"".join(rows)}</div>'
 
 
 async def _resolve_vault_wiki_links(text: str, index: dict, username: str) -> None:
@@ -502,6 +556,83 @@ html, body { overflow: hidden !important; }
    so it grows to max-content (two 208px cards side by side) and overflows the
    narrow mobile drawer, clipping expansions/cards on the right. Cap it. */
 .chat-results-scroll .q-scrollarea__content { max-width: 100%; }
+/* Citations: small numbered pills behind a sentence, a source line under the
+   answer. Neutral at rest; the accent marks the one whose source is open. */
+.pb-cite {
+    display: inline-block; min-width: 1.35em; padding: 0 .35em; margin-left: 2px;
+    border-radius: .7em; font-size: .68em; line-height: 1.45; text-align: center;
+    vertical-align: super; background: var(--c-border); color: var(--c-text-2);
+    cursor: pointer; user-select: none; touch-action: manipulation;
+}
+.pb-cite:hover, .pb-cite-item:hover { color: var(--c-text); }
+.pb-cite.is-active { background: var(--c-accent); color: #fff; }
+.pb-cite-list {
+    display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 8px 10px;
+    border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface-2);
+    font-size: .75rem; line-height: 1.45; color: var(--c-text-muted);
+}
+.pb-cite-head { font-size: .7rem; font-weight: 600; color: var(--c-text-muted); }
+/* Title and chips share a row while the title has room; on a phone the
+   chips drop below it instead of squeezing the title to a few letters. */
+.pb-cite-doc {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0;
+}
+.chat-md a.pb-cite-doclink {
+    flex: 1 1 18em; display: flex; align-items: baseline; gap: 6px; min-width: 0;
+    color: var(--c-text-2); text-decoration: none; touch-action: manipulation;
+}
+.chat-md a.pb-cite-doclink:hover .pb-cite-title { color: var(--c-text); text-decoration: underline; }
+.pb-cite-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-cite-id { flex-shrink: 0; color: var(--c-text-muted); font-size: .7rem; }
+.pb-cite-pages { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.pb-cite-item {
+    display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 0;
+    border-radius: .7em; background: var(--c-surface-3); color: var(--c-text-2);
+    cursor: pointer; white-space: nowrap; touch-action: manipulation;
+}
+.pb-cite-item b {
+    display: inline-block; min-width: 1.45em; padding: 0 .3em; border-radius: .7em;
+    text-align: center; background: var(--c-border-strong); color: var(--c-text);
+    font-weight: 600;
+}
+.pb-cite-item.is-bare { padding-right: 0; }
+.pb-cite-item.is-active b { background: var(--c-accent); color: #fff; }
+.pb-drawer-tabbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; gap: 4px;
+    padding: 0 8px; align-items: center; flex-wrap: nowrap;
+    background: var(--c-surface); border-bottom: 1px solid var(--c-border);
+}
+.q-btn.pb-drawer-tab { color: var(--c-text-muted); }
+.q-btn.pb-drawer-tab.is-active { color: var(--c-text); }
+.pb-drawer-tab.is-active::after {
+    content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px;
+    height: 2px; background: var(--c-accent);
+}
+.pb-src-head {
+    flex-shrink: 0; padding: 6px 8px 6px 12px; min-width: 0;
+    border-bottom: 1px solid var(--c-border);
+}
+.pb-src-head .q-btn { color: var(--c-text-2); }
+.pb-src-title {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pb-src-scroll {
+    flex: 1; min-height: 0; width: 100%; overflow-y: auto; overflow-x: hidden;
+    position: relative;
+}
+.pb-src-quote {
+    margin: 10px 12px 4px; padding: 4px 10px; font-size: .8rem; line-height: 1.5;
+    color: var(--c-text-2); border-left: 2px solid var(--c-accent);
+    overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.pb-src-page { position: relative; margin: 8px; background: #fff; }
+.pb-src-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pb-src-hl {
+    position: absolute; pointer-events: none; border-radius: 2px;
+    background: rgba(139, 92, 246, .28); box-shadow: 0 0 0 1px rgba(139, 92, 246, .55);
+    mix-blend-mode: multiply;
+}
+.pb-src-hl.is-other { background: rgba(139, 92, 246, .12); box-shadow: 0 0 0 1px rgba(139, 92, 246, .3); }
 /* Same trap, message list: without the cap the content box grows to the
    max-content width of the widest thing in the conversation — one wide table
    and every bubble's `max-width: 85%` is suddenly 85% of something far larger
@@ -962,6 +1093,50 @@ async def chat():
                 "text-gray-500 text-sm mt-2"
             )
 
+    # ── Results drawer: "Results" and "Source" tabs ───────────────────────────
+    # Two panes stacked in the same box, shown one at a time — the drawer exists
+    # twice (desktop splitter, mobile overlay), so do both tab rows and panes.
+    # Not QTabPanels: clear() inside those silently fails.
+    _drawer: dict = {
+        "tab": "results", "buttons": [], "result_panes": [], "preview_hosts": [],
+    }
+
+    def _drawer_panes(top: str):
+        style = f"position:absolute; top:{top}; left:0; right:0; bottom:0; overflow:hidden;"
+        results = ui.element("div").style(style)
+        preview = ui.element("div").style(style)
+        preview.set_visibility(False)
+        _drawer["result_panes"].append(results)
+        return results, preview
+
+    def _drawer_tab_buttons() -> None:
+        for key, label, icon in (
+            ("results", _("Results"), "manage_search"),
+            ("preview", _("Source"), "description"),
+        ):
+            btn = (
+                # color=None: Quasar's text-primary sits in a cascade layer
+                # whose !important no page rule can outrank.
+                ui.button(
+                    label, icon=icon, color=None, on_click=lambda k=key: _show_drawer_tab(k)
+                )
+                .props("flat dense no-caps size=sm")
+                .classes("pb-drawer-tab" + (" is-active" if key == _drawer["tab"] else ""))
+            )
+            _drawer["buttons"].append((key, btn))
+
+    def _show_drawer_tab(key: str) -> None:
+        _drawer["tab"] = key
+        for k, btn in _drawer["buttons"]:
+            if k == key:
+                btn.classes(add="is-active")
+            else:
+                btn.classes(remove="is-active")
+        for pane in _drawer["result_panes"]:
+            pane.set_visibility(key == "results")
+        for pane in _drawer["preview_hosts"]:
+            pane.set_visibility(key == "preview")
+
     def _welcome_msg() -> None:
         with ui.row().classes("justify-start w-full"):
             ui.html(
@@ -994,8 +1169,40 @@ async def chat():
                     "padding:10px 14px;max-width:85%;min-width:0;font-size:0.875rem;color:var(--c-text-2);"
                 ):
                     ui.markdown(
-                        _inject_doc_links(msg["content"]), sanitize=False, extras=_MD_EXTRAS
+                        _inject_doc_links(msg["content"], None, _rs.get("doc_titles")),
+                        sanitize=False,
+                        extras=_MD_EXTRAS,
                     ).classes("chat-md")
+
+    async def _resolve_cite_titles(texts: list[str]) -> dict[int, str]:
+        """Titles of the documents cited in ``texts`` — asked of Paperless as
+        this user, so a made-up marker cannot reveal a title they may not see."""
+        titles: dict[int, str] = _rs.setdefault("doc_titles", {})
+        ids = {int(m.group(1)) for t in texts for m in citations.CITE_RE.finditer(t or "")}
+        missing = ids - titles.keys()
+        if missing:
+            paperless = get_session_paperless()
+
+            async def _one(doc_id: int) -> None:
+                try:
+                    titles[doc_id] = (await paperless.get_document(doc_id)).title or ""
+                except Exception:
+                    titles[doc_id] = ""
+
+            await asyncio.gather(*(_one(i) for i in missing))
+        return titles
+
+    async def _fill_cite_titles(texts: list[str]) -> None:
+        """Put the titles into source boxes rendered before they were known."""
+        titles = await _resolve_cite_titles(texts)
+        known = {str(k): v for k, v in titles.items() if v}
+        if known:
+            ui.run_javascript(f"window.__pbFillCiteTitles({json.dumps(known)})")
+
+    def _fill_titles_later(messages: list[dict]) -> None:
+        texts = [m["content"] for m in messages if m.get("role") == "assistant"]
+        if any(citations.CITE_RE.search(t or "") for t in texts):
+            ui.timer(0.05, lambda: _fill_cite_titles(texts), once=True)
 
     def _active_groups() -> set[str]:
         return {
@@ -1165,6 +1372,7 @@ async def chat():
             else:
                 for _msg in messages:
                     _render_stored_msg(_msg)
+                _fill_titles_later(messages)
         _update_context_progress()
         _set_history_visible(False)
 
@@ -1381,17 +1589,13 @@ async def chat():
             "background:var(--c-surface); border-bottom:1px solid var(--c-border);"
             "align-items:center; padding:0 12px; gap:8px; flex-shrink:0;"
         ):
-            ui.icon("search", size="xs").classes("text-gray-400")
-            ui.label(_("Search results")).classes(
-                "text-sm text-gray-300 font-semibold flex-1"
-            )
+            _drawer_tab_buttons()
+            ui.element("div").style("flex:1;")
             ui.button(
                 icon="close",
                 on_click=lambda: _set_docs_visible(False),
             ).props("flat dark dense").classes("text-gray-400")
-        mobile_docs_inner = ui.element("div").style(
-            "position:absolute; top:44px; left:0; right:0; bottom:0; overflow:hidden;"
-        )
+        mobile_docs_inner, _mobile_preview = _drawer_panes(top="44px")
 
     # ── Right-edge drawer handle (slider flag) ────────────────────────────────
     docs_edge_handle = ui.element("div").classes("chat-edge-handle")
@@ -1856,12 +2060,16 @@ async def chat():
 
             # ── Right: doc panel ──────────────────────────────────────────────
             with _splitter.after:
-                _rs["right_panel"] = ui.element("div").style(
+                with ui.element("div").style(
                     "position:absolute; top:0; left:0; right:0; bottom:0;"
                     "background:var(--c-bg);"
-                )
-                with _rs["right_panel"]:
-                    _placeholder()
+                ):
+                    with ui.row().classes("pb-drawer-tabbar"):
+                        _drawer_tab_buttons()
+                    _rs["right_panel"], _desktop_preview = _drawer_panes(top="40px")
+                    with _rs["right_panel"]:
+                        _placeholder()
+                    _drawer["preview_hosts"] = [_desktop_preview, _mobile_preview]
 
     # ── Enter key handling ────────────────────────────────────────────────────
     ui.add_head_html("""<script>
@@ -2099,14 +2307,27 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
     # ── Doc-link bridge ───────────────────────────────────────────────────────
     _doc_handler = ui.element("div").style("display:none;")
 
+    def _known_result(doc_id: int) -> DocumentResult | None:
+        """This conversation's search hit for ``doc_id`` — it carries the matched passages."""
+        return next((r for r in _rs["last_results"] if r.document.id == doc_id), None)
+
     async def open_doc_by_id(doc_id: int) -> None:
         try:
             doc = await get_session_paperless().get_document(doc_id)
         except Exception:
             ui.notify(_("Document #{id} not found or no access.").format(id=doc_id), type="warning")
             return
+        # A #id link in an answer opens the document with the passages the
+        # search matched, so the dialog can mark them — a bare result has none.
+        known = _known_result(doc_id)
+        result = DocumentResult(
+            document=doc,
+            matched_chunks=known.matched_chunks if known else [],
+            matched_pages=known.matched_pages if known else [],
+            text_query=known.text_query if known else "",
+        )
         try:
-            await open_document(DocumentResult(document=doc))
+            await open_document(result)
         except Exception as exc:
             # Don't fail silently — a malformed sidecar must not swallow the click
             ui.notify(_("Document #{id} cannot be displayed: {err}").format(id=doc_id, err=exc), type="negative")
@@ -2122,6 +2343,130 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
 
     _doc_handler.on("docOpen", _handle_doc_open)
     _doc_listener_id = list(_doc_handler._event_listeners.keys())[0]
+
+    # ── Citations → "Source" tab ──────────────────────────────────────────────
+    def _render_preview() -> None:
+        for host in _drawer["preview_hosts"]:
+            host.clear()
+            with host:
+                _preview_body()
+
+    def _preview_body() -> None:
+        st = _rs.get("preview")
+        if not st:
+            with ui.column().classes("w-full h-full items-center justify-center gap-2 p-6"):
+                ui.icon("format_quote", size="xl").classes("text-gray-600")
+                ui.label(
+                    _("Click a reference number in an answer to see its source here.")
+                ).classes("text-gray-500 text-sm text-center")
+            return
+        if st.get("loading"):
+            with ui.column().classes("w-full h-full items-center justify-center"):
+                ui.spinner(size="lg").classes("text-gray-400")
+            return
+        t = st["target"]
+        total = max(t.page_count, 1)
+        ratios = t.ratios if len(t.ratios) >= total else [1 / 1.414] * total
+        # Every page of the document, one under the other; each reserves its
+        # space from the PDF's page size so a lazy image never moves the view.
+        with ui.column().classes("pb-src w-full h-full gap-0 no-wrap").style("min-width:0;"):
+            with ui.row().classes("pb-src-head w-full items-center no-wrap gap-1"):
+                ui.label(f"#{t.doc_id} · {t.title}").classes(
+                    "pb-src-title text-sm text-gray-200 font-semibold"
+                ).tooltip(t.title)
+                ui.button(color=None, icon="chevron_left").props(
+                    "flat dense round size=sm"
+                ).on("click", js_handler="() => window.__pbSrcStep(-1)")
+                pageno = ui.label(
+                    _("Page {n} of {total}").format(n=t.page, total=total)
+                ).classes("pb-src-pageno text-xs text-gray-400").style("white-space:nowrap;")
+                pageno._props["data-fmt"] = _("Page {n} of {total}").replace(
+                    "{total}", str(total)
+                )
+                ui.button(color=None, icon="chevron_right").props(
+                    "flat dense round size=sm"
+                ).on("click", js_handler="() => window.__pbSrcStep(1)")
+                ui.button(
+                    color=None, icon="open_in_full", on_click=lambda: open_doc_by_id(t.doc_id)
+                ).props("flat dense round size=sm").tooltip(_("Open document"))
+            with ui.element("div").classes("pb-src-scroll"):
+                for n in range(1, total + 1):
+                    if n == t.page and t.passage:
+                        ui.label(t.passage).classes("pb-src-quote")
+                        if not t.boxes:
+                            ui.label(
+                                _("The passage could not be located on the page image.")
+                            ).classes("text-xs text-gray-500 px-3")
+                    with ui.element("div").classes("pb-src-page").style(
+                        f"aspect-ratio:{ratios[n - 1]:.4f};"
+                    ) as frame:
+                        frame._props["data-page"] = str(n)
+                        img = ui.element("img").classes("pb-src-img")
+                        img._props["src"] = doc_image_service.image_url(t.doc_id, n)
+                        img._props["alt"] = _("Page {n}").format(n=n)
+                        img._props["loading"] = "eager" if abs(n - t.page) <= 1 else "lazy"
+                        if n == t.page:
+                            marks = [(b, "pb-src-hl is-other") for b in t.other_boxes]
+                            marks += [(b, "pb-src-hl") for b in t.boxes]
+                            for (x, y, w, h), cls in marks:
+                                ui.element("div").classes(cls).style(
+                                    f"left:{x * 100:.2f}%; top:{y * 100:.2f}%;"
+                                    f"width:{w * 100:.2f}%; height:{h * 100:.2f}%;"
+                                )
+
+    async def _open_citation(
+        doc_id: int, page: int, claim: str, other_claims: list[str] = ()
+    ) -> None:
+        _rs["preview"] = {"loading": True}
+        _render_preview()
+        _show_drawer_tab("preview")
+        if not _s["docs_visible"]:
+            _set_docs_visible(True)
+        known = _known_result(doc_id)
+        hints = [
+            chunk for chunk, p in zip(known.matched_chunks, known.matched_pages or [])
+            if not page or p in (0, page)
+        ] if known else []
+        try:
+            target = await citations.locate(
+                doc_id, page or None, claim, get_session_token(), hints, other_claims
+            )
+        except Exception as exc:
+            _log.warning("citation #%s p%s failed: %s", doc_id, page, exc)
+            target = None
+        if target is None:
+            _rs["preview"] = None
+            _render_preview()
+            ui.notify(
+                _("Document #{id} not found or no access.").format(id=doc_id), type="warning"
+            )
+            return
+        _rs["preview"] = {"target": target}
+        _render_preview()
+        ui.run_javascript(
+            f"window.__pbScrollToHighlight && window.__pbScrollToHighlight({target.page})"
+        )
+
+    _render_preview()  # the empty state, until a reference is clicked
+
+    _cite_handler = ui.element("div").style("display:none;")
+
+    async def _handle_cite_open(e) -> None:
+        try:
+            args = e.args
+            if isinstance(args, (list, tuple)):
+                args = args[0] if args else None
+            data = json.loads(args) if isinstance(args, str) else (args or {})
+            doc_s, _sep, page_s = str(data.get("c", "")).partition("-")
+            others = [str(c)[:500] for c in (data.get("others") or [])[:8]]
+            await _open_citation(
+                int(doc_s), int(page_s or 0), str(data.get("claim", ""))[:500], others
+            )
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+    _cite_handler.on("citeOpen", _handle_cite_open)
+    _cite_listener_id = list(_cite_handler._event_listeners.keys())[0]
 
     _vault_handler = ui.element("div").style("display:none;")
 
@@ -2147,6 +2492,8 @@ document.addEventListener('click', function(e) {{
         window.__openVaultNote(v.getAttribute('data-vault-id'));
         return;
     }}
+    var c = e.target.closest('[data-cite]');
+    if (c) {{ e.preventDefault(); window.__openCite(c); return; }}
     var d = e.target.closest('[data-doc-id]');
     if (d) {{ e.preventDefault(); window.__openDocById(d.getAttribute('data-doc-id')); return; }}
     var img = e.target.closest('.chat-md img[src^="/api/doc-image/"]');
@@ -2162,6 +2509,115 @@ window.__openDocById = function(docId) {{
         client_id: window.clientId,
         listener_id: '{_doc_listener_id}',
         args: [String(docId)]
+    }});
+}};
+// The claim of a citation is the sentence its marker stands behind — read from
+// the rendered bubble, so the server needs no copy of the message text.
+window.__citeClaim = function(el) {{
+    var md = el.closest('.chat-md');
+    var sup = el;
+    if (!el.classList.contains('pb-cite')) {{
+        sup = md && md.querySelector('sup.pb-cite[data-n="' + el.getAttribute('data-n') + '"]');
+        if (!sup) return '';
+    }}
+    var block = sup.closest('tr') || sup.closest('p,li,blockquote,h1,h2,h3,h4,h5,dd') || md;
+    if (!block) return '';
+    var walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    var parts = [], n;
+    while ((n = walker.nextNode())) {{
+        if (n.parentElement && n.parentElement.closest('.pb-cite')) continue;
+        if (sup.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING) break;
+        parts.push(n.nodeValue);
+    }}
+    var text = parts.join(' ').replace(/\\s+/g, ' ').trim();
+    var sents = text.split(/(?<=[.!?])\\s+/).filter(Boolean);
+    var claim = sents.pop() || '';
+    if (claim.length < 30 && sents.length) claim = sents.pop() + ' ' + claim;
+    return claim.slice(-400);
+}};
+window.__openCite = function(el) {{
+    if (!window.socket || !window.did_handshake) {{
+        setTimeout(function() {{ window.__openCite(el); }}, 100);
+        return;
+    }}
+    document.querySelectorAll('.pb-cite.is-active,.pb-cite-item.is-active').forEach(function(x) {{
+        x.classList.remove('is-active');
+    }});
+    var md = el.closest('.chat-md');
+    var claim = window.__citeClaim(el);
+    if (md) md.querySelectorAll('[data-n="' + el.getAttribute('data-n') + '"]').forEach(function(x) {{
+        x.classList.add('is-active');
+    }});
+    window.socket.emit('event', {{
+        id: {_cite_handler.id},
+        client_id: window.clientId,
+        listener_id: '{_cite_listener_id}',
+        args: [JSON.stringify({{
+            c: el.getAttribute('data-cite'),
+            claim: claim,
+            // The same number behind other sentences: their passages are marked too.
+            others: md ? Array.prototype.map.call(
+                md.querySelectorAll('sup.pb-cite[data-n="' + el.getAttribute('data-n') + '"]'),
+                window.__citeClaim).filter(function(x) {{ return x && x !== claim; }}) : []
+        }})]
+    }});
+}};
+// The Source tab: bring the cited passage into view, track and step pages.
+window.__pbSrcHost = function() {{
+    return Array.prototype.find.call(
+        document.querySelectorAll('.pb-src-scroll'), function(x) {{ return x.offsetParent; }});
+}};
+window.__pbScrollToHighlight = function(page, tries) {{
+    tries = tries || 0;
+    var host = window.__pbSrcHost();
+    var frame = host && host.querySelector('.pb-src-page[data-page="' + page + '"]');
+    if (!frame || !frame.offsetHeight) {{
+        if (tries < 60) setTimeout(function() {{ window.__pbScrollToHighlight(page, tries + 1); }}, 100);
+        return;
+    }}
+    var hl = frame.querySelector('.pb-src-hl:not(.is-other)') || frame.querySelector('.pb-src-hl');
+    var quote = host.querySelector('.pb-src-quote');
+    var top = host.getBoundingClientRect().top;
+    if (hl) {{
+        var off = hl.getBoundingClientRect().top - top;
+        host.scrollTop = Math.max(0, host.scrollTop + off - host.clientHeight / 3);
+    }} else {{
+        host.scrollTop += (quote || frame).getBoundingClientRect().top - top - 8;
+    }}
+    window.__pbSrcTrack(host);
+}};
+window.__pbSrcCurrent = function(host) {{
+    var line = host.getBoundingClientRect().top + host.clientHeight / 3, cur = 1;
+    host.querySelectorAll('.pb-src-page').forEach(function(p) {{
+        if (p.getBoundingClientRect().top <= line) cur = +p.getAttribute('data-page');
+    }});
+    return cur;
+}};
+window.__pbSrcTrack = function(host) {{
+    var label = host.closest('.pb-src').querySelector('.pb-src-pageno');
+    var fmt = label && label.getAttribute('data-fmt');
+    if (fmt) label.textContent = fmt.replace('{{n}}', window.__pbSrcCurrent(host));
+}};
+window.__pbSrcStep = function(step) {{
+    var host = window.__pbSrcHost();
+    if (!host) return;
+    var frame = host.querySelector(
+        '.pb-src-page[data-page="' + (window.__pbSrcCurrent(host) + step) + '"]');
+    if (frame) host.scrollTo({{
+        top: host.scrollTop + frame.getBoundingClientRect().top - host.getBoundingClientRect().top,
+        behavior: 'smooth'}});
+}};
+document.addEventListener('scroll', function(e) {{
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('pb-src-scroll')) window.__pbSrcTrack(t);
+}}, true);
+// Source boxes rendered before their documents' titles were known.
+window.__pbDocTitles = window.__pbDocTitles || {{}};
+window.__pbFillCiteTitles = function(map) {{
+    Object.assign(window.__pbDocTitles, map || {{}});
+    document.querySelectorAll('.pb-cite-title').forEach(function(el) {{
+        var t = window.__pbDocTitles[el.getAttribute('data-doc')];
+        if (!el.textContent && t) el.textContent = t;
     }});
 }};
 window.__openVaultNote = function(noteId) {{
@@ -2318,8 +2774,17 @@ window.__openVaultNote = function(noteId) {{
         if pulse and total and not _s["docs_visible"]:
             docs_edge_handle.classes(add="pulse")
 
+    def _merge_doc_hits(hits: list[DocumentResult]) -> None:
+        """A document the model read joins the results at the top. One a search
+        already found stays as it is — its entry carries the matched passages."""
+        known = {r.document.id for r in _rs["last_results"]}
+        fresh = [h for h in hits if h.document.id not in known]
+        _rs["last_results"] = fresh + _rs["last_results"]
+
     def _render_results(activate: str | None = None, pulse: bool = False) -> None:
         if activate:
+            # New hits belong to a new turn — leave an earlier answer's source.
+            _show_drawer_tab("results")
             # Relevant category jumps to the top and expands; all others collapse
             _order = _rs["section_order"]
             if activate in _order:
@@ -2722,7 +3187,10 @@ window.__openVaultNote = function(noteId) {{
                         _tool_trace[-1]["output"] = event.tool_output
 
                 elif isinstance(event, DocsRetrievedEvent):
-                    _rs["last_results"] = event.results
+                    if event.merge:
+                        _merge_doc_hits(event.results)
+                    else:
+                        _rs["last_results"] = event.results
                     _render_results(activate="docs", pulse=True)
                     await asyncio.sleep(0)
 
@@ -2786,12 +3254,21 @@ window.__openVaultNote = function(noteId) {{
                 _update_thinking()
             if _shown_images:
                 accumulated[0] = with_images(accumulated[0], _shown_images, _)
+            if not accumulated[0] and not _s["stop_requested"]:
+                # Not saved: it is no answer. But an empty bubble looks like a hang.
+                streaming_label[0].set_content(
+                    "*" + _("The model ended without an answer. Please send your message again.") + "*"
+                )
             if accumulated[0]:
                 await _resolve_vault_wiki_links(
                     accumulated[0], _rs.setdefault("vault_index", {}), _username
                 )
                 streaming_label[0].set_content(
-                    _inject_doc_links(accumulated[0], _rs.get("vault_index"))
+                    _inject_doc_links(
+                        accumulated[0],
+                        _rs.get("vault_index"),
+                        await _resolve_cite_titles([accumulated[0]]),
+                    )
                 )
                 _s["messages"].append({"role": "assistant", "content": accumulated[0]})
                 _update_context_progress()  # re-estimate now that assistant msg is in history
@@ -3553,6 +4030,7 @@ window.__openVaultNote = function(noteId) {{
         with messages_container:
             for _msg in _s["messages"]:
                 _render_stored_msg(_msg)
+            _fill_titles_later(_s["messages"])
         _update_context_progress()
         messages_scroll.scroll_to(percent=1.0)
     else:

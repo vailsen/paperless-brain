@@ -14,6 +14,7 @@ class DocumentResult(BaseModel):
     # heading it reads as "least relevant first". Use `relevance` instead.
     relevance_score: float | None = None
     matched_chunks: list[str] = []  # snippet previews for semantic hits
+    matched_pages: list[int] = []  # page each matched chunk starts on (0 = unknown)
     has_actions: bool = False  # from sidecar, pre-resolved
     text_query: str = ""  # Titel/Inhalt input — for highlighting in full_text
 

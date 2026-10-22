@@ -193,7 +193,7 @@ class VisionClient(ABC):
         self, raw_text: str, page: PageImage, ai_doc_type: str
     ) -> ExtractedContent:
         cleaned = re.sub(r"^```[^\n]*\n?|\n?```[^\n]*$", "", raw_text.strip())
-        parsed = json.loads(cleaned)
+        parsed = json.loads(repair_latex_escapes(cleaned))
         doc_type = ai_doc_type if ai_doc_type else (parsed.get("document_type") or "")
         return ExtractedContent(
             page=page.page_number,
@@ -205,6 +205,51 @@ class VisionClient(ABC):
             document_type=doc_type,
             images=[i for i in (parsed.get("images") or []) if isinstance(i, dict)],
         )
+
+
+# LaTeX in a JSON string needs every backslash doubled, and models forget.
+# "\sigma" is then an invalid escape (the page fails to parse); worse, "\frac",
+# "\times", "\beta" and "\nabla" are *valid* escapes — form feed, tab,
+# backspace, newline — and the formula silently loses its command. These are
+# the commands that begin with one of those escape letters; the lookahead keeps
+# "\n" + "otwendig" a newline.
+_LATEX_AFTER_ESCAPE_RE = re.compile(
+    r"(?:b(?:eta|inom|ar|ig|egin|oldsymbol|f)|f(?:rac|orall)|n(?:abla|eq|ot|orm|eg)"
+    r"|r(?:ho|ightarrow|ight|angle|m)|t(?:imes|heta|au|ext|frac|an|ilde|o|op|riangle))"
+    r"(?![A-Za-z])"
+)
+_HEX4_RE = re.compile(r"[0-9a-fA-F]{4}")
+
+
+def repair_latex_escapes(raw: str) -> str:
+    """Double the backslashes of LaTeX commands inside a model's JSON answer.
+
+    Valid JSON stays byte-identical except for the escapes above.
+    """
+    if "\\" not in raw:
+        return raw
+    out: list[str] = []
+    i, n = 0, len(raw)
+    while i < n:
+        c = raw[i]
+        if c != "\\":
+            out.append(c)
+            i += 1
+            continue
+        nxt = raw[i + 1 : i + 2]
+        if nxt in ("\\", '"', "/"):
+            out.append(raw[i : i + 2])
+            i += 2
+        elif nxt == "u" and _HEX4_RE.match(raw, i + 2):
+            out.append(raw[i : i + 6])
+            i += 6
+        elif nxt and nxt in "bfnrt" and not _LATEX_AFTER_ESCAPE_RE.match(raw, i + 1):
+            out.append(raw[i : i + 2])
+            i += 2
+        else:
+            out.append("\\\\")
+            i += 1
+    return "".join(out)
 
 
 class OllamaVisionClient(VisionClient):

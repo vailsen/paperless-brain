@@ -8,6 +8,7 @@ register the dialog in that page's context.  The returned coroutine
 
 import asyncio
 import html as _html
+import json
 import os
 import re
 
@@ -17,7 +18,9 @@ from app_ui.tag_style import tag_chip
 from config.settings import settings
 from i18n import get_translator
 from models.result_document import DocumentResult
+from services import doc_image_service
 from services.clients import cross_ref_index, paperless, sidecar_service
+from services.page_images import page_images
 
 _PDF_CACHE = str(settings.app_path / "data" / "pdf_cache")
 os.makedirs(_PDF_CACHE, exist_ok=True)
@@ -114,11 +117,23 @@ def highlight_text(full_text: str, chunks: list[str], text_query: str = "") -> s
     for s, e, style in covered:
         parts.append(_html.escape(full_text[pos:s]))
         parts.append(
-            f'<mark style="{style_map[style]}">{_html.escape(full_text[s:e])}</mark>'
+            f'<mark class="pb-mark-{style}" style="{style_map[style]}">'
+            f"{_html.escape(full_text[s:e])}</mark>"
         )
         pos = e
     parts.append(_html.escape(full_text[pos:]))
     return _wrap_pre("".join(parts))
+
+
+def _scroll_to_first_mark() -> None:
+    ui.run_javascript(
+        """
+        var box = Array.from(document.querySelectorAll('.dl-marked'))
+            .filter(function (x) { return x.offsetParent; }).pop();
+        var m = box && (box.querySelector('mark.pb-mark-chunk') || box.querySelector('mark'));
+        if (m) m.scrollIntoView({block: 'center'});
+        """
+    )
 
 
 # ── Dialog factory ────────────────────────────────────────────────────────────
@@ -148,6 +163,22 @@ def create_document_dialog(
             ui.notify(_("#{id} not found").format(id=doc_id), type="warning")
 
     ui.add_head_html("""<style>
+/* Pictures tab: thumbnail beside its description; on a phone, above it. */
+.dl-pic {
+    display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-start;
+    padding: 10px; border: 1px solid var(--c-border); border-radius: 6px;
+    background: var(--c-surface);
+}
+.dl-pic-thumb {
+    flex: 0 0 160px; height: 120px; display: flex; align-items: center;
+    justify-content: center; background: #fff; border-radius: 4px; overflow: hidden;
+}
+.dl-pic-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.dl-pic-text { flex: 1 1 14em; min-width: 0; font-size: 0.8rem; line-height: 1.5;
+    color: var(--c-text-2); overflow-wrap: anywhere; }
+.dl-pic-meta { font-size: 0.72rem; color: var(--c-text-muted); margin-bottom: 2px; }
+.dl-pic-title { font-weight: 600; color: var(--c-text); }
+.dl-pic-jump { margin-top: 4px; margin-left: -6px; color: var(--c-text-2) !important; }
 .dl-table th {
     background: var(--c-surface) !important;
     color: var(--c-text-muted) !important;
@@ -185,6 +216,10 @@ def create_document_dialog(
 @media (max-width: 767px) {
     .dl-pdf-btn { display: flex !important; }
     .dl-thumb { display: block; flex-shrink: 0; }
+    /* All tabs at a glance: icons only, the open tab keeps its label. */
+    .dl-tabs .q-tab { padding: 0 10px; min-width: 0; }
+    .dl-tabs .q-tab:not(.q-tab--active) .q-tab__label { display: none; }
+    .dl-tabs .q-tab__label { font-size: .72rem; }
     /* Hide PDF panel on mobile — tabs take full width */
     .dl-splitter > .q-splitter__panel.q-splitter__after { display: none !important; }
     .dl-splitter > .q-splitter__panel.q-splitter__before { width: 100% !important; min-width: 100% !important; }
@@ -278,6 +313,86 @@ def create_document_dialog(
 _TABS_H = "48px"
 
 
+def _pictures(sidecar: dict | None) -> list[tuple[int, int, dict]]:
+    """``(page number, index on the page, picture)`` for every picture found."""
+    return [
+        (page.get("page_number") or n, i, img)
+        for n, page in enumerate((sidecar or {}).get("pages") or [], 1)
+        for i, img in enumerate(page_images(page))
+    ]
+
+
+def _page_heights(doc_id: int) -> list[float]:
+    """Page heights in PDF points of the file the viewer shows, [] if unreadable."""
+    import pypdfium2 as pdfium
+
+    try:
+        pdf = pdfium.PdfDocument(os.path.join(_PDF_CACHE, f"{doc_id}.pdf"))
+    except Exception:
+        return []
+    try:
+        return [pdf[i].get_height() for i in range(len(pdf))]
+    finally:
+        pdf.close()
+
+
+def _pdf_anchor(file_url: str, page: int, bbox, heights: list[float]) -> str:
+    """Viewer URL that opens ``page`` scrolled to the picture's top edge.
+
+    Chrome reads ``view=FitH,top``, pdf.js (Firefox) ``zoom=FitH,top``; each
+    ignores the other. ``top`` counts PDF points from the page's bottom.
+    """
+    url = f"{file_url}#page={page}"
+    if bbox and 0 < page <= len(heights):
+        h = heights[page - 1]
+        top = round(min(h, h * (1 - bbox[1]) + 0.02 * h))
+        url += f"&zoom=FitH,{top}&view=FitH,{top}"
+    return url
+
+
+# The <object> does not navigate on a fragment-only change, so the jump swaps in
+# a copy. Without a visible viewer (phone layout) the PDF opens in a new tab.
+_JUMP_JS = """() => {
+  const href = %s;
+  const o = document.querySelector('.dl-pdf-obj');
+  if (!o || !o.offsetParent) { window.open(href, '_blank'); return; }
+  const n = o.cloneNode(true);
+  n.setAttribute('data', href);
+  o.replaceWith(n);
+}"""
+
+
+def _render_pictures(
+    doc_id: int, found: list[tuple[int, int, dict]], file_url: str
+) -> None:
+    """Every picture the extraction found: a thumbnail cropped from its page
+    (through the same access-checked route the chat uses) and its description."""
+    _ = get_translator()
+    heights = _page_heights(doc_id)
+    with ui.column().classes("p-4 gap-3 w-full"):
+        for page_no, index, img in found:
+            url = doc_image_service.image_url(doc_id, page_no, index)
+            with ui.element("div").classes("dl-pic w-full"):
+                with ui.element("a").classes("dl-pic-thumb") as link:
+                    link._props.update(href=url, target="_blank", rel="noopener")
+                    thumb = ui.element("img")
+                    thumb._props.update(src=url, loading="lazy", alt=img.get("belongs_to") or "")
+                with ui.element("div").classes("dl-pic-text"):
+                    meta = _("Page {page}").format(page=page_no)
+                    if not img.get("bbox"):
+                        meta += " · " + _("whole page — position unknown")
+                    ui.label(meta).classes("dl-pic-meta")
+                    if img.get("belongs_to"):
+                        ui.label(img["belongs_to"]).classes("dl-pic-title")
+                    ui.label(img["description"])
+                    href = _pdf_anchor(file_url, page_no, img.get("bbox"), heights)
+                    ui.button(_("Show in PDF"), icon="my_location").props(
+                        "flat dense no-caps size=sm"
+                    ).classes("dl-pic-jump").on(
+                        "click", js_handler=_JUMP_JS % json.dumps(href)
+                    )
+
+
 def render_document_body(
     result: DocumentResult,
     file_url: str,
@@ -296,13 +411,29 @@ def render_document_body(
     sidecar = sidecar_service.load_sidecar(doc.id)
     style = outer_style or "flex:1; min-height:0; overflow:hidden; width:100%;"
 
+    full_text: str = (sidecar or {}).get("full_text") or ""
+    marked_html = ""
+    if full_text and (result.matched_chunks or result.text_query):
+        marked_html = highlight_text(full_text, result.matched_chunks, result.text_query)
+    # Always open on the summary, also from a search hit; the full text scrolls
+    # to the hit the first time its tab is opened.
+    start_tab = "zusammenfassung"
+    scrolled = [False]
+
+    def _on_tab(e) -> None:
+        if e.value == "volltext" and "<mark" in marked_html and not scrolled[0]:
+            scrolled[0] = True
+            ui.timer(0.3, _scroll_to_first_mark, once=True)
+    # No tab for a document without pictures — most of the archive has none.
+    pictures = _pictures(sidecar)
+
     with ui.splitter(value=50).classes("dl-splitter").style(style) as _splitter:
         # ── Left: tabs ────────────────────────────────────────────────────────
         with _splitter.before:
             with (
-                ui.tabs(value="zusammenfassung")
+                ui.tabs(value=start_tab, on_change=_on_tab)
                 .props("dense align='left'")
-                .classes("bg-gray-800 text-gray-300")
+                .classes("dl-tabs bg-gray-800 text-gray-300")
                 .style(
                     f"position:absolute; top:0; left:0; right:0; height:{_TABS_H};"
                 ) as tabs
@@ -311,9 +442,11 @@ def render_document_body(
                 ui.tab("volltext", label=_("Full text"), icon="article")
                 ui.tab("aktionen", label=_("Dates / References"), icon="event_note")
                 ui.tab("tabellen", label=_("Tables"), icon="table_chart")
+                if pictures:
+                    ui.tab("bilder", label=_("Pictures"), icon="image")
 
             with (
-                ui.tab_panels(tabs, value="zusammenfassung")
+                ui.tab_panels(tabs, value=start_tab)
                 .style(
                     f"position:absolute; top:{_TABS_H}; left:0; right:0; bottom:0;"
                     "overflow:hidden;"
@@ -348,7 +481,12 @@ def render_document_body(
                                     if doc.page_count:
                                         with ui.row().classes("items-center gap-2"):
                                             ui.icon("pages", size="xs").classes("text-gray-400")
-                                            ui.label(_("{n} pages").format(n=doc.page_count)).classes("text-sm text-gray-300")
+                                            # TODO i18n-plural: two msgids until ngettext exists
+                                            pages_label = (
+                                                _("1 page") if doc.page_count == 1
+                                                else _("{n} pages").format(n=doc.page_count)
+                                            )
+                                            ui.label(pages_label).classes("text-sm text-gray-300")
                                     if doc.owner_name:
                                         with ui.row().classes("items-center gap-2"):
                                             ui.icon("account_circle", size="xs").classes("text-gray-400")
@@ -360,7 +498,12 @@ def render_document_body(
                                             # the user came to see everything.
                                             for _tag in sorted(doc.tags):
                                                 tag_chip(_tag)
-                                with ui.element("div").classes("dl-thumb"):
+                                # Tap: every page full screen, with its own pinch zoom.
+                                with ui.element("div").classes("dl-thumb").on(
+                                    "click",
+                                    js_handler=f"() => window.__pbViewer.openDoc({doc.id}, "
+                                    f"{max(doc.page_count or 1, 1)}, 0)",
+                                ):
                                     ui.image(f"/thumbnails/{doc.id}.jpg").style(
                                         "width:33vw;max-width:190px;"
                                         "border-radius:4px;"
@@ -433,17 +576,9 @@ def render_document_body(
                 ):
                     with ui.scroll_area().style("height:100%; width:100%;"):
                         with ui.column().classes("p-4 gap-2"):
-                            if sidecar and sidecar.get("full_text"):
-                                full_text: str = sidecar["full_text"]
-                                if result.matched_chunks or result.text_query:
-                                    ui.html(
-                                        highlight_text(
-                                            full_text,
-                                            result.matched_chunks,
-                                            result.text_query,
-                                        ),
-                                        sanitize=False,
-                                    )
+                            if full_text:
+                                if marked_html:
+                                    ui.html(marked_html, sanitize=False).classes("dl-marked")
                                 else:
                                     ui.label(full_text).classes(
                                         "text-sm text-gray-300 whitespace-pre-wrap"
@@ -660,10 +795,18 @@ def render_document_body(
                                     "text-sm text-gray-500"
                                 )
 
+                # ── Bilder ────────────────────────────────────────────────────
+                if pictures:
+                    with ui.tab_panel("bilder").style(
+                        "padding:0; height:100%; overflow:hidden;"
+                    ):
+                        with ui.scroll_area().style("height:100%; width:100%;"):
+                            _render_pictures(doc.id, pictures, file_url)
+
         # ── Right: PDF viewer ─────────────────────────────────────────────────
         with _splitter.after:
             ui.html(
-                f'<object data="{file_url}" type="application/pdf"'
+                f'<object class="dl-pdf-obj" data="{file_url}" type="application/pdf"'
                 f' width="100%" height="100%"'
                 f' style="border:none;position:absolute;top:0;left:0;'
                 f'width:100%;height:100%;">'

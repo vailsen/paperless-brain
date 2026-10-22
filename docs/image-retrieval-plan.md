@@ -351,7 +351,7 @@ endpoint on Ollama), six real pages, new prompt vs old prompt:
 
 Re-ingest scope (decided with the owner): 0.2 → 0.3 changed nothing but picture
 handling, so a 0.2 sidecar without a picture marker would come out of a re-ingest
-unchanged and counts as current (`_PICTURES_ONLY_CHANGES` in
+unchanged and counts as current (`_SCOPED_CHANGES` in
 `services/sidecar_service.py`). Only the 9 documents whose old extraction mentions
 a picture are outdated — 75 pages (#126 alone has 46), ≈ 20 min, instead of
 1813 pages ≈ 7 h. Known trade-off: a picture the old prompt never described stays

@@ -22,6 +22,7 @@ from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
 from models.web_result import WebSearchResult
 from pipelines.search import search
+from services.citations import cite_ref, page_for, sidecar_page_texts, split_sentences
 from services.clients import chroma, cross_ref_index, paperless, sidecar_service, vision
 from services.ollama_watchdog import touch as _wol_touch
 from services.paperless import PaperlessClient as _PaperlessClient
@@ -155,6 +156,17 @@ class ToolResultEvent:
 @dataclass
 class DocsRetrievedEvent:
     results: list[DocumentResult]
+    # A search replaces the result list; a tool that reads one document adds
+    # it, so the hits of the search before it stay visible.
+    merge: bool = False
+
+
+# Tools that open one known document. Their result is that document, shown in
+# the results panel like a search hit.
+_DOC_READ_TOOLS = frozenset(
+    {"get_document_details", "get_document_table", "get_document_page_text",
+     "view_document_page", "show_document_image"}
+)
 
 
 @dataclass
@@ -1066,7 +1078,11 @@ async def _execute_tool_dispatch(
         return text, [], [DownloadRequestEvent(params=inputs)]
     if name == "show_document_image":
         text, event = await _tool_show_document_image(inputs)
-        return text, [], ([event] if event else [])
+        if not event:
+            return text, [], []
+        docs = await _user_paperless().list_documents(ids=[event.doc_id])
+        hits = [DocumentResult(document=d, matched_pages=[event.page]) for d in docs]
+        return text, hits, [event]
     if name == "search_memory":
         text, facts, vault_notes = await _tool_search_memory(inputs)
         extras = []
@@ -1371,12 +1387,20 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
             pictures_line = _search_hit_pictures(sc)
             if pictures_line:
                 lines.append(f"   {pictures_line}")
-        if r.matched_chunks:
-            snippet = r.matched_chunks[0][:150].replace("\n", " ")
-            lines.append(f"   …{snippet}…")
+        lines.append(f"   {_hit_snippet(r, 150)}")
         lines.append("")
 
     return "\n".join(lines), results
+
+
+def _hit_snippet(r: DocumentResult, limit: int) -> str:
+    """The matched passage with the reference to cite it by, or only the reference."""
+    page = r.matched_pages[0] if r.matched_pages else 0
+    ref = cite_ref(r.document.id, page or None)
+    if not r.matched_chunks:
+        return f"cite as {ref}"
+    snippet = r.matched_chunks[0][:limit].replace("\n", " ")
+    return f"…{snippet}… {ref}"
 
 
 _SEARCH_HIT_MAX_PICTURES = 4
@@ -1485,9 +1509,7 @@ async def _tool_find_similar_documents(inputs: dict) -> tuple[str, list[Document
             pictures_line = _search_hit_pictures(sc)
             if pictures_line:
                 lines.append(f"   {pictures_line}")
-        if r.matched_chunks:
-            snippet = r.matched_chunks[0][:150].replace("\n", " ")
-            lines.append(f"   …{snippet}…")
+        lines.append(f"   {_hit_snippet(r, 150)}")
         lines.append("")
 
     return "\n".join(lines), results
@@ -1687,9 +1709,7 @@ async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
         )
         if meta:
             lines.append(f"   {meta}")
-        if r.matched_chunks:
-            snippet = r.matched_chunks[0][:200].replace("\n", " ")
-            lines.append(f"   …{snippet}…")
+        lines.append(f"   {_hit_snippet(r, 200)}")
         lines.append("")
     return "\n".join(lines), results
 
@@ -1753,7 +1773,10 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
     except Exception as e:
         return f"Error loading document {doc_id}: {e}", []
 
-    lines = [f"Details for document #{doc_id}\n"]
+    lines = [
+        f"Details for document #{doc_id} — cite a fact with the page reference "
+        f"printed next to it ([^{doc_id}-pN]); {cite_ref(doc_id)} only where none is\n"
+    ]
 
     # Paperless metadata
     lines += [
@@ -1782,9 +1805,20 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
     # AI sidecar content
     sc = sidecar_service.load_sidecar(doc_id)
     if sc:
+        # Each fact gets the page it is on, where code can tell — a bare [^id]
+        # opens no particular place when the user taps it.
+        page_texts = sidecar_page_texts(sc)
+
+        def _ref(text: str) -> str:
+            return cite_ref(doc_id, page_for(page_texts, text))
+
         summary = sc.get("full_summary_summarized") or sc.get("full_summary") or ""
         if summary:
-            lines += ["Summary:", summary[:500], ""]
+            lines += [
+                "Summary:",
+                " ".join(f"{s}{_ref(s)}" for s in split_sentences(summary[:500])),
+                "",
+            ]
 
         actions = sc.get("actions") or []
         if actions:
@@ -1792,7 +1826,8 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
             for a in actions:
                 certain = "✓" if a.get("deadline_certain") else "~"
                 lines.append(
-                    f"  {certain} {a.get('description', '')} — {a.get('deadline', "no date")}"
+                    f"  {certain} {a.get('description', '')} — {a.get('deadline', "no date")} "
+                    + _ref(str(a.get("description", "")))
                 )
             lines.append("")
 
@@ -1800,7 +1835,9 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
         if cross_refs:
             lines.append(f"Cross-references ({len(cross_refs)}):")
             for r in cross_refs:
-                lines.append(f"  {r.get('type', '')}: {r.get('value', '')}")
+                lines.append(
+                    f"  {r.get('type', '')}: {r.get('value', '')} " + _ref(str(r.get("value", "")))
+                )
             lines.append("")
 
         tables = sc.get("tables") or []
@@ -1811,7 +1848,10 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
                 caption = t.get("caption") or t.get("title", "")
                 page_n = t.get("page_number", "?")
                 n_rows = len(_table_rows(t))
-                lines.append(f'  [Table {idx}] page {page_n}: "{caption}" ({n_rows} rows)')
+                lines.append(
+                    f'  [Table {idx}] page {page_n}: "{caption}" ({n_rows} rows) '
+                    + cite_ref(doc_id, page_n if isinstance(page_n, int) else None)
+                )
                 preview = _render_table_md(t, offset=0, limit=_PREVIEW)
                 lines += ["  " + ln for ln in preview.splitlines()]
                 if n_rows > _PREVIEW:
@@ -1831,7 +1871,8 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
                 page_n = p.get("page_number", p.get("page", "?"))
                 ps = p.get("page_summary", "").strip()
                 if ps:
-                    lines.append(f"  page {page_n}: {ps}")
+                    ref = cite_ref(doc_id, page_n if isinstance(page_n, int) else None)
+                    lines.append(f"  page {page_n} {ref}: {ps}")
                 pictures = page_images(p)
                 if pictures:
                     listing = "; ".join(
@@ -1846,7 +1887,7 @@ async def _tool_get_document_details(inputs: dict) -> tuple[str, list[DocumentRe
                     f"show_document_image(document_id={doc_id}, page_number=…, image_index=…)."
                 )
 
-    return "\n".join(lines), []
+    return "\n".join(lines), [DocumentResult(document=doc)]
 
 
 def _clip(text: str, limit: int) -> str:
@@ -1865,7 +1906,8 @@ async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResu
     # missing session surfaces as such instead of a generic access error)
     pl = _user_paperless()
     try:
-        if not await pl.list_documents(ids=[doc_id]):
+        found = await pl.list_documents(ids=[doc_id])
+        if not found:
             return f"Document #{doc_id} not found or no access.", []
     except Exception as e:
         return f"Error accessing document {doc_id}: {e}", []
@@ -1887,7 +1929,8 @@ async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResu
     page_n = t.get("page_number", "?")
 
     header = (
-        f'Table {table_index} — document #{doc_id}, page {page_n}: "{caption}"\n'
+        f'Table {table_index} — document #{doc_id}, page {page_n}: "{caption}" '
+        f"{cite_ref(doc_id, page_n if isinstance(page_n, int) else None)}\n"
         f"Rows {offset}–{min(offset + limit, total) - 1 if total else 0} of {total}\n"
     )
     body = _render_table_md(t, offset=offset, limit=limit)
@@ -1897,7 +1940,10 @@ async def _tool_get_document_table(inputs: dict) -> tuple[str, list[DocumentResu
             f"… more rows: get_document_table(document_id={doc_id}, "
             f"table_index={table_index}, offset={offset + limit})"
         )
-    return header + body + footer, []
+    hit = DocumentResult(
+        document=found[0], matched_pages=[page_n] if isinstance(page_n, int) else []
+    )
+    return header + body + footer, [hit]
 
 
 async def _tool_get_document_page_text(
@@ -1906,8 +1952,10 @@ async def _tool_get_document_page_text(
     doc_id = int(inputs.get("document_id", 0))
     page_number = int(inputs.get("page_number", 1))
     # Permission check — sidecar is file-based, has no access control
-    if not await _user_paperless().list_documents(ids=[doc_id]):
+    found = await _user_paperless().list_documents(ids=[doc_id])
+    if not found:
         return f"Document #{doc_id} not found or no access.", []
+    hits = [DocumentResult(document=found[0], matched_pages=[page_number])]
     sc = sidecar_service.load_sidecar(doc_id)
     if sc:
         for p in sc.get("pages") or []:
@@ -1919,12 +1967,13 @@ async def _tool_get_document_page_text(
                 if text or pictures:
                     body = "\n\n".join(part for part in (text, pictures) if part)
                     return (
-                        f"Page {page_number} of document #{doc_id}:\n\n{body}",
-                        [],
+                        f"Page {page_number} of document #{doc_id} — cite as "
+                        f"{cite_ref(doc_id, page_number)}:\n\n{body}",
+                        hits,
                     )
     return (
         f"No extracted text found for page {page_number} of document #{doc_id}.",
-        [],
+        hits,
     )
 
 
@@ -1937,8 +1986,10 @@ async def _tool_view_document_page(inputs: dict) -> tuple[str, list[DocumentResu
     )
 
     # Permission check before serving cached PDF
-    if not await _user_paperless().list_documents(ids=[doc_id]):
+    found = await _user_paperless().list_documents(ids=[doc_id])
+    if not found:
         return f"Document #{doc_id} not found or no access.", []
+    hits = [DocumentResult(document=found[0], matched_pages=[page_number])]
     cached = os.path.join(_PDF_CACHE, f"{doc_id}.pdf")
     if not os.path.exists(cached):
         try:
@@ -1966,7 +2017,7 @@ async def _tool_view_document_page(inputs: dict) -> tuple[str, list[DocumentResu
         result = await _vision.describe_page(page_image, question)
         return (
             f"Vision analysis of page {page_number} (document {doc_id}):\n\n{result}",
-            [],
+            hits,
         )
     except Exception as e:
         return f"Vision analysis failed: {e}", []
@@ -3404,7 +3455,7 @@ class ClaudeChatBackend:
                     )
                     yield ToolResultEvent(tool_output=result_text[:2000])
                     if docs:
-                        yield DocsRetrievedEvent(docs)
+                        yield DocsRetrievedEvent(docs, merge=block.name in _DOC_READ_TOOLS)
                     for extra in extras:
                         yield extra
                     tool_results.append(
@@ -3605,6 +3656,14 @@ def _api_error_text(body: str) -> str:
     return body.strip()[:500]
 
 
+# A thinking model can end its turn with everything said in its reasoning and
+# no answer text — seen with a prompt ending in a stray backtick. The user gets
+# an empty bubble and nothing is saved, so ask once for the answer itself.
+_EMPTY_ANSWER_MSG = (
+    "You ended your turn without writing an answer. Write your answer to my "
+    "last message now, as plain text."
+)
+
 _TOOL_REMINDER = (
     "Reminder: statements about this user's documents, emails, purchases, "
     "appointments or other personal facts may only be based on tool results. "
@@ -3682,6 +3741,7 @@ class OpenAICompatibleChatBackend:
         guard_applies = bool(active_tools) and _needs_tool_use(_last_user_text(messages))
         force_tools = guard_applies and self.force_tool_first_turn
         guard_retried = False
+        empty_retried = False
 
         prompt_tokens = 0
         for _i in range(max_iterations):
@@ -3871,6 +3931,12 @@ class OpenAICompatibleChatBackend:
                     # with a 500 ("system message must be at the beginning").
                     working.append({"role": "user", "content": _TOOL_REMINDER})
                     continue
+                if not content and not empty_retried:
+                    empty_retried = True
+                    force_tools = False
+                    _log.info("Empty answer from %s — asking once more", self.model)
+                    working.append({"role": "user", "content": _EMPTY_ANSWER_MSG})
+                    continue
                 if content:
                     yield TextTokenEvent(content)
                 yield DoneEvent(
@@ -3922,7 +3988,7 @@ class OpenAICompatibleChatBackend:
                 result_text, docs, extras = await execute_tool(tool_name, tool_args)
                 yield ToolResultEvent(tool_output=result_text[:2000])
                 if docs:
-                    yield DocsRetrievedEvent(docs)
+                    yield DocsRetrievedEvent(docs, merge=tool_name in _DOC_READ_TOOLS)
                 for extra in extras:
                     yield extra
 

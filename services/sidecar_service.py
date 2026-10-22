@@ -12,14 +12,6 @@ _OLD_PICTURE_MARKER_RE = re.compile(
     r"\[\s*(image description|bildbeschreibung|abbildung)\s*:", re.IGNORECASE
 )
 
-# (sidecar version, current version) pairs whose prompts differ ONLY in how
-# pictures are recorded. A sidecar of such an old version in which the model
-# found no picture would come out of a re-ingest unchanged — so it is current,
-# and only the ones that mention a picture are re-ingested (9 of 523 documents
-# on the live archive, instead of all of them: hours of GPU time saved).
-# Add a pair only when nothing else in the prompt changed.
-_PICTURES_ONLY_CHANGES: set[tuple[str, str]] = {("0.2", "0.3")}
-
 
 def _mentions_pictures(sidecar: dict) -> bool:
     for page in sidecar.get("pages") or []:
@@ -28,14 +20,53 @@ def _mentions_pictures(sidecar: dict) -> bool:
     return False
 
 
+# What a page the model read before 0.4 shows when it held a formula: the model
+# wrote it in Unicode. Greek letters (µ excepted, it is a unit), the operators
+# that only occur in mathematics, and a one-letter variable set equal to
+# something ("x = 2a + b"). "m²", "±" and "×" are left out on purpose: every
+# energy certificate and invoice has them.
+_MATH_RE = re.compile(
+    r"[α-λν-ωΓΔΘΛΞΠΣΦΨΩ∑∏∫∮√∂∇∞∝≈≠≤≥]|(?<![\w.])[A-Za-z]\s*=\s*[-A-Za-z0-9(√]"
+)
+
+
+def _mentions_math(sidecar: dict) -> bool:
+    return any(
+        _MATH_RE.search(page.get("page_text") or "")
+        for page in sidecar.get("pages") or []
+    )
+
+
+# Prompt versions in order, and the steps between them whose change concerns
+# only some documents: step → test whether a sidecar of the older version has
+# anything that step is about. A sidecar is outdated as soon as one step on its
+# way to the current version concerns it — or a step has no test (a change for
+# every document). Without this, each such step would re-run the vision model
+# over the whole archive: 0.2 → 0.3 touched 9 of 523 documents on the live one.
+# Add a test only when nothing else in the prompt changed in that step.
+_VERSIONS: list[str] = ["0.2", "0.3", "0.4", "0.5", "0.6"]
+_SCOPED_CHANGES: dict[tuple[str, str], object] = {
+    ("0.2", "0.3"): _mentions_pictures,  # pictures in "images", not inline
+    ("0.3", "0.4"): _mentions_math,  # formulas as LaTeX
+}
+
+
 def is_outdated(sidecar: dict, current_version: str) -> bool:
     """Whether a re-ingest with the current prompt would change this sidecar."""
     version = str(sidecar.get("prompt_version", ""))
-    if version == str(current_version):
+    current = str(current_version)
+    if version == current:
         return False
-    if (version, str(current_version)) in _PICTURES_ONLY_CHANGES:
-        return _mentions_pictures(sidecar)
-    return True
+    if version not in _VERSIONS or current not in _VERSIONS:
+        return True
+    i, j = _VERSIONS.index(version), _VERSIONS.index(current)
+    if i > j:
+        return True
+    for step in zip(_VERSIONS[i:j], _VERSIONS[i + 1 : j + 1]):
+        test = _SCOPED_CHANGES.get(step)
+        if test is None or test(sidecar):
+            return True
+    return False
 
 
 # Paperless takes the id filter as one comma-joined query param; a whole archive's

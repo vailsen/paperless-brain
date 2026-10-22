@@ -143,6 +143,12 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 - **Coordinates are stored resolution-free** — `bbox` = `[x, y, w, h]` in page fractions,
   top-left origin. The model answers on a 0–1000 grid (calibrated with Qwen3.8; a coordinate above
   1000 means pixels and is converted with the render size, never guessed without it).
+- **Stamps, seals and signatures are pictures** (since `PROMPT_VERSION` 0.5, an unscoped step —
+  the old text cannot tell which page has one). Logos, letterheads, QR codes and margin
+  initials are not — every letter has a logo, every contract page initials. The letterhead's
+  *text* (address, phone, IBAN, opening hours) stays in `page_text`: Qwen3.8 read "skip
+  letterheads" as dropping it, until 0.6 said otherwise. A
+  signature's owner comes from a printed name next to it, never from reading the scribble.
 - **Picture descriptions live in `pages[i]["images"]`, never inline in `page_text`.** The old
   `[Image description: …]` marker was translated by the model and is unparseable. Descriptions
   reach the embedding as `[Image n: …]` lines appended in ingest only — `page_text` / `full_text`
@@ -155,9 +161,9 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 - **Pictures in an answer are Markdown in the stored message** (`chat_images.with_images`), so
   they survive a reload; the PDF export inlines them as data URIs after the same access check.
 - **Re-ingest goes through `PROMPT_VERSION`**, not a second versioning mechanism.
-  `sidecar_service.is_outdated` decides; `_PICTURES_ONLY_CHANGES` lists version steps that changed
-  nothing but picture handling (0.2 → 0.3), across which a sidecar without a picture is current.
-  Add a pair there only if nothing else in the prompt changed — otherwise documents silently keep
+  `sidecar_service.is_outdated` decides; `_SCOPED_CHANGES` maps version steps that concern only
+  some documents to a test (0.2 → 0.3: pictures), and a sidecar the test does not match is current.
+  Add a step there only if nothing else in the prompt changed — otherwise documents silently keep
   an outdated extraction. `outdated_ids()` orders documents with pictures first, then newest.
 
 ### Reading hints on re-ingest
@@ -171,6 +177,53 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   Pass `hint=` only where the user just typed one.
 - **`USER_READING_HINT` is appended only for documents that have a hint** — it is not part of
   `PROMPT_VERSION`, and changing its wording does not make the archive outdated.
+
+### Citations in chat answers
+
+`services/citations.py`, rendering in `app_ui/pages/chat.py` (`_inject_doc_links`, "Source" tab).
+
+- **The model names the page, never the passage.** Tool results print a reference next to
+  document content (`[^241-p3]`, `[^241]`, `services.citations.cite_ref`); the model copies it.
+  Asking it to quote would be one more thing to get wrong.
+- **The passage is found in code**, from the claim (the sentence before the marker, read from the
+  rendered bubble in the browser) and the search's own matched chunks: `best_passage` picks the
+  1–3 segments covering most of the claim's words, numbers counting triple. No overlap → no
+  highlight. A wrong highlight is a confident false statement; a missing one is not.
+- **Boxes come from the PDF's own text layer** (`pdf_words` / `align_words`), the same cached file
+  the page render uses, behind the same access check (`doc_image_service.fetch_source`). OCR text
+  and vision text differ, so the match is a best window, not a search — and a scan without a
+  text layer just shows the page. A filled-in form stores its values at the end of the text
+  stream, far from their labels; for a short passage no window holds both, so `_anchor_boxes`
+  marks the passage's tokens that occur exactly once on the page (a number, or two long words).
+- **A number is one source page, so every tap on it marks the same set**: the passages of all
+  sentences carrying that number in the bubble (`locate(other_claims=…)`, `.pb-src-hl.is-other`),
+  the tapped sentence's one strongest. Marking only the tapped sentence's passage made one
+  number mean a different place each time.
+  A number without a page (`[^361]`) gets its one page from all its sentences together
+  (`document_page`); picked per tapped sentence, one "1" went to pages 2, 1, 5 and 5.
+- **Titles in the source box come from Paperless as the user** (`_resolve_cite_titles`), never
+  from the sidecar: a made-up `[^id]` must not reveal the title of a document they cannot see.
+- **A picture is a passage too.** On an X-ray page the text is a header and "Seite 5 von 5";
+  what the answer says comes from the picture's description, so when a description covers the
+  claim better than any text window, the picture's `bbox` is marked (`best_pictures`) — all
+  pictures close to the best, since "four radiographs" is four. Page numbers ("Seite 5 von 5",
+  a claim headed "Seite 5:") are dropped before scoring: the 5 alone, counting triple, marked
+  the footer.
+- **A tool prints the page next to a fact wherever code can find it.** `get_document_details`
+  tags each summary sentence, action and cross-reference with `page_for` (one page clearly
+  best, else the bare `[^id]`). The model copies what it is shown; given only `[^361]` it cites
+  the whole document, and that number opens no particular place.
+- **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
+  link mid-marker.
+
+### Formulas
+
+- **`PROMPT_VERSION` 0.4 asks for LaTeX**, and is a *scoped* step: `sidecar_service._SCOPED_CHANGES`
+  re-ingests only sidecars whose text shows mathematics (`_mentions_math`). Steps are walked from
+  the sidecar's version, so 0.2 → 0.4 checks pictures and formulas.
+- **`vision.repair_latex_escapes` runs on every page answer.** `\frac`, `\times`, `\beta` are
+  valid JSON escapes (form feed, tab, backspace) — a model that forgets to double the backslash
+  loses the command without any parse error.
 
 ### Ollama watchdog
 
@@ -822,6 +875,12 @@ work that established them: `docs/ui-polish-tasks.md`.
   Verify layout claims by measuring, not by reading CSS: serve the page with auth stubbed
   and drive it with Playwright at a 390px viewport (both traps above passed review and a
   hand-built replica, and were caught only by measuring the real page).
+
+- **The app does not pinch-zoom; pages do.** The viewport is fixed (`user-scalable=no`,
+  `body { touch-action: pan-x pan-y }`) because zooming the whole UI stuttered even on an S24
+  Ultra. Anything a user must read up close opens in `app_ui/page_viewer.py`
+  (`window.__pbViewer`), which zooms only its pages: a CSS transform while the fingers move,
+  committed as a width on release so native scrolling pans.
 
 Practical consequences:
 
