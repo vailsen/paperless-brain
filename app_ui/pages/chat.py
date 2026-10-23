@@ -573,6 +573,9 @@ html, body { overflow: hidden !important; }
     color: var(--c-text); word-break: break-word; line-height: 1.5;
 }
 .chat-bubble { border: 1px solid var(--c-border); }
+/* Quasar's default track is a pale grey that vanishes on the light surface.
+   Its colour class is layered !important, so set the SVG stroke instead. */
+.chat-ctx-ring .q-circular-progress__track { stroke: var(--c-border-strong) !important; }
 .pb-cite.is-active { background: var(--c-accent); color: #fff; }
 .pb-cite-list {
     display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 8px 10px;
@@ -1354,9 +1357,12 @@ async def chat():
                 add="text-amber-500" if ratio >= 0.75 else "text-gray-600",
             )
         else:
+            # No window size known yet (before the first answer). An empty chat
+            # still uses exactly 0 % of any window — say so instead of an empty
+            # ring; with messages but no size, the share is genuinely unknown.
             ctx_progress.set_value(0.0)
-            ctx_progress.style("opacity:0.35;")
-            ctx_pct_label.set_text("")
+            ctx_progress.style("opacity:1;")
+            ctx_pct_label.set_text("0%" if ct == 0 else "–")
             ctx_tt.set_text(_("Context: –"))
             compact_btn.classes(remove="text-amber-500", add="text-gray-600")
 
@@ -1725,12 +1731,13 @@ async def chat():
                                 ctx_progress = ui.circular_progress(
                                     value=0.0, min=0.0, max=1.0, size="30px",
                                     color="primary", show_value=False,
-                                ).props("thickness=0.2").style("opacity:0.35;")
-                                ctx_pct_label = ui.label("").style(
+                                ).props("thickness=0.2").classes("chat-ctx-ring")
+                                # An empty chat uses 0 % of any window.
+                                ctx_pct_label = ui.label("0%").style(
                                     "position:absolute;"
                                     "top:50%; left:50%; transform:translate(-50%,-50%);"
                                     "font-size:8px; font-weight:700;"
-                                    "color:var(--c-accent-text); pointer-events:none; line-height:1;"
+                                    "color:var(--c-text-2); pointer-events:none; line-height:1;"
                                     "white-space:nowrap;"
                                 )
                                 ctx_tt = ui.tooltip(_("Context: –"))
