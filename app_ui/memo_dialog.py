@@ -295,7 +295,7 @@ def build_memo_dialog():
                 )
                 .props(
                     'accept="audio/*,.wav,.m4a,.mp3,.ogg,.flac,.webm,.mp4,.aac" '
-                    "flat dense dark hide-upload-btn"
+                    "flat dense hide-upload-btn"
                 )
                 .classes("w-full memo-upload")
             )

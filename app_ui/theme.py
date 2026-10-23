@@ -338,6 +338,13 @@ body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
 /* Nothing inside a settings card may widen it past the viewport. Monospace
    strings are the usual offender — paths, URLs and model ids have no spaces,
    so a browser treats each as one unbreakable word. */
+/* File uploaders follow the theme — Quasar's `dark` uploader is black, and the
+   default header is a solid primary bar. A neutral drop area instead. */
+.q-uploader { background: var(--c-surface-2) !important; color: var(--c-text) !important;
+    border: 1px dashed var(--c-border-strong); border-radius: 12px; box-shadow: none !important; }
+.q-uploader__header { background: transparent !important; color: var(--c-text) !important; }
+.q-uploader__subtitle { color: var(--c-text-muted); }
+.q-uploader__list { background: transparent; min-height: 0; padding: 0 8px; }
 .settings-group .q-card { max-width: 100%; min-width: 0; }
 .settings-group code,
 .settings-group .font-mono { overflow-wrap: anywhere; }
