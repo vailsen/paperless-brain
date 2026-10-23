@@ -11,8 +11,12 @@ single toggle flips the whole UI.
 Accent colors (steel brand, red/green/amber/blue status) are intentionally left
 as-is — they read acceptably on both backgrounds.
 
-Preference is the per-user ``get_pref("theme")`` ("dark" | "light"), the same
-store as the language setting (services/user_prefs.py). Default: light.
+The theme belongs to the device, not the user: dark on the desktop and light
+on the phone is a normal combination. It lives in the ``pb_theme`` cookie, which
+the server reads while rendering (``ui.dark_mode`` and the editor theme are set
+server-side, so localStorage would only arrive after the first paint). A device
+without the cookie falls back to the per-user ``get_pref("theme")`` — what the
+setting was before it became per device — then to light.
 """
 
 from nicegui import ui
@@ -20,6 +24,8 @@ from nicegui import ui
 from services.user_prefs import get_pref
 
 DEFAULT_THEME = "light"
+THEME_COOKIE = "pb_theme"
+_THEMES = ("dark", "light")
 
 # The one accent. Kept as a literal because ui.colors() writes --q-primary
 # directly and cannot take a CSS var; it must stay in step with --c-accent below.
@@ -339,13 +345,34 @@ body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
 """
 
 
+def current_theme() -> str:
+    """This device's theme: cookie, else the user's old preference, else light.
+
+    MUST run inside a page context."""
+    try:
+        value = ui.context.client.request.cookies.get(THEME_COOKIE)
+    except (AttributeError, RuntimeError):
+        value = None
+    if value in _THEMES:
+        return value
+    value = get_pref("theme", DEFAULT_THEME)
+    return value if value in _THEMES else DEFAULT_THEME
+
+
+def set_device_theme_js(theme: str) -> str:
+    """JS that stores ``theme`` for this browser for a year."""
+    return (
+        f"document.cookie='{THEME_COOKIE}={theme}; path=/; max-age=31536000; SameSite=Lax';"
+    )
+
+
 def apply_theme() -> None:
     """Inject theme CSS and set dark/light from the user's stored preference.
 
     MUST run inside a page context (reads the user preferences). Call once per page
     from page_layout()/login.
     """
-    theme = get_pref("theme", DEFAULT_THEME)
+    theme = current_theme()
     ui.dark_mode(theme != "light")  # True → dark (body--dark), False → light (body--light)
     # Quasar's `primary` is the app's brand steel, not its stock blue. Without
     # this, every ui.button() (which defaults to color='primary') picks up

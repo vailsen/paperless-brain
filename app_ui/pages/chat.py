@@ -509,6 +509,13 @@ html, body { overflow: hidden !important; }
 .chat-backend-sel .q-field__control:after {
     border-color: var(--c-border-strong) !important;
 }
+/* Input row controls: neutral icons, and a send button with the input's
+   corner radius — a round button read as a foreign element next to it. */
+.chat-input-tool { flex-shrink: 0; min-width: 36px; width: 36px; height: 36px;
+    color: var(--c-text-muted); border-radius: 10px; }
+.chat-input-tool:hover { color: var(--c-text); }
+.chat-send-btn { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; }
+.chat-send-btn .q-icon { font-size: 20px; }
 /* Mic button active state */
 .chat-mic-btn.mic-active { background: #450a0a !important; }
 .chat-mic-btn.mic-active .q-icon, .chat-mic-btn.mic-active i { color: #f87171 !important; }
@@ -2006,19 +2013,17 @@ async def chat():
                             "display:flex; align-items:center; gap:8px;"
                         ):
                             tools_toggle_btn = (
-                                ui.button(icon="tune")
+                                ui.button(icon="tune", color=None)
                                 .props("flat dark")
-                                .classes("text-gray-500")
-                                .style("flex-shrink:0; min-width:36px; width:36px; height:36px;")
+                                .classes("chat-input-tool")
                                 .tooltip(_("Configure tools"))
                             )
                             tools_toggle_btn.on_click(lambda: _toggle_tools_panel())
 
                             compact_btn = (
-                                ui.button(icon="compress")
+                                ui.button(icon="compress", color=None)
                                 .props("flat dark")
-                                .classes("text-gray-600")
-                                .style("flex-shrink:0; min-width:36px; width:36px; height:36px;")
+                                .classes("chat-input-tool")
                                 .tooltip(_("Compress chat"))
                             )
                             compact_btn.on_click(lambda: asyncio.ensure_future(_compact_chat()))
@@ -2058,7 +2063,7 @@ async def chat():
 
                             with ui.element("div").classes("chat-mic-btn").style(
                                 "display:inline-flex; align-items:center; justify-content:center;"
-                                "width:38px; height:38px; border-radius:8px; cursor:pointer;"
+                                "width:44px; height:44px; border-radius:12px; cursor:pointer;"
                                 "background:var(--c-surface-2); flex-shrink:0;"
                                 "transition:background .2s, color .2s;"
                             ):
@@ -2066,7 +2071,7 @@ async def chat():
 
                             send_btn = (
                                 ui.button(icon="send", on_click=_handle_send_or_stop)
-                                .props("color=primary unelevated round dense")
+                                .props("color=primary unelevated dense")
                                 .classes("chat-send-btn")
                             )
 

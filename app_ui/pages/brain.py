@@ -37,7 +37,7 @@ from nicegui import ui
 
 from app_ui.layout import page_layout, require_auth
 from app_ui.note_voice_dialog import create_note_voice_dialog, note_voice_enabled
-from app_ui.theme import DEFAULT_THEME
+from app_ui.theme import current_theme
 from app_ui.vault_routes import FILE_PATH
 from config.settings import settings
 from i18n import get_translator
@@ -1073,7 +1073,7 @@ def brain_page():
             preview.set_content(escape_intraword_underscores(editor.value))
 
     # ── Layout ───────────────────────────────────────────────────────────────
-    _cm_theme = "basicLight" if get_pref("theme", DEFAULT_THEME) == "light" else "basicDark"
+    _cm_theme = "basicLight" if current_theme() == "light" else "basicDark"
 
     with ui.column().classes("w-full max-w-full p-2 gap-2").style("min-width:0"):
         with ui.element("div").classes("vault-wrap"):

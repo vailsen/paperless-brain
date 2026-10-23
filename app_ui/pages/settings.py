@@ -6,7 +6,7 @@ import asyncio
 from nicegui import app as ng_app, ui
 
 from app_ui.layout import page_layout, require_auth
-from app_ui.theme import DEFAULT_THEME
+from app_ui.theme import current_theme, set_device_theme_js
 from config.chat_prompts import MAX_CUSTOM_INSTRUCTIONS_CHARS
 from config.settings import settings
 from i18n import DEFAULT_LANG, SUPPORTED_LANGUAGES, get_translator
@@ -37,13 +37,12 @@ def language_setting() -> None:
 
 
 def theme_setting() -> None:
-    """Render the dark/light selector. Switching = write storage + reload."""
+    """Render the dark/light selector. Per device: a cookie, then reload."""
     _ = get_translator()
-    current = get_pref("theme", DEFAULT_THEME)
+    current = current_theme()
 
     def on_change(e) -> None:
-        set_pref("theme", e.value)
-        ui.navigate.reload()
+        ui.run_javascript(set_device_theme_js(e.value) + "location.reload();")
 
     ui.select(
         options={"dark": _("Dark"), "light": _("Light")},
@@ -1126,7 +1125,7 @@ async def settings_page() -> None:
                     username,
                     token,
                     language=get_pref("language", DEFAULT_LANG),
-                    theme=get_pref("theme", DEFAULT_THEME),
+                    theme=current_theme(),
                     push_text_to_paperless=bool(
                         get_pref("push_text_to_paperless", False)
                     ),
@@ -1213,7 +1212,12 @@ async def settings_page() -> None:
                 for k, v in prefs.items():
                     set_pref(k, v)
                 ui.notify(_("Settings imported."), type="positive")
-                ui.navigate.reload()
+                # The imported theme is the default for new devices and
+                # applies to this one; other devices keep their own.
+                if "theme" in prefs:
+                    ui.run_javascript(set_device_theme_js(prefs["theme"]) + "location.reload();")
+                else:
+                    ui.navigate.reload()
 
             ui.button(_("Import"), icon="upload", on_click=_do_import).props(
                 "unelevated dark dense"

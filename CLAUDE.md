@@ -854,6 +854,9 @@ work that established them: `docs/ui-polish-tasks.md`.
   Quasar's colour classes are `!important` inside a CSS layer, and nothing outside the layer
   can override them — a palette change would leave them behind. Use `bg-primary` /
   `color="primary"` (follows `--q-primary`, set per theme) or `pb-accent-text`.
+- **The theme is per device, not per user** — the `pb_theme` cookie (`theme.current_theme()`),
+  read server-side because `ui.dark_mode` and the editor theme are set while rendering. The
+  per-user `theme` pref is only the fallback for a device without the cookie.
 - **Marked passages on a page are a yellow highlighter** (`--c-hl`), not the accent: it reads
   on white paper in both themes.
 - **The mark and word mark live in `app_ui/brand.py`.** Inline SVG, so the header can never

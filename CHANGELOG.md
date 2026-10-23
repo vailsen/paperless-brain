@@ -18,6 +18,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **New logo:** a brain folded from paper. "PaperlessBrain" is
   written as one word. The browser tab and the installed app get the new
   icon (an installed app may need a while to pick it up, or a reinstall).
+- **Light or dark is chosen per device**, not per account: dark on the
+  desktop and light on the phone is now possible. A device that was never
+  set keeps the choice you had before.
 
 - **Pages open full screen with their own pinch zoom.** Tap a page in the
   Source tab, or the thumbnail in a document's details on a phone: every page
