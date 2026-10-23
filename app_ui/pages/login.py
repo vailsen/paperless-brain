@@ -20,7 +20,7 @@ from services.session_auth import get_session_token, set_session_token
 
 
 _LOGIN_LOGO_HTML = (
-    '<div style="display:flex;justify-content:center;">' + wordmark_html(1.45, 36) + '</div>'
+    '<div style="display:flex;justify-content:center;">' + wordmark_html(1.45, 36, bg="var(--c-bg)") + '</div>'
 )
 
 

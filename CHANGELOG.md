@@ -15,7 +15,7 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   your own messages, the reference numbers, the active tab and the primary
   buttons. Marked passages on a page are a yellow highlighter. The font is
   Inter, shipped with the app.
-- **New logo:** a leaf folded from a sheet of paper. "PaperlessBrain" is
+- **New logo:** a brain folded from paper. "PaperlessBrain" is
   written as one word. The browser tab and the installed app get the new
   icon (an installed app may need a while to pick it up, or a reinstall).
 

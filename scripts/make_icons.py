@@ -14,18 +14,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app_ui.brand import BRAND, ICON_VERSION, leaf_svg  # noqa: E402
+from app_ui.brand import BRAND, ICON_VERSION, mark_svg  # noqa: E402
 
 STATIC = ROOT / "app_ui" / "static"
 WHITE, WHITE_2 = "#ffffff", "rgba(255,255,255,.62)"
 
 
 def tile_svg(rounded: bool, mark: float) -> str:
-    """64-unit tile: steel ground, white leaf at ``mark`` of the width.
+    """64-unit tile: steel ground, white mark at ``mark`` of the width.
     ``rounded=False`` is the maskable variant — the launcher cuts its own shape,
     so the ground must reach every edge and the mark stay in the safe circle."""
     r = 14 if rounded else 0
-    inner = leaf_svg(64, WHITE, WHITE_2).replace('width="64" height="64" ', "")
+    inner = mark_svg(64, WHITE, WHITE_2, BRAND).replace('width="64" height="64" ', "")
     off = 32 * (1 - mark)
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
