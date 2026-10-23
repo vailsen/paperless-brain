@@ -20,8 +20,10 @@ PAGE_VIEWER_HTML = """<style>
 .pbv { position: fixed; inset: 0; z-index: 9000; display: none; flex-direction: column;
        background: rgba(10, 12, 18, .97); }
 .pbv.is-open { display: flex; }
+/* The backdrop is dark in both themes, so the bar's colour is fixed too —
+   a theme token turned it dark grey on black in light mode. */
 .pbv-bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px;
-           color: var(--c-text-2, #ccc); font-size: .8rem; flex-shrink: 0; }
+           color: #e6e8ec; font-size: .8rem; flex-shrink: 0; }
 .pbv-bar .pbv-page { flex: 1; text-align: center; white-space: nowrap; }
 .pbv-btn { background: none; border: 0; color: inherit; width: 40px; height: 40px;
            border-radius: 50%; display: flex; align-items: center; justify-content: center;

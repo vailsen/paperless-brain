@@ -1,52 +1,40 @@
 # Screenshots
 
-These images are embedded in the top-level `README.md`. The files currently
-here are **placeholders** — replace each with a real capture, keeping the exact
-filename so the README picks it up with no edits.
+These images are embedded in the top-level `README.md`. To refresh one, replace
+the file and keep its name — the README picks it up with no edits.
 
-## What to capture
+## What is shown
 
-| File | Page | Must show | Notes |
-|------|------|-----------|-------|
-| `chat.png` | Chat | The archive chat with a cited answer — the hero image at the top of the README. | Static screenshot, ~820px+ wide. |
-| `dashboard.png` | Dashboard | The deadlines / actions overview populated with a few upcoming items. | |
-| `document-detail.png` | Document detail dialog | The per-document dialog open: vision-read page text, an extracted table, actions/deadlines, cross-references. | Pick a document with a table and at least one action so the extraction depth shows. |
-| `note-vault.png` | Note vault (`/brain`) | The folder tree with a note open, the Properties panel expanded (tags, `dont_ingest`), and the note rendered or in the editor. | Used twice in the README (gallery tile + the Note vault section), so one capture covers both. Pick a note with a heading and a list so the rendering shows; expand a folder so the tree does not look empty. Note that **filenames in the tree are readable** — rename or hide anything you would not publish. |
-| `demo.gif` | Deep research (recording) | A short clip of a multi-step research run — sub-tasks streaming, then the synthesized result. Full-width tile in the gallery. | See "Recording the GIF" below. Keep it ~10–15 s and under ~5 MB. |
+| File | Page | Must show |
+|------|------|-----------|
+| `live_text_origin.png` | Chat + Source tab | The hero image: an answer with reference numbers, one of them opened in the Source tab with the passage highlighted on the page. |
+| `chat.png` | Chat + Results tab | A cited answer (tables read from a page work well) with the matching documents in the panel beside it. |
+| `dashboard.png` | Dashboard | The deadlines / actions overview with a few upcoming items. |
+| `document-detail.png` | Document detail dialog | Summary tab plus the PDF beside it. |
+| `note-vault.png` | Note vault (`/brain`) | The folder tree with a note open and the Properties panel expanded. |
+| `mobile.png` | Phone (PWA) | Three phone shots side by side — chat, document details, dashboard. Built from three single captures, see below. |
 
 ## How to shoot
 
-- **Size:** ~1280×800 (16:10) or wider. The README scales them down; higher res
-  looks crisp on HiDPI.
-- **Theme:** be consistent — pick dark **or** light for all four, don't mix.
-- **Content:** use demo / non-sensitive documents. No real invoices, names,
-  addresses, account numbers, or anything you would not put on the public
-  internet. These ship in the public repo.
-- **Format:** PNG, same filename as the placeholder.
-- **Language:** English UI (Settings → Language) so the screenshots match the
-  default the README describes.
+- **Size:** capture at any HiDPI size, then scale to 2000 px wide — the README
+  shows them at 820 px, so that is still sharp at 2×:
+  `magick f.png -resize '2000x>' -strip f.png`
+- **Theme:** light (the default), for all of them.
+- **Language:** English UI (Settings → Language).
+- **Content:** these ship in a public repo. Blur names, addresses, account and
+  policy numbers — of other people especially — and check that the chat text
+  does not name what the document view blurs.
 
-After replacing the files, just view `README.md` on GitHub — no code changes
-needed.
+## The phone strip
 
-## Recording the GIF (KDE Wayland)
+Three 1080 px phone captures, status bar cropped, rounded corners, transparent
+gaps (works on GitHub's light and dark background):
 
-1. **Record** with Spectacle (built-in): open Spectacle → *Record Screen* →
-   *Rectangular Region* → drag the chat area → record ~10–15 s of one query
-   answering (tool calls streaming in, then the cited reply) → stop → save as
-   `demo.webm` (or `.mp4`).
-2. **Convert to GIF** with the two-pass palette method (crisp, small):
-
-   ```bash
-   # tune fps/scale to taste; 12 fps + 900px wide keeps size down
-   ffmpeg -i demo.webm -vf "fps=12,scale=900:-1:flags=lanczos,palettegen" -y palette.png
-   ffmpeg -i demo.webm -i palette.png \
-     -lavfi "fps=12,scale=900:-1:flags=lanczos[x];[x][1:v]paletteuse" \
-     -y docs/screenshots/demo.gif
-   rm palette.png
-   ```
-
-3. **Check the size** — aim for under ~5 MB so the README loads fast. If it's
-   too big: lower `fps` (10), narrow `scale` (800), or trim the clip shorter.
-
-GitHub autoplays GIFs in the README, so no click-to-play is needed.
+```bash
+magick -size 600x1244 xc:black -fill white -draw "roundrectangle 0,0,599,1243,36,36" mask.png
+for i in 1 2 3; do
+  magick shot$i.jpg -strip -crop 1080x2240+0+100 +repage -resize 600x1244! \
+    mask.png -alpha off -compose CopyOpacity -composite p$i.png
+done
+magick p1.png p2.png p3.png -background none -splice 40x0 +append -chop 40x0 mobile.png
+```

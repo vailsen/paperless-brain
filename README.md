@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="app_ui/static/paperlessbrain_logo.png" alt="PaperlessBrain logo" width="140">
+  <img src="app_ui/static/icon-v3-512.png" alt="PaperlessBrain logo — a brain folded from paper" width="120">
 </p>
 
 <h1 align="center">PaperlessBrain</h1>
@@ -10,13 +10,17 @@ Keep your Markdown notes beside them — editable in the app, Obsidian optional.
 Installable PWA — built for mobile and desktop.</p>
 
 <p align="center">
-  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
-  <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-blue">
-  <a href="https://nicegui.io/"><img alt="Built with NiceGUI" src="https://img.shields.io/badge/built%20with-NiceGUI-4a9?logo=python&logoColor=white"></a>
+  <a href="https://github.com/vailsen/paperless-brain/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/vailsen/paperless-brain?color=3563d9"></a>
+  <a href="https://github.com/vailsen/paperless-brain/pkgs/container/paperless-brain"><img alt="Docker image on GHCR" src="https://img.shields.io/badge/docker-ghcr.io-3563d9?logo=docker&logoColor=white"></a>
+  <a href="https://docs.paperless-ngx.com/"><img alt="For Paperless-ngx" src="https://img.shields.io/badge/for-Paperless--ngx-3563d9"></a>
+  <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-3563d9?logo=python&logoColor=white">
+  <a href="https://nicegui.io/"><img alt="Built with NiceGUI" src="https://img.shields.io/badge/built%20with-NiceGUI-3563d9"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-3563d9"></a>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/chat.png" alt="Chatting with the archive — the assistant searches, reads and cites documents through an agentic tool loop" width="820">
+  <img src="docs/screenshots/live_text_origin.png" alt="A chat answer about a contract; a reference number opens the source page with the passage highlighted" width="820"><br>
+  <sub>Every claim carries a number — tap it and the source page opens with the passage marked.</sub>
 </p>
 
 ---
@@ -33,6 +37,9 @@ talk to.
 
 - **Chat with your archive** — an agentic tool loop that searches, reads,
   cross-references and cites your documents.
+- **Every claim shows its source** — answers carry reference numbers; one tap
+  opens the page with the passage highlighted, from the PDF's own text layer.
+  When nothing matches, nothing is marked — no confident wrong highlight.
 - **Vision-LLM ingestion** — every page rendered and read by a vision model:
   summary, tables, actions and deadlines, per document type. Fully local on
   Ollama, or any cloud vision model.
@@ -77,11 +84,11 @@ talk to.
     <td width="50%"><img src="docs/screenshots/document-detail.png" alt="Document detail dialog with vision-read pages, tables and actions"><br><sub><b>Document detail</b> — vision-read pages, tables, actions, cross-references</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/chat.png" alt="Chat answer with tables read from a type-approval certificate, the matching documents beside it"><br><sub><b>Chat</b> — tables read from the page, cited, with the matching documents beside it</sub></td>
     <td width="50%"><img src="docs/screenshots/note-vault.png" alt="Note vault — folder tree, markdown editor and frontmatter properties panel"><br><sub><b>Note vault</b> — tree, markdown editor and properties, without leaving the app</sub></td>
-    <td width="50%"><img src="docs/screenshots/chat.png" alt="Chatting with the archive — the assistant searches, reads and cites documents"><br><sub><b>Chat</b> — agentic tool loop over documents, notes, mail and the web</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/demo.gif" alt="Deep research — autonomous multi-step research module in action" width="100%"><br><sub><b>Deep research</b> — autonomous multi-step research, reviewed before persist</sub></td>
+    <td colspan="2"><img src="docs/screenshots/mobile.png" alt="Three phone screenshots: chat, document details and dashboard" width="100%"><br><sub><b>On the phone</b> — installable PWA: chat, document details, dashboard</sub></td>
   </tr>
 </table>
 

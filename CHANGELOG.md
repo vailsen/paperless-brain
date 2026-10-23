@@ -69,6 +69,8 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 ### Fixed
 
 - Code in answers (tool names, file names) is readable in light mode.
+- The full-screen page viewer's zoom, page and close controls are readable in
+  light mode (they were dark grey on the black backdrop).
 - **No more empty answer bubbles.** A local thinking model could end its turn
   with everything said in its reasoning and no answer text — seen with a
   message ending in a stray backtick. The chat now asks it once for the answer
