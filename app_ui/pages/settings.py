@@ -52,6 +52,21 @@ def theme_setting() -> None:
     ).props("outlined dark dense").classes("w-full")
 
 
+def chat_on_open_setting() -> None:
+    """What the chat shows when it is opened: the last conversation or a new one."""
+    _ = get_translator()
+
+    def on_change(e) -> None:
+        set_pref("chat_on_open", e.value)
+
+    ui.select(
+        options={"last": _("Last conversation"), "new": _("New conversation")},
+        value=get_pref("chat_on_open", "last"),
+        label=_("When the chat opens"),
+        on_change=on_change,
+    ).props("outlined dark dense").classes("w-full")
+
+
 def push_text_setting() -> None:
     """Render the "push AI text to Paperless" switch. Off by default.
 
@@ -354,6 +369,15 @@ async def settings_page() -> None:
                 _("Light or dark theme"),
             )
             theme_setting()
+
+        # ── Chat beim Öffnen / chat on open ───────────────────────────────────
+        with _card("general"):
+            _section_header(
+                "forum",
+                _("Chat"),
+                _("What the chat shows when you open the app or switch to it"),
+            )
+            chat_on_open_setting()
 
         # ── Rückschreiben nach Paperless / push text back ─────────────────────
         with _card("docs"):

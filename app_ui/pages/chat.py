@@ -361,7 +361,7 @@ html, body { overflow: hidden !important; }
 .chat-md input[type="checkbox"] { margin-right: 0.45rem; vertical-align: -0.1em; accent-color: var(--c-accent); }
 .chat-md strong { color: var(--c-text); }
 .chat-md em { color: var(--c-text-2); }
-.chat-md code { background: var(--c-border); border-radius: 3px; padding: 0.1rem 0.3rem; font-family: monospace; font-size: 0.8em; color: #a5b4fc; }
+.chat-md code { background: var(--c-surface-3); border: 1px solid var(--c-border); border-radius: 4px; padding: 0.05rem 0.3rem; font-family: monospace; font-size: 0.85em; color: var(--c-text); }
 .chat-md pre { background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; margin: 0.4rem 0; }
 .chat-md pre code { background: transparent; padding: 0; color: var(--c-text-2); }
 .chat-md h1, .chat-md h2, .chat-md h3 { color: var(--c-text); margin: 0.5rem 0 0.2rem 0; font-weight: 600; }
@@ -1381,6 +1381,7 @@ async def chat():
         _s["context_window"] = 0
         _s["current_ctx_tokens"] = 0
         ng_app.storage.user["chat_conv_id"] = conv_id
+        ng_app.storage.user.pop("chat_fresh", None)
         ng_app.storage.user.pop("chat_history", None)
         ng_app.storage.user.pop("chat_token_count", None)
         ng_app.storage.user.pop("chat_context_window", None)
@@ -1441,6 +1442,9 @@ async def chat():
         ng_app.storage.user.pop("chat_token_count", None)
         ng_app.storage.user.pop("chat_context_window", None)
         ng_app.storage.user.pop("chat_conv_id", None)
+        # Deliberately empty: coming back must not reopen the latest
+        # conversation from the database (chat_on_open == "last").
+        ng_app.storage.user["chat_fresh"] = True
         messages_container.clear()
         with messages_container:
             _welcome_msg()
@@ -4012,6 +4016,7 @@ window.__openVaultNote = function(noteId) {{
             _s["running"] = False
             _s["stop_requested"] = False
             ng_app.storage.user["chat_history"] = list(_s["messages"])
+            ng_app.storage.user.pop("chat_fresh", None)
             ng_app.storage.user["chat_token_count"] = _s["total_tokens"]
             ng_app.storage.user["chat_context_window"] = _s["context_window"]
             messages_scroll.scroll_to(percent=1.0)
@@ -4030,8 +4035,26 @@ window.__openVaultNote = function(noteId) {{
                 _chat_hist.append_messages(_s["conv_id"], _username, new_msgs)
 
     # ── Restore or initialize chat ────────────────────────────────────────────
+    # Per-user setting: open the last conversation (default) or a fresh one.
+    # "Last" means this browser's open chat, else the user's most recent
+    # conversation — so a second device opens where the first one left off.
+    if get_pref("chat_on_open", "last") == "new":
+        for _k in ("chat_history", "chat_token_count", "chat_context_window", "chat_conv_id", "chat_fresh"):
+            ng_app.storage.user.pop(_k, None)
     _saved = ng_app.storage.user.get("chat_history") or []
-    if _saved:
+    _latest = None
+    if (
+        not _saved
+        and _username
+        and get_pref("chat_on_open", "last") == "last"
+        and not ng_app.storage.user.get("chat_fresh")
+    ):
+        _convs = _chat_hist.list_conversations(_username)
+        _latest = _convs[0]["id"] if _convs else None
+    if _latest:
+        _load_conv(_latest)
+        messages_scroll.scroll_to(percent=1.0)
+    elif _saved:
         _s["messages"] = list(_saved)
         _s["total_tokens"] = ng_app.storage.user.get("chat_token_count", 0)
         _s["context_window"] = ng_app.storage.user.get("chat_context_window", 0)
