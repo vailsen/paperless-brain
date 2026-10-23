@@ -370,7 +370,7 @@ async def dashboard():
         flex-direction: column;
     }
     .deadline-row td { transition: background .1s; }
-    .deadline-row:hover td { background: rgba(124,58,237,0.10) !important; }
+    .deadline-row:hover td { background: var(--c-accent-soft) !important; }
     /* Purple is reserved for the user's own input and the active selection.
        A document reference is neither — it is a link, so it looks like one. */
     .doc-link {

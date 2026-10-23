@@ -34,7 +34,7 @@ def _md_filename(task: repository.Task) -> str:
 
 _SUB_ICON: dict[SubTaskStatus, tuple[str, str]] = {
     SubTaskStatus.TODO:    ("radio_button_unchecked", "text-gray-500"),
-    SubTaskStatus.RUNNING: ("pending",                "text-purple-400"),
+    SubTaskStatus.RUNNING: ("pending",                "pb-accent-text"),
     SubTaskStatus.DONE:    ("check_circle",           "text-green-400"),
     SubTaskStatus.FAILED:  ("cancel",                 "text-red-400"),
 }
@@ -98,7 +98,7 @@ def _fill_subtask_detail(
                     "text-xs text-gray-400 font-mono font-bold"
                 )
                 if arch_name:
-                    ui.badge(arch_name, color="purple").classes("text-xs")
+                    ui.badge(arch_name, color="primary").classes("text-xs")
                 if s.depends_on:
                     dep_labels = ", ".join(f"#{id_to_idx.get(d, d)}" for d in s.depends_on)
                     ui.badge(f"← {dep_labels}", color="blue").classes("text-xs")
@@ -158,8 +158,8 @@ def _synth_running_card() -> None:
     ):
         with ui.column().classes("w-full gap-1"):
             with ui.row().classes("items-center gap-1"):
-                ui.spinner(size="xs", color="purple")
-                ui.label(_("Synthesis")).classes("text-xs font-mono font-bold text-purple-400")
+                ui.spinner(size="xs", color="primary")
+                ui.label(_("Synthesis")).classes("text-xs font-mono font-bold pb-accent-text")
             ui.label(_("Compiling result …")).classes("text-xs text-gray-400 leading-snug")
 
 
@@ -200,7 +200,7 @@ def _subtask_card(
                     "text-xs font-mono font-bold text-gray-400 flex-shrink-0"
                 )
                 if arch_name:
-                    ui.badge(arch_name, color="purple").classes("text-xs flex-shrink-0")
+                    ui.badge(arch_name, color="primary").classes("text-xs flex-shrink-0")
                 ui.element("div").classes("flex-1")
                 if on_detail_click:
                     ui.button(
@@ -358,7 +358,7 @@ def _render_draft(task: repository.Task, dlg, table_refresh, content_refresh=Non
 
     with ui.row().classes("gap-2 mt-3"):
         ui.button(_("Start"), icon="play_arrow", on_click=_start).props("unelevated dark").classes(
-            "bg-purple-700 text-white"
+            "bg-primary text-white"
         )
         ui.button(_("Delete"), icon="delete", on_click=_delete).props("flat dark").classes("text-red-500")
 
@@ -366,7 +366,7 @@ def _render_draft(task: repository.Task, dlg, table_refresh, content_refresh=Non
 def _render_triage_loading() -> None:
     _ = get_translator()
     with ui.column().classes("items-center w-full py-8 gap-2"):
-        ui.spinner(size="lg", color="purple")
+        ui.spinner(size="lg", color="primary")
         ui.label(_("Planner is rephrasing the task …")).classes("text-sm text-gray-400")
 
 
@@ -423,14 +423,14 @@ def _render_board(
     with ui.row().classes("w-full items-center gap-3 mb-3"):
         with ui.row().classes("flex-1 items-center gap-2"):
             status_icon = {
-                TaskStatus.RUNNING: ("pending",      "text-purple-400"),
+                TaskStatus.RUNNING: ("pending",      "pb-accent-text"),
                 TaskStatus.QUEUED:  ("schedule",     "text-blue-400"),
                 TaskStatus.PAUSED:  ("pause_circle", "text-orange-400"),
             }.get(task.status, ("info", "text-gray-400"))
             ui.icon(status_icon[0], size="sm").classes(status_icon[1])
 
             if task.status == TaskStatus.RUNNING and all_terminal:
-                ui.label(_("Synthesis running…")).classes("text-sm text-purple-300")
+                ui.label(_("Synthesis running…")).classes("text-sm pb-accent-text")
             elif task.status == TaskStatus.RUNNING and total > 0:
                 ui.label(_("Sub-task {n} of {total}").format(n=done_count + 1, total=total)).classes("text-sm text-gray-300")
             elif task.status == TaskStatus.QUEUED:
@@ -440,7 +440,7 @@ def _render_board(
 
             elapsed = _elapsed_str(task)
             if elapsed:
-                ui.label(elapsed).classes("text-xs text-purple-300 font-mono ml-2")
+                ui.label(elapsed).classes("text-xs pb-accent-text font-mono ml-2")
 
             if task.model:
                 ui.label(task.model).classes(
@@ -495,7 +495,7 @@ def _render_board(
             on_detail_click=on_detail_click,
         )
         _board_column(
-            _("Running"), running, "text-purple-400",
+            _("Running"), running, "pb-accent-text",
             arch_names=arch_names, id_to_idx=id_to_idx,
             on_detail_click=on_detail_click,
             synth_running=synth_running,
@@ -636,7 +636,7 @@ def _render_completed(
                     """)
                 ui.button("PDF", icon="picture_as_pdf", on_click=_open_pdf).props(
                     "flat dark dense"
-                ).classes("text-purple-400 text-sm").tooltip(_("Open PDF in a new tab"))
+                ).classes("pb-accent-text text-sm").tooltip(_("Open PDF in a new tab"))
             if task.result_md:
                 def _dl_md_done(_t=task):
                     ui.download(
@@ -646,12 +646,12 @@ def _render_completed(
                     )
                 ui.button(".MD", icon="download", on_click=_dl_md_done).props(
                     "flat dark dense"
-                ).classes("text-purple-400 text-sm").tooltip(_("Download result as Markdown"))
+                ).classes("pb-accent-text text-sm").tooltip(_("Download result as Markdown"))
         if task.paperless_url:
             ui.link(
                 _("Open document #{id} in Paperless").format(id=task.paperless_id),
                 target=task.paperless_url,
-            ).classes("text-purple-400 text-sm underline").props('target="_blank"')
+            ).classes("pb-accent-text text-sm underline").props('target="_blank"')
         elif task.paperless_id and not task.paperless_url:
             ui.label(_("Paperless ID: #{id}").format(id=task.paperless_id)).classes("text-sm text-gray-400")
 

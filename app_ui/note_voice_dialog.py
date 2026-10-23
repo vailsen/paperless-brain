@@ -138,7 +138,7 @@ def create_note_voice_dialog(get_note, apply_note):
                 with ui.row().classes("items-center justify-center gap-4"):
                     # `color=None` matters: with Quasar's default the button
                     # carries `bg-primary`, and the theme's recording background
-                    # is a 12%-alpha amber — it would tint the purple instead of
+                    # is a 12%-alpha amber — it would tint the accent instead of
                     # replacing it, so a live microphone would still read as the
                     # accent colour.
                     (
@@ -192,7 +192,7 @@ def create_note_voice_dialog(get_note, apply_note):
                     "flat dense"
                 )
                 accept_btn = ui.button(_("Accept")).props(
-                    "unelevated dense color=purple"
+                    "unelevated dense color=primary"
                 )
 
     def _set_status(text: str) -> None:

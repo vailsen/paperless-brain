@@ -321,7 +321,7 @@ def board(state: RunState) -> None:
             )
             ui.linear_progress(
                 value=(done / total) if total else 0.0, show_value=False
-            ).props("rounded size=6px color=purple").classes("flex-1")
+            ).props("rounded size=6px color=primary").classes("flex-1")
 
         for subtask in state.subtasks or []:
             subtask_card(state, subtask.subtask_id)

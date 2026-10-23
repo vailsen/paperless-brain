@@ -3,6 +3,7 @@
 from nicegui import app as ng_app
 from nicegui import ui
 
+from app_ui.brand import head_html, wordmark_html
 from app_ui.page_viewer import PAGE_VIEWER_HTML
 from app_ui.theme import apply_theme
 from config.version import __version__
@@ -12,19 +13,7 @@ from services.session_auth import clear_session, get_session_token
 # A real <a href> rather than a click handler: that is what makes middle-click
 # ("open in new tab"), ctrl-click and "copy link address" work. A div with an
 # on_click looks identical and supports none of them.
-_LOGO_HTML = (
-    # No title attribute: this constant is built at import time, where there is
-    # no user context to translate one with (see the i18n rules in CLAUDE.md),
-    # and a hardcoded English tooltip in a German UI is worse than none.
-    '<a href="/" style="display:flex;align-items:center;gap:9px;user-select:none;'
-    'text-decoration:none;">'
-    '<img src="/static/paperlessbrain_logo.png" style="height:32px;width:32px;object-fit:contain;">'
-    '<span class="logo-text" style="font-size:1.1rem;font-weight:800;letter-spacing:-.025em;color:var(--c-text);">Paperless</span>'
-    '<span class="logo-text" style="font-size:1.1rem;font-weight:800;letter-spacing:-.025em;'
-    "background:linear-gradient(135deg,#c084fc,#7c3aed);"
-    '-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Brain</span>'
-    "</a>"
-)
+_LOGO_HTML = wordmark_html()
 
 _MOBILE_HEADER_CSS = (
     "<style>"
@@ -147,14 +136,9 @@ def page_layout() -> None:
         # on fast phones. Pages zoom in their own viewer (page_viewer.py).
         '<meta name="viewport" content="width=device-width, initial-scale=1.0, '
         'maximum-scale=1.0, user-scalable=no">'
-        '<meta name="theme-color" content="#6d28d9">'
-        # SVG first for browsers that support it; the PNGs are the fallback
-        # Chrome (especially on Android) actually uses.
-        '<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">'
-        '<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">'
-        '<link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">'
-        '<link rel="apple-touch-icon" href="/static/icon-192.png">'
-        '<link rel="manifest" href="/manifest.json">'
+        # SVG favicon first; the PNGs are what Chrome on Android actually uses.
+        + head_html()
+        +
         # Register the service worker so Chrome/Android offers the WebAPK
         # "Install app" flow instead of a plain home-screen shortcut.
         "<script>if('serviceWorker' in navigator){window.addEventListener('load',"

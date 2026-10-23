@@ -6,6 +6,7 @@ import asyncio
 from nicegui import app as ng_app, ui
 
 from app_ui.layout import page_layout, require_auth
+from app_ui.theme import current_theme, set_device_theme_js
 from config.chat_prompts import MAX_CUSTOM_INSTRUCTIONS_CHARS
 from config.settings import settings
 from i18n import DEFAULT_LANG, SUPPORTED_LANGUAGES, get_translator
@@ -36,18 +37,32 @@ def language_setting() -> None:
 
 
 def theme_setting() -> None:
-    """Render the dark/light selector. Switching = write storage + reload."""
+    """Render the dark/light selector. Per device: a cookie, then reload."""
     _ = get_translator()
-    current = get_pref("theme", "dark")
+    current = current_theme()
 
     def on_change(e) -> None:
-        set_pref("theme", e.value)
-        ui.navigate.reload()
+        ui.run_javascript(set_device_theme_js(e.value) + "location.reload();")
 
     ui.select(
         options={"dark": _("Dark"), "light": _("Light")},
         value=current,
         label=_("Appearance"),
+        on_change=on_change,
+    ).props("outlined dark dense").classes("w-full")
+
+
+def chat_on_open_setting() -> None:
+    """What the chat shows when it is opened: the last conversation or a new one."""
+    _ = get_translator()
+
+    def on_change(e) -> None:
+        set_pref("chat_on_open", e.value)
+
+    ui.select(
+        options={"last": _("Last conversation"), "new": _("New conversation")},
+        value=get_pref("chat_on_open", "last"),
+        label=_("When the chat opens"),
         on_change=on_change,
     ).props("outlined dark dense").classes("w-full")
 
@@ -216,7 +231,7 @@ def voice_memo_setting(username: str = "", token: str = "") -> None:
 
     ui.button(_("Save"), icon="save", on_click=_save_memo_model).props(
         "unelevated dark dense"
-    ).classes("bg-purple-700 text-white mt-3")
+    ).classes("bg-primary text-white mt-3")
 
 
 # ── Tiny UI helpers ───────────────────────────────────────────────────────────
@@ -249,7 +264,7 @@ def _hint(html: str) -> None:
 def _status_row() -> tuple[ui.label, ui.spinner]:
     with ui.row().classes("items-center gap-2 h-6"):
         lbl = ui.label("").classes("text-xs")
-        spin = ui.spinner(size="xs").classes("text-purple-400")
+        spin = ui.spinner(size="xs").classes("pb-accent-text")
         spin.set_visibility(False)
     return lbl, spin
 
@@ -354,6 +369,15 @@ async def settings_page() -> None:
                 _("Light or dark theme"),
             )
             theme_setting()
+
+        # ── Chat beim Öffnen / chat on open ───────────────────────────────────
+        with _card("general"):
+            _section_header(
+                "forum",
+                _("Chat"),
+                _("What the chat shows when you open the app or switch to it"),
+            )
+            chat_on_open_setting()
 
         # ── Rückschreiben nach Paperless / push text back ─────────────────────
         with _card("docs"):
@@ -531,7 +555,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_ingest_cfg).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white")
+            ).classes("bg-primary text-white")
 
         # ── Suche & Gedächtnis-Schwellenwerte ─────────────────────────────────
         with _card("memory"):
@@ -587,7 +611,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_search_cfg).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white")
+            ).classes("bg-primary text-white")
 
         # ── Gedächtnis-Pflege (Träumen) ───────────────────────────────────────
         with _card("memory"):
@@ -637,7 +661,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_dream_cfg).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white mt-3")
+            ).classes("bg-primary text-white mt-3")
 
         # ── IMAP ──────────────────────────────────────────────────────────────
         with _card("connect"):
@@ -674,7 +698,7 @@ async def settings_page() -> None:
 
             _hint(
                 _(
-                    "<b style='color:#a78bfa'>Gmail:</b> IMAP must be enabled (Gmail → Settings → Forwarding and POP/IMAP). Password = Google <b>app password</b> (2FA must be active): Google Account → Security → App passwords."
+                    "<b style='color:var(--c-accent-text)'>Gmail:</b> IMAP must be enabled (Gmail → Settings → Forwarding and POP/IMAP). Password = Google <b>app password</b> (2FA must be active): Google Account → Security → App passwords."
                 )
             )
 
@@ -714,7 +738,7 @@ async def settings_page() -> None:
 
                 ui.button(_("Save"), icon="save", on_click=_save_imap).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
         # ── Calendar ──────────────────────────────────────────────────────────
         with _card("connect"):
@@ -742,7 +766,7 @@ async def settings_page() -> None:
 
                 _hint(
                     _(
-                        "<b style='color:#a78bfa'>Google Calendar:</b> Calendar settings &rarr; [select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy URL.<br>The URL contains a secret token — it works without a password.<br>Up to 3 calendars are searched in parallel."
+                        "<b style='color:var(--c-accent-text)'>Google Calendar:</b> Calendar settings &rarr; [select calendar] &rarr; <i>Secret address in iCal format</i> &rarr; copy URL.<br>The URL contains a secret token — it works without a password.<br>Up to 3 calendars are searched in parallel."
                     )
                 )
 
@@ -762,7 +786,7 @@ async def settings_page() -> None:
 
                 _hint(
                     _(
-                        "<b style='color:#a78bfa'>iCloud:</b> <code>https://caldav.icloud.com/</code>, app-specific password.<br><b style='color:#a78bfa'>Nextcloud:</b> copy the remote URL from the calendar app."
+                        "<b style='color:var(--c-accent-text)'>iCloud:</b> <code>https://caldav.icloud.com/</code>, app-specific password.<br><b style='color:var(--c-accent-text)'>Nextcloud:</b> copy the remote URL from the calendar app."
                     )
                 )
 
@@ -819,7 +843,7 @@ async def settings_page() -> None:
 
                 ui.button(_("Save"), icon="save", on_click=_save_cal).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
         # ── Absender-Profil ───────────────────────────────────────────────────
         with _card("connect"):
@@ -870,7 +894,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_sender).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white mt-2")
+            ).classes("bg-primary text-white mt-2")
 
         # ── PDF → Paperless: Standard-Tags ───────────────────────────────────
         with _card("docs"):
@@ -915,7 +939,7 @@ async def settings_page() -> None:
 
             ui.button(_("Save"), icon="save", on_click=_save_pdf_tags).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white")
+            ).classes("bg-primary text-white")
 
         # ── Eigene Chat-Anweisungen / custom instructions ─────────────────────
         with _card("ai"):
@@ -1002,7 +1026,7 @@ async def settings_page() -> None:
                 ).classes("text-gray-400")
                 ui.button(_("Save"), icon="save", on_click=_save_custom_instructions).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
         # ── KI-Tiefenrecherche ───────────────────────────────────────────────────────
         with _card("ai"):
@@ -1082,7 +1106,7 @@ async def settings_page() -> None:
                 ).classes("text-gray-500")
                 ui.button(_("Save"), icon="save", on_click=_save_werkbank).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
         # ── Import / Export ───────────────────────────────────────────────────
         with _card("data"):
@@ -1125,7 +1149,7 @@ async def settings_page() -> None:
                     username,
                     token,
                     language=get_pref("language", DEFAULT_LANG),
-                    theme=get_pref("theme", "dark"),
+                    theme=current_theme(),
                     push_text_to_paperless=bool(
                         get_pref("push_text_to_paperless", False)
                     ),
@@ -1146,7 +1170,7 @@ async def settings_page() -> None:
             with ui.row().classes("gap-3 mt-2"):
                 ui.button(_("Create export"), icon="download", on_click=_do_export).props(
                     "unelevated dark dense"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
                 ui.button(_("Copy"), icon="content_copy", on_click=_copy_export).props(
                     "flat dark dense"
                 ).classes("text-gray-300 border border-gray-600")
@@ -1196,7 +1220,7 @@ async def settings_page() -> None:
                         ).classes("text-gray-400")
                         ui.button(_("Apply"), icon="check", on_click=lambda: _dlg.submit(True)).props(
                             "unelevated dark dense"
-                        ).classes("bg-purple-700 text-white")
+                        ).classes("bg-primary text-white")
 
                 if not await _dlg:
                     return
@@ -1212,11 +1236,16 @@ async def settings_page() -> None:
                 for k, v in prefs.items():
                     set_pref(k, v)
                 ui.notify(_("Settings imported."), type="positive")
-                ui.navigate.reload()
+                # The imported theme is the default for new devices and
+                # applies to this one; other devices keep their own.
+                if "theme" in prefs:
+                    ui.run_javascript(set_device_theme_js(prefs["theme"]) + "location.reload();")
+                else:
+                    ui.navigate.reload()
 
             ui.button(_("Import"), icon="upload", on_click=_do_import).props(
                 "unelevated dark dense"
-            ).classes("bg-purple-700 text-white mt-2")
+            ).classes("bg-primary text-white mt-2")
 
             _hint(
                 _(

@@ -37,7 +37,7 @@ from nicegui import ui
 
 from app_ui.layout import page_layout, require_auth
 from app_ui.note_voice_dialog import create_note_voice_dialog, note_voice_enabled
-from app_ui.theme import DEFAULT_THEME
+from app_ui.theme import current_theme
 from app_ui.vault_routes import FILE_PATH
 from config.settings import settings
 from i18n import get_translator
@@ -128,7 +128,7 @@ _PAGE_CSS = """
 .vault-tree-pane .q-tree__arrow { color: var(--c-text-muted); }
 /* Selection is what the toolbar acts on and what a second tap opens, so it has
    to be unmistakable: a full outline, in the active-selection accent — the one
-   meaning purple still carries. `outline` rather than `border` because it is
+   meaning the accent still carries. `outline` rather than `border` because it is
    drawn outside the box model and so cannot shift the row by a pixel.
 
    NOTE the selector: Quasar puts `q-tree__node--selected` on the *header*, not
@@ -277,7 +277,7 @@ def brain_page():
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button(_("Cancel"), on_click=lambda: dlg.submit(None)).props("flat dense")
                 ui.button(_("OK"), on_click=lambda: dlg.submit(inp.value)).props(
-                    "unelevated dense color=purple"
+                    "unelevated dense color=primary"
                 )
         result = await dlg
         dlg.delete()
@@ -641,7 +641,7 @@ def brain_page():
                 with ui.row().classes("gap-2 flex-wrap"):
                     ui.button(_("Find it"), on_click=_follow_move).props("flat dense")
                     ui.button(_("Save as new note"), on_click=_save_as_new).props(
-                        "unelevated dense color=purple"
+                        "unelevated dense color=primary"
                     )
                 return
             ui.label(_("This note changed on disk while you were editing.")).classes(
@@ -658,7 +658,7 @@ def brain_page():
                 ui.button(_("Reload from disk"), on_click=_resolve_reload).props("flat dense")
                 ui.button(_("Save as copy"), on_click=_resolve_copy).props("flat dense")
                 ui.button(_("Overwrite"), on_click=_resolve_overwrite).props(
-                    "unelevated dense color=purple"
+                    "unelevated dense color=primary"
                 )
 
     def _escape(text: str) -> str:
@@ -772,7 +772,7 @@ def brain_page():
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button(_("Cancel"), on_click=lambda: dlg.submit(None)).props("flat dense")
                 ui.button(_("Apply"), on_click=lambda: dlg.submit(area.value)).props(
-                    "unelevated dense color=purple"
+                    "unelevated dense color=primary"
                 )
         raw = await dlg
         dlg.delete()
@@ -834,7 +834,7 @@ def brain_page():
                         ui.switch(
                             value=bool(props.get("dont_ingest", False)),
                             on_change=lambda e: _apply_props(set_={"dont_ingest": bool(e.value)}),
-                        ).props("dense color=purple")
+                        ).props("dense color=primary")
                         ui.label(_("Excluded from the search index.")).classes("text-xs").style(
                             "color:var(--c-text-muted)"
                         )
@@ -851,7 +851,7 @@ def brain_page():
                         ui.switch(
                             value=bool(props.get("common", False)),
                             on_change=lambda e: _apply_props(set_={"common": bool(e.value)}),
-                        ).props("dense color=purple")
+                        ).props("dense color=primary")
                         ui.label(
                             _("Shared with every user: their chat can use it, and it is "
                               "listed under Shared by others. The file stays in your vault.")
@@ -909,7 +909,7 @@ def brain_page():
                 ui.switch(
                     value=bool(value),
                     on_change=lambda e, k=key: _apply_props(set_={k: bool(e.value)}),
-                ).props("dense color=purple")
+                ).props("dense color=primary")
             else:
                 text = raw or ("" if value is None else str(value))
                 field = ui.input(value=text).props("outlined dense").classes("flex-1 min-w-0")
@@ -1073,7 +1073,7 @@ def brain_page():
             preview.set_content(escape_intraword_underscores(editor.value))
 
     # ── Layout ───────────────────────────────────────────────────────────────
-    _cm_theme = "basicLight" if get_pref("theme", DEFAULT_THEME) == "light" else "basicDark"
+    _cm_theme = "basicLight" if current_theme() == "light" else "basicDark"
 
     with ui.column().classes("w-full max-w-full p-2 gap-2").style("min-width:0"):
         with ui.element("div").classes("vault-wrap"):

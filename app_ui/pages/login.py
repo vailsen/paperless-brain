@@ -4,6 +4,7 @@ import asyncio
 from nicegui import app as ng_app
 from nicegui import ui
 
+from app_ui.brand import head_html, wordmark_html
 from app_ui.theme import apply_theme
 from config.settings import settings
 from i18n import get_translator
@@ -19,13 +20,7 @@ from services.session_auth import get_session_token, set_session_token
 
 
 _LOGIN_LOGO_HTML = (
-    '<div style="display:flex;align-items:center;gap:10px;justify-content:center;user-select:none;">'
-    '<img src="/static/paperlessbrain_logo.png" style="height:40px;width:40px;object-fit:contain;">'
-    '<span style="font-size:1.4rem;font-weight:800;letter-spacing:-.03em;color:var(--c-text);">Paperless</span>'
-    '<span style="font-size:1.4rem;font-weight:800;letter-spacing:-.03em;'
-    'background:linear-gradient(135deg,#c084fc,#7c3aed);'
-    '-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Brain</span>'
-    '</div>'
+    '<div style="display:flex;justify-content:center;">' + wordmark_html(1.45, 36, bg="var(--c-bg)") + '</div>'
 )
 
 
@@ -35,14 +30,10 @@ async def login_page() -> None:
     apply_theme()
     ui.add_head_html(
         '<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">'
-        '<meta name="theme-color" content="#6d28d9">'
-        '<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">'
-        '<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">'
-        '<link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">'
-        '<link rel="apple-touch-icon" href="/static/icon-192.png">'
         # Logged-out users land here first — Chrome evaluates installability on
         # the current page, so the manifest + SW must be present on login too.
-        '<link rel="manifest" href="/manifest.json">'
+        + head_html()
+        +
         "<script>if('serviceWorker' in navigator){window.addEventListener('load',"
         "function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>"
         '<style>html,body{background:var(--c-bg-deep);}</style>'
@@ -108,7 +99,7 @@ async def login_page() -> None:
             login_btn = (
                 ui.button(_("Sign in"), icon="login")
                 .props("dark")
-                .classes("w-full bg-purple-700 hover:bg-purple-600 text-white mt-1")
+                .classes("w-full bg-primary text-white mt-1")
             )
 
             async def do_login() -> None:

@@ -7,7 +7,24 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-10-23
+
 ### Added
+
+- **A calmer, more professional look.** Light mode is now the default, on a
+  soft paper grey instead of glaring white; dark mode is graphite instead of
+  blue-grey. One steel-blue accent replaces the violet everywhere, used for
+  your own messages, the reference numbers, the active tab and the primary
+  buttons. Marked passages on a page are a yellow highlighter. The font is
+  Inter, shipped with the app.
+- **New logo:** a brain folded from paper. "PaperlessBrain" is
+  written as one word. The browser tab and the installed app get the new
+  icon (an installed app may need a while to pick it up, or a reinstall).
+- **Light or dark is chosen per device**, not per account: dark on the
+  desktop and light on the phone is now possible. A device that was never
+  set keeps the choice you had before.
+- **Choose what the chat opens with** (Settings > General): your last
+  conversation — also the latest one from another device — or a new one.
 
 - **Pages open full screen with their own pinch zoom.** Tap a page in the
   Source tab, or the thumbnail in a document's details on a phone: every page
@@ -53,6 +70,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- Code in answers (tool names, file names) is readable in light mode.
+- The full-screen page viewer's zoom, page and close controls are readable in
+  light mode (they were dark grey on the black backdrop).
+- The voice memo's "Upload audio file" area follows the theme instead of
+  staying black in light mode.
 - **No more empty answer bubbles.** A local thinking model could end its turn
   with everything said in its reasoning and no answer text — seen with a
   message ending in a stray backtick. The chat now asks it once for the answer

@@ -136,7 +136,7 @@ def _open_new_task_dialog(user_id: str, token: str, table_refresh) -> None:
                 ui.button(_("Cancel"), on_click=dlg.close).props("flat dark").classes("text-gray-400")
                 ui.button(_("Create"), icon="add", on_click=_create).props(
                     "unelevated dark"
-                ).classes("bg-purple-700 text-white")
+                ).classes("bg-primary text-white")
 
     dlg.open()
 
@@ -238,7 +238,7 @@ def werkbank_page() -> None:
                 ui.button(
                     _("New task"), icon="add",
                     on_click=lambda: _open_new_task_dialog(user_id, token, task_table),
-                ).props("unelevated dark color=purple")
+                ).props("unelevated dark color=primary")
 
         # ── Column headers ────────────────────────────────────────────
         with ui.row().classes("w-full px-4 py-1 wb-colhead"):

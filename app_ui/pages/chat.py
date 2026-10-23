@@ -168,7 +168,7 @@ def _inject_doc_links(
     text = _DOC_ID_RE.sub(
         lambda m: (
             f'<a href="#" data-doc-id="{m.group(2)}" '
-            f'style="color:#a78bfa;text-decoration:underline;cursor:pointer;'
+            f'style="color:var(--c-accent-text);text-decoration:underline;cursor:pointer;'
             f'touch-action:manipulation;">#{m.group(2)}'
             f'<span style="font-size:0.7em;vertical-align:super;margin-left:2px;opacity:0.7;">↗</span>'
             f'</a>'
@@ -361,14 +361,14 @@ html, body { overflow: hidden !important; }
 .chat-md input[type="checkbox"] { margin-right: 0.45rem; vertical-align: -0.1em; accent-color: var(--c-accent); }
 .chat-md strong { color: var(--c-text); }
 .chat-md em { color: var(--c-text-2); }
-.chat-md code { background: var(--c-border); border-radius: 3px; padding: 0.1rem 0.3rem; font-family: monospace; font-size: 0.8em; color: #a5b4fc; }
+.chat-md code { background: var(--c-surface-3); border: 1px solid var(--c-border); border-radius: 4px; padding: 0.05rem 0.3rem; font-family: monospace; font-size: 0.85em; color: var(--c-text); }
 .chat-md pre { background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; margin: 0.4rem 0; }
 .chat-md pre code { background: transparent; padding: 0; color: var(--c-text-2); }
 .chat-md h1, .chat-md h2, .chat-md h3 { color: var(--c-text); margin: 0.5rem 0 0.2rem 0; font-weight: 600; }
 .chat-md h1 { font-size: 1rem; }
 .chat-md h2 { font-size: 0.95rem; }
 .chat-md h3 { font-size: 0.875rem; }
-.chat-md blockquote { border-left: 3px solid #6d28d9; padding-left: 0.75rem; color: var(--c-text-muted); margin: 0.4rem 0; }
+.chat-md blockquote { border-left: 3px solid var(--c-accent); padding-left: 0.75rem; color: var(--c-text-muted); margin: 0.4rem 0; }
 /* A wide table scrolls inside the bubble instead of stretching it. `display:
    block` makes the table its own scroll container; `width: max-content` lets
    the columns keep their natural width inside it, and `max-width: 100%` is what
@@ -414,7 +414,7 @@ html, body { overflow: hidden !important; }
     top: var(--q-header-height, 52px);
     left: calc(-1 * var(--hist-w) - 4px); bottom: 0;
     width: var(--hist-w) !important;
-    background: var(--c-bg-deep); border-right: 2px solid #6d28d9;
+    background: var(--c-bg-deep); border-right: 1px solid var(--c-border);
     box-shadow: 4px 0 24px rgba(0,0,0,.75);
     z-index: 501; transition: left .3s cubic-bezier(.4,0,.2,1);
     display: flex; flex-direction: column; overflow: hidden;
@@ -425,7 +425,7 @@ html, body { overflow: hidden !important; }
     width: 5px; cursor: col-resize; z-index: 2;
     background: transparent; transition: background .15s;
 }
-.chat-hist-resize:hover, .chat-hist-resize.dragging { background: rgba(109,40,217,0.45); }
+.chat-hist-resize:hover, .chat-hist-resize.dragging { background: var(--c-accent-border); }
 .chat-history-scrim {
     display: none; position: fixed;
     top: var(--q-header-height, 52px); left: 0; right: 0; bottom: 0;
@@ -440,7 +440,7 @@ html, body { overflow: hidden !important; }
 }
 .chat-history-item:hover { background: #1a2235; }
 .chat-history-item:hover .chat-hist-actions { opacity: 1; }
-.chat-history-item.active { background: var(--c-surface-3); border-left-color: #6d28d9; }
+.chat-history-item.active { background: var(--c-surface-3); border-left-color: var(--c-accent); }
 .chat-hist-actions { opacity: 0; transition: opacity .15s; display: flex; gap: 0; flex-shrink: 0; }
 @media (max-width: 767px) {
     .chat-hist-actions { opacity: 1 !important; }
@@ -453,7 +453,7 @@ html, body { overflow: hidden !important; }
         position: fixed !important;
         top: var(--q-header-height, 52px); right: -100%; bottom: 0;
         width: 94% !important; max-width: 480px !important;
-        background: var(--c-bg); border-left: 2px solid #6d28d9;
+        background: var(--c-bg); border-left: 1px solid var(--c-border);
         box-shadow: -4px 0 24px rgba(0,0,0,.7);
         z-index: 500; transition: right .3s cubic-bezier(.4,0,.2,1); overflow: hidden;
     }
@@ -494,21 +494,28 @@ html, body { overflow: hidden !important; }
     background: var(--c-surface) !important;
 }
 .chat-main-input .q-field__control:hover {
-    border-color: #7c3aed !important;
+    border-color: var(--c-border-strong) !important;
 }
 .chat-main-input.q-field--focused .q-field__control {
-    border-color: #7c3aed !important;
-    box-shadow: 0 0 0 3px rgba(124,58,237,0.18) !important;
+    border-color: var(--c-accent) !important;
+    box-shadow: 0 0 0 3px var(--c-accent-soft) !important;
 }
 .chat-main-input .q-field__native { color: var(--c-text-2) !important; }
 /* The model and backend selects are not user input in the accent sense — they
-   pick a setting. Neutral border, so purple keeps meaning one thing. */
+   pick a setting. Neutral border, so the accent keeps meaning one thing. */
 .chat-model-sel .q-field__control:before,
 .chat-model-sel .q-field__control:after,
 .chat-backend-sel .q-field__control:before,
 .chat-backend-sel .q-field__control:after {
     border-color: var(--c-border-strong) !important;
 }
+/* Input row controls: neutral icons, and a send button with the input's
+   corner radius — a round button read as a foreign element next to it. */
+.chat-input-tool { flex-shrink: 0; min-width: 36px; width: 36px; height: 36px;
+    color: var(--c-text-muted); border-radius: 10px; }
+.chat-input-tool:hover { color: var(--c-text); }
+.chat-send-btn { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; }
+.chat-send-btn .q-icon { font-size: 20px; }
 /* Mic button active state */
 .chat-mic-btn.mic-active { background: #450a0a !important; }
 .chat-mic-btn.mic-active .q-icon, .chat-mic-btn.mic-active i { color: #f87171 !important; }
@@ -535,21 +542,21 @@ html, body { overflow: hidden !important; }
 .chat-edge-handle:hover { background: var(--c-surface-2); }
 .chat-edge-handle .q-icon { color: var(--c-text-muted); font-size: 18px; }
 .chat-edge-handle.has-results {
-    background: rgba(124,58,237,0.16);
-    border-color: rgba(124,58,237,0.55);
+    background: var(--c-accent-soft);
+    border-color: var(--c-accent-border);
 }
-.chat-edge-handle.has-results .q-icon { color: #c4b5fd; }
+.chat-edge-handle.has-results .q-icon { color: var(--c-accent-text); }
 .chat-edge-badge {
     position: absolute; top: -7px; left: -9px; z-index: 2;
-    background: #7c3aed; color: #fff;
+    background: var(--c-accent); color: #fff;
     font-size: 0.6rem; font-weight: 700; line-height: 1;
     border-radius: 999px; padding: 2px 5px; min-width: 16px;
     text-align: center; pointer-events: none;
     box-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 @keyframes results-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(124,58,237,0.7); }
-    100% { box-shadow: 0 0 0 12px rgba(124,58,237,0); }
+    0% { box-shadow: 0 0 0 0 rgba(79,124,243,0.7); }
+    100% { box-shadow: 0 0 0 12px rgba(79,124,243,0); }
 }
 .chat-edge-handle.pulse { animation: results-pulse 0.9s ease-out 2; }
 /* Quasar gives q-scrollarea__content min-width:100% + absolute positioning,
@@ -561,10 +568,21 @@ html, body { overflow: hidden !important; }
 .pb-cite {
     display: inline-block; min-width: 1.35em; padding: 0 .35em; margin-left: 2px;
     border-radius: .7em; font-size: .68em; line-height: 1.45; text-align: center;
-    vertical-align: super; background: var(--c-border); color: var(--c-text-2);
+    vertical-align: super; background: var(--c-accent-soft); color: var(--c-accent-text);
+    box-shadow: inset 0 0 0 1px var(--c-accent-border);
     cursor: pointer; user-select: none; touch-action: manipulation;
 }
 .pb-cite:hover, .pb-cite-item:hover { color: var(--c-text); }
+/* The user's own message: an accent tint, not a solid slab. */
+.pb-user-bubble {
+    background: var(--c-accent-soft); border: 1px solid var(--c-accent-border);
+    border-radius: 12px 12px 3px 12px; padding: 10px 14px; font-size: 0.875rem;
+    color: var(--c-text); word-break: break-word; line-height: 1.5;
+}
+.chat-bubble { border: 1px solid var(--c-border); }
+/* Quasar's default track is a pale grey that vanishes on the light surface.
+   Its colour class is layered !important, so set the SVG stroke instead. */
+.chat-ctx-ring .q-circular-progress__track { stroke: var(--c-border-strong) !important; }
 .pb-cite.is-active { background: var(--c-accent); color: #fff; }
 .pb-cite-list {
     display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 8px 10px;
@@ -629,10 +647,10 @@ html, body { overflow: hidden !important; }
 .pb-src-img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .pb-src-hl {
     position: absolute; pointer-events: none; border-radius: 2px;
-    background: rgba(139, 92, 246, .28); box-shadow: 0 0 0 1px rgba(139, 92, 246, .55);
+    background: var(--c-hl); box-shadow: 0 0 0 1px var(--c-hl-line);
     mix-blend-mode: multiply;
 }
-.pb-src-hl.is-other { background: rgba(139, 92, 246, .12); box-shadow: 0 0 0 1px rgba(139, 92, 246, .3); }
+.pb-src-hl.is-other { background: var(--c-hl-soft); box-shadow: none; }
 /* Same trap, message list: without the cap the content box grows to the
    max-content width of the widest thing in the conversation — one wide table
    and every bubble's `max-width: 85%` is suddenly 85% of something far larger
@@ -667,7 +685,7 @@ html, body { overflow: hidden !important; }
     border-radius: 999px; padding: 1px 6px; line-height: 1.2; min-width: 15px;
     text-align: center;
 }
-.chat-results-exp.has-hits .tab-count { background: #4c1d95; color: #ddd6fe; }
+.chat-results-exp.has-hits .tab-count { background: var(--c-accent-soft); color: var(--c-accent-text); }
 /* Web result cards (RSS-feed style) */
 .web-card { transition: transform .12s, box-shadow .12s; }
 .web-card:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(0,0,0,0.45) !important; }
@@ -676,7 +694,7 @@ html, body { overflow: hidden !important; }
 .typing-dots { display:inline-flex; align-items:center; gap:4px; padding:2px 0; }
 .typing-dots span {
     display:inline-block; width:7px; height:7px; border-radius:50%;
-    background:#a78bfa; opacity:0.3;
+    background:var(--c-accent); opacity:0.3;
     animation: typing-bounce 1.2s ease-in-out infinite;
 }
 .typing-dots span:nth-child(2) { animation-delay:0.2s; }
@@ -863,12 +881,12 @@ async def chat():
                 if fact.confidence < 1.0:
                     ui.label(f"{fact.confidence:.0%}").style(
                         "position:absolute; top:8px; right:8px; font-size:0.6rem;"
-                        "background:#2d1b5e; color:#c4b5fd; border-radius:3px; padding:1px 4px;"
+                        "background:var(--c-accent-soft); color:var(--c-accent-text); border-radius:3px; padding:1px 4px;"
                         "font-family:monospace;"
                     )
             with ui.column().classes("p-2 gap-1 w-full"):
                 ui.label(fact.text).classes(
-                    "text-xs text-purple-100 leading-tight"
+                    "text-xs pb-accent-text leading-tight"
                 ).style(
                     "display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;"
                     "overflow:hidden;"
@@ -877,11 +895,11 @@ async def chat():
                 if fact.tags:
                     with ui.row().classes("flex-wrap gap-1"):
                         for t in fact.tags[:3]:
-                            ui.badge(t, color="purple").classes("text-xs")
+                            ui.badge(t, color="primary").classes("text-xs")
                 if fact.distance < 1.0:
-                    ui.label(_("Dist: {dist}").format(dist=f"{fact.distance:.2f}")).classes("text-xs text-purple-700")
+                    ui.label(_("Dist: {dist}").format(dist=f"{fact.distance:.2f}")).classes("text-xs pb-accent-text")
                 with ui.row().classes("items-center justify-between mt-1 w-full"):
-                    ui.badge("memory", color="purple").classes("text-xs")
+                    ui.badge("memory", color="primary").classes("text-xs")
                     ui.icon("open_in_new", size="xs").classes("text-gray-600")
 
     def _render_web_card(r) -> None:
@@ -1155,9 +1173,7 @@ async def chat():
         if msg["role"] == "user":
             with ui.row().classes("justify-end w-full"):
                 ui.html(
-                    f'<div style="background:#6d28d9;border-radius:12px 0 12px 12px;'
-                    f"padding:10px 14px;font-size:0.875rem;color:#f8fafc;"
-                    f'word-break:break-word;line-height:1.5;">'
+                    f'<div class="pb-user-bubble">'
                     f"{_html.escape(msg['content'])}"
                     f"</div>",
                     sanitize=False,
@@ -1278,8 +1294,8 @@ async def chat():
             history_drawer.classes(remove="open")
             history_scrim.classes(remove="open")
         history_toggle_btn.classes(
-            remove="text-gray-400 text-purple-400",
-            add="text-purple-400" if visible else "text-gray-400",
+            remove="text-gray-400 pb-accent-text",
+            add="pb-accent-text" if visible else "text-gray-400",
         )
 
     def _refresh_history_list() -> None:
@@ -1334,7 +1350,7 @@ async def chat():
         if cw > 0:
             ratio = min(1.0, ct / cw)
             pct = int(ratio * 100)
-            color = "red" if ratio >= 0.9 else "orange" if ratio >= 0.75 else "purple"
+            color = "red" if ratio >= 0.9 else "orange" if ratio >= 0.75 else "primary"
             ctx_progress.set_value(ratio)
             ctx_progress.props(f"color={color}")
             ctx_progress.style("opacity:1;")
@@ -1348,9 +1364,12 @@ async def chat():
                 add="text-amber-500" if ratio >= 0.75 else "text-gray-600",
             )
         else:
+            # No window size known yet (before the first answer). An empty chat
+            # still uses exactly 0 % of any window — say so instead of an empty
+            # ring; with messages but no size, the share is genuinely unknown.
             ctx_progress.set_value(0.0)
-            ctx_progress.style("opacity:0.35;")
-            ctx_pct_label.set_text("")
+            ctx_progress.style("opacity:1;")
+            ctx_pct_label.set_text("0%" if ct == 0 else "–")
             ctx_tt.set_text(_("Context: –"))
             compact_btn.classes(remove="text-amber-500", add="text-gray-600")
 
@@ -1362,6 +1381,7 @@ async def chat():
         _s["context_window"] = 0
         _s["current_ctx_tokens"] = 0
         ng_app.storage.user["chat_conv_id"] = conv_id
+        ng_app.storage.user.pop("chat_fresh", None)
         ng_app.storage.user.pop("chat_history", None)
         ng_app.storage.user.pop("chat_token_count", None)
         ng_app.storage.user.pop("chat_context_window", None)
@@ -1405,7 +1425,7 @@ async def chat():
                         _chat_hist.rename_conversation(conv_id, _username, new_title)
                         dlg.close()
                         _refresh_history_list()
-                ui.button(_("Save"), on_click=_do_rename).props("unelevated dark dense").classes("bg-purple-700 text-white")
+                ui.button(_("Save"), on_click=_do_rename).props("unelevated dark dense").classes("bg-primary text-white")
         dlg.open()
 
     def _new_conv() -> None:
@@ -1422,6 +1442,9 @@ async def chat():
         ng_app.storage.user.pop("chat_token_count", None)
         ng_app.storage.user.pop("chat_context_window", None)
         ng_app.storage.user.pop("chat_conv_id", None)
+        # Deliberately empty: coming back must not reopen the latest
+        # conversation from the database (chat_on_open == "last").
+        ng_app.storage.user["chat_fresh"] = True
         messages_container.clear()
         with messages_container:
             _welcome_msg()
@@ -1476,11 +1499,11 @@ async def chat():
                 with ui.element("div").classes("chat-bubble").style(
                     "background:var(--c-surface-3); border-radius:0 12px 12px 12px;"
                     "padding:10px 14px; max-width:85%;min-width:0; font-size:0.875rem; color:var(--c-text-2);"
-                    "border-left:3px solid #6d28d9; display:flex; flex-direction:column; gap:6px;"
+                    "border-left:3px solid var(--c-accent); display:flex; flex-direction:column; gap:6px;"
                 ):
                     with ui.row().classes("items-center gap-2"):
-                        ui.spinner(size="xs").classes("text-purple-400")
-                        ui.label(_("Compressing…")).classes("text-xs text-purple-300")
+                        ui.spinner(size="xs").classes("pb-accent-text")
+                        ui.label(_("Compressing…")).classes("text-xs pb-accent-text")
                     compact_md = ui.markdown(
                         "", sanitize=False, extras=_MD_EXTRAS
                     ).classes("chat-md")
@@ -1512,10 +1535,10 @@ async def chat():
                         with ui.element("div").classes("chat-bubble").style(
                             "background:var(--c-surface-3); border-radius:0 12px 12px 12px;"
                             "padding:10px 14px; max-width:85%;min-width:0; font-size:0.875rem; color:var(--c-text-2);"
-                            "border-left:3px solid #6d28d9;"
+                            "border-left:3px solid var(--c-accent);"
                         ):
                             ui.label(_("🗜 Compressed conversation")).classes(
-                                "text-xs text-purple-400 font-semibold mb-2"
+                                "text-xs pb-accent-text font-semibold mb-2"
                             )
                             ui.markdown(
                                 escape_intraword_underscores(summary),
@@ -1540,7 +1563,7 @@ async def chat():
         finally:
             _s["running"] = False
             _s["stop_requested"] = False
-            send_btn.props(add="icon=send color=purple")
+            send_btn.props(add="icon=send color=primary")
             messages_scroll.scroll_to(percent=1.0)
 
     # ── Chat history left drawer ──────────────────────────────────────────────
@@ -1570,9 +1593,8 @@ async def chat():
                 on_click=lambda: _new_conv(),
             ).props("unelevated dark no-caps").style(
                 "flex:1; max-width:220px; height:30px; border-radius:7px;"
-                "background:linear-gradient(135deg,#4c1d95 0%,#7c3aed 100%);"
-                "color:#ede9fe; font-weight:600; font-size:0.78rem; letter-spacing:0.01em;"
-                "box-shadow:0 2px 10px rgba(109,40,217,0.3);"
+                "background:var(--c-accent); color:#fff;"
+                "font-weight:600; font-size:0.78rem; letter-spacing:0.01em;"
             )
         # Conversation list (scrollable)
         history_list_container = ui.element("div").style(
@@ -1719,13 +1741,14 @@ async def chat():
                             ):
                                 ctx_progress = ui.circular_progress(
                                     value=0.0, min=0.0, max=1.0, size="30px",
-                                    color="purple", show_value=False,
-                                ).props("thickness=0.2").style("opacity:0.35;")
-                                ctx_pct_label = ui.label("").style(
+                                    color="primary", show_value=False,
+                                ).props("thickness=0.2").classes("chat-ctx-ring")
+                                # An empty chat uses 0 % of any window.
+                                ctx_pct_label = ui.label("0%").style(
                                     "position:absolute;"
                                     "top:50%; left:50%; transform:translate(-50%,-50%);"
                                     "font-size:8px; font-weight:700;"
-                                    "color:#c4b5fd; pointer-events:none; line-height:1;"
+                                    "color:var(--c-text-2); pointer-events:none; line-height:1;"
                                     "white-space:nowrap;"
                                 )
                                 ctx_tt = ui.tooltip(_("Context: –"))
@@ -1786,7 +1809,7 @@ async def chat():
                             "display:flex; align-items:flex-start; gap:6px;"
                             "padding:3px 12px; flex-wrap:nowrap;"
                         ):
-                            ui.spinner(size="xs").classes("text-purple-400").style("flex-shrink:0; margin-top:2px;")
+                            ui.spinner(size="xs").classes("pb-accent-text").style("flex-shrink:0; margin-top:2px;")
                             activity_label = ui.label("").classes(
                                 "text-xs text-gray-500"
                             ).style("white-space:normal; word-break:break-word; line-height:1.4;")
@@ -1994,19 +2017,17 @@ async def chat():
                             "display:flex; align-items:center; gap:8px;"
                         ):
                             tools_toggle_btn = (
-                                ui.button(icon="tune")
+                                ui.button(icon="tune", color=None)
                                 .props("flat dark")
-                                .classes("text-gray-500")
-                                .style("flex-shrink:0; min-width:36px; width:36px; height:36px;")
+                                .classes("chat-input-tool")
                                 .tooltip(_("Configure tools"))
                             )
                             tools_toggle_btn.on_click(lambda: _toggle_tools_panel())
 
                             compact_btn = (
-                                ui.button(icon="compress")
+                                ui.button(icon="compress", color=None)
                                 .props("flat dark")
-                                .classes("text-gray-600")
-                                .style("flex-shrink:0; min-width:36px; width:36px; height:36px;")
+                                .classes("chat-input-tool")
                                 .tooltip(_("Compress chat"))
                             )
                             compact_btn.on_click(lambda: asyncio.ensure_future(_compact_chat()))
@@ -2046,7 +2067,7 @@ async def chat():
 
                             with ui.element("div").classes("chat-mic-btn").style(
                                 "display:inline-flex; align-items:center; justify-content:center;"
-                                "width:38px; height:38px; border-radius:8px; cursor:pointer;"
+                                "width:44px; height:44px; border-radius:12px; cursor:pointer;"
                                 "background:var(--c-surface-2); flex-shrink:0;"
                                 "transition:background .2s, color .2s;"
                             ):
@@ -2054,7 +2075,7 @@ async def chat():
 
                             send_btn = (
                                 ui.button(icon="send", on_click=_handle_send_or_stop)
-                                .props("color=purple unelevated round dense")
+                                .props("color=primary unelevated dense")
                                 .classes("chat-send-btn")
                             )
 
@@ -2707,14 +2728,14 @@ window.__openVaultNote = function(noteId) {{
                 with (
                     ui.row()
                     .classes("items-center gap-0 rounded-full px-2")
-                    .style("background:#4c1d95; height:22px;")
+                    .style("background:var(--c-accent-soft); height:22px;")
                 ):
                     ui.label(f"#{_pd['id']} {_title}").classes(
-                        "text-xs text-purple-200"
+                        "text-xs pb-accent-text"
                     )
                     ui.button(icon="close", on_click=_make_unpin()).props(
                         "flat dense dark"
-                    ).classes("text-purple-300").style(
+                    ).classes("pb-accent-text").style(
                         "width:16px; height:16px; font-size:10px; padding:0; min-height:0;"
                     )
 
@@ -2738,8 +2759,8 @@ window.__openVaultNote = function(noteId) {{
         _s["tools_panel_open"] = not _s["tools_panel_open"]
         tools_panel.set_visibility(_s["tools_panel_open"])
         tools_toggle_btn.classes(
-            remove="text-gray-400 text-purple-400",
-            add="text-purple-400" if _s["tools_panel_open"] else "text-gray-400",
+            remove="text-gray-400 pb-accent-text",
+            add="pb-accent-text" if _s["tools_panel_open"] else "text-gray-400",
         )
 
     def _send_quick(text: str) -> None:
@@ -2928,9 +2949,7 @@ window.__openVaultNote = function(noteId) {{
         with messages_container:
             with ui.row().classes("justify-end w-full"):
                 ui.html(
-                    f'<div style="background:#6d28d9;border-radius:12px 0 12px 12px;'
-                    f"padding:10px 14px;font-size:0.875rem;color:#f8fafc;"
-                    f'word-break:break-word;line-height:1.5;">'
+                    f'<div class="pb-user-bubble">'
                     f"{_html.escape(text)}"
                     f"</div>",
                     sanitize=False,
@@ -2958,9 +2977,9 @@ window.__openVaultNote = function(noteId) {{
                 # Sync has real work to do — tell the user instead of stalling silently
                 with messages_container:
                     with ui.row().classes("justify-start w-full items-center gap-2") as _sync_row:
-                        ui.spinner(size="xs").classes("text-purple-400")
+                        ui.spinner(size="xs").classes("pb-accent-text")
                         ui.label(_("📓 Synchronizing vault …")).classes(
-                            "text-xs text-purple-300"
+                            "text-xs pb-accent-text"
                         )
                 await _scroll_bottom()
                 try:
@@ -3099,7 +3118,7 @@ window.__openVaultNote = function(noteId) {{
             ui.notify(_("No model configured — please set one up in Settings > AI Models."), type="negative")
             _s["running"] = False
             send_btn.props(remove="icon=stop color=red")
-            send_btn.props(add="icon=send color=purple")
+            send_btn.props(add="icon=send color=primary")
             _update_sync_block()
             return
 
@@ -3171,7 +3190,7 @@ window.__openVaultNote = function(noteId) {{
                         }
                     )
                     status_badge[0].set_content(
-                        f'<span style="font-size:0.72rem;color:#a78bfa;font-family:inherit;">'
+                        f'<span style="font-size:0.72rem;color:var(--c-accent-text);font-family:inherit;">'
                         f"{event.label} · {_iter[0]}/{_s['max_iterations']}"
                         f" · {_calls_lbl.format(n=_tool_calls[0])}"
                         f"</span>"
@@ -3307,7 +3326,7 @@ window.__openVaultNote = function(noteId) {{
                                             "items-center gap-2 mb-1"
                                         ):
                                             ui.badge(
-                                                f"Iter {step['iter']}", color="purple"
+                                                f"Iter {step['iter']}", color="primary"
                                             ).classes("text-xs")
                                             ui.label(step["label"].rstrip(".")).classes(
                                                 "text-xs text-gray-300 font-medium"
@@ -3942,7 +3961,7 @@ window.__openVaultNote = function(noteId) {{
                                 ui.button(
                                     _("Start task"), icon="auto_awesome",
                                     on_click=_start_kanban_task,
-                                ).props("unelevated dark").classes("bg-purple-700 text-white")
+                                ).props("unelevated dark").classes("bg-primary text-white")
 
                 _kanban_dlg.open()
 
@@ -3990,13 +4009,14 @@ window.__openVaultNote = function(noteId) {{
                                 icon="download",
                                 on_click=lambda _e, _d=_did: _do_doc_download(_d),
                             ).props("flat dark dense").classes(
-                                "text-purple-300 text-xs"
+                                "pb-accent-text text-xs"
                             )
 
-            send_btn.props(add="icon=send color=purple")
+            send_btn.props(add="icon=send color=primary")
             _s["running"] = False
             _s["stop_requested"] = False
             ng_app.storage.user["chat_history"] = list(_s["messages"])
+            ng_app.storage.user.pop("chat_fresh", None)
             ng_app.storage.user["chat_token_count"] = _s["total_tokens"]
             ng_app.storage.user["chat_context_window"] = _s["context_window"]
             messages_scroll.scroll_to(percent=1.0)
@@ -4015,8 +4035,26 @@ window.__openVaultNote = function(noteId) {{
                 _chat_hist.append_messages(_s["conv_id"], _username, new_msgs)
 
     # ── Restore or initialize chat ────────────────────────────────────────────
+    # Per-user setting: open the last conversation (default) or a fresh one.
+    # "Last" means this browser's open chat, else the user's most recent
+    # conversation — so a second device opens where the first one left off.
+    if get_pref("chat_on_open", "last") == "new":
+        for _k in ("chat_history", "chat_token_count", "chat_context_window", "chat_conv_id", "chat_fresh"):
+            ng_app.storage.user.pop(_k, None)
     _saved = ng_app.storage.user.get("chat_history") or []
-    if _saved:
+    _latest = None
+    if (
+        not _saved
+        and _username
+        and get_pref("chat_on_open", "last") == "last"
+        and not ng_app.storage.user.get("chat_fresh")
+    ):
+        _convs = _chat_hist.list_conversations(_username)
+        _latest = _convs[0]["id"] if _convs else None
+    if _latest:
+        _load_conv(_latest)
+        messages_scroll.scroll_to(percent=1.0)
+    elif _saved:
         _s["messages"] = list(_saved)
         _s["total_tokens"] = ng_app.storage.user.get("chat_token_count", 0)
         _s["context_window"] = ng_app.storage.user.get("chat_context_window", 0)

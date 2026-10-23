@@ -216,7 +216,7 @@ def build_memo_dialog():
             # service, which rewrite prompt runs, and the length/size caps.
             # No `color=` prop on purpose: on a QBtnToggle that paints the
             # *unselected* segments (in Quasar's own Material purple, which is
-            # not the brand purple), so both halves end up filled with two
+            # not the brand accent), so both halves end up filled with two
             # clashing colours. Styling lives in CSS below, off theme tokens.
             mode_toggle = (
                 ui.toggle(
@@ -237,7 +237,7 @@ def build_memo_dialog():
                 with ui.column().classes("items-center gap-1"):
                     # `color=None`: with Quasar's default the button carries
                     # `bg-primary`, and theme.py's recording background is a
-                    # 12%-alpha amber that tints the purple instead of replacing
+                    # 12%-alpha amber that tints the accent instead of replacing
                     # it — so a live microphone still read as the accent colour,
                     # and the neutral-at-rest rule the theme documents never
                     # applied here at all.
@@ -295,7 +295,7 @@ def build_memo_dialog():
                 )
                 .props(
                     'accept="audio/*,.wav,.m4a,.mp3,.ogg,.flac,.webm,.mp4,.aac" '
-                    "flat dense dark hide-upload-btn"
+                    "flat dense hide-upload-btn"
                 )
                 .classes("w-full memo-upload")
             )
@@ -320,7 +320,7 @@ def build_memo_dialog():
             ui.button(_("Discard"), on_click=lambda: _reset_and_close()).props(
                 "flat dark dense"
             )
-            save_btn = ui.button(_("Save")).props("unelevated dense color=purple")
+            save_btn = ui.button(_("Save")).props("unelevated dense color=primary")
 
     def _reset_status() -> None:
         """Reset the status line through the DOM, not through `status.text`.

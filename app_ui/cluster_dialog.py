@@ -74,7 +74,7 @@ def create_cluster_dialog(
                             "width:28px; flex-shrink:0; padding-top:10px;"
                         ):
                             _dot_bg = (
-                                "background:#7c3aed; box-shadow:0 0 8px #7c3aed80;"
+                                "background:var(--c-accent);"
                                 if _is_root else "background:var(--c-border-strong);"
                             )
                             ui.element("div").style(
@@ -87,7 +87,7 @@ def create_cluster_dialog(
                                     "min-height:28px; margin-top:3px;"
                                 )
                         _border = (
-                            "border:1px solid #7c3aed; background:rgba(124,58,237,0.07);"
+                            "border:1px solid var(--c-accent-border); background:var(--c-accent-soft);"
                             if _is_root else "border:1px solid var(--c-border);"
                         )
                         with ui.row().classes(
@@ -98,7 +98,7 @@ def create_cluster_dialog(
                                 "font-family:monospace;"
                             )
                             ui.label(f"#{_doc_obj.id}").style(
-                                "color:#a78bfa; font-size:11px; font-weight:600;"
+                                "color:var(--c-accent-text); font-size:11px; font-weight:600;"
                                 "flex-shrink:0; font-family:monospace;"
                                 "cursor:pointer; text-decoration:underline;"
                             ).on("click", lambda res=_r: _open_doc(res))
@@ -120,7 +120,7 @@ def create_cluster_dialog(
                                 icon="push_pin",
                                 on_click=lambda r=_r: pin_fn(r),
                             ).props("flat dense dark").classes(
-                                "text-purple-400 flex-shrink-0"
+                                "pb-accent-text flex-shrink-0"
                                 if _is_pinned_doc else "text-gray-400 flex-shrink-0"
                             )
                             ui.button(

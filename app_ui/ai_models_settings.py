@@ -171,7 +171,7 @@ def ai_models_setting(username: str, token: str) -> None:
             with ui.row().classes("w-full justify-end gap-2 mt-4"):
                 ui.button(_("Cancel"), on_click=dlg.close).props("flat dark").classes("text-gray-400")
                 ui.button(_("Save"), icon="save", on_click=_submit).props("unelevated dark").classes(
-                    "bg-purple-700 text-white"
+                    "bg-primary text-white"
                 )
         dlg.open()
 
@@ -324,7 +324,7 @@ def ai_models_setting(username: str, token: str) -> None:
             with ui.row().classes("w-full justify-end gap-2 mt-4"):
                 ui.button(_("Cancel"), on_click=dlg.close).props("flat dark").classes("text-gray-400")
                 ui.button(_("Save"), icon="save", on_click=_submit).props("unelevated dark").classes(
-                    "bg-purple-700 text-white"
+                    "bg-primary text-white"
                 )
         dlg.open()
 
@@ -391,7 +391,7 @@ def ai_models_setting(username: str, token: str) -> None:
                 )
         ui.button(_("Service"), icon="add", on_click=lambda: _open_provider_dialog()).props(
             "unelevated dark dense"
-        ).classes("bg-purple-700 text-white flex-shrink-0")
+        ).classes("bg-primary text-white flex-shrink-0")
     ui.separator().classes("mb-3")
 
     def _menu_button(entries: list[tuple[str, str, object, bool]]) -> None:

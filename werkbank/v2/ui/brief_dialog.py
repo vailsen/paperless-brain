@@ -157,7 +157,7 @@ class BriefDialog:
             with ui.row().classes("w-full justify-end gap-2 mt-3"):
                 ui.button(_("Cancel"), on_click=lambda: dialog.submit(None)).props("flat dense")
                 ui.button(_("Start"), on_click=self._submit).props(
-                    "unelevated dense color=purple"
+                    "unelevated dense color=primary"
                 )
         return dialog
 
