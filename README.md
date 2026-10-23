@@ -19,8 +19,7 @@ Installable PWA — built for mobile and desktop.</p>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/live_text_origin.png" alt="A chat answer about a contract; a reference number opens the source page with the passage highlighted" width="820"><br>
-  <sub>Every claim carries a number — tap it and the source page opens with the passage marked.</sub>
+  <img src="docs/screenshots/chat-light.png" alt="Chat answer with tables read from a type-approval certificate, the matching documents beside it" width="820">
 </p>
 
 ---
@@ -80,12 +79,12 @@ talk to.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Dashboard showing extracted deadlines and actions"><br><sub><b>Dashboard</b> — deadlines & actions extracted from every document</sub></td>
-    <td width="50%"><img src="docs/screenshots/document-detail.png" alt="Document detail dialog with vision-read pages, tables and actions"><br><sub><b>Document detail</b> — vision-read pages, tables, actions, cross-references</sub></td>
+    <td width="50%"><img src="docs/screenshots/dashboard-light.png" alt="Dashboard showing extracted deadlines and actions"><br><sub><b>Dashboard</b> — deadlines & actions extracted from every document</sub></td>
+    <td width="50%"><img src="docs/screenshots/document-detail-light.png" alt="Document detail dialog with vision-read pages, tables and actions"><br><sub><b>Document detail</b> — vision-read pages, tables, actions, cross-references</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/chat.png" alt="Chat answer with tables read from a type-approval certificate, the matching documents beside it"><br><sub><b>Chat</b> — tables read from the page, cited, with the matching documents beside it</sub></td>
-    <td width="50%"><img src="docs/screenshots/note-vault.png" alt="Note vault — folder tree, markdown editor and frontmatter properties panel"><br><sub><b>Note vault</b> — tree, markdown editor and properties, without leaving the app</sub></td>
+    <td width="50%"><img src="docs/screenshots/live_text_origin.png" alt="A chat answer about a contract; a reference number opens the source page with the passage highlighted"><br><sub><b>Sources</b> — every claim carries a number; tap it and the page opens with the passage marked</sub></td>
+    <td width="50%"><img src="docs/screenshots/note-vault-light.png" alt="Note vault — folder tree, markdown editor and frontmatter properties panel"><br><sub><b>Note vault</b> — tree, markdown editor and properties, without leaving the app</sub></td>
   </tr>
   <tr>
     <td colspan="2"><img src="docs/screenshots/mobile.png" alt="Three phone screenshots: chat, document details and dashboard" width="100%"><br><sub><b>On the phone</b> — installable PWA: chat, document details, dashboard</sub></td>

@@ -1,17 +1,19 @@
 # Screenshots
 
-These images are embedded in the top-level `README.md`. To refresh one, replace
-the file and keep its name — the README picks it up with no edits.
+These images are embedded in the top-level `README.md`. To refresh one, give the new
+file a **new name** and update the README: browsers (and GitHub's image proxy)
+cache an image by URL, so a replaced file under the same name keeps showing the
+old picture to anyone who saw it before.
 
 ## What is shown
 
 | File | Page | Must show |
 |------|------|-----------|
-| `live_text_origin.png` | Chat + Source tab | The hero image: an answer with reference numbers, one of them opened in the Source tab with the passage highlighted on the page. |
-| `chat.png` | Chat + Results tab | A cited answer (tables read from a page work well) with the matching documents in the panel beside it. |
-| `dashboard.png` | Dashboard | The deadlines / actions overview with a few upcoming items. |
-| `document-detail.png` | Document detail dialog | Summary tab plus the PDF beside it. |
-| `note-vault.png` | Note vault (`/brain`) | The folder tree with a note open and the Properties panel expanded. |
+| `live_text_origin.png` | Chat + Source tab | An answer with reference numbers, one of them opened in the Source tab with the passage highlighted on the page. |
+| `chat-light.png` | Chat + Results tab | The hero image: a cited answer (tables read from a page work well) with the matching documents in the panel beside it. |
+| `dashboard-light.png` | Dashboard | The deadlines / actions overview with a few upcoming items. |
+| `document-detail-light.png` | Document detail dialog | Summary tab plus the PDF beside it. |
+| `note-vault-light.png` | Note vault (`/brain`) | The folder tree with a note open and the Properties panel expanded. |
 | `mobile.png` | Phone (PWA) | Three phone shots side by side — chat, document details, dashboard. Built from three single captures, see below. |
 
 ## How to shoot
