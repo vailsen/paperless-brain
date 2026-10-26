@@ -145,7 +145,15 @@ Conflicts use the vault editor's hash check + merge rather than mtime (D5). Subf
 
 ---
 
-## Phase 5 — IMAP replies
+## Phase 5 — IMAP replies ✅ done (2026-10-26)
+
+Built: `proactive/imap_replies.py` — a module of its own (the chat tool's
+`services/imap_service.py` stays read-only; folder-name and header helpers are
+shared), `proactive/tasks/imap.py` (scheduled only when email is configured).
+`BODY.PEEK` + move after the reaction: a crash re-applies a reaction the state
+machine then ignores. MOVE, else COPY + `\Deleted` + (UID) EXPUNGE. First own line
+or its first word (`Ja, gerne!` counts; a quoted `1` or one in the signature does
+not). Tests: `tests/test_proactive_imap.py`.
 
 - IMAP poller (reuse D4 helper, executor), `UNSEEN` in `IMAP_FOLDER`, match `In-Reply-To`/`References` → `finding_id`, sender == linked address, keyword parse, move to `IMAP_PROCESSED_FOLDER` (create if missing; modified UTF-7 names).
 
