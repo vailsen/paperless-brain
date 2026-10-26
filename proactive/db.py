@@ -118,7 +118,33 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (user, day)
     );
     """,
+    # 3 — small worker state: Telegram update offset, bot username (the app
+    # shows it in the linking instructions but never calls Telegram itself).
+    """
+    CREATE TABLE kv (
+        key        TEXT PRIMARY KEY,
+        value      TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    """,
 ]
+
+
+def kv_get(key: str, default: str = "") -> str:
+    with connect() as conn:
+        r = conn.execute("SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
+    return r["value"] if r else default
+
+
+def kv_set(key: str, value: str) -> None:
+    from proactive import clock
+
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO kv (key, value, updated_at) VALUES (?,?,?)"
+            " ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            (key, value, clock.now_iso()),
+        )
 
 
 class ProactiveDisabled(RuntimeError):

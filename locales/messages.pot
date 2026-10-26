@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-26 12:05+0000\n"
+"POT-Creation-Date: 2026-10-26 12:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -117,7 +117,7 @@ msgstr ""
 #: app_ui/pages/settings.py:760 app_ui/pages/settings.py:865
 #: app_ui/pages/settings.py:916 app_ui/pages/settings.py:961
 #: app_ui/pages/settings.py:1048 app_ui/pages/settings.py:1128
-#: werkbank/ui/archetype_dialog.py:183
+#: app_ui/proactive_settings.py:350 werkbank/ui/archetype_dialog.py:183
 msgid "Save"
 msgstr ""
 
@@ -176,15 +176,15 @@ msgstr ""
 msgid "Model default"
 msgstr ""
 
-#: app_ui/ai_models_settings.py:237
+#: app_ui/ai_models_settings.py:237 proactive/notify/__init__.py:24
 msgid "Low"
 msgstr ""
 
-#: app_ui/ai_models_settings.py:238
+#: app_ui/ai_models_settings.py:238 proactive/notify/__init__.py:25
 msgid "Medium"
 msgstr ""
 
-#: app_ui/ai_models_settings.py:239
+#: app_ui/ai_models_settings.py:239 proactive/notify/__init__.py:26
 msgid "High"
 msgstr ""
 
@@ -865,47 +865,167 @@ msgstr ""
 msgid "Needs background access."
 msgstr ""
 
-#: app_ui/pages/chat.py:3922 app_ui/proactive_settings.py:125
-#: app_ui/proactive_settings.py:127 werkbank/ui/module_page.py:117
+#: app_ui/pages/chat.py:3922 app_ui/proactive_settings.py:129
+#: app_ui/proactive_settings.py:131 werkbank/ui/module_page.py:117
 #: werkbank/v2/ui/page.py:519 werkbank/v2/ui/page.py:521
 msgid "Model"
 msgstr ""
 
-#: app_ui/proactive_settings.py:130
+#: app_ui/proactive_settings.py:134
 msgid "Set by the operator for all users."
 msgstr ""
 
-#: app_ui/proactive_settings.py:134
+#: app_ui/proactive_settings.py:138
 msgid "none"
 msgstr ""
 
-#: app_ui/proactive_settings.py:143
+#: app_ui/proactive_settings.py:147
 #, python-brace-format
 msgid ""
 "This is a cloud model: while your existing documents are analysed, their "
 "text is sent to that provider (at most {n} documents a day)."
 msgstr ""
 
-#: app_ui/proactive_settings.py:154
+#: app_ui/proactive_settings.py:158
 msgid "This model is not allowed for proactive jobs."
 msgstr ""
 
-#: app_ui/pages/brain.py:303 app_ui/proactive_settings.py:161
+#: app_ui/pages/brain.py:303 app_ui/proactive_settings.py:165
+#: app_ui/proactive_settings.py:348
 msgid "Saved"
 msgstr ""
 
-#: app_ui/proactive_settings.py:166
+#: app_ui/proactive_settings.py:170
 msgid "Model for reminders and insights"
-msgstr ""
-
-#: app_ui/proactive_settings.py:169
-#, python-brace-format
-msgid "Default ({model})"
 msgstr ""
 
 #: app_ui/proactive_settings.py:173
 #, python-brace-format
+msgid "Default ({model})"
+msgstr ""
+
+#: app_ui/proactive_settings.py:177
+#, python-brace-format
 msgid "Your earlier choice {model} is not allowed any more; the default is used."
+msgstr ""
+
+#: app_ui/proactive_settings.py:195
+msgid "Notification channels"
+msgstr ""
+
+#: app_ui/proactive_settings.py:198
+msgid ""
+"By default a message contains only a title, the urgency and a link into "
+"the app. Full text only where you switch it on — Telegram chats with a "
+"bot are not end-to-end encrypted, and email leaves the server too."
+msgstr ""
+
+#: app_ui/proactive_settings.py:209
+msgid "Include the full text"
+msgstr ""
+
+#: app_ui/proactive_settings.py:216 app_ui/proactive_settings.py:251
+msgid "Not set up on this server."
+msgstr ""
+
+#: app_ui/proactive_settings.py:219
+msgid "Linked"
+msgstr ""
+
+#: app_ui/proactive_settings.py:225 app_ui/proactive_settings.py:260
+msgid "Unlink"
+msgstr ""
+
+#: app_ui/proactive_settings.py:236
+#, python-brace-format
+msgid "Send this to {bot} in Telegram:"
+msgstr ""
+
+#: app_ui/proactive_settings.py:237
+msgid "your PaperlessBrain bot"
+msgstr ""
+
+#: app_ui/proactive_settings.py:241
+msgid "Valid for 10 minutes, once."
+msgstr ""
+
+#: app_ui/proactive_settings.py:243
+msgid "Link Telegram"
+msgstr ""
+
+#: app_ui/pages/chat.py:721 app_ui/pages/chat.py:3453 app_ui/pages/chat.py:3637
+#: app_ui/proactive_settings.py:249 app_ui/proactive_settings.py:297
+msgid "Email"
+msgstr ""
+
+#: app_ui/proactive_settings.py:263
+msgid "Your email address"
+msgstr ""
+
+#: app_ui/proactive_settings.py:270
+msgid "Please enter a valid email address."
+msgstr ""
+
+#: app_ui/proactive_settings.py:274
+#, python-brace-format
+msgid "A code is on its way to {address}."
+msgstr ""
+
+#: app_ui/proactive_settings.py:276
+msgid "Send code"
+msgstr ""
+
+#: app_ui/proactive_settings.py:277
+msgid "Code from the email"
+msgstr ""
+
+#: app_ui/proactive_settings.py:282
+msgid "This code is invalid or has expired."
+msgstr ""
+
+#: app_ui/proactive_settings.py:285
+msgid "Email address confirmed."
+msgstr ""
+
+#: app_ui/proactive_settings.py:288
+msgid "Confirm"
+msgstr ""
+
+#: app_ui/proactive_settings.py:293
+msgid "No messages"
+msgstr ""
+
+#: app_ui/proactive_settings.py:299
+msgid "Telegram and email"
+msgstr ""
+
+#: app_ui/proactive_settings.py:309
+msgid "Send messages via"
+msgstr ""
+
+#: app_ui/proactive_settings.py:314
+msgid "Test message queued."
+msgstr ""
+
+#: app_ui/proactive_settings.py:316
+msgid "Send test message"
+msgstr ""
+
+#: app_ui/proactive_settings.py:328
+msgid "Deadline reminders"
+msgstr ""
+
+#: app_ui/proactive_settings.py:331
+msgid "Days before a deadline"
+msgstr ""
+
+#: app_ui/proactive_settings.py:335
+#, python-brace-format
+msgid "Empty = {default}."
+msgstr ""
+
+#: app_ui/proactive_settings.py:342
+msgid "Enter whole numbers of days, separated by commas."
 msgstr ""
 
 #: app_ui/pages/chat.py:820 app_ui/pages/chat.py:3265 app_ui/pages/chat.py:3606
@@ -1529,10 +1649,6 @@ msgstr ""
 #: app_ui/pages/chat.py:720 app_ui/pages/chat.py:2772
 #: app_ui/pages/dashboard.py:466 app_ui/pages/settings.py:344
 msgid "Documents"
-msgstr ""
-
-#: app_ui/pages/chat.py:721 app_ui/pages/chat.py:3453 app_ui/pages/chat.py:3637
-msgid "Email"
 msgstr ""
 
 #: app_ui/pages/chat.py:722 app_ui/pages/dashboard.py:585
@@ -3404,6 +3520,75 @@ msgid ""
 "regenerate it in Paperless, you must re-enter the settings."
 msgstr ""
 
+#: proactive/notify/__init__.py:27
+msgid "Critical"
+msgstr ""
+
+#: proactive/notify/__init__.py:30
+msgid "Interesting"
+msgstr ""
+
+#: proactive/notify/__init__.py:31
+msgid "Later"
+msgstr ""
+
+#: proactive/notify/__init__.py:32
+msgid "Never again"
+msgstr ""
+
+#: proactive/notify/__init__.py:33 werkbank/ui/module_page.py:180
+msgid "Done"
+msgstr ""
+
+#: proactive/notify/__init__.py:34
+msgid "Wrongly detected"
+msgstr ""
+
+#: proactive/notify/__init__.py:93
+#, python-brace-format
+msgid "Urgency: {urgency}"
+msgstr ""
+
+#: proactive/notify/email.py:66 proactive/notify/email.py:73
+msgid "Or reply with 1 (interesting), 2 (later) or 3 (never again)."
+msgstr ""
+
+#: proactive/notify/telegram.py:116
+msgid ""
+"This code is invalid or has expired. Create a new one in PaperlessBrain "
+"under Settings > Proactive."
+msgstr ""
+
+#: proactive/notify/telegram.py:125
+#, python-brace-format
+msgid "Linked to PaperlessBrain as {user}. Send /stop to unlink."
+msgstr ""
+
+#: proactive/notify/telegram.py:131
+msgid "Unlinked. This chat no longer receives messages."
+msgstr ""
+
+#: proactive/tasks/notify.py:47
+msgid "PaperlessBrain test message"
+msgstr ""
+
+#: proactive/tasks/notify.py:49
+msgid "If you can read this, notifications reach you on this channel."
+msgstr ""
+
+#: proactive/tasks/notify.py:72
+msgid "Your PaperlessBrain confirmation code"
+msgstr ""
+
+#: proactive/tasks/notify.py:74
+#, python-brace-format
+msgid ""
+"Your code: {code}\n"
+"\n"
+"Enter it in PaperlessBrain under Settings > Proactive within 10 minutes. "
+"If you did not ask for this, ignore this message."
+msgstr ""
+
 #: services/chat_service.py:998
 msgid "🔍 Searching documents..."
 msgstr ""
@@ -3618,10 +3803,6 @@ msgstr ""
 
 #: werkbank/ui/module_page.py:179
 msgid "To review"
-msgstr ""
-
-#: werkbank/ui/module_page.py:180
-msgid "Done"
 msgstr ""
 
 #: werkbank/ui/module_page.py:235 werkbank/v2/ui/page.py:556

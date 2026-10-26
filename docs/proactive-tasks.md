@@ -89,7 +89,17 @@ dropdown in Settings > Proactive. Tests: `tests/test_proactive_gate.py`.
 
 ---
 
-## Phase 3 — Notifier + channel linking
+## Phase 3 — Notifier + channel linking ✅ done (2026-10-26)
+
+Built: `proactive/notify/` (`Notification`, `compose`, per-channel delivery jobs so a
+failing channel retries alone), `notify/telegram.py` (Bot API over httpx — no new
+dependency; worker-only poller, offset persisted per update, 409 logged and backed
+off; `/start <code>`, `/stop`; callbacks act only for the finding owner's linked
+chat), `notify/email.py` (**stdlib `smtplib` in a thread instead of `aiosmtplib`** —
+no new dependency for a few mails a week; `Message-ID: <{finding_id}.{hex}@{domain}>`),
+`proactive/linking.py` (codes: 8 chars, 10 min, single use, hashed), `i18n.translator_for`,
+Settings > Proactive: channels, linking, email verification, full-text opt-in, offsets,
+test message. Tests: `tests/test_proactive_notify.py`. Reactions arrive with Phase 4.
 
 - `Notification` + `Channel` protocol (architecture §7). Localized templates via existing translator.
 - Telegram: the worker is the sole poller of a dedicated bot token (no Hermes bot to migrate — diagnostics D3); `/start <code>`, `/stop`; outbound send; inline keyboard; callback handler verifying chat ↔ owner.
