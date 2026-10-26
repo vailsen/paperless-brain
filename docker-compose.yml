@@ -74,6 +74,8 @@ services:
     env_file: .env
     environment:
       APP_PATH: /app/
+      # Similar documents and deep dives run in the app (Chroma, chat tools).
+      PROACTIVE_INTERNAL_URL: http://paperless-brain:${PORT:-8080}
     # network_mode: host  # same as the app if the worker may wake the GPU host (WoL)
     volumes:
       - ./data:/app/data

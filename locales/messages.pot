@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-26 12:24+0000\n"
+"POT-Creation-Date: 2026-10-26 12:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -117,7 +117,8 @@ msgstr ""
 #: app_ui/pages/settings.py:760 app_ui/pages/settings.py:865
 #: app_ui/pages/settings.py:916 app_ui/pages/settings.py:961
 #: app_ui/pages/settings.py:1048 app_ui/pages/settings.py:1128
-#: app_ui/proactive_settings.py:350 werkbank/ui/archetype_dialog.py:183
+#: app_ui/proactive_settings.py:350 app_ui/proactive_settings.py:379
+#: werkbank/ui/archetype_dialog.py:183
 msgid "Save"
 msgstr ""
 
@@ -896,7 +897,7 @@ msgid "This model is not allowed for proactive jobs."
 msgstr ""
 
 #: app_ui/pages/brain.py:303 app_ui/proactive_settings.py:165
-#: app_ui/proactive_settings.py:348
+#: app_ui/proactive_settings.py:348 app_ui/proactive_settings.py:377
 msgid "Saved"
 msgstr ""
 
@@ -1031,6 +1032,26 @@ msgstr ""
 
 #: app_ui/proactive_settings.py:342
 msgid "Enter whole numbers of days, separated by commas."
+msgstr ""
+
+#: app_ui/proactive_settings.py:355
+msgid "Max. messages per week"
+msgstr ""
+
+#: app_ui/proactive_settings.py:357
+#, python-brace-format
+msgid "0 to {max}"
+msgstr ""
+
+#: app_ui/proactive_settings.py:361
+msgid ""
+"Insights beyond this are held back and shown in the app, not dropped. "
+"Critical deadline reminders always arrive — also with 0."
+msgstr ""
+
+#: app_ui/proactive_settings.py:372
+#, python-brace-format
+msgid "Choose a number from 0 to {max}."
 msgstr ""
 
 #: app_ui/pages/chat.py:820 app_ui/pages/chat.py:3265 app_ui/pages/chat.py:3606
@@ -3626,16 +3647,16 @@ msgstr ""
 msgid "Renewal"
 msgstr ""
 
-#: proactive/deadlines.py:139
+#: proactive/deadlines.py:143
 #, python-brace-format
 msgid "{n} days left."
 msgstr ""
 
-#: proactive/deadlines.py:140
+#: proactive/deadlines.py:144
 msgid "Due tomorrow."
 msgstr ""
 
-#: proactive/deadlines.py:140
+#: proactive/deadlines.py:144
 msgid "Due today."
 msgstr ""
 
@@ -3704,6 +3725,10 @@ msgstr ""
 
 #: proactive/notify/telegram.py:131
 msgid "Unlinked. This chat no longer receives messages."
+msgstr ""
+
+#: proactive/tasks/insights.py:114
+msgid "What you may have missed"
 msgstr ""
 
 #: proactive/tasks/notify.py:47

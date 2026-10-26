@@ -127,6 +127,19 @@ MIGRATIONS: list[str] = [
         updated_at TEXT NOT NULL
     );
     """,
+    # 4 — the weekly message limit (architecture §8): one row per notification
+    # that counts — not per channel, a digest once. Disposable: losing it only
+    # resets the rolling week.
+    """
+    CREATE TABLE push_log (
+        id         INTEGER PRIMARY KEY,
+        user       TEXT NOT NULL,
+        at         TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        finding_id TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX push_log_user_at ON push_log(user, at);
+    """,
 ]
 
 

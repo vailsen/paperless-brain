@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
-from proactive import analysis, clock, findings
+from proactive import analysis, clock, findings, pushes
 from proactive.analysis import BINDING_KINDS, Analysis, Deadline
 
 log = logging.getLogger("proactive.deadlines")
@@ -120,6 +120,10 @@ async def remind(user: str, offsets: list[int]) -> int:
             continue
         crit = is_critical(f, today)
         left = (f.deadline_date - today).days
+        if not crit and not pushes.allowed(user):
+            # Over the weekly limit: not sent and not marked, so it goes out on
+            # a later day — at the latest as the critical last-day reminder.
+            continue
 
         def mark(x: findings.Finding, due=due) -> dict | None:
             missing = [o for o in due if o not in x.reminders_sent]

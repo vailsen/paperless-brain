@@ -20,6 +20,7 @@ def register() -> bool:
     if not cfg.proactive_enabled:
         return False
     import app_ui.pages.findings  # noqa: F401 — /findings, /findings/{id} (+ ?action=)
+    import proactive.internal_api  # noqa: F401 — signed worker → app calls
 
     print("[startup] proactive system enabled", flush=True)
     return True

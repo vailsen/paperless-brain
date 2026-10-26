@@ -57,6 +57,13 @@ def get(user: str) -> ProactivePrefs:
 def save(p: ProactivePrefs) -> None:
     if p.channels and p.channels not in CHANNEL_CHOICES:
         raise ValueError(f"unknown channel choice {p.channels!r}")
+    if p.max_pushes_per_week is not None:
+        from config.proactive import proactive_settings
+
+        # Clamped, not refused: the operator may lower the ceiling after a user
+        # saved a higher value, and saving any other setting must still work.
+        ceiling = proactive_settings().proactive_max_pushes_per_week_limit
+        p.max_pushes_per_week = max(0, min(int(p.max_pushes_per_week), ceiling))
     with connect() as conn:
         conn.execute(
             "INSERT INTO proactive_prefs (user, proactive_optin, channels, model,"

@@ -118,6 +118,11 @@ class ProactiveSettings(BaseSettings):
     proactive_quiet_days: int = 10
     proactive_digest_held_items: int = 2
 
+    # Where the worker reaches the app's internal API (similar documents, deep
+    # dives — work that needs Chroma or the chat tools, which stay in the app).
+    # Empty = http://127.0.0.1:<PORT>; in Docker: http://paperless-brain:8080.
+    proactive_internal_url: str = ""
+
     # Job runner (not in the spec's .env sketch; sane defaults, rarely changed).
     proactive_job_max_attempts: int = 5
     proactive_job_backoff_seconds: int = 30

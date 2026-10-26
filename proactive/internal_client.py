@@ -1,0 +1,45 @@
+"""Worker side of the internal API. Every call is best effort for the caller:
+`InternalUnavailable` means "the app is not reachable right now" (restart,
+update) — a job defers, it does not fail."""
+
+from __future__ import annotations
+
+import json
+
+import httpx
+
+from proactive.internal_auth import sign
+
+
+class InternalUnavailable(Exception):
+    pass
+
+
+def _base() -> str:
+    from config.proactive import proactive_settings
+    from config.settings import settings
+
+    return (proactive_settings().proactive_internal_url or f"http://127.0.0.1:{settings.port}").rstrip("/")
+
+
+async def call(path: str, payload: dict, *, timeout: float = 60) -> dict:
+    body = json.dumps(payload, ensure_ascii=False).encode()
+    headers = {"Content-Type": "application/json", **sign(body)}
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as c:
+            r = await c.post(f"{_base()}/api/internal/proactive/{path}", content=body, headers=headers)
+    except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout, httpx.RemoteProtocolError) as exc:
+        raise InternalUnavailable(type(exc).__name__) from exc
+    if r.status_code in (502, 503, 504):
+        raise InternalUnavailable(str(r.status_code))
+    r.raise_for_status()
+    return r.json()
+
+
+async def similar(user: str, doc_id: int, k: int = 5) -> list[dict]:
+    return (await call("similar", {"user": user, "doc_id": int(doc_id), "k": k}, timeout=60)).get("docs", [])
+
+
+async def deep_dive(user: str, finding_id: str, model: dict) -> dict:
+    # A research run takes minutes; the job waits for it.
+    return await call("deep_dive", {"user": user, "finding_id": finding_id, "model": model}, timeout=1800)

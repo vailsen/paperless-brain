@@ -123,9 +123,11 @@ def chosen_channels(user: str) -> list[str]:
 
 def enqueue(n: Notification) -> list[str]:
     """Queue delivery on every chosen channel. Returns the channels queued."""
-    from proactive import jobs
+    from proactive import jobs, pushes
 
     channels = chosen_channels(n.user)
+    if channels and n.counts:
+        pushes.record(n.user, "finding" if n.finding_id else "message", n.finding_id)
     for ch in channels:
         jobs.enqueue(
             "notify_channel",

@@ -197,7 +197,22 @@ precision of 20 spot-checked deadlines in `docs/proactive-diagnostics.md`.
 
 ---
 
-## Phase 7 — Triage, relevance, web guard, interim deep-dive
+## Phase 7 — Triage, relevance, web guard, interim deep-dive ✅ done (2026-10-26)
+
+Built: `proactive/guard.py` (code guard; the query itself is never logged),
+`proactive/web.py` (worker-side SearXNG + trafilatura; guard inside `search`, fetched
+URLs recorded per run), `proactive/triage.py` (after each analysis, per user; quotes
+checked, advice only with a quote + a page fetched in the run, disclaimer by code),
+`proactive/scoring.py` (priority, push/hold, advice validator), `proactive/pushes.py`
++ `push_log` (rolling week, once per notification, digest once; deep-dive results and
+critical reminders do not count; a non-critical reminder over the limit waits for a
+later day rather than being dropped), quiet-period digest in the daily run,
+"Max. messages per week" (clamped to the ceiling on save). Deep dive: the worker
+calls the app's **signed internal API** (`proactive/internal_api.py`,
+`internal_auth.py`, `PROACTIVE_INTERNAL_URL`) — Chroma and the chat tools stay in
+the app; the request names the user and the app takes the token from their grant.
+The interim agent is Werkbank's tool loop with a guarded `ToolBelt`. Tests:
+`tests/test_proactive_triage.py`.
 
 - Web query guard in the search tool wrapper (architecture §10) with unit tests per pattern; rejection = tool error + log.
 - Triage job per (user, doc) after `doc_analysis` (architecture §10 output schema); topic label reuse from `_interests.md`.

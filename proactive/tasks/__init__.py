@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proactive.tasks import daily, documents, heartbeat, imap, ledger, notify, sweep  # noqa: F401
+from proactive.tasks import daily, documents, heartbeat, imap, insights, ledger, notify, sweep  # noqa: F401
 
 documents.install()
 

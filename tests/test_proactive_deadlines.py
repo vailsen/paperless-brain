@@ -98,6 +98,8 @@ def fake_llm(monkeypatch):
     calls = []
 
     async def structured(model, user, token, **kw):
+        if kw.get("tool_name") != "doc_analysis":
+            return {"worth_finding": False}  # triage (Phase 7): nothing to report
         calls.append((model.key, user))
         return json.loads(json.dumps(ANSWER))
 
