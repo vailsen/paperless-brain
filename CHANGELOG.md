@@ -7,6 +7,12 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The dashboard's document counter no longer looks behind.** Documents
+  carrying the no-ingest tag (the inbox) are not counted on the Paperless
+  side either, so a finished sync reads "523 / 523", not "523 / 533".
+
 ## [0.11.0] — 2026-10-23
 
 ### Added

@@ -216,16 +216,31 @@ def _ollama_host_ip(username: str = "", token: str = "") -> str:
 
 
 async def _fetch_paperless_count() -> int | None:
+    """Documents the sync would index: all of Paperless minus those carrying the
+    no-ingest tag (the same rule as ``check_sync_state``). Counting the inbox too
+    made a finished sync read "523 / 533", as if it were behind."""
+    from werkbank.settings_store import get_no_ingest_tag
+
+    base = settings.paperless_url.rstrip("/")
     try:
         async with httpx.AsyncClient(
             headers={"Authorization": f"Token {settings.paperless_superuser_token}"},
             timeout=5,
         ) as client:
-            resp = await client.get(
-                f"{settings.paperless_url.rstrip('/')}/api/documents/?page_size=1"
-            )
+            resp = await client.get(f"{base}/api/documents/?page_size=1")
             resp.raise_for_status()
-            return resp.json().get("count", 0)
+            total = resp.json().get("count", 0)
+            tag = get_no_ingest_tag()
+            if not tag:
+                return total
+            resp = await client.get(f"{base}/api/tags/", params={"name__iexact": tag})
+            resp.raise_for_status()
+            skipped = sum(
+                t.get("document_count", 0)
+                for t in resp.json().get("results", [])
+                if t.get("name") == tag
+            )
+            return max(total - skipped, 0)
     except Exception:
         return None
 
