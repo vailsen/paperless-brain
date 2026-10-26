@@ -371,6 +371,44 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
 - Bestehende Komponenten anbinden, nicht neu bauen: LLM-Client, Tool-Registry,
   Chroma-Zugriff, Paperless-Client, Embedding-Service, Settings, Auth/User-Kontext.
 
+## Proactive system
+
+Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, diagnostics: `docs/proactive-diagnostics.md`.
+
+### Invariants
+- `PROACTIVE_ENABLED=false` means nothing proactive runs or is registered: worker exits, no UI, no tools, no DB file, no embedding of findings. Every new proactive code path checks the settings object, never `os.environ`.
+- The proactive system is **read-only on Paperless-ngx**. It never writes documents, tags or custom fields.
+- Every user-specific job runs with **that user's Paperless token**. Access is checked against Paperless (`GET /api/documents/{id}/`) before any user-specific analysis. Never use the ingestion superuser token for user-facing work.
+- One finding belongs to one user. Notifications go only to channel addresses linked by that user.
+- The worker is the **only** process polling the Telegram bot token. The app enqueues messages; it never calls Telegram.
+- Findings/dossiers/`_interests.md` in the user's vault are the source of truth for status. `proactive.db` is disposable except channel links; notification dedupe derives from finding frontmatter.
+- Code computes priority, interest weights, trust levels, caps and the disclaimer. The LLM proposes topic, urgency and content only.
+- Every recommendation needs a verbatim document quote and a web URL fetched in the same run; otherwise the recommendation is dropped by the validator.
+- Every proactive web query passes the code-level query guard. Prompt instructions are not a substitute.
+- Default notification content is title + urgency + link. Full text only with per-channel user opt-in.
+- Waking and shutting down the inference host goes through the existing WoL / idle-shutdown mechanism only. The worker never shuts the host down itself.
+- No admin role. Operator settings live in `.env`; channels, model, offsets, weekly message limit and opt-in are per-user settings.
+- The weekly message limit never blocks critical deadline reminders; messages over the limit become `held`, never dropped.
+- Model resolution order: `PROACTIVE_MODEL_FIXED` → user choice (must be in `PROACTIVE_MODEL_ALLOWLIST` if set) → `PROACTIVE_MODEL_DEFAULT` → chat model. Resolved in one function only. LLM jobs are grouped by model within a window.
+- No proactive LLM job runs on a cloud backend unless `PROACTIVE_CLOUD_ALLOWED=true`, and then within the per-user daily cap.
+- Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget.
+
+### Do not
+- Do not add APScheduler, Celery, arq, Redis, n8n or LiteLLM. Tick loop + SQLite only.
+- Do not use a Paperless webhook as the primary trigger; poll with the `id__gt` cursor.
+- Do not add adaptive scan-frequency heuristics.
+- Do not let the LLM write `_interests.md` or set priority/trust values.
+- Do not parse email replies with an LLM; keyword parsing only.
+- Do not send results to an email `Reply-To` or any address other than the linked one.
+- Do not cite findings or dossiers as evidence in RAG answers.
+- Do not produce reminders for past dates.
+- Do not add SSH/shutdown logic to the worker or an admin settings UI.
+- Do not add per-channel `.env` switches; availability derives from config presence.
+- Do not overwrite a finding file that changed on disk since it was read (mtime check, re-read, retry once).
+- Do not implement Phase 8 before Werkbank phases 1–3 exist.
+
+---
+
 # CLAUDE.md — Vault-Backed Memory section
 
 > Append to the project `CLAUDE.md`. These are hard invariants for the vault/memory
