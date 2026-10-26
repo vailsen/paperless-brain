@@ -11,7 +11,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/root/paperlessbrain
-ExecStart=/root/paperlessbrain/.venv/bin/paperlessbrain-worker
+# Run from the checkout (WorkingDirectory), not the installed console script:
+# a non-editable install has no top-level i18n.py or locales/.
+ExecStart=/root/paperlessbrain/.venv/bin/python -m proactive.worker
 # Exit 0 = PROACTIVE_ENABLED=false: stay stopped. Anything else: restart.
 Restart=on-failure
 RestartSec=30

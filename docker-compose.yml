@@ -69,7 +69,10 @@ services:
   paperless-brain-worker:
     image: ghcr.io/vailsen/paperless-brain:latest
     # build: .
-    command: ["paperlessbrain-worker"]
+    # From /app, like the app's `python main.py`. The `paperlessbrain-worker`
+    # script would run the installed copy in site-packages, which has no
+    # top-level i18n.py or locales/ — the worker crashed on import.
+    command: ["python", "-m", "proactive.worker"]
     restart: on-failure
     env_file: .env
     environment:
