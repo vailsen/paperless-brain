@@ -2110,13 +2110,28 @@ async def _web_search_archive_hint(query: str) -> str:
     """
     try:
         hits = await chroma.query(query_texts=[query], n_results=4)
+        close = [
+            h for h in (hits[0] if hits else [])
+            if h.get("distance", 1.0) <= _ARCHIVE_HINT_MAX_DIST
+        ]
+        if not close:
+            return ""
+        # The index holds every user's documents and has no owner field, so
+        # the hits must be narrowed to what this user may read before a single
+        # snippet is shown — this hint used to quote other users' documents
+        # into anyone's web search. Paperless is the authority: whatever it
+        # does not return for the user's token is not shown. No user context
+        # (NoUserContext) means no hint at all.
+        ids = sorted({
+            int(doc_id) for h in close
+            if (doc_id := (h.get("metadata") or {}).get("paperless_id")) is not None
+        })
+        visible = {d.id for d in await _user_paperless().list_documents(ids=ids)} if ids else set()
         lines: list[str] = []
         seen: set = set()
-        for h in hits[0] if hits else []:
-            if h.get("distance", 1.0) > _ARCHIVE_HINT_MAX_DIST:
-                continue
+        for h in close:
             doc_id = (h.get("metadata") or {}).get("paperless_id")
-            if doc_id in seen:
+            if doc_id in seen or doc_id is None or int(doc_id) not in visible:
                 continue
             seen.add(doc_id)
             snippet = (h.get("document") or "").replace("\n", " ")[:160]

@@ -21,6 +21,14 @@ Output: `docs/proactive-diagnostics.md` with findings per item and a go/no-go no
 
 **Result (2026-10-26):** no-go as specified — see `docs/proactive-diagnostics.md`. Phase 0.5 there: fix the web-search archive-hint leak, decide how users grant background access (the worker cannot obtain a user's token today), cross-process vault lock.
 
+## Phase 0.5 — Permission and process prerequisites ✅ done (2026-10-26)
+
+- Web-search archive hint filtered by the user's Paperless access.
+- `vault/locks.py`: cross-process lock (`flock`), same API.
+- `services/background_access.py`: per-user grant of the Paperless token (option A); refreshed at login, `needs_reauth` on 401.
+
+Carried into Phase 1: the opt-in / revoke control for background access in the proactive settings; worker jobs get a user's token only via `background_access.token_for(user)` and skip the user when it is None.
+
 ---
 
 ## Phase 1 — Feature switch, config, worker skeleton
@@ -30,6 +38,7 @@ Output: `docs/proactive-diagnostics.md` with findings per item and a go/no-go no
 - `proactive.db` with migrations for all tables in architecture §4.1.
 - Tick loop (60 s): `schedules` → enqueue `jobs`; job runner with retries + exponential backoff; graceful shutdown.
 - App side: register findings page / proactive settings / reaction endpoint only if enabled.
+- Proactive settings: "Allow background access" (grant with the session token) / revoke, with status (`none` / `active` / `needs_reauth`). Opting in to the proactive system requires an active grant.
 - systemd unit (or compose service) for the worker.
 
 **Acceptance**

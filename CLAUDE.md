@@ -392,6 +392,8 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - Model resolution order: `PROACTIVE_MODEL_FIXED` → user choice (must be in `PROACTIVE_MODEL_ALLOWLIST` if set) → `PROACTIVE_MODEL_DEFAULT` → chat model. Resolved in one function only. LLM jobs are grouped by model within a window.
 - No proactive LLM job runs on a cloud backend unless `PROACTIVE_CLOUD_ALLOWED=true`, and then within the per-user daily cap.
 - Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget.
+- **A background process gets a user's token only from `services/background_access.token_for(user)`** — an explicit, revocable grant the user made in their own session. No grant (None) → skip the user; a 401 → `mark_needs_reauth()`. Never persist a token anywhere else, never create a grant without the user's action.
+- **The vault lock is cross-process** (`vault/locks.py`: `asyncio.Lock` + `flock` on `data/vault_locks/{user}.lock`). Worker and app both take `get_user_lock(user)` for every vault write and sync.
 
 ### Do not
 - Do not add APScheduler, Celery, arq, Redis, n8n or LiteLLM. Tick loop + SQLite only.
@@ -404,7 +406,7 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - Do not produce reminders for past dates.
 - Do not add SSH/shutdown logic to the worker or an admin settings UI.
 - Do not add per-channel `.env` switches; availability derives from config presence.
-- Do not overwrite a finding file that changed on disk since it was read (mtime check, re-read, retry once).
+- Do not overwrite a finding file that changed on disk since it was read (hash check as in `vault/notes.save_note`, re-read, retry once).
 - Do not implement Phase 8 before Werkbank phases 1–3 exist.
 
 ---

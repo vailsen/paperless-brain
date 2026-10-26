@@ -255,10 +255,38 @@ Werkbank task started by the *worker* needs the background token from Phase 0.5.
    can be filtered before top-k (fixes the recall side effect; needs a re-ingest or a
    metadata backfill from Paperless).
 
-## Open questions for the owner
+## Decisions (owner, 2026-10-26)
 
-1. Background access: option A, B or C?
-2. Proactive LLM endpoint in `.env` (recommended) instead of "the active backend"?
-3. Is llama-swap in front of the GPU host? (D6)
-4. Deadlines: should `doc_analysis` replace the existing per-page action extraction
-   as the dashboard's source (D2)?
+1. **Background access: option A.** Implemented in Phase 0.5
+   (`services/background_access.py`): sealed per-user grant in
+   `data/background_access/`, key derived from `STORAGE_SECRET` with its own HKDF
+   label and bound to the username (no separate `PROACTIVE_SECRET` — same host, same
+   threat model as the session token). Login refreshes an existing grant; a 401 marks
+   it `needs_reauth`. The opt-in/revoke UI comes with the proactive settings in
+   Phase 1 (they only exist when `PROACTIVE_ENABLED=true`).
+2. **Model choice:** the operator decides in `.env` whether users may choose at all
+   (`PROACTIVE_MODEL_FIXED`), from which models (`PROACTIVE_MODEL_ALLOWLIST`) and
+   whether cloud models are allowed (`PROACTIVE_CLOUD_ALLOWED`). With option A the
+   worker can read each user's own model registry, so the choice is from the user's
+   own models, filtered by those knobs; "cloud" = a model whose service is not on
+   the local lane. The fixed/default model runs on `OLLAMA_SERVER`. No separate
+   proactive endpoint variable.
+3. **Inference:** one Ollama instance, no llama-swap (multi-GPU maybe later). Model
+   listing via Ollama (`/api/tags` or `/v1/models`); every model change is an unload
+   + load, so grouping jobs by model stays.
+4. **Deadlines:** open until Phase 6. Recommendation: `doc_analysis` as a text-only
+   pass over the sidecar text (no new vision run), and the dashboard switches to it,
+   so there is one deadline source.
+
+## Phase 0.5 — status
+
+- [x] Archive-hint leak fixed: hits are narrowed through the user's own Paperless
+  client before any snippet is shown; no user context → no hint
+  (`tests/test_web_search_archive_hint.py`, which fails on the old code).
+- [x] Cross-process vault lock: `vault/locks.py` = `asyncio.Lock` + `flock` on
+  `data/vault_locks/{user}.lock`; every existing `async with get_user_lock(…)`
+  caller is covered unchanged (`tests/test_vault_locks.py`, incl. a real second
+  process and a cancelled waiter).
+- [x] Background access store (decision 1).
+- [ ] Optional: owner field in Chroma metadata for pre-top-k filtering — not done;
+  revisit if recall for users with few readable documents becomes a problem.
