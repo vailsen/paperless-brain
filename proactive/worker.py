@@ -162,6 +162,11 @@ def _setup_logging() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         stream=sys.stdout,
     )
+    # httpx logs every request URL at INFO, and the Telegram Bot API carries the
+    # bot token in the URL (`/bot<TOKEN>/getUpdates`) — every poll would write
+    # the token into the worker's log.
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def _install_signals(loop: asyncio.AbstractEventLoop, worker: Worker, main_task: asyncio.Task) -> None:

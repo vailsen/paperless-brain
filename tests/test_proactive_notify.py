@@ -297,3 +297,26 @@ def test_email_verification_code_is_mailed_and_scrubbed(channels_on, smtp):
     (msg,) = [m[1] for m in smtp if m[0] == "send"]
     assert code in msg.get_content()
     assert jobs.get(jid).payload == {}
+
+
+def test_worker_logging_never_prints_the_bot_token(caplog, monkeypatch):
+    """httpx logs request URLs at INFO; the Bot API has the token in the URL."""
+    import logging
+
+    import httpx
+
+    from proactive.worker import _setup_logging
+
+    for name in ("httpx", "httpcore"):
+        monkeypatch.setattr(logging.getLogger(name), "level", logging.NOTSET)
+    _setup_logging()
+    assert logging.getLogger("httpx").level == logging.WARNING  # set explicitly, not inherited
+
+    async def go():
+        transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True, "result": {}}))
+        async with httpx.AsyncClient(transport=transport) as c:
+            await c.post("https://api.telegram.org/bot123:SECRET-TOKEN/getMe")
+
+    caplog.set_level(logging.INFO)  # root at INFO, as in the worker
+    asyncio.run(go())
+    assert "SECRET-TOKEN" not in caplog.text
