@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-26 12:56+0000\n"
+"POT-Creation-Date: 2026-10-26 13:01+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -393,7 +393,7 @@ msgstr "Zurück"
 msgid "Cards"
 msgstr "Karten"
 
-#: app_ui/cluster_dialog.py:191
+#: app_ui/cluster_dialog.py:191 proactive/dossiers.py:61
 msgid "Timeline"
 msgstr "Zeitachse"
 
@@ -3933,6 +3933,14 @@ msgstr "Morgen fällig."
 msgid "Due today."
 msgstr "Heute fällig."
 
+#: proactive/dossiers.py:61
+msgid "Current state"
+msgstr "Aktueller Stand"
+
+#: proactive/dossiers.py:64
+msgid "Open questions"
+msgstr "Offene Fragen"
+
 #: proactive/findings.py:226
 msgid "Evidence"
 msgstr "Belege"
@@ -4004,7 +4012,7 @@ msgstr ""
 msgid "Unlinked. This chat no longer receives messages."
 msgstr "Verknüpfung gelöst. Dieser Chat bekommt keine Nachrichten mehr."
 
-#: proactive/tasks/insights.py:114
+#: proactive/tasks/insights.py:108
 msgid "What you may have missed"
 msgstr "Was du verpasst haben könntest"
 

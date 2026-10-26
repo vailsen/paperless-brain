@@ -1,5 +1,5 @@
-"""Phase 7 jobs: triage after each analysis, the deep dive, the quiet-period
-digest."""
+"""Phase 7 jobs: triage after each analysis, the deep dive (since Phase 8 a
+Werkbank run in the app), the quiet-period digest."""
 
 from __future__ import annotations
 
@@ -68,12 +68,6 @@ async def deep_dive(job: Job) -> None:
         full_text=res.get("summary") or "", actions=reactions_for("researched", "insight"),
         counts=False,
     ))
-
-
-@handler("dossier_update", needs_llm=True)
-async def dossier_update(job: Job) -> None:
-    """Phase 8 fills this in."""
-    log.info("%s: dossier update for %s queued", job.user, job.payload.get("topic"))
 
 
 @daily.also

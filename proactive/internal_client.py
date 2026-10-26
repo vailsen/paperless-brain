@@ -43,3 +43,10 @@ async def similar(user: str, doc_id: int, k: int = 5) -> list[dict]:
 async def deep_dive(user: str, finding_id: str, model: dict) -> dict:
     # A research run takes minutes; the job waits for it.
     return await call("deep_dive", {"user": user, "finding_id": finding_id, "model": model}, timeout=1800)
+
+
+async def dossier(user: str, topic: str, seed_doc_id: int, existing: dict | None, model: dict) -> dict:
+    return await call("dossier", {
+        "user": user, "topic": topic, "seed_doc_id": int(seed_doc_id or 0),
+        "existing": existing, "model": model,
+    }, timeout=1800)

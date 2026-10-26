@@ -75,3 +75,20 @@ async def _deep_dive(request: Request) -> dict:
     if not model.name:
         raise HTTPException(status_code=400, detail="no model")
     return await run(user, tok, f, model)
+
+
+@app.post("/api/internal/proactive/dossier")
+async def _dossier(request: Request) -> dict:
+    data = await _authorized(request)
+    user = data.get("user", "")
+    tok = _token(user)
+    from proactive.deep_dive_app import dossier
+    from proactive.models import ResolvedModel
+
+    m = data.get("model") or {}
+    model = ResolvedModel(m.get("name", ""), m.get("lane", "local"), m.get("source", "default"), m.get("model_id", ""))
+    if not model.name:
+        raise HTTPException(status_code=400, detail="no model")
+    return await dossier(
+        user, tok, str(data.get("topic", "")), int(data.get("seed_doc_id") or 0), data.get("existing"), model,
+    )

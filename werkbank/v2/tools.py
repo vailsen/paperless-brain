@@ -22,6 +22,7 @@ and this has to be a guarantee:
 
 from __future__ import annotations
 
+import contextvars
 import json
 
 import logging
@@ -32,6 +33,12 @@ from datetime import datetime, timezone
 from werkbank.v2.registry import Registry
 
 _log = logging.getLogger(__name__)
+
+#: Set by callers that must screen web queries in code — the proactive system
+#: (`proactive/guard.py`): a callable `query -> rejection text | None`. Unset
+#: for interactive runs. A context variable, so it covers every ToolBelt a run
+#: creates without threading a parameter through planner and scheduler.
+web_query_guard: contextvars.ContextVar = contextvars.ContextVar("web_query_guard", default=None)
 
 # Which store a tool reads. Drives `sources_restrict` (D7) and the source type
 # recorded on every fact.
@@ -351,6 +358,11 @@ class ToolBelt:
         if name not in self.allowed_tools:
             return f"Tool '{name}' is not available for this subtask."
         args, shaping_note = _shape_args(name, args)
+        screen = web_query_guard.get()
+        if screen is not None and name == "web_search":
+            rejected = screen(str(args.get("query") or ""))
+            if rejected:
+                return rejected
         if not self._reachable(name):
             return (
                 f"Tool '{name}' is blocked for this subtask "

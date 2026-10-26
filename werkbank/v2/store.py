@@ -444,3 +444,25 @@ def tool_call_count(run_id: str, user_id: str, subtask_id: str) -> int:
             "SELECT COUNT(*) FROM wb2_tool_calls WHERE run_id=? AND subtask_id=? AND user_id=?",
             (run_id, subtask_id, user_id),
         ).fetchone()[0]
+
+
+def fetched_pages(run_id: str, user_id: str) -> dict[str, str]:
+    """url → retrieval date of every web page a run actually read (a
+    `web_fetch_page` call that returned content). The proactive deep dive
+    accepts only these as sources for a recommendation."""
+    from werkbank.v2.tools import OUTCOME_OK, classify
+
+    out: dict[str, str] = {}
+    with connect() as conn:
+        for r in conn.execute(
+            "SELECT args_json, raw_text, retrieved_at FROM wb2_tool_calls "
+            "WHERE run_id=? AND user_id=? AND tool='web_fetch_page'",
+            (run_id, user_id),
+        ):
+            try:
+                url = str(json.loads(r["args_json"] or "{}").get("url") or "")
+            except ValueError:
+                continue
+            if url and classify(r["raw_text"] or "") == OUTCOME_OK:
+                out.setdefault(url, (r["retrieved_at"] or "")[:10])
+    return out

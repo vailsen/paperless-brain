@@ -232,7 +232,26 @@ The interim agent is Werkbank's tool loop with a guarded `ToolBelt`. Tests:
 
 ---
 
-## Phase 8 — Dossiers + topic revisit (requires Werkbank)
+## Phase 8 — Dossiers + topic revisit (requires Werkbank) ✅ done (2026-10-26) — real-data check pending
+
+Built: `proactive/dossiers.py` (file format §4.4 under `Dossiers/{topic}.md`, timeline
+validated by code — real date, document of the dossier; `revisit_after` from the
+interest weight: 30/90/180 days, muted never), `proactive/tasks/topics.py`
+(`dossier_update` from triage's `dossier_update` flag: build, or incremental with only
+the new document; `dossier_build` after a version bump, once per version;
+`dossier_revisit` with a guarded web lookup that may yield a new finding; rebuilds and
+revisits only inside sweep windows, counted against the budget), app side in
+`proactive/deep_dive_app.py` (candidates: semantic search on the topic, neighbours
+of the seed document, same correspondent; a relevance pass; the dossier) behind the
+signed internal API. **Deep dive swapped to a full Werkbank v2 run** (headless,
+token from the grant). The guard reaches every agent of that run through
+`werkbank.v2.tools.web_query_guard` (a context variable; interactive runs leave it
+unset). Recommendation sources = pages the run fetched (`store.fetched_pages`).
+Tests: `tests/test_proactive_dossiers.py`.
+
+Still to do on the dev machine: the Bausparvertrag thread — build its dossier,
+spot-check 5 timeline entries against the documents, then add a new letter and
+confirm the job log says "update — read 1 document(s)".
 
 - Werkbank task `build_dossier(user, topic)`: candidate collection (metadata + semantic), LLM triage of relevance, full dossier (architecture §4.4).
 - Incremental update job: new doc in topic + existing dossier → updated dossier.
