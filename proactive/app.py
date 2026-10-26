@@ -19,5 +19,7 @@ def register() -> bool:
     cfg = proactive_settings()  # invalid config → the app refuses to start, loudly
     if not cfg.proactive_enabled:
         return False
+    import app_ui.pages.findings  # noqa: F401 — /findings, /findings/{id} (+ ?action=)
+
     print("[startup] proactive system enabled", flush=True)
     return True

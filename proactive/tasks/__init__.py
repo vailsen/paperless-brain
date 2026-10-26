@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proactive.tasks import heartbeat, notify, sweep  # noqa: F401
+from proactive.tasks import heartbeat, ledger, notify, sweep  # noqa: F401
 
 if TYPE_CHECKING:
     from proactive.worker import Worker
@@ -19,6 +19,7 @@ def attach(worker: "Worker") -> None:
     from proactive import scheduler
 
     scheduler.ensure(sweep.SWEEP_ROUND, "every:60")
+    scheduler.ensure(ledger.LEDGER_SCAN, "every:300", run_now=True)
     if worker.cfg.telegram_available:
         from proactive.notify import telegram
 

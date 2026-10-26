@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-26 12:10+0000\n"
+"POT-Creation-Date: 2026-10-26 12:17+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -438,6 +438,7 @@ msgid "Show in PDF"
 msgstr "Im PDF zeigen"
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
+#: proactive/findings.py:224
 msgid "Summary"
 msgstr "Zusammenfassung"
 
@@ -495,7 +496,7 @@ msgstr "Aktionen"
 msgid "Description"
 msgstr "Beschreibung"
 
-#: app_ui/document_dialog.py:617
+#: app_ui/document_dialog.py:617 app_ui/pages/findings.py:31
 msgid "Deadline"
 msgstr "Frist"
 
@@ -646,11 +647,15 @@ msgstr "Browser"
 msgid "Note vault"
 msgstr "Notizspeicher"
 
-#: app_ui/layout.py:254 app_ui/pages/settings.py:317
+#: app_ui/layout.py:56 app_ui/pages/findings.py:64
+msgid "Findings"
+msgstr "Hinweise"
+
+#: app_ui/layout.py:263 app_ui/pages/settings.py:317
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: app_ui/layout.py:263
+#: app_ui/layout.py:272
 msgid "Sign out"
 msgstr "Abmelden"
 
@@ -705,7 +710,7 @@ msgstr "Audiodatei hochladen"
 msgid "The file exceeds {n} MB."
 msgstr "Die Datei überschreitet {n} MB."
 
-#: app_ui/memo_dialog.py:303
+#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:86
 msgid "Topic"
 msgstr "Thema"
 
@@ -1045,7 +1050,7 @@ msgstr "Dieser Code ist ungültig oder abgelaufen."
 msgid "Email address confirmed."
 msgstr "E-Mail-Adresse bestätigt."
 
-#: app_ui/proactive_settings.py:288
+#: app_ui/pages/findings.py:154 app_ui/proactive_settings.py:288
 msgid "Confirm"
 msgstr "Bestätigen"
 
@@ -1575,7 +1580,7 @@ msgstr "Fällig: {date}"
 msgid "Attachments are read-only."
 msgstr "Anhänge sind schreibgeschützt."
 
-#: app_ui/pages/brain.py:1252
+#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:71
 msgid "Open"
 msgstr "Öffnen"
 
@@ -1729,7 +1734,8 @@ msgstr "PDF herunterladen"
 msgid "p. {n}"
 msgstr "S. {n}"
 
-#: app_ui/pages/chat.py:210 werkbank/v2/ui/board.py:106
+#: app_ui/pages/chat.py:210 proactive/findings.py:233
+#: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr "Quellen"
 
@@ -2810,6 +2816,86 @@ msgstr "Dok"
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr "Seite {page} / {total}  ·  {count} Einträge"
 
+#: app_ui/pages/findings.py:22
+msgid "New"
+msgstr "Neu"
+
+#: app_ui/pages/findings.py:23
+msgid "Sent"
+msgstr "Gesendet"
+
+#: app_ui/pages/findings.py:24
+msgid "Held back"
+msgstr "Zurückgehalten"
+
+#: app_ui/pages/findings.py:25 proactive/notify/__init__.py:30
+msgid "Interesting"
+msgstr "Interessant"
+
+#: app_ui/pages/findings.py:26
+msgid "Researched"
+msgstr "Recherchiert"
+
+#: app_ui/pages/findings.py:27 proactive/notify/__init__.py:33
+#: werkbank/ui/module_page.py:180
+msgid "Done"
+msgstr "Fertig"
+
+#: app_ui/pages/findings.py:28
+msgid "Dismissed"
+msgstr "Verworfen"
+
+#: app_ui/pages/findings.py:29
+msgid "Snoozed"
+msgstr "Zurückgestellt"
+
+#: app_ui/pages/findings.py:31
+msgid "Insight"
+msgstr "Hinweis"
+
+#: app_ui/pages/findings.py:44 proactive/notify/__init__.py:93
+#, python-brace-format
+msgid "Urgency: {urgency}"
+msgstr "Dringlichkeit: {urgency}"
+
+#: app_ui/pages/findings.py:46
+#, python-brace-format
+msgid "Due {date}"
+msgstr "Fällig {date}"
+
+#: app_ui/pages/findings.py:71
+msgid "All"
+msgstr "Alle"
+
+#: app_ui/pages/findings.py:82 werkbank/ui/module_page.py:247
+msgid "Status"
+msgstr "Status"
+
+#: app_ui/pages/findings.py:85
+msgid "All topics"
+msgstr "Alle Themen"
+
+#: app_ui/pages/findings.py:101
+msgid "Nothing here yet."
+msgstr "Hier ist noch nichts."
+
+#: app_ui/pages/findings.py:125
+msgid "All findings"
+msgstr "Alle Hinweise"
+
+#: app_ui/pages/findings.py:133 proactive/reactions.py:50
+msgid "This item no longer exists."
+msgstr "Diesen Eintrag gibt es nicht mehr."
+
+#: app_ui/pages/findings.py:151
+#, python-brace-format
+msgid "Apply “{action}” to this item?"
+msgstr "„{action}“ auf diesen Eintrag anwenden?"
+
+#: app_ui/pages/findings.py:158 proactive/reactions.py:49
+msgid "Already handled."
+msgstr "Bereits erledigt."
+
 #: app_ui/pages/login.py:61
 msgid "Paperless login"
 msgstr "Paperless-Anmeldung"
@@ -3790,13 +3876,41 @@ msgstr ""
 "Paperless-Token — wenn du es in Paperless regenerierst, musst du die "
 "Einstellungen neu eingeben."
 
+#: proactive/findings.py:226
+msgid "Evidence"
+msgstr "Belege"
+
+#: proactive/findings.py:238
+msgid "Recommendation"
+msgstr "Empfehlung"
+
+#: proactive/findings.py:248
+msgid "Not financial or investment advice. Check the recommendation yourself."
+msgstr "Keine Finanz- oder Anlageberatung. Prüfe die Empfehlung selbst."
+
+#: proactive/reactions.py:44
+msgid "Noted — a closer look is being prepared."
+msgstr "Notiert — eine genauere Prüfung wird vorbereitet."
+
+#: proactive/reactions.py:45
+msgid "Snoozed for a week."
+msgstr "Für eine Woche zurückgestellt."
+
+#: proactive/reactions.py:46
+msgid "Understood — no more messages on this topic."
+msgstr "Verstanden — keine Nachrichten mehr zu diesem Thema."
+
+#: proactive/reactions.py:47
+msgid "Marked as done."
+msgstr "Als erledigt markiert."
+
+#: proactive/reactions.py:48
+msgid "Thanks — marked as wrongly detected."
+msgstr "Danke — als falsch erkannt markiert."
+
 #: proactive/notify/__init__.py:27
 msgid "Critical"
 msgstr "Kritisch"
-
-#: proactive/notify/__init__.py:30
-msgid "Interesting"
-msgstr "Interessant"
 
 #: proactive/notify/__init__.py:31
 msgid "Later"
@@ -3806,18 +3920,9 @@ msgstr "Später"
 msgid "Never again"
 msgstr "Nie wieder"
 
-#: proactive/notify/__init__.py:33 werkbank/ui/module_page.py:180
-msgid "Done"
-msgstr "Fertig"
-
 #: proactive/notify/__init__.py:34
 msgid "Wrongly detected"
 msgstr "Falsch erkannt"
-
-#: proactive/notify/__init__.py:93
-#, python-brace-format
-msgid "Urgency: {urgency}"
-msgstr "Dringlichkeit: {urgency}"
 
 #: proactive/notify/email.py:66 proactive/notify/email.py:73
 msgid "Or reply with 1 (interesting), 2 (later) or 3 (never again)."
@@ -4089,10 +4194,6 @@ msgstr "Zu prüfen"
 #: werkbank/ui/module_page.py:235 werkbank/v2/ui/page.py:556
 msgid "Agents"
 msgstr "Agenten"
-
-#: werkbank/ui/module_page.py:247
-msgid "Status"
-msgstr "Status"
 
 #: werkbank/ui/task_dialog.py:109
 msgid "Instruction"

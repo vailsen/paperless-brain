@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-26 12:10+0000\n"
+"POT-Creation-Date: 2026-10-26 12:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -412,6 +412,7 @@ msgid "Show in PDF"
 msgstr ""
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
+#: proactive/findings.py:224
 msgid "Summary"
 msgstr ""
 
@@ -469,7 +470,7 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
-#: app_ui/document_dialog.py:617
+#: app_ui/document_dialog.py:617 app_ui/pages/findings.py:31
 msgid "Deadline"
 msgstr ""
 
@@ -612,11 +613,15 @@ msgstr ""
 msgid "Note vault"
 msgstr ""
 
-#: app_ui/layout.py:254 app_ui/pages/settings.py:317
+#: app_ui/layout.py:56 app_ui/pages/findings.py:64
+msgid "Findings"
+msgstr ""
+
+#: app_ui/layout.py:263 app_ui/pages/settings.py:317
 msgid "Settings"
 msgstr ""
 
-#: app_ui/layout.py:263
+#: app_ui/layout.py:272
 msgid "Sign out"
 msgstr ""
 
@@ -669,7 +674,7 @@ msgstr ""
 msgid "The file exceeds {n} MB."
 msgstr ""
 
-#: app_ui/memo_dialog.py:303
+#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:86
 msgid "Topic"
 msgstr ""
 
@@ -987,7 +992,7 @@ msgstr ""
 msgid "Email address confirmed."
 msgstr ""
 
-#: app_ui/proactive_settings.py:288
+#: app_ui/pages/findings.py:154 app_ui/proactive_settings.py:288
 msgid "Confirm"
 msgstr ""
 
@@ -1483,7 +1488,7 @@ msgstr ""
 msgid "Attachments are read-only."
 msgstr ""
 
-#: app_ui/pages/brain.py:1252
+#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:71
 msgid "Open"
 msgstr ""
 
@@ -1637,7 +1642,8 @@ msgstr ""
 msgid "p. {n}"
 msgstr ""
 
-#: app_ui/pages/chat.py:210 werkbank/v2/ui/board.py:106
+#: app_ui/pages/chat.py:210 proactive/findings.py:233
+#: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr ""
 
@@ -2678,6 +2684,86 @@ msgstr ""
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr ""
 
+#: app_ui/pages/findings.py:22
+msgid "New"
+msgstr ""
+
+#: app_ui/pages/findings.py:23
+msgid "Sent"
+msgstr ""
+
+#: app_ui/pages/findings.py:24
+msgid "Held back"
+msgstr ""
+
+#: app_ui/pages/findings.py:25 proactive/notify/__init__.py:30
+msgid "Interesting"
+msgstr ""
+
+#: app_ui/pages/findings.py:26
+msgid "Researched"
+msgstr ""
+
+#: app_ui/pages/findings.py:27 proactive/notify/__init__.py:33
+#: werkbank/ui/module_page.py:180
+msgid "Done"
+msgstr ""
+
+#: app_ui/pages/findings.py:28
+msgid "Dismissed"
+msgstr ""
+
+#: app_ui/pages/findings.py:29
+msgid "Snoozed"
+msgstr ""
+
+#: app_ui/pages/findings.py:31
+msgid "Insight"
+msgstr ""
+
+#: app_ui/pages/findings.py:44 proactive/notify/__init__.py:93
+#, python-brace-format
+msgid "Urgency: {urgency}"
+msgstr ""
+
+#: app_ui/pages/findings.py:46
+#, python-brace-format
+msgid "Due {date}"
+msgstr ""
+
+#: app_ui/pages/findings.py:71
+msgid "All"
+msgstr ""
+
+#: app_ui/pages/findings.py:82 werkbank/ui/module_page.py:247
+msgid "Status"
+msgstr ""
+
+#: app_ui/pages/findings.py:85
+msgid "All topics"
+msgstr ""
+
+#: app_ui/pages/findings.py:101
+msgid "Nothing here yet."
+msgstr ""
+
+#: app_ui/pages/findings.py:125
+msgid "All findings"
+msgstr ""
+
+#: app_ui/pages/findings.py:133 proactive/reactions.py:50
+msgid "This item no longer exists."
+msgstr ""
+
+#: app_ui/pages/findings.py:151
+#, python-brace-format
+msgid "Apply “{action}” to this item?"
+msgstr ""
+
+#: app_ui/pages/findings.py:158 proactive/reactions.py:49
+msgid "Already handled."
+msgstr ""
+
 #: app_ui/pages/login.py:61
 msgid "Paperless login"
 msgstr ""
@@ -3520,12 +3606,40 @@ msgid ""
 "regenerate it in Paperless, you must re-enter the settings."
 msgstr ""
 
-#: proactive/notify/__init__.py:27
-msgid "Critical"
+#: proactive/findings.py:226
+msgid "Evidence"
 msgstr ""
 
-#: proactive/notify/__init__.py:30
-msgid "Interesting"
+#: proactive/findings.py:238
+msgid "Recommendation"
+msgstr ""
+
+#: proactive/findings.py:248
+msgid "Not financial or investment advice. Check the recommendation yourself."
+msgstr ""
+
+#: proactive/reactions.py:44
+msgid "Noted — a closer look is being prepared."
+msgstr ""
+
+#: proactive/reactions.py:45
+msgid "Snoozed for a week."
+msgstr ""
+
+#: proactive/reactions.py:46
+msgid "Understood — no more messages on this topic."
+msgstr ""
+
+#: proactive/reactions.py:47
+msgid "Marked as done."
+msgstr ""
+
+#: proactive/reactions.py:48
+msgid "Thanks — marked as wrongly detected."
+msgstr ""
+
+#: proactive/notify/__init__.py:27
+msgid "Critical"
 msgstr ""
 
 #: proactive/notify/__init__.py:31
@@ -3536,17 +3650,8 @@ msgstr ""
 msgid "Never again"
 msgstr ""
 
-#: proactive/notify/__init__.py:33 werkbank/ui/module_page.py:180
-msgid "Done"
-msgstr ""
-
 #: proactive/notify/__init__.py:34
 msgid "Wrongly detected"
-msgstr ""
-
-#: proactive/notify/__init__.py:93
-#, python-brace-format
-msgid "Urgency: {urgency}"
 msgstr ""
 
 #: proactive/notify/email.py:66 proactive/notify/email.py:73
@@ -3807,10 +3912,6 @@ msgstr ""
 
 #: werkbank/ui/module_page.py:235 werkbank/v2/ui/page.py:556
 msgid "Agents"
-msgstr ""
-
-#: werkbank/ui/module_page.py:247
-msgid "Status"
 msgstr ""
 
 #: werkbank/ui/task_dialog.py:109

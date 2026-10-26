@@ -117,7 +117,18 @@ test message. Tests: `tests/test_proactive_notify.py`. Reactions arrive with Pha
 
 ---
 
-## Phase 4 — Findings ledger + findings page
+## Phase 4 — Findings ledger + findings page ✅ done (2026-10-26)
+
+Built: `proactive/paths.py`, `proactive/findings.py` (file format with `pbrain_id`
+instead of the legacy `psage_id`; `upsert` by `finding_key` + `evidence_hash`),
+`proactive/states.py` (pure), `proactive/interests.py`, `proactive/reactions.py`,
+`proactive/tasks/ledger.py` (new insight → push; snoozed → wake; scoring in Phase 7),
+`app_ui/pages/findings.py` (`/findings`, `/findings/{id}?action=` — the action is
+offered as a confirm button, not applied on load, because link scanners follow
+links), nav entry only when enabled, findings folder skipped by the vault index.
+Conflicts use the vault editor's hash check + merge rather than mtime (D5). Subfolder
+`Notices/` (English, the source language) instead of `Hinweise/`. Tests:
+`tests/test_proactive_findings.py`.
 
 - Read/write finding files (architecture §4.3) under `PROACTIVE_FINDINGS_ROOT` with `{user}` resolution as in D5; `psage_id` + `finding_id` generation; mtime conflict handling.
 - State machine (architecture §4.3) as a pure function with tests.

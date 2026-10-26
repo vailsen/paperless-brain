@@ -382,6 +382,8 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - One finding belongs to one user. Notifications go only to channel addresses linked by that user.
 - The worker is the **only** process polling the Telegram bot token. The app enqueues messages; it never calls Telegram.
 - Findings/dossiers/`_interests.md` in the user's vault are the source of truth for status. `proactive.db` is disposable except channel links; notification dedupe derives from finding frontmatter.
+- The findings folder (`proactive/paths.py`) is skipped by `vault/sync._embed_file` before anything is written or embedded — whether or not the switch is on. Only Phase 9's filtered path may index parts of it.
+- Every finding write goes through `proactive/findings.update` (→ `vault.notes.save_note`: cross-process lock, hash check, per-key merge, re-read and re-decide once). Reactions from any channel go through `proactive/reactions.react`; the state machine is `proactive/states.py`.
 - Code computes priority, interest weights, trust levels, caps and the disclaimer. The LLM proposes topic, urgency and content only.
 - Every recommendation needs a verbatim document quote and a web URL fetched in the same run; otherwise the recommendation is dropped by the validator.
 - Every proactive web query passes the code-level query guard. Prompt instructions are not a substitute.

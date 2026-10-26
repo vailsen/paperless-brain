@@ -47,6 +47,15 @@ NAV_ITEMS = [
 ]
 
 
+def nav_items() -> list[tuple[str, str, str]]:
+    """NAV_ITEMS plus the findings page — only with PROACTIVE_ENABLED=true."""
+    from config.proactive import is_enabled
+
+    if not is_enabled():
+        return NAV_ITEMS
+    return NAV_ITEMS + [("notifications", N_("Findings"), "/findings")]
+
+
 def user_icon(username: str) -> str:
     """Icon for a user. Shape, not colour, carries the distinction.
 
@@ -175,7 +184,7 @@ def page_layout() -> None:
         # glyph carry the accent, so purple meant "nav icon" as well as "active
         # item". Without the prop the glyphs inherit the neutral ramp and only
         # .nav-active carries the accent.
-        for nav_icon, label, path in NAV_ITEMS:
+        for nav_icon, label, path in nav_items():
             ui.button(
                 _(label),
                 icon=nav_icon,
@@ -192,7 +201,7 @@ def page_layout() -> None:
             with ui.menu().props("dark").style(
                 "background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;min-width:180px;"
             ) as _nav_menu:
-                for _ni, _nl, _np in NAV_ITEMS:
+                for _ni, _nl, _np in nav_items():
                     with ui.element("q-item").props("clickable v-ripple dense").classes(
                         "text-gray-200 rounded-lg nav-menu-item"
                         + (" nav-active" if _is_active(_np, _here) else "")

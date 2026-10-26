@@ -338,6 +338,15 @@ async def _update_path_metadata(
         _log.warning("path-metadata update failed for %s: %s", new_str, e)
 
 
+def _is_findings(rel_path: Path) -> bool:
+    try:
+        from proactive.paths import is_findings_path
+
+        return is_findings_path(rel_path)
+    except Exception:
+        return False
+
+
 async def _embed_file(
     username: str, vp: Path, rel_path: Path, brain_chroma, vault_chroma
 ) -> bool:
@@ -353,6 +362,16 @@ async def _embed_file(
     try:
         meta, body = fm_read(abs_path)
         now = datetime.utcnow().isoformat()
+
+        if _is_findings(rel_path):
+            # The proactive system's ledger is not a user note: held, snoozed
+            # and dismissed findings and `_interests.md` must never be
+            # retrievable, and none of it is while the switch is off.
+            try:
+                await vault_chroma.delete(where={"path": {"$eq": str(rel_path)}})
+            except Exception:
+                pass
+            return True
 
         if is_brain_path(rel_path, settings.brain_subfolder):
             pbrain_id = ensure_pbrain_id(abs_path, meta)

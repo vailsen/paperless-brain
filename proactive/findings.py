@@ -1,0 +1,465 @@
+"""The findings ledger: one Markdown file per finding in the user's vault
+(architecture §4.3). The files are the source of truth for status and
+reactions — `proactive.db` holds none of it, so notification dedupe
+(`surfaced_at`, `reminders_sent`) survives losing the DB.
+
+Writes go through `vault.notes.save_note`: the cross-process vault lock, a
+hash check against what was read, and a three-way merge per frontmatter key.
+A user editing `status` in Obsidian while the worker updates the same file is
+therefore merged when they touched different keys, and otherwise re-read and
+re-decided — never overwritten. New files are written atomically under the
+same lock. The worker never commits; the app's vault sync does.
+
+The findings folder is excluded from the vault index (vault/sync.py) until
+Phase 9 decides what of it may be retrieved.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import json
+import logging
+import re
+import secrets
+import uuid
+from dataclasses import dataclass, field
+from datetime import date
+from pathlib import Path
+from typing import Callable
+
+from proactive import clock
+from proactive.paths import NOTICES, findings_root
+
+log = logging.getLogger("proactive.findings")
+
+_FID_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567"
+FID_LEN = 7
+_FID_RE = re.compile(rf"^[{_FID_ALPHABET}]{{{FID_LEN}}}$")
+
+#: Frontmatter keys in the order a new file gets them.
+KEYS = (
+    "pbrain_id", "finding_id", "finding_key", "kind", "title", "status", "topic",
+    "urgency", "priority", "advice", "doc_ids", "evidence_hash", "analysis_version",
+    "created", "surfaced_at", "snoozed_until", "deadline", "deadline_kind",
+    "reminders_sent", "lang",
+)
+
+
+class LedgerConflict(Exception):
+    """The file kept changing under us; the job retries later."""
+
+
+def new_finding_id() -> str:
+    return "".join(secrets.choice(_FID_ALPHABET) for _ in range(FID_LEN))
+
+
+def valid_finding_id(fid: str) -> bool:
+    return bool(_FID_RE.match(fid or ""))
+
+
+def evidence_hash(doc_ids: list[int], facts: list[str]) -> str:
+    """sha256 over the sorted documents and the normalized key facts."""
+    norm = sorted(" ".join(str(f).lower().split()) for f in facts if str(f).strip())
+    raw = json.dumps({"docs": sorted(int(d) for d in doc_ids), "facts": norm})
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
+@dataclass
+class Finding:
+    finding_id: str
+    kind: str  # deadline | insight
+    title: str
+    status: str = "new"
+    topic: str = ""
+    urgency: str = "medium"
+    priority: float = 0.0
+    advice: bool = False
+    doc_ids: list[int] = field(default_factory=list)
+    evidence_hash: str = ""
+    analysis_version: int = 1
+    created: str = ""
+    surfaced_at: str | None = None
+    snoozed_until: str | None = None
+    deadline: str | None = None
+    deadline_kind: str | None = None
+    reminders_sent: list[int] = field(default_factory=list)
+    finding_key: str = ""
+    lang: str = "en"
+    pbrain_id: str = ""
+    # not in frontmatter
+    user: str = ""
+    rel: str = ""  # vault-relative path
+    body: str = ""
+    sha: str = ""
+
+    def meta(self) -> dict:
+        d = {
+            "pbrain_id": self.pbrain_id,
+            "finding_id": self.finding_id,
+            "finding_key": self.finding_key,
+            "kind": self.kind,
+            "title": self.title,
+            "status": self.status,
+            "topic": self.topic,
+            "urgency": self.urgency,
+            "priority": round(float(self.priority), 3),
+            "advice": bool(self.advice),
+            "doc_ids": [int(x) for x in self.doc_ids],
+            "evidence_hash": self.evidence_hash,
+            "analysis_version": int(self.analysis_version),
+            "created": self.created,
+            "surfaced_at": self.surfaced_at,
+            "snoozed_until": self.snoozed_until,
+            "deadline": self.deadline,
+            "deadline_kind": self.deadline_kind,
+            "reminders_sent": [int(x) for x in self.reminders_sent],
+            "lang": self.lang,
+        }
+        if self.kind != "deadline":
+            for k in ("deadline", "deadline_kind", "reminders_sent"):
+                d.pop(k)
+        return d
+
+    @property
+    def deadline_date(self) -> date | None:
+        try:
+            return date.fromisoformat(str(self.deadline)) if self.deadline else None
+        except ValueError:
+            return None
+
+
+def _s(v) -> str | None:
+    """YAML gives dates/datetimes as objects; the ledger compares strings."""
+    if v is None or v == "":
+        return None
+    if hasattr(v, "isoformat"):
+        return v.isoformat()
+    return str(v)
+
+
+def parse(text: str, *, user: str = "", rel: str = "") -> Finding | None:
+    """A finding from file text, or None if it is not one (no finding_id)."""
+    from vault.note_text import properties, split_note
+    from vault.notes import sha_of
+
+    note = split_note(text)
+    m = properties(note.fm_raw)
+    fid = str(m.get("finding_id") or "")
+    if not valid_finding_id(fid):
+        return None
+
+    def _ints(v) -> list[int]:
+        out = []
+        for x in v if isinstance(v, list) else []:
+            try:
+                out.append(int(x))
+            except (TypeError, ValueError):
+                pass
+        return out
+
+    from vault.frontmatter import get_id
+
+    try:
+        prio = float(m.get("priority") or 0)
+    except (TypeError, ValueError):
+        prio = 0.0
+    return Finding(
+        finding_id=fid,
+        kind=str(m.get("kind") or "insight"),
+        title=str(m.get("title") or Path(rel).stem),
+        status=str(m.get("status") or "new").strip().lower(),
+        topic=str(m.get("topic") or ""),
+        urgency=str(m.get("urgency") or "medium"),
+        priority=prio,
+        advice=bool(m.get("advice")),
+        doc_ids=_ints(m.get("doc_ids")),
+        evidence_hash=str(m.get("evidence_hash") or ""),
+        analysis_version=int(m.get("analysis_version") or 1),
+        created=_s(m.get("created")) or "",
+        surfaced_at=_s(m.get("surfaced_at")),
+        snoozed_until=_s(m.get("snoozed_until")),
+        deadline=_s(m.get("deadline")),
+        deadline_kind=_s(m.get("deadline_kind")),
+        reminders_sent=_ints(m.get("reminders_sent")),
+        finding_key=str(m.get("finding_key") or ""),
+        lang=str(m.get("lang") or "en"),
+        pbrain_id=get_id(m),
+        user=user,
+        rel=rel,
+        body=note.body,
+        sha=sha_of(text),
+    )
+
+
+def render(f: Finding) -> str:
+    from vault.note_text import dump_mapping
+
+    return f"---\n{dump_mapping(f.meta())}---\n{f.body}"
+
+
+# ── Body ─────────────────────────────────────────────────────────────────────
+
+
+def paperless_link(doc_id: int) -> str:
+    from config.settings import settings
+
+    return f"{settings.paperless_url.rstrip('/')}/documents/{int(doc_id)}/details"
+
+
+def render_body(
+    lang: str,
+    *,
+    summary: str,
+    evidence: list[dict] | None = None,
+    sources: list[dict] | None = None,
+    recommendation: str = "",
+) -> str:
+    """Body sections in the user's language. `evidence` = `[{doc_id, quote}]`,
+    `sources` = `[{url, retrieved}]`. The disclaimer is added here, by code,
+    whenever there is a recommendation."""
+    from i18n import translator_for
+
+    _ = translator_for(lang)
+    out = [f"## {_('Summary')}", "", summary.strip(), ""]
+    if evidence:
+        out += [f"## {_('Evidence')}", ""]
+        for e in evidence:
+            quote = " ".join(str(e.get("quote", "")).split())
+            out.append(f"> {quote}")
+            out.append(f"> — [#{e['doc_id']}]({paperless_link(e['doc_id'])})")
+            out.append("")
+    if sources:
+        out += [f"## {_('Sources')}", ""]
+        for s in sources:
+            out.append(f"- {s['url']} ({s.get('retrieved', '')})")
+        out.append("")
+    if recommendation.strip():
+        out += [f"## {_('Recommendation')}", "", recommendation.strip(), ""]
+        out.append(f"> {disclaimer(lang)}")
+        out.append("")
+    return "\n".join(out)
+
+
+def disclaimer(lang: str) -> str:
+    from i18n import translator_for
+
+    _ = translator_for(lang)
+    return _("Not financial or investment advice. Check the recommendation yourself.")
+
+
+# ── Reading ──────────────────────────────────────────────────────────────────
+
+
+def _notices_dir(user: str) -> Path:
+    return findings_root(user) / NOTICES
+
+
+def _rel(user: str, path: Path) -> str:
+    from vault.paths import vault_path
+
+    return path.relative_to(vault_path(user)).as_posix()
+
+
+def _read_file(user: str, path: Path) -> Finding | None:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    return parse(text, user=user, rel=_rel(user, path))
+
+
+def list_findings(user: str) -> list[Finding]:
+    d = _notices_dir(user)
+    if not d.is_dir():
+        return []
+    out = []
+    for p in sorted(d.glob("*.md")):
+        if p.name.startswith(".") or p.name.endswith(".conflict.md"):
+            continue
+        f = _read_file(user, p)
+        if f is not None:
+            out.append(f)
+    return out
+
+
+def get(user: str, finding_id: str) -> Finding | None:
+    """A finding in *this user's* ledger only — the access rule of the page."""
+    if not valid_finding_id(finding_id):
+        return None
+    hit = _index.get(finding_id)
+    if hit and hit[0] == user:
+        f = _load_rel(user, hit[1])
+        if f is not None and f.finding_id == finding_id:
+            return f
+    for f in list_findings(user):
+        _index[f.finding_id] = (user, f.rel)
+        if f.finding_id == finding_id:
+            return f
+    return None
+
+
+def _load_rel(user: str, rel: str) -> Finding | None:
+    from vault.paths import vault_path
+
+    return _read_file(user, vault_path(user) / rel)
+
+
+#: finding_id → (user, rel). A hint only; every hit is re-read and checked.
+_index: dict[str, tuple[str, str]] = {}
+
+
+def locate(finding_id: str) -> Finding | None:
+    """Find a finding in any user's ledger (Telegram callbacks, email replies)."""
+    from config.settings import settings
+
+    if not valid_finding_id(finding_id):
+        return None
+    hit = _index.get(finding_id)
+    if hit:
+        f = _load_rel(*hit)
+        if f is not None and f.finding_id == finding_id:
+            return f
+    root = Path(settings.vault_root)
+    if not root.is_dir():
+        return None
+    for vault in sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith(".")):
+        f = get(vault.name, finding_id)
+        if f is not None:
+            return f
+    return None
+
+
+def find_by_key(user: str, finding_key: str) -> Finding | None:
+    for f in list_findings(user):
+        if f.finding_key == finding_key:
+            return f
+    return None
+
+
+# ── Writing ──────────────────────────────────────────────────────────────────
+
+
+def _safe_filename(title: str) -> str:
+    name = re.sub(r'[\\/:*?"<>|#^\[\]\0\n\r\t]', " ", title)
+    name = " ".join(name.split()).strip(". ")[:120] or "Finding"
+    return name
+
+
+async def create(user: str, f: Finding) -> Finding:
+    """Write a new finding file. `f.finding_id` and `pbrain_id` are minted here
+    when empty."""
+    from vault.locks import get_user_lock
+    from vault.paths import atomic_write_text, ensure_vault_dir
+
+    f.user = user
+    f.finding_id = f.finding_id or new_finding_id()
+    f.pbrain_id = f.pbrain_id or str(uuid.uuid4())
+    f.created = f.created or clock.local_now().isoformat(timespec="seconds")
+    d = _notices_dir(user)
+    stem = f"{clock.local_now():%Y-%m-%d} {_safe_filename(f.title)}"
+
+    def _write() -> Path:
+        ensure_vault_dir(findings_root(user))
+        ensure_vault_dir(d)
+        path = d / f"{stem}.md"
+        n = 2
+        while path.exists():
+            path = d / f"{stem} ({n}).md"
+            n += 1
+        atomic_write_text(path, render(f))
+        return path
+
+    async with get_user_lock(user):
+        path = await asyncio.to_thread(_write)
+    f.rel = _rel(user, path)
+    _index[f.finding_id] = (user, f.rel)
+    loaded = _load_rel(user, f.rel)
+    return loaded or f
+
+
+Mutation = Callable[[Finding], "dict | None"]
+
+
+async def update(user: str, finding_id: str, mutate: Mutation, *, body: Callable[[Finding], str] | None = None) -> Finding | None:
+    """Apply `mutate(finding) -> {key: value}` to the frontmatter (None = no
+    change) and optionally replace the body. Re-read and re-decided once if
+    the file changed in between; a second clash raises `LedgerConflict`.
+    Returns the finding as written, or None if it is gone."""
+    from vault.note_text import apply_edits, join_note, split_note
+    from vault.notes import NoteConflict, read_note, save_note
+
+    for attempt in range(2):
+        f = get(user, finding_id)
+        if f is None:
+            return None
+        snap = await read_note(user, f.rel)
+        f = parse(snap.text, user=user, rel=f.rel)
+        if f is None:
+            return None
+        changes = mutate(f)
+        new_body = body(f) if body else None
+        if not changes and new_body is None:
+            return f
+        note = split_note(snap.text)
+        fm_raw = apply_edits(note.fm_raw, set_=changes or {})
+        new_note = type(note)(
+            fm_raw=fm_raw,
+            body=note.body if new_body is None else new_body,
+            open_fence=note.open_fence,
+            close_fence=note.close_fence,
+        )
+        text = join_note(new_note)
+        try:
+            saved = await save_note(user, f.rel, text, expected_sha=snap.sha, base_text=snap.text)
+        except NoteConflict:
+            log.info("%s: finding %s changed while updating — re-reading (attempt %d)", user, finding_id, attempt + 1)
+            continue
+        return parse(saved.text, user=user, rel=f.rel)
+    raise LedgerConflict(f"{user}: finding {finding_id} kept changing")
+
+
+async def upsert(user: str, f: Finding) -> tuple[Finding, str]:
+    """Create or refresh the finding for `f.finding_key`.
+
+    Returns `(finding, outcome)`, outcome one of:
+    - `created`   — no finding with this key yet
+    - `unchanged` — same evidence: nothing written (a dismissed finding stays
+                    dismissed — it is never re-surfaced on the same evidence)
+    - `updated`   — open finding, new evidence: content refreshed, status kept
+    - `reopened`  — dismissed/done finding, new evidence: back to `new`
+    """
+    from proactive.states import transition
+
+    if not f.finding_key:
+        raise ValueError("finding_key is required")
+    existing = find_by_key(user, f.finding_key)
+    if existing is None:
+        return await create(user, f), "created"
+    if existing.evidence_hash == f.evidence_hash:
+        return existing, "unchanged"
+    reopen = transition(existing.status, "reopen") is not None
+    fields = {
+        "title": f.title,
+        "topic": f.topic,
+        "urgency": f.urgency,
+        "advice": bool(f.advice),
+        "doc_ids": [int(x) for x in f.doc_ids],
+        "evidence_hash": f.evidence_hash,
+        "analysis_version": int(f.analysis_version),
+    }
+    if f.kind == "deadline":
+        fields.update(deadline=f.deadline, deadline_kind=f.deadline_kind)
+    if reopen:
+        fields.update(status="new", surfaced_at=None, snoozed_until=None)
+        if f.kind == "deadline":
+            fields["reminders_sent"] = []
+
+    def mutate(cur: Finding) -> dict:
+        if not reopen and cur.status != existing.status:
+            # The user changed it meanwhile; refresh content, keep their status.
+            fields.pop("status", None)
+        return dict(fields)
+
+    updated = await update(user, existing.finding_id, mutate, body=lambda _cur: f.body)
+    return updated or existing, "reopened" if reopen else "updated"
