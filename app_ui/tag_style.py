@@ -132,19 +132,26 @@ def invalidate_tag_colors() -> None:
         pass
 
 
-def tag_colors(tag_name: str) -> tuple[str, str]:
-    """(background_css, text_css) for a tag, from Paperless or the fallback hue."""
+def tag_hue(tag_name: str) -> float:
+    """OKLCh hue of a tag, from Paperless or the fallback hue."""
     stored = _tag_colors.get(tag_name)
     if stored:
         try:
-            return normalize_tag_color(stored)
+            return round(hex_to_oklch_hue(stored), 1)
         except (ValueError, IndexError):
             # A malformed hex in Paperless must not take a whole card down.
             pass
-    hue = fallback_hue(tag_name)
+    return fallback_hue(tag_name)
+
+
+def tag_colors(tag_name: str) -> tuple[str, str]:
+    """(background_css, text_css) for a tag. Only the hue is fixed here; lightness
+    and chroma are theme tokens (``--tag-*`` in app_ui/theme.py), because the dark
+    band — light text on a dark tint — was unreadable on the light theme's paper."""
+    hue = tag_hue(tag_name)
     return (
-        f"oklch({_BG_L} {_BG_C} {hue} / {_BG_ALPHA})",
-        f"oklch({_TEXT_L} {_TEXT_C} {hue})",
+        f"oklch(var(--tag-bg-l) var(--tag-bg-c) {hue} / var(--tag-bg-a))",
+        f"oklch(var(--tag-fg-l) var(--tag-fg-c) {hue})",
     )
 
 

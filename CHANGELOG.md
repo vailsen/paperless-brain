@@ -12,6 +12,8 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **The dashboard's document counter no longer looks behind.** Documents
   carrying the no-ingest tag (the inbox) are not counted on the Paperless
   side either, so a finished sync reads "523 / 523", not "523 / 533".
+- **Tags are readable in light mode.** Chips kept the dark theme's light text
+  on a pale tint; each theme now has its own lightness, the tag's hue is kept.
 - **The proactive worker starts in Docker.** It ran the installed copy of the
   code, which lacks the translations, and crashed on import; it now runs from
   `/app` like the app (`python -m proactive.worker`).
