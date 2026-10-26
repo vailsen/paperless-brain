@@ -266,7 +266,16 @@ confirm the job log says "update — read 1 document(s)".
 
 ---
 
-## Phase 9 — Retrieval integration
+## Phase 9 — Retrieval integration ✅ done (2026-10-26)
+
+Built: `proactive/retrieval.py` (`index_meta`: findings `surfaced | interested |
+researched | done` and dossiers, `source_type` + `trust: low`; nothing else of the
+folder, nothing while disabled), `vault/sync._embed_file` indexes them without
+writing to the file, chat retrieval marks such hits "PaperlessBrain finding/dossier —
+not evidence" (`chat_service._finding_mark`), and `config/chat_prompts.FINDINGS_RULE`
+(in the documents block, only when enabled) tells the model to cite the documents.
+Vault queries stay filtered by `user`. Tests: `tests/test_proactive_retrieval.py`.
+"Wie ist der Stand bei meinem Bausparvertrag?" with a real model: on the dev machine.
 
 - Vault ingestion: include findings/dossiers with `source_type` metadata + low trust; exclude `held|snoozed|dismissed` and `_interests.md` via frontmatter filter.
 - RAG system prompt rule: cite Paperless documents, not findings/dossiers.

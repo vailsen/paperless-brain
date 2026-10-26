@@ -1,6 +1,6 @@
 # Proactive System — Architecture
 
-Status: design complete, implementation not started.
+Status: implemented (Phases 1–9, 2026-10-26). Real-data checks still open: `docs/proactive-tasks.md` Phases 6 and 8.
 Scope: notifications (Telegram + email), deadline reminders, document triage, topic dossiers, relevance learning.
 Dependencies: Werkbank (only for dossiers / deep-dives, phase 8+). Everything before that runs without Werkbank.
 

@@ -1300,7 +1300,7 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
                 path = m.get("path", "")
                 note_name = path.rsplit("/", 1)[-1].removesuffix(".md") if path else ""
                 heading = m.get("heading_path", "")
-                label = f"{note_name}" + (f" › {heading}" if heading else "")
+                label = f"{note_name}" + (f" › {heading}" if heading else "") + _finding_mark(path)
                 snippet = (h.get("document") or "")[:200]
                 lines.append(f"[{dist:.2f}] {label}: {snippet}")
             return lines
@@ -2931,7 +2931,7 @@ async def _tool_search_memory(inputs: dict) -> tuple[str, list, list]:
                     )
                     heading = m.get("heading_path", "")
                     snippet = (h.get("document") or "")[:150]
-                    heading_sfx = f" › {heading}" if heading else ""
+                    heading_sfx = (f" › {heading}" if heading else "") + _finding_mark(path)
                     vault_lines.append(
                         f"• [{d:.2f}] [[{note_name}]]{heading_sfx}: {snippet}"
                     )
@@ -2991,6 +2991,20 @@ async def _tool_delete_brain_fact(inputs: dict) -> tuple[str, list]:
         return f"Fact {fact_id[:8]}… deleted.", []
     except Exception as e:
         return f"Error while deleting: {e}", []
+
+
+def _finding_mark(path: str) -> str:
+    """A label for a proactive finding/dossier among vault hits: a pointer to
+    documents, never evidence itself (Phase 9; FINDINGS_RULE in the prompt)."""
+    try:
+        from proactive.paths import DOSSIERS, findings_rel, is_findings_path
+
+        if not path or not is_findings_path(path):
+            return ""
+        kind = "dossier" if f"/{DOSSIERS}/" in "/" + path.removeprefix(findings_rel()) else "finding"
+    except Exception:
+        return ""
+    return f" [PaperlessBrain {kind} — not evidence: read and cite the documents it names]"
 
 
 def _fmt_note_line(name: str, heading: str, psid: str, dist: float) -> str:
@@ -3141,7 +3155,7 @@ async def _tool_vault_search(inputs: dict) -> tuple[str, list]:
         # Lead with the note; put the id in an unmistakable labelled form and the
         # score last as a parenthesised word — NOT a leading "[0.18]" bracket,
         # which weak models copied into the pbrain_id argument.
-        lines.append(_fmt_note_line(r.title, r.heading_path, r.pbrain_id, r.distance))
+        lines.append(_fmt_note_line(r.title, r.heading_path, r.pbrain_id, r.distance) + _finding_mark(r.path))
         lines.append(f"  {r.snippet}")
 
     # Brain cross-preview
