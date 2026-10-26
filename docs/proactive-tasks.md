@@ -165,7 +165,23 @@ not). Tests: `tests/test_proactive_imap.py`.
 
 ---
 
-## Phase 6 — Deadlines
+## Phase 6 — Deadlines ✅ done (2026-10-26) — real-data spot-check pending
+
+Built: `proactive/analysis.py` (text-only pass over the sidecar text, schema +
+verbatim-quote check by code, cached per document/version, re-run when the text
+changes), `proactive/deadlines.py` (findings for actionable future deadlines only;
+reminders at offsets from the ledger, no LLM; one reminder when several offsets
+were missed; urgency by code; dashboard source), `proactive/tasks/documents.py`
+(new-document poller — first poll only sets the cursor; per-user access check with
+the user's token; sweep processor), `proactive/tasks/daily.py`. Dashboard: an
+analysed document's deadlines come from `doc_analysis` (never both); "overdue" only
+for a date the user was reminded of and has not closed. Reminder note line
+("7 days left") is part of the default message — it tells no more than the
+title's date. Tests: `tests/test_proactive_deadlines.py`.
+
+Still to do on the dev machine: `scripts/proactive_deadline_check.py
+--with-actions-only` over the D2 set; record the zero-past-reminders count and the
+precision of 20 spot-checked deadlines in `docs/proactive-diagnostics.md`.
 
 - `doc_analysis` job: summary + deadlines `{date, kind, actionable, quote}` (architecture §9), JSON-schema-validated output; verbatim quote check.
 - New-document poller (`id__gt` cursor) enqueues `doc_analysis` → per-user permission check (user token) → deadline finding.

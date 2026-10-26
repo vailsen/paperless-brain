@@ -95,7 +95,9 @@ async def react(user: str, finding_id: str, action: str, *, channel: str) -> str
     return _message(f.lang, action)
 
 
-async def surface(user: str, finding_id: str, *, event: str = "push", counts: bool = True, full_text: str = "") -> bool:
+async def surface(
+    user: str, finding_id: str, *, event: str = "push", counts: bool = True, full_text: str = "", note: str = "",
+) -> bool:
     """Move a finding to `surfaced` and notify. False if the event does not
     apply (already surfaced, dismissed, …) — then nothing is sent."""
     from proactive import notify
@@ -124,6 +126,7 @@ async def surface(user: str, finding_id: str, *, event: str = "push", counts: bo
         full_text=full_text or _summary(f.body),
         actions=DEADLINE_ACTIONS if f.kind == "deadline" else INSIGHT_ACTIONS,
         counts=counts,
+        note=note,
     )
     notify.enqueue(n)
     return True

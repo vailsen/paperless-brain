@@ -82,15 +82,18 @@ def compose(
     full_text: str = "",
     actions: list[str] | None = None,
     counts: bool = True,
+    note: str = "",
 ) -> Notification:
-    """Build a notification in the recipient's language."""
+    """Build a notification in the recipient's language. `note` is one short
+    line that belongs in the default content (a reminder's "7 days left" —
+    nothing more revealing than the title)."""
     from i18n import translator_for
 
     _ = translator_for(lang)
     link = finding_link(finding_id) if finding_id else app_link("/findings")
     urgency_label = _(URGENCY_LABELS.get(urgency, URGENCY_LABELS["medium"]))
     short = "\n".join(
-        [title, _("Urgency: {urgency}").format(urgency=urgency_label), link]
+        p for p in [title, note, _("Urgency: {urgency}").format(urgency=urgency_label), link] if p
     )
     full = "\n\n".join(p for p in (short, full_text) if p) if full_text else ""
     return Notification(

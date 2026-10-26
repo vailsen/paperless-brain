@@ -1512,6 +1512,12 @@ window.__toggleHideAction = function(key) {{
     # is the only thing standing between the user and other people's document
     # content. It fails closed: no token or an API error hides the deadlines.
     actions = _load_actions()
+    # With the proactive system on, an analysed document's deadlines come from
+    # its doc_analysis (actionable only; "overdue" only for an open reminder)
+    # instead of its sidecar actions — one source per document.
+    from proactive.deadlines import dashboard_actions
+
+    actions = dashboard_actions(actions, _username)
     if actions:
         if _token:
             from services.sidecar_service import filter_visible_actions

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-26 12:17+0000\n"
+"POT-Creation-Date: 2026-10-26 12:24+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -492,7 +492,7 @@ msgstr "Kein extrahierter Text verfügbar."
 msgid "Actions"
 msgstr "Aktionen"
 
-#: app_ui/document_dialog.py:610 app_ui/pages/dashboard.py:1758
+#: app_ui/document_dialog.py:610 app_ui/pages/dashboard.py:1764
 msgid "Description"
 msgstr "Beschreibung"
 
@@ -500,7 +500,7 @@ msgstr "Beschreibung"
 msgid "Deadline"
 msgstr "Frist"
 
-#: app_ui/document_dialog.py:624 app_ui/pages/dashboard.py:1714
+#: app_ui/document_dialog.py:624 app_ui/pages/dashboard.py:1720
 msgid "Certain"
 msgstr "Sicher"
 
@@ -2757,61 +2757,61 @@ msgstr "Nicht konfiguriert"
 msgid "iCal ({n} calendars)"
 msgstr "iCal ({n} Kalender)"
 
-#: app_ui/pages/dashboard.py:1549
+#: app_ui/pages/dashboard.py:1555
 msgid "upcoming"
 msgstr "bevorstehend"
 
-#: app_ui/pages/dashboard.py:1551
+#: app_ui/pages/dashboard.py:1557
 #, python-brace-format
 msgid "{n} overdue"
 msgstr "{n} überfällig"
 
-#: app_ui/pages/dashboard.py:1553
+#: app_ui/pages/dashboard.py:1559
 msgid "Show overdue deadlines only"
 msgstr "Nur überfällige Fristen anzeigen"
 
-#: app_ui/pages/dashboard.py:1652
+#: app_ui/pages/dashboard.py:1658
 msgid "No deadlines found."
 msgstr "Keine Fristen gefunden."
 
-#: app_ui/pages/dashboard.py:1663
+#: app_ui/pages/dashboard.py:1669
 msgid "Overdue only"
 msgstr "Nur überfällige"
 
-#: app_ui/pages/dashboard.py:1666
+#: app_ui/pages/dashboard.py:1672
 msgid "Show all"
 msgstr "Alle anzeigen"
 
-#: app_ui/pages/dashboard.py:1678
+#: app_ui/pages/dashboard.py:1684
 #, python-brace-format
 msgid "{n} hidden"
 msgstr "{n} ausgeblendet"
 
-#: app_ui/pages/dashboard.py:1681
+#: app_ui/pages/dashboard.py:1687
 msgid "Show"
 msgstr "Einblenden"
 
-#: app_ui/pages/dashboard.py:1681 app_ui/pages/dashboard.py:1731
+#: app_ui/pages/dashboard.py:1687 app_ui/pages/dashboard.py:1737
 msgid "Hide"
 msgstr "Ausblenden"
 
-#: app_ui/pages/dashboard.py:1714
+#: app_ui/pages/dashboard.py:1720
 msgid "Uncertain"
 msgstr "Unsicher"
 
-#: app_ui/pages/dashboard.py:1731
+#: app_ui/pages/dashboard.py:1737
 msgid "Show again"
 msgstr "Wieder anzeigen"
 
-#: app_ui/pages/dashboard.py:1756
+#: app_ui/pages/dashboard.py:1762 proactive/deadlines.py:38
 msgid "Date"
 msgstr "Datum"
 
-#: app_ui/pages/dashboard.py:1759
+#: app_ui/pages/dashboard.py:1765
 msgid "Doc"
 msgstr "Dok"
 
-#: app_ui/pages/dashboard.py:1788
+#: app_ui/pages/dashboard.py:1794
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr "Seite {page} / {total}  ·  {count} Einträge"
@@ -2853,7 +2853,7 @@ msgstr "Zurückgestellt"
 msgid "Insight"
 msgstr "Hinweis"
 
-#: app_ui/pages/findings.py:44 proactive/notify/__init__.py:93
+#: app_ui/pages/findings.py:44 proactive/notify/__init__.py:96
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr "Dringlichkeit: {urgency}"
@@ -3875,6 +3875,39 @@ msgstr ""
 "Paperless-Benutzerkonto zugänglich. Der Schlüssel ist dein aktuelles "
 "Paperless-Token — wenn du es in Paperless regenerierst, musst du die "
 "Einstellungen neu eingeben."
+
+#: proactive/deadlines.py:33
+msgid "Cancellation deadline"
+msgstr "Kündigungsfrist"
+
+#: proactive/deadlines.py:34
+msgid "Payment due"
+msgstr "Zahlung fällig"
+
+#: proactive/deadlines.py:35
+msgid "Objection deadline"
+msgstr "Widerspruchsfrist"
+
+#: proactive/deadlines.py:36
+msgid "Application deadline"
+msgstr "Antragsfrist"
+
+#: proactive/deadlines.py:37
+msgid "Renewal"
+msgstr "Verlängerung"
+
+#: proactive/deadlines.py:139
+#, python-brace-format
+msgid "{n} days left."
+msgstr "Noch {n} Tage."
+
+#: proactive/deadlines.py:140
+msgid "Due tomorrow."
+msgstr "Morgen fällig."
+
+#: proactive/deadlines.py:140
+msgid "Due today."
+msgstr "Heute fällig."
 
 #: proactive/findings.py:226
 msgid "Evidence"
