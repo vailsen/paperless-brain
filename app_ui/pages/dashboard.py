@@ -6,7 +6,6 @@ import html as _html
 import json
 import os
 import re
-import socket
 from datetime import date, datetime
 
 import httpx
@@ -38,7 +37,7 @@ from services.clients import (
     vision,
 )
 from services.credential_store import load_credentials
-from services.ollama_watchdog import on_manual_shutdown, on_wol
+from services.ollama_watchdog import on_manual_shutdown
 
 # ── module-level sync state (persists across page navigations) ───────────────
 
@@ -208,12 +207,6 @@ def _power_hosts(username: str = "", token: str = "") -> list[str]:
         if m and m.group(1) not in hosts:
             hosts.append(m.group(1))
     return hosts
-
-
-def _wol_broadcast(username: str = "", token: str = "") -> str:
-    srv = _resolve_ollama_server(username, token)
-    m = re.search(r"(\d+\.\d+\.\d+)\.\d+", srv)
-    return f"{m.group(1)}.255" if m else "255.255.255.255"
 
 
 def _ollama_host_ip(username: str = "", token: str = "") -> str:
@@ -1301,18 +1294,16 @@ window.__toggleHideAction = function(key) {{
         # Waking the wrong subnet costs nothing, so warn and carry on.
         if warn := _ambiguous_power_target():
             ui.notify(warn, type="warning", timeout=10000)
-        broadcast = _wol_broadcast(_username, _token)
+        from services.wol import wake
+
         try:
-            mac_bytes = bytes.fromhex(mac.replace(":", "").replace("-", ""))
-            magic = b"\xff" * 6 + mac_bytes * 16
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                sock.sendto(magic, (broadcast, 9))
+            # Same path as the proactive worker's: records the wake in the
+            # shared power state, so the idle rule applies to it.
+            broadcast = wake(mac, _resolve_ollama_server(_username, _token))
         except Exception as exc:
             ui.notify(_("WoL error: {err}").format(err=exc), type="negative")
             return
 
-        on_wol(_ollama_host_ip(_username, _token))
         ui.notify(_("Magic packet → {target}").format(target=broadcast), type="positive")
         ollama_badge.set_text(_("Waking up…"))
         ollama_dot.style(

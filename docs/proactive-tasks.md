@@ -57,7 +57,18 @@ asleep, no grant): re-queued without spending an attempt.
 
 ---
 
-## Phase 2 — Inference gate, windows, per-user model
+## Phase 2 — Inference gate, windows, per-user model ✅ done (2026-10-26)
+
+Built: shared power state `data/power_state.json` (`services/ollama_watchdog.py`,
+replaces module globals — D6), `services/wol.py` (one wake path for the dashboard
+and the worker), `proactive/gate.py` (probe → WoL → wait; backoff; asked only when a
+local LLM job is due), `proactive/models.py` (`resolve_model`, the one resolution
+function), `proactive/windows.py` (windows, budget, `window_log`, cloud cap),
+`proactive/tasks/sweep.py` (round-robin backlog sweep; the per-document processor
+plugs in from Phase 6), job grouping by model (`jobs.model_key`, `lane`), model
+dropdown in Settings > Proactive. Tests: `tests/test_proactive_gate.py`.
+"[Verify in] backend logs" items are covered by fakes; on the real host the
+`window_log` rows per window = models used (swaps + 1).
 
 - LLM gate: wake via the existing WoL code path (if `PROACTIVE_WOL_AUTO`) → warmup ping → run `needs_llm` jobs; unreachable → backoff, jobs stay queued. No own shutdown logic; the existing idle rule handles it (fix per D6 if worker requests don't count as activity).
 - Sweep windows + doc budget, round-robin across users; `window_log`.

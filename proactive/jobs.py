@@ -49,6 +49,8 @@ class Job:
     run_after: str
     last_error: str | None = None
     dedupe_key: str | None = None
+    model_key: str = ""
+    lane: str = ""
 
     @classmethod
     def from_row(cls, r: sqlite3.Row) -> "Job":
@@ -63,6 +65,8 @@ class Job:
             run_after=r["run_after"],
             last_error=r["last_error"],
             dedupe_key=r["dedupe_key"],
+            model_key=r["model_key"],
+            lane=r["lane"],
         )
 
 
@@ -103,18 +107,24 @@ def enqueue(
     needs_llm: bool | None = None,
     delay: timedelta = timedelta(0),
     dedupe_key: str | None = None,
+    model=None,
 ) -> int | None:
     """Queue a job. Returns its id, or None if `dedupe_key` is already queued
-    or running. `needs_llm` defaults to the handler's registration."""
+    or running. `needs_llm` defaults to the handler's registration. `model`
+    (a `proactive.models.ResolvedModel`) sets the grouping key and lane of an
+    LLM job; the handler resolves again when it runs."""
     if needs_llm is None:
         reg = _HANDLERS.get(kind)
         needs_llm = bool(reg and reg.needs_llm)
+    model_key = model.key if (needs_llm and model is not None) else ""
+    lane = (model.lane if model is not None else "local") if needs_llm else ""
     now = clock.utcnow()
     with connect() as conn:
         try:
             cur = conn.execute(
                 "INSERT INTO jobs (kind, user, payload_json, needs_llm, status,"
-                " run_after, created_at, dedupe_key) VALUES (?,?,?,?,?,?,?,?)",
+                " run_after, created_at, dedupe_key, model_key, lane)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (
                     kind,
                     user,
@@ -124,6 +134,8 @@ def enqueue(
                     clock.iso(now + delay),
                     clock.iso(now),
                     dedupe_key,
+                    model_key,
+                    lane,
                 ),
             )
         except sqlite3.IntegrityError:
@@ -131,19 +143,38 @@ def enqueue(
         return cur.lastrowid
 
 
-def claim_next(*, llm_ok: bool = True, kinds: set[str] | None = None) -> Job | None:
-    """Mark the oldest due job `running` and return it. `llm_ok=False` leaves
-    `needs_llm` jobs queued (the inference gate is closed)."""
+def claim_next(
+    *,
+    llm_ok: bool = True,
+    cloud_ok: bool | None = None,
+    prefer_model: str = "",
+    kinds: set[str] | None = None,
+) -> Job | None:
+    """Mark the next due job `running` and return it.
+
+    `llm_ok=False` leaves local-lane LLM jobs queued (the inference host is not
+    up); `cloud_ok` does the same for cloud-lane ones (defaults to `llm_ok`).
+    Among due jobs, those on `prefer_model` go first: the runner keeps the
+    loaded model busy before switching, so a window costs one swap per model
+    instead of one per job."""
+    if cloud_ok is None:
+        cloud_ok = llm_ok
     sql = "SELECT * FROM jobs WHERE status = 'queued' AND run_after <= ?"
     args: list[Any] = [clock.now_iso()]
-    if not llm_ok:
-        sql += " AND needs_llm = 0"
+    lanes = [lane for lane, ok in (("local", llm_ok), ("cloud", cloud_ok)) if ok]
+    sql += " AND (needs_llm = 0" + (
+        f" OR lane IN ({','.join('?' * len(lanes))}))" if lanes else ")"
+    )
+    args.extend(lanes)
     if kinds is not None:
         if not kinds:
             return None
         sql += f" AND kind IN ({','.join('?' * len(kinds))})"
         args.extend(sorted(kinds))
-    sql += " ORDER BY run_after, id LIMIT 1"
+    # Jobs without LLM first (they are cheap and some are time-critical, like
+    # reminders), then the loaded model's jobs, then the rest by age.
+    sql += " ORDER BY needs_llm, (model_key != ?), run_after, id LIMIT 1"
+    args.append(prefer_model)
     with connect() as conn:
         row = conn.execute(sql, args).fetchone()
         if row is None:
@@ -232,12 +263,24 @@ def get(job_id: int) -> Job | None:
     return Job.from_row(row) if row else None
 
 
-def pending_count(*, needs_llm: bool | None = None) -> int:
+def pending_count(
+    *, needs_llm: bool | None = None, kind: str | None = None, due_only: bool = False,
+    lane: str | None = None,
+) -> int:
     sql = "SELECT COUNT(*) FROM jobs WHERE status IN ('queued', 'running')"
     args: list[Any] = []
     if needs_llm is not None:
         sql += " AND needs_llm = ?"
         args.append(int(needs_llm))
+    if kind is not None:
+        sql += " AND kind = ?"
+        args.append(kind)
+    if lane is not None:
+        sql += " AND lane = ?"
+        args.append(lane)
+    if due_only:
+        sql += " AND status = 'queued' AND run_after <= ?"
+        args.append(clock.now_iso())
     with connect() as conn:
         return conn.execute(sql, args).fetchone()[0]
 

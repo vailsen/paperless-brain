@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proactive.tasks import heartbeat  # noqa: F401
+from proactive.tasks import heartbeat, sweep  # noqa: F401
 
 if TYPE_CHECKING:
     from proactive.worker import Worker
@@ -16,3 +16,6 @@ if TYPE_CHECKING:
 
 def attach(worker: "Worker") -> None:
     """Schedules and background tasks for this worker."""
+    from proactive import scheduler
+
+    scheduler.ensure(sweep.SWEEP_ROUND, "every:60")

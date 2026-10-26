@@ -227,7 +227,7 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 
 ### Ollama watchdog
 
-`services/ollama_watchdog.py`: sends Wake-on-LAN to the Ollama server MAC on first use, shuts it down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity. `touch()` resets the idle timer.
+`services/ollama_watchdog.py`: shuts the Ollama host down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity, but only a host that was woken via WoL. `touch()` resets the idle timer. The state (woken?, last activity, host) lives in `data/power_state.json`, not in module globals: the proactive worker is a second process sending inference requests, and the app's watchdog must see them. Waking goes through `services/wol.wake()` — the dashboard button and the worker's LLM gate (`proactive/gate.py`) both use it.
 
 ## Deployment target
 

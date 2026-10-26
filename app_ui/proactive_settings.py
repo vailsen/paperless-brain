@@ -106,5 +106,73 @@ def proactive_setting(username: str, token: str) -> None:
         if status != "active":
             sw.disable()
             ui.label(_("Needs background access.")).classes("text-xs text-gray-500")
+            return
+
+        ui.separator().classes("my-4")
+        _model_section(username, token, p)
 
     body()
+
+
+def _model_section(username: str, token: str, p) -> None:
+    """Proactive model: the operator may fix it, restrict it, or forbid cloud."""
+    _ = get_translator()
+    from config.proactive import proactive_settings
+    from proactive import prefs as pprefs
+    from proactive.models import allowed_registry_models, resolve_model
+
+    cfg = proactive_settings()
+    ui.label(_("Model")).classes("text-sm font-semibold text-gray-200")
+    if cfg.proactive_model_fixed:
+        ui.input(_("Model"), value=cfg.proactive_model_fixed).props(
+            "outlined dark dense readonly"
+        ).classes("w-full")
+        ui.label(_("Set by the operator for all users.")).classes("text-xs text-gray-500")
+        return
+
+    allowed = allowed_registry_models(username, token)
+    fallback = cfg.proactive_model_default or p.chat_model or _("none")
+    from app_ui.model_picker import model_select
+
+    def _show_cloud_warning() -> None:
+        cur = pprefs.get(username)
+        resolved = resolve_model(username, token, cur)
+        if resolved is not None and resolved.lane == "cloud":
+            warn.set_text(
+                _(
+                    "This is a cloud model: while your existing documents are analysed, "
+                    "their text is sent to that provider (at most {n} documents a day)."
+                ).format(n=cfg.proactive_cloud_max_docs_per_user_day)
+            )
+            warn.set_visibility(True)
+        else:
+            warn.set_visibility(False)
+
+    def _on_change(e) -> None:
+        name = e.value or ""
+        if name and name not in {m["name"] for m in allowed_registry_models(username, token)}:
+            ui.notify(_("This model is not allowed for proactive jobs."), type="negative")
+            return
+        cur = pprefs.get(username)
+        cur.model = name
+        _snapshot_from_session(cur)
+        pprefs.save(cur)
+        _show_cloud_warning()
+        ui.notify(_("Saved"), type="positive")
+
+    model_select(
+        allowed,
+        p.model if p.model in {m["name"] for m in allowed} else "",
+        label=_("Model for reminders and insights"),
+        on_change=_on_change,
+        allow_empty=True,
+        empty_label=_("Default ({model})").format(model=fallback),
+    ).props("outlined dark dense").classes("w-full")
+    if p.model and p.model not in {m["name"] for m in allowed}:
+        ui.label(
+            _("Your earlier choice {model} is not allowed any more; the default is used.").format(
+                model=p.model
+            )
+        ).classes("text-xs text-gray-500")
+    warn = ui.label("").classes("text-xs pb-warn-text leading-relaxed")
+    _show_cloud_warning()

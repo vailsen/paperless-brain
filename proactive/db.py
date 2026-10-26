@@ -106,6 +106,18 @@ MIGRATIONS: list[str] = [
         used_at    TEXT
     );
     """,
+    # 2 — model grouping (one swap per model per window) and the per-user
+    # daily cloud cap. `lane` is '' for jobs without LLM.
+    """
+    ALTER TABLE jobs ADD COLUMN model_key TEXT NOT NULL DEFAULT '';
+    ALTER TABLE jobs ADD COLUMN lane TEXT NOT NULL DEFAULT '';
+    CREATE TABLE cloud_usage (
+        user TEXT    NOT NULL,
+        day  TEXT    NOT NULL,
+        docs INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (user, day)
+    );
+    """,
 ]
 
 
