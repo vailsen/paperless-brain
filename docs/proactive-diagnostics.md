@@ -274,9 +274,10 @@ Werkbank task started by the *worker* needs the background token from Phase 0.5.
 3. **Inference:** one Ollama instance, no llama-swap (multi-GPU maybe later). Model
    listing via Ollama (`/api/tags` or `/v1/models`); every model change is an unload
    + load, so grouping jobs by model stays.
-4. **Deadlines:** open until Phase 6. Recommendation: `doc_analysis` as a text-only
-   pass over the sidecar text (no new vision run), and the dashboard switches to it,
-   so there is one deadline source.
+4. **Deadlines: accepted.** `doc_analysis` is a text-only pass over the sidecar text
+   (no new vision run), and the dashboard switches to it, so there is one deadline
+   source. Documents without an analysis yet keep showing the old sidecar actions
+   until the sweep reaches them — never both for the same document.
 
 ## Phase 0.5 — status
 

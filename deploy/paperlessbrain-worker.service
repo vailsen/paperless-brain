@@ -1,0 +1,24 @@
+# systemd unit for the proactive worker on a bare-metal / LXC install.
+# Install: cp deploy/paperlessbrain-worker.service /etc/systemd/system/
+#          systemctl daemon-reload && systemctl enable --now paperlessbrain-worker
+# Adjust WorkingDirectory/ExecStart to the install path and virtualenv used by
+# the `paperlessbrain` app service; both must read the same .env and data/.
+[Unit]
+Description=PaperlessBrain proactive worker
+After=network-online.target paperlessbrain.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/paperlessbrain
+ExecStart=/root/paperlessbrain/.venv/bin/paperlessbrain-worker
+# Exit 0 = PROACTIVE_ENABLED=false: stay stopped. Anything else: restart.
+Restart=on-failure
+RestartSec=30
+# SIGTERM lets the running job finish; give it time before SIGKILL.
+KillSignal=SIGTERM
+TimeoutStopSec=300
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

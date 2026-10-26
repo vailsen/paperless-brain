@@ -70,6 +70,10 @@ i18n = ["babel>=2.18"]
 # Test suite. babel is used by the catalog-integrity tests, so it is included.
 dev = ["pytest>=8.4", "babel>=2.18"]
 
+[project.scripts]
+# The proactive system's background process (docs/proactive-architecture.md §3).
+paperlessbrain-worker = "proactive.worker:main"
+
 [project.urls]
 Homepage = "https://github.com/Vailsen/paperless-brain"
 
@@ -77,7 +81,7 @@ Homepage = "https://github.com/Vailsen/paperless-brain"
 path = "config/version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["app_ui", "config", "models", "pipelines", "services", "vault", "werkbank"]
+packages = ["app_ui", "config", "models", "pipelines", "proactive", "services", "vault", "werkbank"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -89,6 +89,7 @@ body.body--light {
    colour classes are !important inside a CSS layer, which no override outside
    it can beat, so they would stay violet forever. */
 .pb-accent-text   { color: var(--c-accent-text) !important; }
+.pb-warn-text     { color: var(--c-warn) !important; }
 .pb-accent-border { border-color: var(--c-accent-border) !important; }
 
 /* Inter, shipped with the app (no font CDN). */

@@ -31,7 +31,16 @@ Carried into Phase 1: the opt-in / revoke control for background access in the p
 
 ---
 
-## Phase 1 — Feature switch, config, worker skeleton
+## Phase 1 — Feature switch, config, worker skeleton ✅ done (2026-10-26)
+
+Built: `config/proactive.py` (also: `config/settings.py` now ignores unknown keys —
+without that the app refused to start once a `PROACTIVE_*` key was set),
+`proactive/` (`db.py`, `jobs.py`, `scheduler.py`, `worker.py`, `prefs.py`,
+`tasks/`), entrypoint `paperlessbrain-worker`, compose service
+`paperless-brain-worker` (`restart: on-failure`, heartbeat-file health check),
+`deploy/paperlessbrain-worker.service`, Settings > Proactive (background access +
+opt-in). Tests: `tests/test_proactive_worker.py`. `jobs.Defer` = "not now" (host
+asleep, no grant): re-queued without spending an attempt.
 
 - `config/proactive.py`: typed settings from `.env` (all keys in architecture §2), validation; channel availability derived from config presence.
 - Worker entrypoint `paperlessbrain-worker` (same package). Exits with a log line if `PROACTIVE_ENABLED=false`.

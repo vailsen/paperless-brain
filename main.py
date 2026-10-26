@@ -18,6 +18,7 @@ import app_ui.memo_routes  # noqa: F401  — registers POST /api/memo/transcribe
 import app_ui.vault_routes  # noqa: F401  — registers GET /api/vault/file
 import app_ui.doc_image_routes  # noqa: F401  — registers GET /api/doc-image/{doc}/{page}
 import werkbank.v2.ui.page  # noqa: F401  — registers /werkbank
+from proactive.app import register as _register_proactive
 from app_ui.brand import ICON_VERSION
 from app_ui.tag_style import refresh_tag_colors
 from config.settings import settings
@@ -94,6 +95,9 @@ async def _start_watchdog() -> None:
     asyncio.create_task(refresh_tag_colors())
     cross_ref_index.build(str(settings.app_path / settings.extraction_sidecar_path))
 
+
+# Findings page, reaction endpoint, internal API — only with PROACTIVE_ENABLED.
+_register_proactive()
 
 app.add_static_files("/thumbnails", str(settings.app_path / settings.thumb_path))
 app.add_static_files("/static", str(settings.app_path / "app_ui" / "static"))

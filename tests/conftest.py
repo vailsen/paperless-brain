@@ -39,3 +39,29 @@ def tmp_sidecar_dir(tmp_path: Path) -> Path:
     d = tmp_path / "extractions"
     d.mkdir()
     return d
+
+
+@pytest.fixture
+def proactive_on(tmp_path, monkeypatch):
+    """PROACTIVE_ENABLED=true with a throwaway proactive.db and a resettable clock."""
+    from config import proactive as cfg
+    from proactive import clock
+
+    monkeypatch.setenv("PROACTIVE_ENABLED", "true")
+    monkeypatch.setenv("PROACTIVE_DB_PATH", str(tmp_path / "proactive.db"))
+    cfg.proactive_settings.cache_clear()
+    clock.reset()
+    yield tmp_path / "proactive.db"
+    cfg.proactive_settings.cache_clear()
+    clock.reset()
+
+
+@pytest.fixture
+def proactive_off(tmp_path, monkeypatch):
+    from config import proactive as cfg
+
+    monkeypatch.setenv("PROACTIVE_ENABLED", "false")
+    monkeypatch.setenv("PROACTIVE_DB_PATH", str(tmp_path / "proactive.db"))
+    cfg.proactive_settings.cache_clear()
+    yield tmp_path / "proactive.db"
+    cfg.proactive_settings.cache_clear()

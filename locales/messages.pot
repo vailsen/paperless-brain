@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-23 14:05+0200\n"
+"POT-Creation-Date: 2026-10-26 11:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -103,7 +103,7 @@ msgstr ""
 #: app_ui/pages/chat.py:3610 app_ui/pages/chat.py:3874
 #: app_ui/pages/chat.py:3958 app_ui/pages/dashboard.py:1020
 #: app_ui/pages/dashboard.py:1225 app_ui/pages/dashboard.py:1417
-#: app_ui/pages/settings.py:1218 app_ui/title_rename_settings.py:79
+#: app_ui/pages/settings.py:1239 app_ui/title_rename_settings.py:79
 #: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
 #: werkbank/ui/module_page.py:136 werkbank/v2/ui/brief_dialog.py:158
 #: werkbank/v2/ui/page.py:524
@@ -112,11 +112,11 @@ msgstr ""
 
 #: app_ui/ai_models_settings.py:173 app_ui/ai_models_settings.py:326
 #: app_ui/memo_dialog.py:323 app_ui/pages/chat.py:1428
-#: app_ui/pages/settings.py:232 app_ui/pages/settings.py:556
-#: app_ui/pages/settings.py:612 app_ui/pages/settings.py:662
-#: app_ui/pages/settings.py:739 app_ui/pages/settings.py:844
-#: app_ui/pages/settings.py:895 app_ui/pages/settings.py:940
-#: app_ui/pages/settings.py:1027 app_ui/pages/settings.py:1107
+#: app_ui/pages/settings.py:232 app_ui/pages/settings.py:577
+#: app_ui/pages/settings.py:633 app_ui/pages/settings.py:683
+#: app_ui/pages/settings.py:760 app_ui/pages/settings.py:865
+#: app_ui/pages/settings.py:916 app_ui/pages/settings.py:961
+#: app_ui/pages/settings.py:1048 app_ui/pages/settings.py:1128
 #: werkbank/ui/archetype_dialog.py:183
 msgid "Save"
 msgstr ""
@@ -596,7 +596,7 @@ msgid "Dashboard"
 msgstr ""
 
 #: app_ui/layout.py:43 app_ui/pages/chat.py:1728 app_ui/pages/dashboard.py:414
-#: app_ui/pages/settings.py:377
+#: app_ui/pages/settings.py:398
 msgid "Chat"
 msgstr ""
 
@@ -707,7 +707,8 @@ msgstr ""
 msgid "The memo is empty."
 msgstr ""
 
-#: app_ui/memo_dialog.py:463 app_ui/pages/settings.py:1293
+#: app_ui/memo_dialog.py:463 app_ui/pages/settings.py:1314
+#: app_ui/proactive_settings.py:61
 msgid "Not signed in."
 msgstr ""
 
@@ -808,6 +809,62 @@ msgstr ""
 msgid "The note could not be revised."
 msgstr ""
 
+#: app_ui/proactive_settings.py:37
+msgid "Background access"
+msgstr ""
+
+#: app_ui/proactive_settings.py:40
+msgid ""
+"Reminders and insights are prepared while you are not using the app. To "
+"do that, PaperlessBrain keeps your Paperless access token encrypted on "
+"the server and acts as you — it sees exactly the documents you can see, "
+"nothing more. You can withdraw this at any time."
+msgstr ""
+
+#: app_ui/proactive_settings.py:48
+msgid "Not allowed"
+msgstr ""
+
+#: app_ui/proactive_settings.py:49
+msgid "Allowed"
+msgstr ""
+
+#: app_ui/proactive_settings.py:50
+msgid "Your token was rejected — sign in again to renew it"
+msgstr ""
+
+#: app_ui/proactive_settings.py:64
+msgid "Background access allowed."
+msgstr ""
+
+#: app_ui/proactive_settings.py:73
+msgid "Background access withdrawn. Proactive features are off."
+msgstr ""
+
+#: app_ui/proactive_settings.py:78
+msgid "Withdraw background access"
+msgstr ""
+
+#: app_ui/proactive_settings.py:82
+msgid "Allow background access"
+msgstr ""
+
+#: app_ui/proactive_settings.py:86
+msgid "Withdraw"
+msgstr ""
+
+#: app_ui/proactive_settings.py:93
+msgid "Allow background access first."
+msgstr ""
+
+#: app_ui/proactive_settings.py:102
+msgid "Proactive reminders and insights"
+msgstr ""
+
+#: app_ui/proactive_settings.py:108
+msgid "Needs background access."
+msgstr ""
+
 #: app_ui/pages/chat.py:820 app_ui/pages/chat.py:3265 app_ui/pages/chat.py:3606
 #: app_ui/pages/chat.py:3867 app_ui/pages/chat.py:3954
 #: app_ui/pages/dashboard.py:1220 app_ui/pages/settings.py:280
@@ -892,7 +949,7 @@ msgstr ""
 msgid "(empty — the template produces no text)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1086 app_ui/title_rename_settings.py:135
+#: app_ui/pages/settings.py:1107 app_ui/title_rename_settings.py:135
 msgid "Reset to default"
 msgstr ""
 
@@ -1119,7 +1176,7 @@ msgstr ""
 msgid "{key} is managed by PaperlessBrain and stays unchanged."
 msgstr ""
 
-#: app_ui/pages/brain.py:774 app_ui/pages/settings.py:1221
+#: app_ui/pages/brain.py:774 app_ui/pages/settings.py:1242
 msgid "Apply"
 msgstr ""
 
@@ -1341,12 +1398,12 @@ msgid "Title"
 msgstr ""
 
 #: app_ui/pages/browser.py:318 app_ui/pages/browser.py:378
-#: app_ui/pages/browser.py:485 app_ui/pages/settings.py:922
+#: app_ui/pages/browser.py:485 app_ui/pages/settings.py:943
 msgid "Correspondent"
 msgstr ""
 
 #: app_ui/pages/browser.py:319 app_ui/pages/browser.py:390
-#: app_ui/pages/browser.py:493 app_ui/pages/settings.py:924
+#: app_ui/pages/browser.py:493 app_ui/pages/settings.py:945
 msgid "Document type"
 msgstr ""
 
@@ -1440,7 +1497,7 @@ msgid "Email"
 msgstr ""
 
 #: app_ui/pages/chat.py:722 app_ui/pages/dashboard.py:592
-#: app_ui/pages/settings.py:747
+#: app_ui/pages/settings.py:768
 msgid "Calendar"
 msgstr ""
 
@@ -1848,12 +1905,12 @@ msgid "Street"
 msgstr ""
 
 #: app_ui/pages/chat.py:3438 app_ui/pages/chat.py:3479
-#: app_ui/pages/settings.py:866
+#: app_ui/pages/settings.py:887
 msgid "Postcode"
 msgstr ""
 
 #: app_ui/pages/chat.py:3443 app_ui/pages/chat.py:3485
-#: app_ui/pages/settings.py:868
+#: app_ui/pages/settings.py:889
 msgid "City"
 msgstr ""
 
@@ -2127,7 +2184,7 @@ msgstr ""
 msgid "Shut down (SSH)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:583 app_ui/pages/settings.py:670
+#: app_ui/pages/dashboard.py:583 app_ui/pages/settings.py:691
 msgid "Email (IMAP)"
 msgstr ""
 
@@ -2377,7 +2434,7 @@ msgid "Shut down server"
 msgstr ""
 
 #: app_ui/pages/dashboard.py:1410 app_ui/pages/login.py:90
-#: app_ui/pages/settings.py:784
+#: app_ui/pages/settings.py:805
 msgid "Password"
 msgstr ""
 
@@ -2485,7 +2542,7 @@ msgid ""
 "PAPERLESS_SUPERUSER_TOKEN in your .env, then restart the container."
 msgstr ""
 
-#: app_ui/pages/login.py:87 app_ui/pages/settings.py:781
+#: app_ui/pages/login.py:87 app_ui/pages/settings.py:802
 msgid "Username"
 msgstr ""
 
@@ -2497,27 +2554,27 @@ msgstr ""
 msgid "Please enter username and password."
 msgstr ""
 
-#: app_ui/pages/login.py:133
+#: app_ui/pages/login.py:139
 msgid ""
 "PaperlessBrain is not configured: set PAPERLESS_URL in .env to your "
 "Paperless-ngx address and restart."
 msgstr ""
 
-#: app_ui/pages/login.py:137
+#: app_ui/pages/login.py:143
 #, python-brace-format
 msgid ""
 "Cannot reach Paperless-ngx at {url} — check the address, the network and "
 "whether Paperless is running."
 msgstr ""
 
-#: app_ui/pages/login.py:141
+#: app_ui/pages/login.py:147
 #, python-brace-format
 msgid ""
 "Paperless-ngx answered with an error. Check its logs and that {url} is "
 "really a Paperless instance."
 msgstr ""
 
-#: app_ui/pages/login.py:146
+#: app_ui/pages/login.py:152
 msgid "Login failed. Please check your details."
 msgstr ""
 
@@ -2529,7 +2586,7 @@ msgstr ""
 msgid "Light"
 msgstr ""
 
-#: app_ui/pages/settings.py:50 app_ui/pages/settings.py:368
+#: app_ui/pages/settings.py:50 app_ui/pages/settings.py:389
 msgid "Appearance"
 msgstr ""
 
@@ -2644,7 +2701,7 @@ msgid ""
 "topic is taken from its first words.</b>"
 msgstr ""
 
-#: app_ui/pages/settings.py:230 app_ui/pages/settings.py:654
+#: app_ui/pages/settings.py:230 app_ui/pages/settings.py:675
 msgid "Saved."
 msgstr ""
 
@@ -2704,31 +2761,47 @@ msgstr ""
 msgid "Import and export your settings"
 msgstr ""
 
-#: app_ui/pages/settings.py:359
+#: app_ui/pages/settings.py:361
+msgid "Proactive"
+msgstr ""
+
+#: app_ui/pages/settings.py:362
+msgid "Reminders, insights and notification channels"
+msgstr ""
+
+#: app_ui/pages/settings.py:371
+msgid "Proactive system"
+msgstr ""
+
+#: app_ui/pages/settings.py:372
+msgid "Deadline reminders and insights while you are away"
+msgstr ""
+
+#: app_ui/pages/settings.py:380
 msgid "Language"
 msgstr ""
 
-#: app_ui/pages/settings.py:360
+#: app_ui/pages/settings.py:381
 msgid "Display language of the interface"
 msgstr ""
 
-#: app_ui/pages/settings.py:369
+#: app_ui/pages/settings.py:390
 msgid "Light or dark theme"
 msgstr ""
 
-#: app_ui/pages/settings.py:378
+#: app_ui/pages/settings.py:399
 msgid "What the chat shows when you open the app or switch to it"
 msgstr ""
 
-#: app_ui/pages/settings.py:386
+#: app_ui/pages/settings.py:407
 msgid "Paperless-ngx write-back"
 msgstr ""
 
-#: app_ui/pages/settings.py:387
+#: app_ui/pages/settings.py:408
 msgid "What PaperlessBrain may write into your archive"
 msgstr ""
 
-#: app_ui/pages/settings.py:392
+#: app_ui/pages/settings.py:413
 msgid ""
 "After each sync, documents whose AI-extracted text differs from the text "
 "in Paperless-ngx are updated there. This improves the Paperless full-text"
@@ -2737,54 +2810,54 @@ msgid ""
 "Paperless-ngx replaces the text with its own OCR again."
 msgstr ""
 
-#: app_ui/pages/settings.py:420
+#: app_ui/pages/settings.py:441
 msgid "Processing new documents"
 msgstr ""
 
-#: app_ui/pages/settings.py:421
+#: app_ui/pages/settings.py:442
 msgid "Vision model for OCR / page extraction (ChromaDB embeddings)"
 msgstr ""
 
-#: app_ui/pages/settings.py:446 app_ui/pages/settings.py:449
+#: app_ui/pages/settings.py:467 app_ui/pages/settings.py:470
 msgid "Vision model"
 msgstr ""
 
-#: app_ui/pages/settings.py:449
+#: app_ui/pages/settings.py:470
 msgid "— No models configured yet —"
 msgstr ""
 
-#: app_ui/pages/settings.py:454 app_ui/pages/settings.py:467
+#: app_ui/pages/settings.py:475 app_ui/pages/settings.py:488
 #, python-brace-format
 msgid "Server: {server}"
 msgstr ""
 
-#: app_ui/pages/settings.py:457 app_ui/pages/settings.py:468
+#: app_ui/pages/settings.py:478 app_ui/pages/settings.py:489
 #, python-brace-format
 msgid "Model ID: {model}"
 msgstr ""
 
-#: app_ui/pages/settings.py:474
+#: app_ui/pages/settings.py:495
 msgid ""
 "Any model <b>with image processing</b> from <i>AI models</i> — a local "
 "one via Ollama (qwen2.5-vl, qwen3.6, llava …) or a cloud one (Claude, "
 "GPT, MiniMax …). A model without vision will fail on the first page."
 msgstr ""
 
-#: app_ui/pages/settings.py:482
+#: app_ui/pages/settings.py:503
 msgid "No-ingest tag"
 msgstr ""
 
-#: app_ui/pages/settings.py:486
+#: app_ui/pages/settings.py:507
 msgid ""
 "Documents with this Paperless tag are <b>not</b> embedded into ChromaDB "
 "during sync."
 msgstr ""
 
-#: app_ui/pages/settings.py:501
+#: app_ui/pages/settings.py:522
 msgid "Extraction profile"
 msgstr ""
 
-#: app_ui/pages/settings.py:506
+#: app_ui/pages/settings.py:527
 msgid ""
 "Which set of per-document-type extraction prompts to use. This follows "
 "the <b>names of your document types in Paperless</b>, not the language of"
@@ -2794,11 +2867,11 @@ msgid ""
 "international ones."
 msgstr ""
 
-#: app_ui/pages/settings.py:516
+#: app_ui/pages/settings.py:537
 msgid "Language of generated summaries"
 msgstr ""
 
-#: app_ui/pages/settings.py:521
+#: app_ui/pages/settings.py:542
 msgid ""
 "Summaries and image descriptions are written in this language, whatever "
 "the document's own language is — that keeps every summary searchable with"
@@ -2806,74 +2879,74 @@ msgid ""
 " in the original language."
 msgstr ""
 
-#: app_ui/pages/settings.py:534
+#: app_ui/pages/settings.py:555
 msgid "No model selected."
 msgstr ""
 
-#: app_ui/pages/settings.py:548
+#: app_ui/pages/settings.py:569
 msgid "Processing settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:552
+#: app_ui/pages/settings.py:573
 msgid "Applies to newly ingested documents; existing ones keep their extraction."
 msgstr ""
 
-#: app_ui/pages/settings.py:566
+#: app_ui/pages/settings.py:587
 msgid "Search & memory thresholds"
 msgstr ""
 
-#: app_ui/pages/settings.py:567
+#: app_ui/pages/settings.py:588
 msgid "Number of search results, relevance threshold and window for memory hints"
 msgstr ""
 
-#: app_ui/pages/settings.py:571
+#: app_ui/pages/settings.py:592
 msgid "Max. search results"
 msgstr ""
 
-#: app_ui/pages/settings.py:576
+#: app_ui/pages/settings.py:597
 msgid "Memory hint similarity threshold (0–1)"
 msgstr ""
 
-#: app_ui/pages/settings.py:582
+#: app_ui/pages/settings.py:603
 msgid ""
 "Cosine similarity: higher value = stricter filter. Distances are shown in"
 " the tool log as <code>[0.XX]</code> — a hint appears only when distance "
 "≤ <code>1 − threshold</code>."
 msgstr ""
 
-#: app_ui/pages/settings.py:587
+#: app_ui/pages/settings.py:608
 msgid "Memory hint window factor (≥ 1.0)"
 msgstr ""
 
-#: app_ui/pages/settings.py:593
+#: app_ui/pages/settings.py:614
 #, python-format
 msgid ""
 "Maximum distance relative to the best match. 1.0 = best match only; 1.5 ="
 " up to 50 % short of the best."
 msgstr ""
 
-#: app_ui/pages/settings.py:608
+#: app_ui/pages/settings.py:629
 msgid "Search settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:610
+#: app_ui/pages/settings.py:631
 #, python-brace-format
 msgid "Invalid value: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:620
+#: app_ui/pages/settings.py:641
 msgid "Memory maintenance (dreaming)"
 msgstr ""
 
-#: app_ui/pages/settings.py:621
+#: app_ui/pages/settings.py:642
 msgid "Model for memory cleanup and for reviewing extracted deadlines"
 msgstr ""
 
-#: app_ui/pages/settings.py:634
+#: app_ui/pages/settings.py:655
 msgid "Model for memory cleanup"
 msgstr ""
 
-#: app_ui/pages/settings.py:643
+#: app_ui/pages/settings.py:664
 msgid ""
 "Used for two things: tidying up memory entries, and reviewing the "
 "deadlines found during sync — junk and duplicates are dropped before they"
@@ -2881,31 +2954,31 @@ msgid ""
 " here, deadline review is skipped.</b>"
 msgstr ""
 
-#: app_ui/pages/settings.py:658
+#: app_ui/pages/settings.py:679
 msgid "Applies to newly found deadlines; existing verdicts are kept."
 msgstr ""
 
-#: app_ui/pages/settings.py:671
+#: app_ui/pages/settings.py:692
 msgid "Read-only — no emails are sent or modified"
 msgstr ""
 
-#: app_ui/pages/settings.py:674
+#: app_ui/pages/settings.py:695
 msgid "IMAP server"
 msgstr ""
 
-#: app_ui/pages/settings.py:680
+#: app_ui/pages/settings.py:701
 msgid "Port"
 msgstr ""
 
-#: app_ui/pages/settings.py:693
+#: app_ui/pages/settings.py:714
 msgid "Username / email address"
 msgstr ""
 
-#: app_ui/pages/settings.py:696
+#: app_ui/pages/settings.py:717
 msgid "Password / app password"
 msgstr ""
 
-#: app_ui/pages/settings.py:701
+#: app_ui/pages/settings.py:722
 msgid ""
 "<b style='color:var(--c-accent-text)'>Gmail:</b> IMAP must be enabled "
 "(Gmail → Settings → Forwarding and POP/IMAP). Password = Google <b>app "
@@ -2913,43 +2986,43 @@ msgid ""
 "passwords."
 msgstr ""
 
-#: app_ui/pages/settings.py:723 app_ui/pages/settings.py:826
+#: app_ui/pages/settings.py:744 app_ui/pages/settings.py:847
 msgid "Test connection"
 msgstr ""
 
-#: app_ui/pages/settings.py:737
+#: app_ui/pages/settings.py:758
 msgid "IMAP settings saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:748
+#: app_ui/pages/settings.py:769
 msgid "Read-only — no events are created or modified"
 msgstr ""
 
-#: app_ui/pages/settings.py:753
+#: app_ui/pages/settings.py:774
 msgid "Google Calendar (iCal URL)"
 msgstr ""
 
-#: app_ui/pages/settings.py:753
+#: app_ui/pages/settings.py:774
 msgid "CalDAV (Nextcloud, iCloud, …)"
 msgstr ""
 
-#: app_ui/pages/settings.py:755
+#: app_ui/pages/settings.py:776
 msgid "Connection type"
 msgstr ""
 
-#: app_ui/pages/settings.py:760
+#: app_ui/pages/settings.py:781
 msgid "Calendar 1 – iCal URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:762
+#: app_ui/pages/settings.py:783
 msgid "Calendar 2 – iCal URL (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:764
+#: app_ui/pages/settings.py:785
 msgid "Calendar 3 – iCal URL (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:769
+#: app_ui/pages/settings.py:790
 msgid ""
 "<b style='color:var(--c-accent-text)'>Google Calendar:</b> Calendar "
 "settings &rarr; [select calendar] &rarr; <i>Secret address in iCal "
@@ -2957,11 +3030,11 @@ msgid ""
 " without a password.<br>Up to 3 calendars are searched in parallel."
 msgstr ""
 
-#: app_ui/pages/settings.py:776
+#: app_ui/pages/settings.py:797
 msgid "CalDAV URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:789
+#: app_ui/pages/settings.py:810
 msgid ""
 "<b style='color:var(--c-accent-text)'>iCloud:</b> "
 "<code>https://caldav.icloud.com/</code>, app-specific password.<br><b "
@@ -2969,105 +3042,105 @@ msgid ""
 "from the calendar app."
 msgstr ""
 
-#: app_ui/pages/settings.py:812
+#: app_ui/pages/settings.py:833
 msgid "No URL entered"
 msgstr ""
 
-#: app_ui/pages/settings.py:816
+#: app_ui/pages/settings.py:837
 #, python-brace-format
 msgid "{n} calendars reachable"
 msgstr ""
 
-#: app_ui/pages/settings.py:842
+#: app_ui/pages/settings.py:863
 msgid "Calendar settings saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:852
+#: app_ui/pages/settings.py:873
 msgid "Sender profile"
 msgstr ""
 
-#: app_ui/pages/settings.py:853
+#: app_ui/pages/settings.py:874
 msgid "Used for letter generation (DOCX)"
 msgstr ""
 
-#: app_ui/pages/settings.py:856
+#: app_ui/pages/settings.py:877
 msgid "Full name"
 msgstr ""
 
-#: app_ui/pages/settings.py:859
+#: app_ui/pages/settings.py:880
 msgid "Company / organization (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:862
+#: app_ui/pages/settings.py:883
 msgid "Street and number"
 msgstr ""
 
-#: app_ui/pages/settings.py:871
+#: app_ui/pages/settings.py:892
 msgid "Phone (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:874
+#: app_ui/pages/settings.py:895
 msgid "Email (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:877
+#: app_ui/pages/settings.py:898
 msgid "Default closing"
 msgstr ""
 
-#: app_ui/pages/settings.py:893
+#: app_ui/pages/settings.py:914
 msgid "Sender profile saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:911
+#: app_ui/pages/settings.py:932
 msgid "PDF → Paperless: default tags"
 msgstr ""
 
-#: app_ui/pages/settings.py:912
+#: app_ui/pages/settings.py:933
 msgid "Tags, correspondent and document type for AI-generated documents"
 msgstr ""
 
-#: app_ui/pages/settings.py:916
+#: app_ui/pages/settings.py:937
 msgid "Tag: Inbox"
 msgstr ""
 
-#: app_ui/pages/settings.py:918
+#: app_ui/pages/settings.py:939
 msgid "Tag: AI-generated"
 msgstr ""
 
-#: app_ui/pages/settings.py:929
+#: app_ui/pages/settings.py:950
 msgid ""
 "Tags must exist in Paperless. Correspondent and document type are created"
 " automatically if missing."
 msgstr ""
 
-#: app_ui/pages/settings.py:938
+#: app_ui/pages/settings.py:959
 msgid "Tags saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:948
+#: app_ui/pages/settings.py:969
 msgid "Chat instructions"
 msgstr ""
 
-#: app_ui/pages/settings.py:949
+#: app_ui/pages/settings.py:970
 msgid "Standing instructions added to every chat"
 msgstr ""
 
-#: app_ui/pages/settings.py:955
+#: app_ui/pages/settings.py:976
 msgid "Your instructions"
 msgstr ""
 
-#: app_ui/pages/settings.py:957
+#: app_ui/pages/settings.py:978
 msgid ""
 "Example: My archive is mostly invoices from tradespeople. Invoice numbers"
 " look like RE-2026-0142. Answer briefly and put amounts in a table."
 msgstr ""
 
-#: app_ui/pages/settings.py:972
+#: app_ui/pages/settings.py:993
 #, python-brace-format
 msgid "{used} / {max} characters"
 msgstr ""
 
-#: app_ui/pages/settings.py:990
+#: app_ui/pages/settings.py:1011
 msgid ""
 "Added to the end of the chat system prompt, so it applies to every "
 "conversation. Good for describing your archive — the kinds of documents "
@@ -3077,96 +3150,96 @@ msgid ""
 " IDs, amounts or dates."
 msgstr ""
 
-#: app_ui/pages/settings.py:1008
+#: app_ui/pages/settings.py:1029
 #, python-brace-format
 msgid "Saved, but only the first {max} characters are sent to the model."
 msgstr ""
 
-#: app_ui/pages/settings.py:1013
+#: app_ui/pages/settings.py:1034
 msgid "Instructions saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:1024
+#: app_ui/pages/settings.py:1045
 msgid "Clear"
 msgstr ""
 
-#: app_ui/pages/settings.py:1035 werkbank/ui/module_page.py:227
+#: app_ui/pages/settings.py:1056 werkbank/ui/module_page.py:227
 #: werkbank/v2/ui/page.py:547
 msgid "AI deep research"
 msgstr ""
 
-#: app_ui/pages/settings.py:1036
+#: app_ui/pages/settings.py:1057
 msgid "System prompts and token limits for the pipeline roles"
 msgstr ""
 
-#: app_ui/pages/settings.py:1042
+#: app_ui/pages/settings.py:1063
 msgid ""
 "These prompts change what a role is asked. They cannot change what is "
 "verified — the evidence checks run in code after the model has answered."
 msgstr ""
 
-#: app_ui/pages/settings.py:1048
+#: app_ui/pages/settings.py:1069
 msgid "Briefing"
 msgstr ""
 
-#: app_ui/pages/settings.py:1049
+#: app_ui/pages/settings.py:1070
 msgid "Planner"
 msgstr ""
 
-#: app_ui/pages/settings.py:1050
+#: app_ui/pages/settings.py:1071
 msgid "Plan critic"
 msgstr ""
 
-#: app_ui/pages/settings.py:1051
+#: app_ui/pages/settings.py:1072
 msgid "Fact critic"
 msgstr ""
 
-#: app_ui/pages/settings.py:1052
+#: app_ui/pages/settings.py:1073
 msgid "Contradiction checker"
 msgstr ""
 
-#: app_ui/pages/settings.py:1053
+#: app_ui/pages/settings.py:1074
 msgid "Writer"
 msgstr ""
 
-#: app_ui/pages/settings.py:1056
+#: app_ui/pages/settings.py:1077
 msgid "Token limits per role"
 msgstr ""
 
-#: app_ui/pages/settings.py:1073
+#: app_ui/pages/settings.py:1094
 #, python-brace-format
 msgid "System prompt: {role}"
 msgstr ""
 
-#: app_ui/pages/settings.py:1084
+#: app_ui/pages/settings.py:1105
 msgid "Prompt reset."
 msgstr ""
 
-#: app_ui/pages/settings.py:1095
+#: app_ui/pages/settings.py:1116
 msgid "Deep research settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:1102
+#: app_ui/pages/settings.py:1123
 msgid "All prompts reset."
 msgstr ""
 
-#: app_ui/pages/settings.py:1104
+#: app_ui/pages/settings.py:1125
 msgid "Reset all"
 msgstr ""
 
-#: app_ui/pages/settings.py:1117
+#: app_ui/pages/settings.py:1138
 msgid "Import / export settings"
 msgstr ""
 
-#: app_ui/pages/settings.py:1118
+#: app_ui/pages/settings.py:1139
 msgid "Move your personal settings to another installation"
 msgstr ""
 
-#: app_ui/pages/settings.py:1128
+#: app_ui/pages/settings.py:1149
 msgid "Include passwords and API keys"
 msgstr ""
 
-#: app_ui/pages/settings.py:1132
+#: app_ui/pages/settings.py:1153
 msgid ""
 "Without this option the export contains no secrets; on import the "
 "existing passwords and keys are kept. <b style='color:#f87171'>With it, "
@@ -3174,81 +3247,81 @@ msgid ""
 " plain text</b> — treat it like a password."
 msgstr ""
 
-#: app_ui/pages/settings.py:1140
+#: app_ui/pages/settings.py:1161
 msgid "Export string"
 msgstr ""
 
-#: app_ui/pages/settings.py:1168
+#: app_ui/pages/settings.py:1189
 msgid "Copied to clipboard."
 msgstr ""
 
-#: app_ui/pages/settings.py:1171
+#: app_ui/pages/settings.py:1192
 msgid "Create export"
 msgstr ""
 
-#: app_ui/pages/settings.py:1174
+#: app_ui/pages/settings.py:1195
 msgid "Copy"
 msgstr ""
 
-#: app_ui/pages/settings.py:1180
+#: app_ui/pages/settings.py:1201
 msgid ""
 "The copy button needs HTTPS or localhost. Otherwise select the text in "
 "the field and copy it manually."
 msgstr ""
 
-#: app_ui/pages/settings.py:1188
+#: app_ui/pages/settings.py:1209
 msgid "Paste export string here"
 msgstr ""
 
-#: app_ui/pages/settings.py:1198 app_ui/pages/settings.py:1233
+#: app_ui/pages/settings.py:1219 app_ui/pages/settings.py:1254
 #, python-brace-format
 msgid "Import failed: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:1203
+#: app_ui/pages/settings.py:1224
 msgid "The string contains no importable settings."
 msgstr ""
 
-#: app_ui/pages/settings.py:1207
+#: app_ui/pages/settings.py:1228
 msgid "Apply these settings?"
 msgstr ""
 
-#: app_ui/pages/settings.py:1215
+#: app_ui/pages/settings.py:1236
 msgid "The export contains no secrets — existing passwords and API keys are kept."
 msgstr ""
 
-#: app_ui/pages/settings.py:1238
+#: app_ui/pages/settings.py:1259
 msgid "Settings imported."
 msgstr ""
 
-#: app_ui/pages/settings.py:1246
+#: app_ui/pages/settings.py:1267
 msgid "Import"
 msgstr ""
 
-#: app_ui/pages/settings.py:1252
+#: app_ui/pages/settings.py:1273
 msgid ""
 "Import overwrites the sections contained in the string. Global settings "
 "(processing, tags, search, deep research) are <b>not</b> part of the "
 "export — they apply to all users."
 msgstr ""
 
-#: app_ui/pages/settings.py:1264
+#: app_ui/pages/settings.py:1285
 msgid "Vault / Obsidian synchronization"
 msgstr ""
 
-#: app_ui/pages/settings.py:1265
+#: app_ui/pages/settings.py:1286
 msgid "Where PaperlessBrain expects memory files and your notes"
 msgstr ""
 
-#: app_ui/pages/settings.py:1274
+#: app_ui/pages/settings.py:1295
 msgid "Vault directory (Obsidian vault root)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1277
+#: app_ui/pages/settings.py:1298
 msgid "Memory subfolder (Brain)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1282
+#: app_ui/pages/settings.py:1303
 msgid ""
 "<b>Obsidian / Remotely Save:</b> point synchronization at the vault "
 "directory above.<br>Exclude <code>.git/</code> client-side in Remotely "
@@ -3256,41 +3329,41 @@ msgid ""
 "server-side Git repo is not propagated to devices."
 msgstr ""
 
-#: app_ui/pages/settings.py:1298
+#: app_ui/pages/settings.py:1319
 msgid "Reindexing vault …"
 msgstr ""
 
-#: app_ui/pages/settings.py:1302
+#: app_ui/pages/settings.py:1323
 #, python-brace-format
 msgid "Reindexing vault … {done} of {total} files"
 msgstr ""
 
-#: app_ui/pages/settings.py:1312
+#: app_ui/pages/settings.py:1333
 #, python-brace-format
 msgid "Reindexing failed: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:1319
+#: app_ui/pages/settings.py:1340
 #, python-brace-format
 msgid "{n} files reindexed."
 msgstr ""
 
-#: app_ui/pages/settings.py:1321
+#: app_ui/pages/settings.py:1342
 msgid "Vault reindexed."
 msgstr ""
 
-#: app_ui/pages/settings.py:1325
+#: app_ui/pages/settings.py:1346
 msgid "Reindex vault"
 msgstr ""
 
-#: app_ui/pages/settings.py:1329
+#: app_ui/pages/settings.py:1350
 msgid ""
 "Deletes this user's entries in both collections and embeds every Markdown"
 " file again. Runs automatically after an update that changes the "
 "embedding format; use it manually when search results look wrong."
 msgstr ""
 
-#: app_ui/pages/settings.py:1338
+#: app_ui/pages/settings.py:1359
 msgid ""
 "Credentials are stored encrypted and are accessible only to your "
 "Paperless user account. The key is your current Paperless token — if you "

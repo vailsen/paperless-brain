@@ -60,5 +60,31 @@ services:
       # Embedding model (~2.2 GB), so it is downloaded once, not per rebuild.
       - hf-cache:/root/.cache/huggingface
 
+  # Proactive system (deadline reminders, insights, Telegram/email). Same image,
+  # different command; only does something with PROACTIVE_ENABLED=true in .env
+  # (otherwise it logs one line and exits 0 — `on-failure` keeps it from being
+  # restarted for that). It is the only process polling TELEGRAM_BOT_TOKEN.
+  # Mounts must match the app's: proactive.db, the power state and the vault
+  # locks live in ./data, findings in the users' vaults.
+  paperless-brain-worker:
+    image: ghcr.io/vailsen/paperless-brain:latest
+    # build: .
+    command: ["paperlessbrain-worker"]
+    restart: on-failure
+    env_file: .env
+    environment:
+      APP_PATH: /app/
+    # network_mode: host  # same as the app if the worker may wake the GPU host (WoL)
+    volumes:
+      - ./data:/app/data
+      - ./vaults:/mnt/vaults
+    # The worker serves no HTTP; it touches a heartbeat file every tick.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time;p='/app/data/proactive_worker.heartbeat';sys.exit(0 if os.path.exists(p) and time.time()-os.path.getmtime(p)<300 else 1)"]
+      interval: 60s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
 volumes:
   hf-cache:
