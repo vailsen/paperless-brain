@@ -12,6 +12,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **The dashboard's document counter no longer looks behind.** Documents
   carrying the no-ingest tag (the inbox) are not counted on the Paperless
   side either, so a finished sync reads "523 / 523", not "523 / 533".
+- **Email link codes are rate-limited.** "Send code" mails any address typed
+  in; per user it now sends 3 in the first hour, then 1 an hour, and starts
+  over 24 hours after the first.
 - **Tags are readable in light mode.** Chips kept the dark theme's light text
   on a pale tint; each theme now has its own lightness, the tag's hue is kept.
 - **The proactive worker starts in Docker.** It ran the installed copy of the

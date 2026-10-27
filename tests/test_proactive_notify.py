@@ -116,6 +116,34 @@ def test_new_code_kills_the_old_one_and_email_code_is_bound_to_its_user(proactiv
 # ── Telegram ─────────────────────────────────────────────────────────────────
 
 
+def test_email_codes_three_in_the_first_hour_then_hourly_reset_after_a_day(proactive_on):
+    from proactive import clock, linking
+
+    def send():
+        assert linking.email_code_wait("alice") is None
+        linking.create_code("alice", "email", "a@example.com")
+
+    for _ in range(3):                                     # burst for typos
+        send()
+        clock.advance(timedelta(minutes=5))
+    wait = linking.email_code_wait("alice")
+    assert wait is not None and timedelta(minutes=50) < wait <= timedelta(hours=1)
+    assert linking.email_code_wait("bob") is None          # per user
+    linking.create_code("alice", "telegram")               # Telegram codes are not limited
+
+    clock.advance(timedelta(minutes=55))                   # an hour after the third
+    send()
+    clock.advance(timedelta(minutes=30))
+    assert linking.email_code_wait("alice") is not None    # now one an hour
+    clock.advance(timedelta(minutes=30))
+    send()
+
+    clock.advance(timedelta(hours=22, minutes=30))         # 24 h after the first code
+    for _ in range(3):                                     # the burst is back
+        send()
+    assert linking.email_code_wait("alice") is not None
+
+
 def _msg(chat, text):
     return {"update_id": 1, "message": {"chat": {"id": chat}, "text": text}}
 

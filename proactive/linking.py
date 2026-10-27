@@ -25,6 +25,12 @@ CODE_LEN = 8
 # No 0/O, 1/I/L: a code is read off a screen and typed on a phone.
 _ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 CHANNELS = ("telegram", "email")
+# "Send code" mails whatever address was typed in, so without a limit a signed-in
+# user could flood a stranger's inbox. Per user: a burst of 3 in the first hour
+# (a typo, a slow mail), then 1 an hour; 24 hours after the first code it resets.
+EMAIL_CODE_WINDOW = timedelta(hours=24)
+EMAIL_CODE_BURST = 3
+EMAIL_CODE_INTERVAL = timedelta(hours=1)
 
 
 def norm(channel: str, address: str) -> str:
@@ -53,6 +59,33 @@ def create_code(user: str, channel: str, address: str = "") -> str:
             (_hash(code), user, channel, norm(channel, address), clock.iso(now + CODE_TTL)),
         )
     return code
+
+
+def email_code_wait(user: str) -> timedelta | None:
+    """Time left before `user` may have another email code sent; None = now.
+    A code's creation time is its `expires_at` minus `CODE_TTL`."""
+    now = clock.utcnow()
+    since = clock.iso(now - 2 * EMAIL_CODE_WINDOW + CODE_TTL)
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT expires_at FROM link_code WHERE user = ? AND channel = 'email'"
+            " AND expires_at > ? ORDER BY expires_at",
+            (user, since),
+        ).fetchall()
+    # Walk the codes into 24-hour windows, each opened by the first code after
+    # the previous one ran out.
+    start, sent = None, []
+    for r in rows:
+        t = clock.parse(r["expires_at"]) - CODE_TTL
+        if start is None or t >= start + EMAIL_CODE_WINDOW:
+            start, sent = t, []
+        sent.append(t)
+    if start is None or now >= start + EMAIL_CODE_WINDOW:
+        return None
+    if now < start + EMAIL_CODE_INTERVAL and len(sent) < EMAIL_CODE_BURST:
+        return None
+    left = sent[-1] + EMAIL_CODE_INTERVAL - now
+    return left if left > timedelta(0) else None
 
 
 def redeem(code: str, channel: str, *, user: str | None = None) -> tuple[str, str] | None:

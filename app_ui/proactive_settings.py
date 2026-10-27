@@ -269,6 +269,11 @@ def _channels_section(username: str, refresh) -> None:
                 if "@" not in a or " " in a or len(a) > 254:
                     ui.notify(_("Please enter a valid email address."), type="warning")
                     return
+                wait = linking.email_code_wait(username)
+                if wait is not None:
+                    ui.notify(_("Too many codes sent. Try again in {n} minutes.").format(
+                        n=max(1, -(-int(wait.total_seconds()) // 60))), type="warning")
+                    return
                 code = linking.create_code(username, "email", a)
                 jobs.enqueue("email_verify", username, {"address": a, "code": code})
                 ui.notify(_("A code is on its way to {address}.").format(address=a), type="positive")
