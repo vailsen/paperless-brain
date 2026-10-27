@@ -76,3 +76,28 @@ def proactive_off(tmp_path, monkeypatch):
     cfg.proactive_settings.cache_clear()
     yield tmp_path / "proactive.db"
     cfg.proactive_settings.cache_clear()
+
+
+def fake_push(monkeypatch, devices: dict[str, str], sent: list) -> None:
+    """Push configured, one device per user (`{user: device_id}`), delivery
+    recorded into `sent` as `("sendMessage", {"chat_id": device_id, "text":
+    title + body})` — the shape the Telegram fake had, so assertions on what
+    reached a user stay readable. Call after `proactive_on`."""
+    from config import proactive as cfgmod
+    from proactive.notify import webpush
+
+    pub, priv = webpush.generate_keys()
+    monkeypatch.setenv("PUSH_VAPID_PUBLIC_KEY", pub)
+    monkeypatch.setenv("PUSH_VAPID_PRIVATE_KEY", priv)
+    cfgmod.proactive_settings.cache_clear()
+    for user, dev in devices.items():
+        webpush.subscribe(user, {"endpoint": f"https://fcm.googleapis.com/fcm/send/{dev}",
+                                 "keys": {"p256dh": "k", "auth": "a"}})
+
+    def send_one(sub, data):
+        text = "\n".join(x for x in (data.get("title"), data.get("body")) if x)
+        sent.append(("sendMessage", {"chat_id": sub["endpoint"].rsplit("/", 1)[-1], "text": text,
+                                     "url": data.get("url", "")}))
+        return 201
+
+    monkeypatch.setattr(webpush, "_send_one", send_one)

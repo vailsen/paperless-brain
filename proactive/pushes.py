@@ -1,6 +1,6 @@
 """The weekly message limit (architecture §8).
 
-Rolling 7 days per user, counted once per notification (Telegram *and* email =
+Rolling 7 days per user, counted once per notification (push *and* email =
 one), a digest once however many items it holds. Requested deep-dive results
 and critical deadline reminders do not count and are never held back. The
 user's limit is 0 … `PROACTIVE_MAX_PUSHES_PER_WEEK_LIMIT`, default

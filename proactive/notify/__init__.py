@@ -5,9 +5,9 @@ Delivery is a job per (notification, channel) — `notify_channel` — so a
 failing channel is retried on its own and a working one never sends twice.
 Only channels that are available (server config present), chosen by the user
 *and* linked by them are used. The default content is title + urgency + link;
-the full text only where the user opted in for that channel (both channels
-leave the premises; Telegram bot chats are not end-to-end encrypted). Push
-(`webpush`) carries title, note and urgency; tapping it opens the link.
+the full text only where the user opted in for email (it leaves the premises
+unencrypted). Push (`webpush`, end-to-end encrypted) carries title, note and
+urgency; tapping it opens the link.
 
 Everything here runs in the worker. The app only enqueues jobs.
 """
@@ -122,7 +122,6 @@ def chosen_channels(user: str) -> list[str]:
     cfg = proactive_settings()
     available = {
         "push": cfg.push_available,
-        "telegram": cfg.telegram_available,
         "email": cfg.email_available,
     }
     linked = set(linking.links(user))
@@ -146,7 +145,7 @@ EVENT_TITLES = {
 
 def enqueue_event(user: str, kind: str, path: str, body: str = "") -> None:
     """An app event ("sync finished", "Werkbank run done") for the user's push
-    devices — push only, never Telegram or email, no weekly limit; each kind
+    devices — push only, never email, no weekly limit; each kind
     has its own switch. Called from the app; never raises into it."""
     try:
         from config.proactive import is_enabled, proactive_settings

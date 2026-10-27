@@ -23,21 +23,18 @@ async def notify_channel(job: Job) -> None:
             job.user, webpush.payload(n.title, push_body(n), n.link, tag=n.finding_id)
         )
         return
-    link = linking.links(job.user).get(channel)
-    if link is None:
+    link = linking.links(job.user).get(channel) if channel == "email" else None
+    if channel == "email" and link is None:
         log.info("%s: %s no longer linked — not sent", job.user, channel)
         return
-    if channel == "telegram":
-        from proactive.notify import telegram
-
-        await telegram.send(link["address"], n, full_text=link["full_text"])
-    elif channel == "email":
+    if channel == "email":
         from proactive.notify import email
 
         mid = await email.send(link["address"], n, full_text=link["full_text"])
         log.info("%s: email sent %s", job.user, mid)
     else:
-        raise ValueError(f"unknown channel {channel!r}")
+        # e.g. a Telegram job queued before that channel was removed
+        log.info("%s: channel %r no longer exists — not sent", job.user, channel)
 
 
 @handler("push_event")

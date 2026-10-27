@@ -1,7 +1,7 @@
 # Proactive System — Architecture
 
 Status: implemented (Phases 1–9, 2026-10-26). Real-data checks still open: `docs/proactive-tasks.md` Phases 6 and 8.
-Scope: notifications (Telegram + email), deadline reminders, document triage, topic dossiers, relevance learning.
+Scope: notifications (Web Push + email; Telegram until 2026-10-27, removed — sections about it are history), deadline reminders, document triage, topic dossiers, relevance learning.
 Dependencies: Werkbank (only for dossiers / deep-dives, phase 8+). Everything before that runs without Werkbank.
 
 ---

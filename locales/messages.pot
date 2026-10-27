@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-27 09:40+0100\n"
+"POT-Creation-Date: 2026-10-27 12:55+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -117,8 +117,8 @@ msgstr ""
 #: app_ui/pages/settings.py:760 app_ui/pages/settings.py:865
 #: app_ui/pages/settings.py:916 app_ui/pages/settings.py:961
 #: app_ui/pages/settings.py:1048 app_ui/pages/settings.py:1128
-#: app_ui/proactive_settings.py:568 app_ui/proactive_settings.py:597
-#: app_ui/proactive_settings.py:623 werkbank/ui/archetype_dialog.py:183
+#: app_ui/proactive_settings.py:531 app_ui/proactive_settings.py:560
+#: app_ui/proactive_settings.py:586 werkbank/ui/archetype_dialog.py:183
 msgid "Save"
 msgstr ""
 
@@ -897,8 +897,8 @@ msgid "This model is not allowed for proactive jobs."
 msgstr ""
 
 #: app_ui/pages/brain.py:303 app_ui/proactive_settings.py:167
-#: app_ui/proactive_settings.py:566 app_ui/proactive_settings.py:595
-#: app_ui/proactive_settings.py:621
+#: app_ui/proactive_settings.py:529 app_ui/proactive_settings.py:558
+#: app_ui/proactive_settings.py:584
 msgid "Saved"
 msgstr ""
 
@@ -916,286 +916,264 @@ msgstr ""
 msgid "Your earlier choice {model} is not allowed any more; the default is used."
 msgstr ""
 
-#: app_ui/proactive_settings.py:197
+#: app_ui/proactive_settings.py:196
 msgid "Notification channels"
 msgstr ""
 
-#: app_ui/proactive_settings.py:200
+#: app_ui/proactive_settings.py:199
 msgid ""
 "By default a message contains only a title, the urgency and a link into "
-"the app. Full text only where you switch it on — Telegram chats with a "
-"bot are not end-to-end encrypted, and email leaves the server too."
+"the app. Full text by email only where you switch it on — email leaves "
+"the server unencrypted."
 msgstr ""
 
-#: app_ui/proactive_settings.py:211
+#: app_ui/proactive_settings.py:210
 msgid "Include the full text"
 msgstr ""
 
-#: app_ui/proactive_settings.py:220 app_ui/proactive_settings.py:255
-#: app_ui/proactive_settings.py:352
-msgid "Not set up on this server."
-msgstr ""
-
-#: app_ui/proactive_settings.py:223
-msgid "Linked"
-msgstr ""
-
-#: app_ui/proactive_settings.py:229 app_ui/proactive_settings.py:264
-msgid "Unlink"
-msgstr ""
-
-#: app_ui/proactive_settings.py:240
-#, python-brace-format
-msgid "Send this to {bot} in Telegram:"
-msgstr ""
-
-#: app_ui/proactive_settings.py:241
-msgid "your PaperlessBrain bot"
-msgstr ""
-
-#: app_ui/proactive_settings.py:245
-msgid "Valid for 10 minutes, once."
-msgstr ""
-
-#: app_ui/proactive_settings.py:247
-msgid "Link Telegram"
-msgstr ""
-
 #: app_ui/pages/chat.py:721 app_ui/pages/chat.py:3453 app_ui/pages/chat.py:3637
-#: app_ui/proactive_settings.py:253 app_ui/proactive_settings.py:307
+#: app_ui/proactive_settings.py:217 app_ui/proactive_settings.py:270
 msgid "Email"
 msgstr ""
 
-#: app_ui/proactive_settings.py:267
+#: app_ui/proactive_settings.py:219 app_ui/proactive_settings.py:315
+msgid "Not set up on this server."
+msgstr ""
+
+#: app_ui/proactive_settings.py:228
+msgid "Unlink"
+msgstr ""
+
+#: app_ui/proactive_settings.py:231
 msgid "Your email address"
 msgstr ""
 
-#: app_ui/proactive_settings.py:274
+#: app_ui/proactive_settings.py:238
 msgid "Please enter a valid email address."
 msgstr ""
 
-#: app_ui/proactive_settings.py:278
+#: app_ui/proactive_settings.py:242
 #, python-brace-format
 msgid "Too many codes sent. Try again in {n} minutes."
 msgstr ""
 
-#: app_ui/proactive_settings.py:283
+#: app_ui/proactive_settings.py:247
 #, python-brace-format
 msgid "A code is on its way to {address}."
 msgstr ""
 
-#: app_ui/proactive_settings.py:285
+#: app_ui/proactive_settings.py:249
 msgid "Send code"
 msgstr ""
 
-#: app_ui/proactive_settings.py:286
+#: app_ui/proactive_settings.py:250
 msgid "Code from the email"
 msgstr ""
 
-#: app_ui/proactive_settings.py:291
+#: app_ui/proactive_settings.py:255
 msgid "This code is invalid or has expired."
 msgstr ""
 
-#: app_ui/proactive_settings.py:294
+#: app_ui/proactive_settings.py:258
 msgid "Email address confirmed."
 msgstr ""
 
-#: app_ui/pages/findings.py:196 app_ui/proactive_settings.py:297
+#: app_ui/pages/findings.py:196 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr ""
 
-#: app_ui/proactive_settings.py:307 app_ui/proactive_settings.py:350
+#: app_ui/proactive_settings.py:270 app_ui/proactive_settings.py:313
 msgid "This app (push)"
 msgstr ""
 
-#: app_ui/proactive_settings.py:312
+#: app_ui/proactive_settings.py:275
 msgid "Send reminders and insights via"
 msgstr ""
 
-#: app_ui/proactive_settings.py:314
+#: app_ui/proactive_settings.py:277
 msgid "Turn on at least one channel above."
 msgstr ""
 
-#: app_ui/proactive_settings.py:329
+#: app_ui/proactive_settings.py:292
 msgid "Test message queued."
 msgstr ""
 
-#: app_ui/proactive_settings.py:331
+#: app_ui/proactive_settings.py:294
 msgid "Send test message"
 msgstr ""
 
-#: app_ui/proactive_settings.py:356
+#: app_ui/proactive_settings.py:319
 msgid ""
 "Notifications on this phone or computer, also when the app is closed. Tap"
 " one to open it in the app. Turn it on on every device you want them on. "
 "On an iPhone, add the app to the home screen first."
 msgstr ""
 
-#: app_ui/proactive_settings.py:362
+#: app_ui/proactive_settings.py:325
 msgid "On for this device."
 msgstr ""
 
-#: app_ui/proactive_settings.py:363
+#: app_ui/proactive_settings.py:326
 msgid "Off for this device."
 msgstr ""
 
-#: app_ui/proactive_settings.py:365
+#: app_ui/proactive_settings.py:328
 msgid ""
 "This browser cannot receive push messages. On an iPhone, open the app "
 "from the home screen."
 msgstr ""
 
-#: app_ui/proactive_settings.py:368
+#: app_ui/proactive_settings.py:331
 msgid "Notifications are blocked for this site in the browser settings."
 msgstr ""
 
-#: app_ui/proactive_settings.py:369
+#: app_ui/proactive_settings.py:332
 msgid "Could not turn on notifications."
 msgstr ""
 
-#: app_ui/proactive_settings.py:379
+#: app_ui/proactive_settings.py:342
 msgid "Turn on for this device"
 msgstr ""
 
-#: app_ui/proactive_settings.py:382
+#: app_ui/proactive_settings.py:345
 msgid "Turn off for this device"
 msgstr ""
 
-#: app_ui/proactive_settings.py:388
+#: app_ui/proactive_settings.py:351
 msgid "Devices"
 msgstr ""
 
-#: app_ui/proactive_settings.py:391
+#: app_ui/proactive_settings.py:354
 msgid "Unknown device"
 msgstr ""
 
-#: app_ui/proactive_settings.py:399
+#: app_ui/proactive_settings.py:362
 msgid "Remove"
 msgstr ""
 
-#: app_ui/proactive_settings.py:411
+#: app_ui/proactive_settings.py:374
 msgid "Also notify me here (push only)"
 msgstr ""
 
-#: app_ui/proactive_settings.py:412
+#: app_ui/proactive_settings.py:375
 msgid "When a sync finishes"
 msgstr ""
 
-#: app_ui/proactive_settings.py:414
+#: app_ui/proactive_settings.py:377
 msgid "When a Werkbank run is done"
 msgstr ""
 
-#: app_ui/proactive_settings.py:493
+#: app_ui/proactive_settings.py:456
 msgid "Analyse the archive now"
 msgstr ""
 
-#: app_ui/proactive_settings.py:496
+#: app_ui/proactive_settings.py:459
 msgid ""
 "Normally your existing documents are analysed at night. Choose how many "
 "to analyse right away — about 15 seconds each on the GPU. A chat always "
 "goes first; the analysis continues afterwards."
 msgstr ""
 
-#: app_ui/proactive_settings.py:504
+#: app_ui/proactive_settings.py:467
 msgid "All documents are analysed."
 msgstr ""
 
-#: app_ui/proactive_settings.py:508
+#: app_ui/proactive_settings.py:471
 #, python-brace-format
 msgid "{n} documents still to go in this run."
 msgstr ""
 
-#: app_ui/proactive_settings.py:515 app_ui/title_rename_settings.py:263
+#: app_ui/proactive_settings.py:478 app_ui/title_rename_settings.py:263
 #: werkbank/ui/task_dialog.py:457
 msgid "Stop"
 msgstr ""
 
-#: app_ui/proactive_settings.py:519
+#: app_ui/proactive_settings.py:482
 msgid "Number of documents"
 msgstr ""
 
-#: app_ui/proactive_settings.py:528
+#: app_ui/proactive_settings.py:491
 #, python-brace-format
 msgid "Choose a number from 1 to {max}."
 msgstr ""
 
-#: app_ui/proactive_settings.py:532
+#: app_ui/proactive_settings.py:495
 #, python-brace-format
 msgid "Started — {n} documents."
 msgstr ""
 
-#: app_ui/proactive_settings.py:535
+#: app_ui/proactive_settings.py:498
 msgid "Analyse now"
 msgstr ""
 
-#: app_ui/proactive_settings.py:546
+#: app_ui/proactive_settings.py:509
 msgid "Deadline reminders"
 msgstr ""
 
-#: app_ui/proactive_settings.py:549
+#: app_ui/proactive_settings.py:512
 msgid "Days before a deadline"
 msgstr ""
 
-#: app_ui/proactive_settings.py:553
+#: app_ui/proactive_settings.py:516
 #, python-brace-format
 msgid "Empty = {default}."
 msgstr ""
 
-#: app_ui/proactive_settings.py:560
+#: app_ui/proactive_settings.py:523
 msgid "Enter whole numbers of days, separated by commas."
 msgstr ""
 
-#: app_ui/proactive_settings.py:573
+#: app_ui/proactive_settings.py:536
 msgid "Max. messages per week"
 msgstr ""
 
-#: app_ui/proactive_settings.py:575
+#: app_ui/proactive_settings.py:538
 #, python-brace-format
 msgid "0 to {max}"
 msgstr ""
 
-#: app_ui/proactive_settings.py:579
+#: app_ui/proactive_settings.py:542
 msgid ""
 "Insights beyond this are held back and shown in the app, not dropped. "
 "Critical deadline reminders always arrive — also with 0."
 msgstr ""
 
-#: app_ui/proactive_settings.py:590
+#: app_ui/proactive_settings.py:553
 #, python-brace-format
 msgid "Choose a number from 0 to {max}."
 msgstr ""
 
-#: app_ui/proactive_settings.py:600
+#: app_ui/proactive_settings.py:563
 msgid "Quiet hours"
 msgstr ""
 
-#: app_ui/proactive_settings.py:602
+#: app_ui/proactive_settings.py:565
 msgid "From"
 msgstr ""
 
-#: app_ui/proactive_settings.py:604
+#: app_ui/proactive_settings.py:567
 msgid "Until"
 msgstr ""
 
-#: app_ui/proactive_settings.py:608
+#: app_ui/proactive_settings.py:571
 msgid ""
 "Reminders and insights found in this time are sent when it ends. The same"
 " time twice = no quiet hours."
 msgstr ""
 
-#: app_ui/proactive_settings.py:619
+#: app_ui/proactive_settings.py:582
 msgid "Enter times as HH:MM."
 msgstr ""
 
-#: app_ui/proactive_settings.py:628
+#: app_ui/proactive_settings.py:591
 msgid "Language of findings"
 msgstr ""
 
-#: app_ui/proactive_settings.py:629
+#: app_ui/proactive_settings.py:592
 msgid "Same as the app"
 msgstr ""
 
-#: app_ui/proactive_settings.py:635
+#: app_ui/proactive_settings.py:598
 msgid "Saved — applies to new findings."
 msgstr ""
 
@@ -3870,11 +3848,11 @@ msgstr ""
 msgid "Wrongly detected"
 msgstr ""
 
-#: proactive/notify/__init__.py:142
+#: proactive/notify/__init__.py:141
 msgid "Sync finished"
 msgstr ""
 
-#: proactive/notify/__init__.py:143
+#: proactive/notify/__init__.py:142
 msgid "Werkbank run done"
 msgstr ""
 
@@ -3882,38 +3860,23 @@ msgstr ""
 msgid "Or reply with 1 (interesting), 2 (later) or 3 (never again)."
 msgstr ""
 
-#: proactive/notify/telegram.py:116
-msgid ""
-"This code is invalid or has expired. Create a new one in PaperlessBrain "
-"under Settings > Proactive."
-msgstr ""
-
-#: proactive/notify/telegram.py:125
-#, python-brace-format
-msgid "Linked to PaperlessBrain as {user}. Send /stop to unlink."
-msgstr ""
-
-#: proactive/notify/telegram.py:131
-msgid "Unlinked. This chat no longer receives messages."
-msgstr ""
-
 #: proactive/tasks/insights.py:108
 msgid "What you may have missed"
 msgstr ""
 
-#: proactive/tasks/notify.py:63
+#: proactive/tasks/notify.py:60
 msgid "PaperlessBrain test message"
 msgstr ""
 
-#: proactive/tasks/notify.py:65
+#: proactive/tasks/notify.py:62
 msgid "If you can read this, notifications reach you on this channel."
 msgstr ""
 
-#: proactive/tasks/notify.py:88
+#: proactive/tasks/notify.py:85
 msgid "Your PaperlessBrain confirmation code"
 msgstr ""
 
-#: proactive/tasks/notify.py:90
+#: proactive/tasks/notify.py:87
 #, python-brace-format
 msgid ""
 "Your code: {code}\n"

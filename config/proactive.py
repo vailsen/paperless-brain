@@ -128,8 +128,6 @@ class ProactiveSettings(BaseSettings):
     proactive_job_max_attempts: int = 5
     proactive_job_backoff_seconds: int = 30
 
-    telegram_bot_token: str = ""
-
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_security: Literal["starttls", "ssl", "none"] = "starttls"
@@ -231,10 +229,6 @@ class ProactiveSettings(BaseSettings):
     @property
     def model_allowlist(self) -> list[str]:
         return _split_list(self.proactive_model_allowlist)
-
-    @property
-    def telegram_available(self) -> bool:
-        return bool(self.telegram_bot_token)
 
     @property
     def email_available(self) -> bool:

@@ -97,9 +97,8 @@ def env(proactive_on, tmp_path, monkeypatch):
     from config import proactive as cfgmod
     from config.settings import settings
     from proactive import findings, linking, prefs, users
-    from proactive.notify import telegram
+    from tests.conftest import fake_push
 
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "1:x")
     monkeypatch.setenv("SMTP_HOST", "smtp")
     monkeypatch.setenv("SMTP_FROM", "brain@example.com")
     monkeypatch.setenv("IMAP_HOST", "imap")
@@ -115,12 +114,7 @@ def env(proactive_on, tmp_path, monkeypatch):
     (tmp_path / "sidecars" / "1.json").write_text(json.dumps({"pages": [{"page_text": DOC}]}))
     findings._index.clear()
     sent = []
-
-    async def fake_call(method, payload=None, *, timeout=30):
-        sent.append((method, payload or {}))
-        return {}
-
-    monkeypatch.setattr(telegram, "call", fake_call)
+    fake_push(monkeypatch, {"alice": "11"}, sent)
 
     import smtplib
 
@@ -142,9 +136,8 @@ def env(proactive_on, tmp_path, monkeypatch):
 
     monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
     p = prefs.get("alice")
-    p.optin, p.channels, p.language = True, "both", "en"
+    p.optin, p.channels, p.language = True, "push,email", "en"
     prefs.save(p)
-    linking.link("alice", "telegram", "11")
     linking.link("alice", "email", "alice@example.org")
     monkeypatch.setattr(users, "eligible", lambda: [("alice", "t-alice")])
     monkeypatch.setattr(users, "token", lambda u: "t-alice")
@@ -233,7 +226,7 @@ def test_never_mutes_and_a_later_finding_on_the_topic_is_held(env):
     from proactive import reactions
 
     first = _insight(env, 0, status="surfaced")
-    asyncio.run(reactions.react("alice", first, "never", channel="telegram"))
+    asyncio.run(reactions.react("alice", first, "never", channel="app"))
     later = _insight(env, 1, urgency="high")
     _run("ledger_scan")
     assert _status(later) == "held"

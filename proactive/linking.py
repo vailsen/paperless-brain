@@ -1,14 +1,14 @@
 """Channel links and link codes (architecture §7.1, §7.2).
 
 A `channel_link` row is the allowlist: notifications go only to an address the
-user linked, and a Telegram callback or an email reply counts only if it comes
-from the owner's linked address.
+user linked, and an email reply counts only if it comes from the owner's
+linked address. (Push devices live in `push_subscription`, registered from the
+user's own session — no code needed.)
 
 Link codes: 8 characters from an unambiguous alphabet, valid for 10 minutes,
-usable once, stored as a SHA-256 hash (a leaked DB holds no usable code).
-Telegram: the app shows a code, the user sends `/start <code>` to the bot, the
-worker redeems it with the chat id. Email: the user enters an address, the
-worker mails a code to it, the user types it back in the app.
+usable once, stored as a SHA-256 hash (a leaked DB holds no usable code). The
+user enters an address, the worker mails a code to it, the user types it back
+in the app.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ CODE_TTL = timedelta(minutes=10)
 CODE_LEN = 8
 # No 0/O, 1/I/L: a code is read off a screen and typed on a phone.
 _ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-CHANNELS = ("telegram", "email")
+CHANNELS = ("email",)
 # "Send code" mails whatever address was typed in, so without a limit a signed-in
 # user could flood a stranger's inbox. Per user: a burst of 3 in the first hour
 # (a typo, a slow mail), then 1 an hour; 24 hours after the first code it resets.
@@ -119,7 +119,7 @@ def pending_address(user: str, channel: str = "email") -> str:
 
 def link(user: str, channel: str, address: str) -> None:
     """Link `address` to `user`. An address belongs to one user: linking it
-    again moves it (a family sharing one Telegram account re-links on purpose)."""
+    again moves it (a family sharing one mailbox re-links on purpose)."""
     address = norm(channel, address)
     with connect() as conn:
         conn.execute(
@@ -137,19 +137,6 @@ def link(user: str, channel: str, address: str) -> None:
 def unlink(user: str, channel: str) -> None:
     with connect() as conn:
         conn.execute("DELETE FROM channel_link WHERE user = ? AND channel = ?", (user, channel))
-
-
-def unlink_address(channel: str, address: str) -> str | None:
-    """`/stop` from a chat: remove whatever link it has. Returns the user."""
-    address = norm(channel, address)
-    with connect() as conn:
-        r = conn.execute(
-            "SELECT user FROM channel_link WHERE channel = ? AND address = ?", (channel, address)
-        ).fetchone()
-        if r is None:
-            return None
-        conn.execute("DELETE FROM channel_link WHERE channel = ? AND address = ?", (channel, address))
-        return r["user"]
 
 
 def links(user: str) -> dict[str, dict]:

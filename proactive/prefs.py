@@ -14,14 +14,14 @@ from dataclasses import dataclass, field
 from proactive import clock
 from proactive.db import connect
 
-CHANNELS = ("push", "telegram", "email")
+CHANNELS = ("push", "email")
 
 
 @dataclass
 class ProactivePrefs:
     user: str
     optin: bool = False
-    channels: str = ""  # comma list of CHANNELS; "both" (older) = telegram,email
+    channels: str = ""  # comma list of CHANNELS
     model: str = ""  # display name in the user's model registry, "" = default
     deadline_offsets: list[int] = field(default_factory=list)  # [] = operator default
     max_pushes_per_week: int | None = None  # None = operator default
@@ -39,7 +39,9 @@ class ProactivePrefs:
         return self.findings_language or self.language or "en"
 
     def channel_list(self) -> list[str]:
-        raw = "telegram,email" if self.channels == "both" else self.channels
+        # "both" (= Telegram + email) and "telegram" are older values: Telegram
+        # is gone, email stays.
+        raw = "email" if self.channels == "both" else self.channels
         chosen = {c.strip() for c in raw.split(",")}
         return [c for c in CHANNELS if c in chosen]
 
@@ -49,7 +51,8 @@ def _from_row(r) -> ProactivePrefs:
     return ProactivePrefs(
         user=r["user"],
         optin=bool(r["proactive_optin"]),
-        channels=r["channels"] or "",
+        # Normalized on read, so a stored "push,telegram" saves cleanly again.
+        channels=",".join(ProactivePrefs("", channels=r["channels"] or "").channel_list()),
         model=r["model"] or "",
         deadline_offsets=offsets,
         max_pushes_per_week=r["max_pushes_per_week"],
@@ -74,7 +77,7 @@ def save(p: ProactivePrefs) -> None:
         h, _, m = hhmm.partition(":")
         if not (h.isdigit() and m.isdigit() and int(h) < 24 and int(m) < 60):
             raise ValueError(f"not a time: {hhmm!r}")
-    unknown = {c.strip() for c in p.channels.split(",") if c.strip()} - set(CHANNELS) - {"both"}
+    unknown = {c.strip() for c in p.channels.split(",") if c.strip()} - set(CHANNELS)
     if unknown:
         raise ValueError(f"unknown channel choice {p.channels!r}")
     if p.max_pushes_per_week is not None:

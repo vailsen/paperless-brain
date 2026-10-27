@@ -185,12 +185,11 @@ def _model_section(username: str, token: str, p) -> None:
 
 
 def _channels_section(username: str, refresh) -> None:
-    """Where notifications go: push devices, Telegram, email; choose, opt in to full text."""
+    """Where notifications go: push devices, email; choose, opt in to full text."""
     _ = get_translator()
     from config.proactive import proactive_settings
     from proactive import jobs, linking
     from proactive import prefs as pprefs
-    from proactive.db import kv_get
 
     cfg = proactive_settings()
     links = linking.links(username)
@@ -198,8 +197,8 @@ def _channels_section(username: str, refresh) -> None:
     ui.label(
         _(
             "By default a message contains only a title, the urgency and a link into "
-            "the app. Full text only where you switch it on — Telegram chats with a bot "
-            "are not end-to-end encrypted, and email leaves the server too."
+            "the app. Full text by email only where you switch it on — email leaves the "
+            "server unencrypted."
         )
     ).classes("text-xs text-gray-400 leading-relaxed mb-2")
 
@@ -212,41 +211,6 @@ def _channels_section(username: str, refresh) -> None:
         ).classes("text-xs text-gray-300")
 
     _push_block(username, refresh)
-
-    # ── Telegram ─────────────────────────────────────────────────────────────
-    with ui.column().classes("w-full gap-1 mb-3"):
-        ui.label("Telegram").classes("text-xs font-semibold text-gray-300")
-        if not cfg.telegram_available:
-            ui.label(_("Not set up on this server.")).classes("text-xs text-gray-500")
-        elif "telegram" in links:
-            with ui.row().classes("items-center gap-2"):
-                ui.label(_("Linked")).classes("text-xs text-gray-300")
-
-                def _unlink_tg() -> None:
-                    linking.unlink(username, "telegram")
-                    refresh()
-
-                ui.button(_("Unlink"), on_click=_unlink_tg).props("flat dense size=sm")
-            _full_text_switch("telegram")
-        else:
-            code_box = ui.column().classes("gap-0")
-
-            def _new_tg_code() -> None:
-                code = linking.create_code(username, "telegram")
-                bot = kv_get("telegram_bot_username")
-                code_box.clear()
-                with code_box:
-                    ui.label(
-                        _("Send this to {bot} in Telegram:").format(
-                            bot=f"@{bot}" if bot else _("your PaperlessBrain bot")
-                        )
-                    ).classes("text-xs text-gray-300")
-                    ui.label(f"/start {code}").classes("text-sm font-mono text-gray-100 break-all")
-                    ui.label(_("Valid for 10 minutes, once.")).classes("text-xs text-gray-500")
-
-            ui.button(_("Link Telegram"), icon="link", on_click=_new_tg_code).props(
-                "flat dense size=sm"
-            )
 
     # ── Email ────────────────────────────────────────────────────────────────
     with ui.column().classes("w-full gap-1 mb-3"):
@@ -302,9 +266,8 @@ def _channels_section(username: str, refresh) -> None:
     linked = set(links)
     if cfg.push_available and webpush.devices(username):
         linked.add("push")
-    available = {"push": cfg.push_available, "telegram": cfg.telegram_available,
-                 "email": cfg.email_available}
-    labels = {"push": _("This app (push)"), "telegram": "Telegram", "email": _("Email")}
+    available = {"push": cfg.push_available, "email": cfg.email_available}
+    labels = {"push": _("This app (push)"), "email": _("Email")}
     usable = [c for c in pprefs.CHANNELS if available[c] and c in linked]
     p = pprefs.get(username)
     chosen = set(p.channel_list())

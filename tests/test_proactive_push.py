@@ -98,10 +98,9 @@ def test_push_is_a_channel_only_with_a_device_and_the_choice(push_on):
     assert chosen_channels("alice") == ["push"]
 
 
-def test_older_both_choice_still_means_telegram_and_email(proactive_on):
+def test_channel_choice_is_a_list_in_fixed_order(proactive_on):
     from proactive import prefs
 
-    assert prefs.ProactivePrefs("a", channels="both").channel_list() == ["telegram", "email"]
     assert prefs.ProactivePrefs("a", channels="email,push").channel_list() == ["push", "email"]
     with pytest.raises(ValueError):
         prefs.save(prefs.ProactivePrefs("a", channels="sms"))
@@ -152,9 +151,9 @@ def test_app_events_go_to_push_only_and_follow_their_switch(push_on, sent):
     from proactive.notify import enqueue_event, webpush
 
     p = prefs.get("alice")
-    p.channels, p.language = "telegram,email,push", "en"
+    p.channels, p.language = "email,push", "en"
     prefs.save(p)
-    linking.link("alice", "telegram", "777")
+    linking.link("alice", "email", "alice@example.com")
     webpush.subscribe("alice", SUB)
 
     enqueue_event("alice", "sync", "/", "3 new, 0 removed")
@@ -168,7 +167,7 @@ def test_app_events_go_to_push_only_and_follow_their_switch(push_on, sent):
     enqueue_event("alice", "werkbank", "/werkbank", "Compare offers")
     _drain()
     assert len(sent) == 1
-    # never a Telegram/email job for an event
+    # never an email job for an event
     from proactive.db import connect
 
     with connect() as conn:

@@ -74,7 +74,7 @@ def test_config_defaults_and_derived_values():
     assert c.proactive_enabled is False
     assert c.deadline_offsets == [30, 7, 1]
     assert [w.label() for w in c.sweep_windows] == ["01:00-05:00/200"]
-    assert c.telegram_available is False and c.email_available is False
+    assert c.push_available is False and c.email_available is False
     assert c.db_path(Path("/app")) == Path("/app/data/proactive.db")
 
 
@@ -103,7 +103,8 @@ def test_config_default_pushes_must_not_exceed_ceiling():
 
 
 def test_channel_availability_follows_config_presence():
-    assert _cfg(telegram_bot_token="123:abc").telegram_available
+    assert _cfg(push_vapid_public_key="p", push_vapid_private_key="k").push_available
+    assert not _cfg(push_vapid_public_key="p").push_available
     half = _cfg(smtp_host="smtp", smtp_from="a@b")  # no IMAP → no replies → no email
     assert not half.email_available
     full = _cfg(smtp_host="smtp", smtp_from="a@b", imap_host="imap", imap_user="u")
@@ -125,7 +126,7 @@ def test_app_settings_ignore_proactive_keys(monkeypatch):
     from config.settings import Settings
 
     monkeypatch.setenv("PROACTIVE_ENABLED", "true")
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "x")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "x")  # left over in an older .env
     env = REPO / "tests" / "_tmp_env"
     env.write_text("PROACTIVE_ENABLED=true\nSMTP_HOST=x\n")
     try:

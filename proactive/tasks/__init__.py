@@ -28,8 +28,3 @@ def attach(worker: "Worker") -> None:
         scheduler.ensure(imap.IMAP_POLL, f"every:{worker.cfg.imap_poll_seconds}", run_now=True)
     else:
         scheduler.remove(imap.IMAP_POLL)  # no connection attempt without config
-    if worker.cfg.telegram_available:
-        from proactive.notify import telegram
-
-        # The only getUpdates poller of the bot token (architecture §3).
-        worker.add_background(telegram.poll_forever(worker.stopping), "telegram")

@@ -1,8 +1,7 @@
 """`paperlessbrain-worker` — the proactive system's one background process.
 
 Owns all background work: the tick loop (schedules → jobs), the job runner,
-and in later phases the Telegram poller (the only process polling the bot
-token), the IMAP poller and the Paperless new-document poller.
+the IMAP poller and the Paperless new-document poller.
 
 - `PROACTIVE_ENABLED=false` → one log line, exit 0, nothing touched (no DB).
 - SIGTERM / SIGINT → the running job finishes, then the worker exits 0. A
@@ -172,9 +171,8 @@ def _setup_logging() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         stream=sys.stdout,
     )
-    # httpx logs every request URL at INFO, and the Telegram Bot API carries the
-    # bot token in the URL (`/bot<TOKEN>/getUpdates`) — every poll would write
-    # the token into the worker's log.
+    # httpx logs every request URL at INFO — one line per poll and per push,
+    # and a URL can carry a secret (a push endpoint is a bearer address).
     for name in ("httpx", "httpcore"):
         logging.getLogger(name).setLevel(logging.WARNING)
 

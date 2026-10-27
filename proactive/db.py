@@ -118,8 +118,8 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (user, day)
     );
     """,
-    # 3 — small worker state: Telegram update offset, bot username (the app
-    # shows it in the linking instructions but never calls Telegram itself).
+    # 3 — small worker state (key/value). Held the Telegram offset and bot
+    # name until that channel was removed (step 7 clears them).
     """
     CREATE TABLE kv (
         key        TEXT PRIMARY KEY,
@@ -141,7 +141,7 @@ MIGRATIONS: list[str] = [
     CREATE INDEX push_log_user_at ON push_log(user, at);
     """,
     # 5 — Web Push: one row per device a user turned notifications on for (a
-    # user has several, unlike a Telegram chat), and the two app events that
+    # user has several, unlike an email address), and the two app events that
     # go to those devices only. Like `channel_link`, not disposable.
     """
     CREATE TABLE push_subscription (
@@ -162,6 +162,12 @@ MIGRATIONS: list[str] = [
     ALTER TABLE proactive_prefs ADD COLUMN findings_language TEXT NOT NULL DEFAULT '';
     ALTER TABLE proactive_prefs ADD COLUMN quiet_start TEXT NOT NULL DEFAULT '22:00';
     ALTER TABLE proactive_prefs ADD COLUMN quiet_end TEXT NOT NULL DEFAULT '07:00';
+    """,
+    # 7 — Telegram removed: push replaces it. Links, codes and poller state go.
+    """
+    DELETE FROM channel_link WHERE channel = 'telegram';
+    DELETE FROM link_code WHERE channel = 'telegram';
+    DELETE FROM kv WHERE key LIKE 'telegram%';
     """,
 ]
 

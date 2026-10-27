@@ -22,25 +22,16 @@ def vaults(proactive_on, tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def telegram_on(vaults, monkeypatch):
-    from config import proactive as cfgmod
-    from proactive import linking, prefs
-    from proactive.notify import telegram
+def push_on(vaults, monkeypatch):
+    from proactive import prefs
+    from tests.conftest import fake_push
 
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "1:x")
-    cfgmod.proactive_settings.cache_clear()
     sent = []
-
-    async def fake_call(method, payload=None, *, timeout=30):
-        sent.append((method, payload or {}))
-        return {}
-
-    monkeypatch.setattr(telegram, "call", fake_call)
-    for user, chat in (("alice", "11"), ("bob", "22")):
+    fake_push(monkeypatch, {"alice": "11", "bob": "22"}, sent)
+    for user in ("alice", "bob"):
         p = prefs.get(user)
-        p.optin, p.channels, p.language = True, "telegram", "en"
+        p.optin, p.channels, p.language = True, "push", "en"
         prefs.save(p)
-        linking.link(user, "telegram", chat)
     from proactive import users
 
     monkeypatch.setattr(users, "eligible", lambda: [("alice", "t-a"), ("bob", "t-b")])
@@ -220,19 +211,18 @@ def test_dismissed_finding_is_not_resurfaced_on_same_evidence(vaults):
 # ── End to end: manual finding → message → button → files ───────────────────
 
 
-def test_manual_finding_notification_button_updates_files(telegram_on, vaults):
-    from proactive import findings, interests, jobs
-    from proactive.notify import telegram
+def test_manual_finding_push_and_reaction_in_the_app_update_files(push_on, vaults):
+    from proactive import findings, interests, jobs, reactions
 
     p = _manual(vaults)
     _run_worker()
-    sends = [pl for m, pl in telegram_on if m == "sendMessage"]
+    sends = [pl for m, pl in push_on if m == "sendMessage"]
     assert len(sends) == 1 and sends[0]["chat_id"] == "11"
     assert "Kfz-Versicherung Wechselfrist" in sends[0]["text"]
+    assert sends[0]["url"].endswith("/findings/abcdefg")  # a tap opens the finding
     assert "status: surfaced" in p.read_text()
 
-    cq = {"update_id": 5, "callback_query": {"id": "q", "data": "f:abcdefg:interested", "message": {"chat": {"id": 11}}}}
-    asyncio.run(telegram.handle_update(cq))
+    asyncio.run(reactions.react("alice", "abcdefg", "interested", channel="app"))
     f = findings.get("alice", "abcdefg")
     assert f.status == "interested"
     i = interests.load("alice")
@@ -242,17 +232,17 @@ def test_manual_finding_notification_button_updates_files(telegram_on, vaults):
     assert "Your car insurance can be cancelled until 30 November." in p.read_text()
 
 
-def test_second_channel_reaction_is_ignored(telegram_on, vaults):
+def test_second_channel_reaction_is_ignored(push_on, vaults):
     from proactive import findings, reactions
 
     _manual(vaults, text=MANUAL.replace("status: new", "status: surfaced"))
-    asyncio.run(reactions.react("alice", "abcdefg", "interested", channel="telegram"))
+    asyncio.run(reactions.react("alice", "abcdefg", "interested", channel="app"))
     msg = asyncio.run(reactions.react("alice", "abcdefg", "later", channel="email"))
     assert msg == "Already handled."
     assert findings.get("alice", "abcdefg").status == "interested"
 
 
-def test_never_mutes_the_topic(telegram_on, vaults):
+def test_never_mutes_the_topic(push_on, vaults):
     from proactive import interests, reactions
 
     _manual(vaults, text=MANUAL.replace("status: new", "status: surfaced"))
@@ -262,20 +252,20 @@ def test_never_mutes_the_topic(telegram_on, vaults):
     assert (i.rows["kfz-versicherung"].never, i.rows["kfz-versicherung"].dismissed) == (1, 1)
 
 
-def test_status_edited_in_obsidian_is_respected(telegram_on, vaults):
+def test_status_edited_in_obsidian_is_respected(push_on, vaults):
     from proactive import findings
 
     p = _manual(vaults)
     p.write_text(p.read_text().replace("status: new", "status: dismissed"))
     _run_worker()
-    assert not [pl for m, pl in telegram_on if m == "sendMessage"]
+    assert not [pl for m, pl in push_on if m == "sendMessage"]
     assert findings.get("alice", "abcdefg").status == "dismissed"
 
 
-def test_snoozed_finding_wakes_up(telegram_on, vaults):
+def test_snoozed_finding_wakes_up(push_on, vaults):
     _manual(vaults, text=MANUAL.replace("status: new", "status: snoozed\nsnoozed_until: 2000-01-01"))
     _run_worker()
-    assert len([pl for m, pl in telegram_on if m == "sendMessage"]) == 1
+    assert len([pl for m, pl in push_on if m == "sendMessage"]) == 1
 
 
 # ── Concurrent edits ─────────────────────────────────────────────────────────
@@ -299,27 +289,27 @@ def _edit_after_first_read(monkeypatch, edit):
     monkeypatch.setattr(notes, "read_note", read_then_user_edits)
 
 
-def test_user_edit_to_another_key_is_merged(telegram_on, vaults, monkeypatch):
+def test_user_edit_to_another_key_is_merged(push_on, vaults, monkeypatch):
     from proactive import reactions
 
     p = _manual(vaults, text=MANUAL.replace("status: new", "status: surfaced"))
     _edit_after_first_read(monkeypatch, lambda t: t.replace("urgency: high", "urgency: low"))
-    asyncio.run(reactions.react("alice", "abcdefg", "interested", channel="telegram"))
+    asyncio.run(reactions.react("alice", "abcdefg", "interested", channel="app"))
     text = p.read_text()
     assert "status: interested" in text and "urgency: low" in text
 
 
-def test_user_edit_to_status_wins_and_reaction_is_re_decided(telegram_on, vaults, monkeypatch):
+def test_user_edit_to_status_wins_and_reaction_is_re_decided(push_on, vaults, monkeypatch):
     from proactive import reactions
 
     p = _manual(vaults, text=MANUAL.replace("status: new", "status: surfaced"))
     _edit_after_first_read(monkeypatch, lambda t: t.replace("status: surfaced", "status: dismissed"))
-    msg = asyncio.run(reactions.react("alice", "abcdefg", "interested", channel="telegram"))
+    msg = asyncio.run(reactions.react("alice", "abcdefg", "interested", channel="app"))
     assert "status: dismissed" in p.read_text()
     assert msg == "Already handled."
 
 
-def test_user_body_edit_is_kept_when_worker_changes_frontmatter(telegram_on, vaults, monkeypatch):
+def test_user_body_edit_is_kept_when_worker_changes_frontmatter(push_on, vaults, monkeypatch):
     from proactive import reactions
 
     p = _manual(vaults, text=MANUAL.replace("status: new", "status: surfaced"))

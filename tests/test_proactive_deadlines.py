@@ -17,15 +17,13 @@ DOC_TEXT = (
 
 @pytest.fixture
 def env(proactive_on, tmp_path, monkeypatch):
-    """Vaults, sidecars, a fake Paperless, a fake Telegram, two users."""
+    """Vaults, sidecars, a fake Paperless, a fake push service, two users."""
     from config import proactive as cfgmod
     from config.settings import settings
     from proactive import clock, findings, linking, prefs, users
-    from proactive.notify import telegram
     from proactive.tasks import documents
+    from tests.conftest import fake_push
 
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "1:x")
-    cfgmod.proactive_settings.cache_clear()
     root = tmp_path / "vaults"
     for u in ("alice", "bob"):
         (root / u).mkdir(parents=True)
@@ -41,17 +39,11 @@ def env(proactive_on, tmp_path, monkeypatch):
     clock.advance(target - now)
 
     sent = []
-
-    async def fake_call(method, payload=None, *, timeout=30):
-        sent.append((method, payload or {}))
-        return {}
-
-    monkeypatch.setattr(telegram, "call", fake_call)
-    for user, chat in (("alice", "11"), ("bob", "22")):
+    fake_push(monkeypatch, {"alice": "11", "bob": "22"}, sent)
+    for user in ("alice", "bob"):
         p = prefs.get(user)
-        p.optin, p.channels, p.language = True, "telegram", "en"
+        p.optin, p.channels, p.language = True, "push", "en"
         prefs.save(p)
-        linking.link(user, "telegram", chat)
     monkeypatch.setattr(users, "eligible", lambda: [("alice", "t-alice"), ("bob", "t-bob")])
 
     access = {"t-alice": {100, 101}, "t-bob": {101}}  # bob cannot read #100
@@ -304,9 +296,11 @@ def test_dedupe_survives_losing_the_db(env, fake_llm, proactive_on):
     from proactive import prefs
 
     p = prefs.get("alice")
-    p.optin, p.channels, p.language = True, "telegram", "en"
+    p.optin, p.channels, p.language = True, "push", "en"
     prefs.save(p)
-    linking.link("alice", "telegram", "11")      # users re-link after a DB loss
+    from proactive.notify import webpush        # devices re-register after a DB loss
+    webpush.subscribe("alice", {"endpoint": "https://fcm.googleapis.com/fcm/send/11",
+                                "keys": {"p256dh": "k", "auth": "a"}})
     _worker_run("daily_run")
     assert len(_texts(env)) == 1
 
@@ -317,7 +311,7 @@ def test_done_deadline_gets_no_more_reminders(env, fake_llm):
     _make_findings(env, fake_llm)
     _worker_run("daily_run")
     pay = next(f for f in findings.list_findings("alice") if f.deadline == "2026-11-15")
-    asyncio.run(reactions.react("alice", pay.finding_id, "done", channel="telegram"))
+    asyncio.run(reactions.react("alice", pay.finding_id, "done", channel="app"))
     _day(env, date(2026, 11, 8))
     _worker_run("daily_run")
     assert len(_texts(env)) == 1

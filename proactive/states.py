@@ -10,7 +10,7 @@
     dismissed ──reopen──> new      (only when the evidence changed)
 
 Reactions are accepted only from the states where they make sense. That is
-what makes "Telegram and email" safe: the first reaction moves the status,
+what makes "push and email" safe: the first reaction moves the status,
 and the same or another reaction from the second channel finds a state it
 does not apply to and is ignored.
 """

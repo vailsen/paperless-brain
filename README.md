@@ -74,8 +74,9 @@ talk to.
 - **Proactive reminders & insights (opt-in)** — a background worker reads new
   documents while you are away: deadline reminders at 30/7/1 days (never for
   dates that have passed), and notes on contracts, insurance or savings worth a
-  look, with a deep dive on request. Messages via Telegram or email with
-  Interesting / Later / Never-again buttons; a weekly limit you set; it learns
+  look, with a deep dive on request. Notifications on your phone and desktop
+  (Web Push, end-to-end encrypted) or by email; quiet hours and a weekly limit
+  you set; it learns
   which topics you care about. Every recommendation needs a quote from your
   document and a web page actually read; web queries never carry your names,
   numbers or amounts. → [docs/proactive.md](docs/proactive.md)
@@ -175,7 +176,7 @@ Both LLM backends share one tool set and one streaming event protocol.
 | [Configuration](docs/configuration.md) | every `.env` key, model registry, extraction rules, adding a language |
 | [Vault & notes](docs/vault.md) | how memory and your notes are stored, the built-in editor, Obsidian alongside it |
 | [Voice memos](docs/voice-memos.md) | transcription services, conversation mode, what to expect |
-| [Proactive reminders & insights](docs/proactive.md) | the background worker, Telegram/email, what it does and never does |
+| [Proactive reminders & insights](docs/proactive.md) | the background worker, push/email, what it does and never does |
 | [Operations](docs/operations.md) | OCR write-back, Wake-on-LAN + idle shutdown, security notes, bare-metal install |
 
 ## Why I built this

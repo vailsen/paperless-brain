@@ -1,6 +1,6 @@
 # Proactive System — Implementation Tasks
 
-Reference: `docs/proactive-architecture.md`. Invariants: the "Proactive system" section of `CLAUDE.md`.
+Reference: `docs/proactive-architecture.md`. Telegram (Phase 3) was removed on 2026-10-27; push replaced it. Invariants: the "Proactive system" section of `CLAUDE.md`.
 Execute one or two phases at a time, `/clear` between phases. Every phase ends with its acceptance criteria verified end-to-end, not just unit tests.
 
 ---
