@@ -17,7 +17,7 @@ def channels_on(proactive_on, monkeypatch):
 
     for k, v in {
         "SMTP_HOST": "smtp.example", "SMTP_FROM": "PaperlessBrain <brain@example.com>",
-        "IMAP_HOST": "imap.example", "IMAP_USER": "brain", "SMTP_SECURITY": "none",
+        "SMTP_SECURITY": "none",
         "PROACTIVE_APP_BASE_URL": "https://brain.lan",
     }.items():
         monkeypatch.setenv(k, v)
@@ -136,7 +136,7 @@ def test_full_text_only_with_opt_in(channels_on, smtp):
     assert "If you can read this" in msg.get_body(("plain",)).get_content()
 
 
-def test_finding_mail_has_message_id_and_action_links(channels_on, smtp):
+def test_finding_mail_is_send_only_with_one_link(channels_on, smtp):
     from proactive import notify
     from proactive.notify import INSIGHT_ACTIONS, compose
     from proactive.worker import Worker
@@ -148,7 +148,10 @@ def test_finding_mail_has_message_id_and_action_links(channels_on, smtp):
     asyncio.run(Worker().tick_once())
     (msg,) = [m[1] for m in smtp if m[0] == "send"]
     assert re.fullmatch(r"<f7k3q9x\.[0-9a-f]{12}@example\.com>", msg["Message-ID"])
-    assert "https://brain.lan/findings/f7k3q9x?action=never" in msg.get_body(("plain",)).get_content()
+    text = msg.get_body(("plain",)).get_content()
+    assert "https://brain.lan/findings/f7k3q9x" in text
+    assert "?action=" not in text and "reply" not in text.lower()   # no answers by mail
+    assert '<a href="https://brain.lan/findings/f7k3q9x">' in msg.get_body(("html",)).get_content()
 
 
 def test_email_not_configured_is_never_offered_or_attempted(proactive_on, smtp):

@@ -4,7 +4,6 @@ never sets a priority, a weight or whether something is advice."""
 
 from __future__ import annotations
 
-from proactive import pushes
 from proactive.analysis import quote_in_text
 
 URGENCY_SCORE = {"low": 0.25, "medium": 0.5, "high": 0.75, "critical": 1.0}
@@ -22,7 +21,7 @@ def decide(user: str, f, interests) -> tuple[str, float]:
     pri = priority(f.urgency, interests.weight(f.topic))
     if f.topic in interests.muted and f.urgency != "critical":
         return "hold", pri
-    if pri >= cfg.proactive_push_threshold and pushes.allowed(user):
+    if pri >= cfg.proactive_push_threshold:
         return "push", pri
     return "hold", pri
 

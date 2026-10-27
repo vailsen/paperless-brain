@@ -9,10 +9,9 @@
     held ──digest──> surfaced
     dismissed ──reopen──> new      (only when the evidence changed)
 
-Reactions are accepted only from the states where they make sense. That is
-what makes "push and email" safe: the first reaction moves the status,
-and the same or another reaction from the second channel finds a state it
-does not apply to and is ignored.
+Reactions are accepted only from the states where they make sense: the same
+button pressed twice, or in two open tabs, finds a state it does not apply to
+and is ignored.
 """
 
 from __future__ import annotations

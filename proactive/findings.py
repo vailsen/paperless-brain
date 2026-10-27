@@ -310,7 +310,7 @@ _index: dict[str, tuple[str, str]] = {}
 
 
 def locate(finding_id: str) -> Finding | None:
-    """Find a finding in any user's ledger (email replies)."""
+    """Find a finding in any user's ledger (by id alone)."""
     from config.settings import settings
 
     if not valid_finding_id(finding_id):

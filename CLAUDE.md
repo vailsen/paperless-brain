@@ -381,7 +381,7 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - Every user-specific job runs with **that user's Paperless token**. Access is checked against Paperless (`GET /api/documents/{id}/`) before any user-specific analysis. Never use the ingestion superuser token for user-facing work.
 - One finding belongs to one user. Notifications go only to channel addresses linked by that user.
 - The app never delivers a proactive message itself; it enqueues a job and the worker sends it. (Telegram was a channel until 2026-10-27 and was removed in favour of push.)
-- **Web Push (`proactive/notify/webpush.py`) has no buttons** — iOS shows none; a tap opens the link, and the reactions live on the finding page. Devices are registered from the user's own session (`proactive/push_routes.py`, same-origin only), endpoints only on the browser vendors' push hosts. "Sync finished" / "Werkbank run done" go to push only, each behind its own switch, never to email, never against the weekly limit.
+- **Web Push (`proactive/notify/webpush.py`) has no buttons** — iOS shows none; a tap opens the link, and the reactions live on the finding page. Devices are registered from the user's own session (`proactive/push_routes.py`, same-origin only), endpoints only on the browser vendors' push hosts. "Sync finished" / "Werkbank run done" go to push only, each behind its own switch, never to email.
 - Findings/dossiers/`_interests.md` in the user's vault are the source of truth for status. `proactive.db` is disposable except channel links and push subscriptions; notification dedupe derives from finding frontmatter.
 - The findings folder (`proactive/paths.py`) is never written to by `vault/sync._embed_file`, and only `proactive/retrieval.index_meta` decides what of it is indexed: surfaced/interested/researched/done findings and dossiers, with `source_type` and `trust: low`; held, snoozed, dismissed, new and `_interests.md` never; nothing while the switch is off. Retrieval marks such hits as not evidence, and `FINDINGS_RULE` tells the model to cite the documents.
 - **The worker never imports `services.clients`** (embedding model + Chroma). Work that needs Chroma or the chat tools (similar documents, deep dives, dossiers) goes through the app's signed internal API (`proactive/internal_api.py`, HMAC from `STORAGE_SECRET`); a request names the user, the app takes the token from their grant.
@@ -392,8 +392,9 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - Every proactive web query passes the code-level query guard. Prompt instructions are not a substitute.
 - Default notification content is title + urgency + link. Full text only with per-channel user opt-in.
 - Waking and shutting down the inference host goes through the existing WoL / idle-shutdown mechanism only. The worker never shuts the host down itself.
-- No admin role. Operator settings live in `.env`; channels, model, offsets, weekly message limit and opt-in are per-user settings.
-- The weekly message limit never blocks critical deadline reminders; messages over the limit become `held`, never dropped.
+- No admin role. Operator settings live in `.env`; channels, model, offsets, quiet hours, findings language and opt-in are per-user settings.
+- **No weekly message limit** (removed 2026-10-27): every finding over the push threshold is sent; a busy week while the archive is swept is accepted. What stays held: low priority and muted topics (critical ones are never held).
+- **Push and email are send-only.** A message is a title, the urgency and one link to the finding; answers happen on the finding page. Nothing reads a mailbox: the IMAP reply poller moved every unread mail of a personal inbox into its "processed" folder, and was removed (2026-10-27).
 - Model resolution order: `PROACTIVE_MODEL_FIXED` → user choice (must be in `PROACTIVE_MODEL_ALLOWLIST` if set) → `PROACTIVE_MODEL_DEFAULT` → chat model. Resolved in one function only. LLM jobs are grouped by model within a window.
 - No proactive LLM job runs on a cloud backend unless `PROACTIVE_CLOUD_ALLOWED=true`, and then within the per-user daily cap.
 - Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget — or when the user asks for it ("Analyse now", `sweep.start_now`, one document per job on the same cursor).
@@ -409,8 +410,8 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - Do not use a Paperless webhook as the primary trigger; poll with the `id__gt` cursor.
 - Do not add adaptive scan-frequency heuristics.
 - Do not let the LLM write `_interests.md` or set priority/trust values.
-- Do not parse email replies with an LLM; keyword parsing only.
-- Do not send results to an email `Reply-To` or any address other than the linked one.
+- Do not read, mark, move or delete mail in any mailbox. Email is send-only.
+- Do not send to any address other than the user's linked (code-confirmed) one.
 - Do not cite findings or dossiers as evidence in RAG answers.
 - Do not produce reminders for past dates.
 - Do not add SSH/shutdown logic to the worker or an admin settings UI.

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proactive.tasks import daily, documents, heartbeat, imap, insights, ledger, notify, sweep, topics  # noqa: F401
+from proactive.tasks import daily, documents, heartbeat, insights, ledger, notify, sweep, topics  # noqa: F401
 
 documents.install()
 
@@ -24,7 +24,5 @@ def attach(worker: "Worker") -> None:
     scheduler.ensure(ledger.LEDGER_SCAN, "every:300", run_now=True)
     scheduler.ensure(documents.NEWDOC_POLL, f"every:{worker.cfg.proactive_newdoc_poll_seconds}", run_now=True)
     scheduler.ensure(daily.DAILY_RUN, f"daily:{worker.cfg.daily_run_time:%H:%M}")
-    if worker.cfg.email_available:
-        scheduler.ensure(imap.IMAP_POLL, f"every:{worker.cfg.imap_poll_seconds}", run_now=True)
-    else:
-        scheduler.remove(imap.IMAP_POLL)  # no connection attempt without config
+    # Email is send-only now; drop the reply poller's schedule from older DBs.
+    scheduler.remove("imap_poll")

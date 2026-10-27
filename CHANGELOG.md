@@ -9,6 +9,13 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Removed
 
+- **Replying to notification emails, and with it everything that read the
+  mailbox.** It moved every unread mail of the inbox, not just replies, into
+  `PaperlessBrain/Processed`. Email is now send-only, like push: title,
+  urgency and one link to the finding. `IMAP_*` in `.env` is ignored. Mails
+  it moved are still in that label — move them back to the inbox in Gmail.
+- **The weekly message limit.** Every finding worth a message is sent; the
+  first nights of the archive run are busier, then it settles.
 - **Telegram as a notification channel.** Push in the app does the same
   without a bot to set up and is end-to-end encrypted. Existing Telegram links
   are deleted on upgrade; a user who had picked Telegram keeps their other

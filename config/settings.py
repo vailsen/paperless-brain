@@ -88,7 +88,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
-        # The proactive system's keys (PROACTIVE_*, PUSH_*, SMTP_*, IMAP_*)
+        # The proactive system's keys (PROACTIVE_*, PUSH_*, SMTP_*)
         # share this .env but are read by config/proactive.py; without this the
         # app refuses to start as soon as one of them is set.
         extra = "ignore"

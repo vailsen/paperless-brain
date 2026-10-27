@@ -530,35 +530,6 @@ def _reminders_section(username: str) -> None:
 
     ui.button(_("Save"), on_click=_save).props("flat dense size=sm")
 
-    # ── Weekly message limit (architecture §8) ───────────────────────────────
-    ceiling = cfg.proactive_max_pushes_per_week_limit
-    current = p.max_pushes_per_week if p.max_pushes_per_week is not None else cfg.proactive_max_pushes_per_week
-    ui.label(_("Max. messages per week")).classes("text-sm font-semibold text-gray-200 mt-4")
-    limit_in = ui.number(
-        _("0 to {max}").format(max=ceiling), value=current, min=0, max=ceiling, step=1, format="%d",
-    ).props("outlined dark dense").classes("w-full")
-    ui.label(
-        _(
-            "Insights beyond this are held back and shown in the app, not dropped. "
-            "Critical deadline reminders always arrive — also with 0."
-        )
-    ).classes("text-xs text-gray-500")
-
-    def _save_limit() -> None:
-        try:
-            n = int(limit_in.value)
-        except (TypeError, ValueError):
-            n = -1
-        if not 0 <= n <= ceiling:
-            ui.notify(_("Choose a number from 0 to {max}.").format(max=ceiling), type="warning")
-            return
-        cur = pprefs.get(username)
-        cur.max_pushes_per_week = n
-        pprefs.save(cur)
-        ui.notify(_("Saved"), type="positive")
-
-    ui.button(_("Save"), on_click=_save_limit).props("flat dense size=sm")
-
     # ── Quiet hours ──────────────────────────────────────────────────────────
     ui.label(_("Quiet hours")).classes("text-sm font-semibold text-gray-200 mt-4")
     with ui.row().classes("gap-2 w-full no-wrap"):

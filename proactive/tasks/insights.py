@@ -82,7 +82,7 @@ async def quiet_digest(user: str) -> None:
     from proactive.states import transition
 
     cfg = proactive_settings()
-    if cfg.proactive_digest_held_items <= 0 or not pushes.allowed(user):
+    if cfg.proactive_digest_held_items <= 0:
         return
     last = pushes.last_push(user)
     quiet_since = clock.utcnow() - timedelta(days=cfg.proactive_quiet_days)

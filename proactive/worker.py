@@ -1,7 +1,7 @@
 """`paperlessbrain-worker` — the proactive system's one background process.
 
 Owns all background work: the tick loop (schedules → jobs), the job runner,
-the IMAP poller and the Paperless new-document poller.
+and the Paperless new-document poller.
 
 - `PROACTIVE_ENABLED=false` → one log line, exit 0, nothing touched (no DB).
 - SIGTERM / SIGINT → the running job finishes, then the worker exits 0. A

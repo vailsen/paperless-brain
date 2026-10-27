@@ -4,9 +4,9 @@ Plain SMTP via the standard library, run in a thread: the spec suggested
 `aiosmtplib`, but a notification rate of a few per user per week does not
 justify a new dependency, and `smtplib` does STARTTLS, SSL and plain alike.
 
-Every message about a finding carries `Message-ID: <{finding_id}.{random}@{domain}>`
-so a reply can be attributed (Phase 5 reads `In-Reply-To` / `References`). The
-action links point at the findings page, behind the app's own login.
+Send-only, like push: title, urgency and one link to the finding, where the
+answers are. Nothing reads the mailbox — replies were parsed once (IMAP) and
+that moved the user's own mail; removed 2026-10-27.
 """
 
 from __future__ import annotations
@@ -20,12 +20,10 @@ import ssl
 from email.message import EmailMessage
 from email.utils import formatdate, parseaddr
 
-from proactive.notify import ACTION_LABELS, Notification, finding_link
+from proactive.notify import Notification
 
 log = logging.getLogger("proactive.email")
 
-#: Reply keywords, by action (Phase 5 parses the first line of a reply).
-REPLY_HINT_ACTIONS = ("interested", "later", "never")
 
 
 def from_domain() -> str:
@@ -42,9 +40,7 @@ def message_id(finding_id: str = "") -> str:
 
 def build(to: str, n: Notification, *, full_text: bool) -> EmailMessage:
     from config.proactive import proactive_settings
-    from i18n import translator_for
 
-    _ = translator_for(n.lang)
     body = n.body_full if full_text and n.body_full else n.body_short
     msg = EmailMessage()
     msg["From"] = proactive_settings().smtp_from
@@ -54,24 +50,15 @@ def build(to: str, n: Notification, *, full_text: bool) -> EmailMessage:
     msg["Message-ID"] = message_id(n.finding_id)
     msg["Auto-Submitted"] = "auto-generated"
 
-    lines = [body]
-    links_html = []
-    if n.finding_id and n.actions:
-        lines.append("")
-        for a in n.actions:
-            url = finding_link(n.finding_id, a)
-            lines.append(f"{_(ACTION_LABELS[a])}: {url}")
-            links_html.append(f'<a href="{html.escape(url)}">{html.escape(_(ACTION_LABELS[a]))}</a>')
-        if set(n.actions) & set(REPLY_HINT_ACTIONS):
-            lines += ["", _("Or reply with 1 (interesting), 2 (later) or 3 (never again).")]
-    msg.set_content("\n".join(lines))
-    body_html = "<br>".join(html.escape(line) for line in body.splitlines())
-    extra = ""
-    if links_html:
-        extra = "<p>" + " &middot; ".join(links_html) + "</p>"
-        if set(n.actions) & set(REPLY_HINT_ACTIONS):
-            extra += "<p>" + html.escape(_("Or reply with 1 (interesting), 2 (later) or 3 (never again).")) + "</p>"
-    msg.add_alternative(f"<html><body><p>{body_html}</p>{extra}</body></html>", subtype="html")
+    # The body already holds the link (`notify.compose`); in HTML it is clickable.
+    msg.set_content(body)
+    lines = []
+    for line in body.splitlines():
+        esc = html.escape(line)
+        if n.link and line == n.link:
+            esc = f'<a href="{esc}">{esc}</a>'
+        lines.append(esc)
+    msg.add_alternative(f"<html><body><p>{'<br>'.join(lines)}</p></body></html>", subtype="html")
     return msg
 
 

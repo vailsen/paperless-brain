@@ -101,9 +101,6 @@ def env(proactive_on, tmp_path, monkeypatch):
 
     monkeypatch.setenv("SMTP_HOST", "smtp")
     monkeypatch.setenv("SMTP_FROM", "brain@example.com")
-    monkeypatch.setenv("IMAP_HOST", "imap")
-    monkeypatch.setenv("IMAP_USER", "u")
-    monkeypatch.setenv("PROACTIVE_MAX_PUSHES_PER_WEEK", "3")
     cfgmod.proactive_settings.cache_clear()
     root = tmp_path / "vaults"
     (root / "alice").mkdir(parents=True)
@@ -182,44 +179,38 @@ def _status(fid):
     return findings.get("alice", fid).status
 
 
-# ── Weekly limit, scoring, digest ────────────────────────────────────────────
+# ── Scoring, digest ──────────────────────────────────────────────────────────
 
 
-def test_limit_3_fourth_push_is_held_and_both_channels_count_once(env):
+def test_no_weekly_limit_every_push_worthy_insight_is_sent_once_per_channel(env):
     from proactive import pushes
 
-    ids = [_insight(env, i) for i in range(4)]
+    ids = [_insight(env, i) for i in range(6)]
     _run("ledger_scan")
-    assert [_status(i) for i in ids].count("surfaced") == 3
-    assert [_status(i) for i in ids].count("held") == 1
-    assert pushes.count_week("alice") == 3
-    assert len(_tg(env)) == 3 and len([m for m, _ in env["sent"] if m == "mail"]) == 3
+    assert [_status(i) for i in ids] == ["surfaced"] * 6
+    assert len(_tg(env)) == 6 and len([m for m, _ in env["sent"] if m == "mail"]) == 6
+    assert pushes.last_push("alice") is not None
 
 
-def test_limit_0_no_insights_but_critical_deadline_arrives(env, monkeypatch):
+def test_every_due_deadline_reminder_arrives(env):
     from datetime import date
 
-    from proactive import clock, prefs
+    from proactive import clock
     from proactive.paths import findings_root
 
-    p = prefs.get("alice")
-    p.max_pushes_per_week = 0
-    prefs.save(p)
-    fid = _insight(env, 0, urgency="critical")
-    _run("ledger_scan")
-    assert _status(fid) == "held"  # 0 = no insight pushes, critical or not
     today = clock.local_now().date()
     due = date.fromordinal(today.toordinal() + 1).isoformat()
-    later = date.fromordinal(today.toordinal() + 20).isoformat()
+    week = date.fromordinal(today.toordinal() + 7).isoformat()
     d = findings_root("alice") / "Notices"
+    d.mkdir(parents=True, exist_ok=True)
     (d / "dl1.md").write_text(f"---\nfinding_id: deadlin\nkind: deadline\ntitle: Pay\nstatus: new\nurgency: medium\n"
                               f"deadline: {due}\ndeadline_kind: payment\ndoc_ids: [1]\n---\nx\n")
     (d / "dl2.md").write_text(f"---\nfinding_id: deadlio\nkind: deadline\ntitle: Pay later\nstatus: new\nurgency: low\n"
-                              f"deadline: {later}\ndeadline_kind: payment\ndoc_ids: [1]\n---\nx\n")
+                              f"deadline: {week}\ndeadline_kind: payment\ndoc_ids: [1]\n---\nx\n")
     _run("daily_run")
     texts = _tg(env)
-    assert len(texts) == 1 and "Pay" in texts[0] and "Due tomorrow" in texts[0]
-    assert _status("deadlio") == "new"  # non-critical reminder waits, not dropped
+    assert len(texts) == 2
+    assert any("Due tomorrow" in t for t in texts) and any("7 days left" in t for t in texts)
 
 
 def test_never_mutes_and_a_later_finding_on_the_topic_is_held(env):
@@ -241,16 +232,6 @@ def test_low_priority_is_held(env):
     assert _status(fid) == "held"
 
 
-def test_value_above_the_ceiling_cannot_be_saved(env):
-    from proactive import prefs, pushes
-
-    p = prefs.get("alice")
-    p.max_pushes_per_week = 99
-    prefs.save(p)
-    assert prefs.get("alice").max_pushes_per_week == 14
-    assert pushes.limit_for("alice") == 14
-
-
 def test_quiet_period_digest_counts_once(env):
     from proactive import pushes
 
@@ -263,7 +244,7 @@ def test_quiet_period_digest_counts_once(env):
     digest = [t for t in _tg(env) if "What you may have missed" in t]
     assert len(digest) == 1
     assert [_status(x) for x in (a, b, c)].count("surfaced") == 2  # PROACTIVE_DIGEST_HELD_ITEMS
-    assert pushes.count_week("alice") == 1
+    assert pushes.last_push("alice") is not None
     _run("daily_run")  # not quiet any more
     assert len([t for t in _tg(env) if "What you may have missed" in t]) == 1
 
@@ -402,7 +383,7 @@ def test_deep_dive_result_is_validated_written_and_does_not_count(env, monkeypat
     f = findings.get("alice", fid)
     assert f.status == "researched" and f.advice
     assert "https://a.example/x" in f.body and "not-fetched" not in f.body
-    assert len(_tg(env)) == 1 and pushes.count_week("alice") == 0
+    assert len(_tg(env)) == 1 and pushes.last_push("alice") is None  # asked for: not logged
 
 
 def test_deep_dive_defers_while_the_app_is_down(env, monkeypatch):

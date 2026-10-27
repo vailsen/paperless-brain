@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-27 12:55+0100\n"
+"POT-Creation-Date: 2026-10-27 15:16+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -120,8 +120,8 @@ msgstr "Abbrechen"
 #: app_ui/pages/settings.py:760 app_ui/pages/settings.py:865
 #: app_ui/pages/settings.py:916 app_ui/pages/settings.py:961
 #: app_ui/pages/settings.py:1048 app_ui/pages/settings.py:1128
-#: app_ui/proactive_settings.py:531 app_ui/proactive_settings.py:560
-#: app_ui/proactive_settings.py:586 werkbank/ui/archetype_dialog.py:183
+#: app_ui/proactive_settings.py:531 app_ui/proactive_settings.py:557
+#: werkbank/ui/archetype_dialog.py:183
 msgid "Save"
 msgstr "Speichern"
 
@@ -949,8 +949,7 @@ msgid "This model is not allowed for proactive jobs."
 msgstr "Dieses Modell ist für proaktive Aufgaben nicht erlaubt."
 
 #: app_ui/pages/brain.py:303 app_ui/proactive_settings.py:167
-#: app_ui/proactive_settings.py:529 app_ui/proactive_settings.py:558
-#: app_ui/proactive_settings.py:584
+#: app_ui/proactive_settings.py:529 app_ui/proactive_settings.py:555
 msgid "Saved"
 msgstr "Gespeichert"
 
@@ -1192,42 +1191,19 @@ msgstr "Leer = {default}."
 msgid "Enter whole numbers of days, separated by commas."
 msgstr "Gib ganze Tage ein, durch Kommas getrennt."
 
-#: app_ui/proactive_settings.py:536
-msgid "Max. messages per week"
-msgstr "Max. Nachrichten pro Woche"
-
-#: app_ui/proactive_settings.py:538
-#, python-brace-format
-msgid "0 to {max}"
-msgstr "0 bis {max}"
-
-#: app_ui/proactive_settings.py:542
-msgid ""
-"Insights beyond this are held back and shown in the app, not dropped. "
-"Critical deadline reminders always arrive — also with 0."
-msgstr ""
-"Hinweise darüber hinaus werden zurückgehalten und in der App gezeigt, "
-"nicht verworfen. Kritische Fristerinnerungen kommen immer an — auch bei "
-"0."
-
-#: app_ui/proactive_settings.py:553
-#, python-brace-format
-msgid "Choose a number from 0 to {max}."
-msgstr "Wähle eine Zahl von 0 bis {max}."
-
-#: app_ui/proactive_settings.py:563
+#: app_ui/proactive_settings.py:534
 msgid "Quiet hours"
 msgstr "Ruhezeit"
 
-#: app_ui/proactive_settings.py:565
+#: app_ui/proactive_settings.py:536
 msgid "From"
 msgstr "Von"
 
-#: app_ui/proactive_settings.py:567
+#: app_ui/proactive_settings.py:538
 msgid "Until"
 msgstr "Bis"
 
-#: app_ui/proactive_settings.py:571
+#: app_ui/proactive_settings.py:542
 msgid ""
 "Reminders and insights found in this time are sent when it ends. The same"
 " time twice = no quiet hours."
@@ -1235,19 +1211,19 @@ msgstr ""
 "Erinnerungen und Hinweise aus dieser Zeit werden gesendet, wenn sie "
 "endet. Zweimal dieselbe Uhrzeit = keine Ruhezeit."
 
-#: app_ui/proactive_settings.py:582
+#: app_ui/proactive_settings.py:553
 msgid "Enter times as HH:MM."
 msgstr "Gib die Uhrzeiten als HH:MM ein."
 
-#: app_ui/proactive_settings.py:591
+#: app_ui/proactive_settings.py:562
 msgid "Language of findings"
 msgstr "Sprache der Hinweise"
 
-#: app_ui/proactive_settings.py:592
+#: app_ui/proactive_settings.py:563
 msgid "Same as the app"
 msgstr "Wie die App"
 
-#: app_ui/proactive_settings.py:598
+#: app_ui/proactive_settings.py:569
 msgid "Saved — applies to new findings."
 msgstr "Gespeichert — gilt für neue Hinweise."
 
@@ -4057,16 +4033,16 @@ msgstr "Antragsfrist"
 msgid "Renewal"
 msgstr "Verlängerung"
 
-#: proactive/deadlines.py:143
+#: proactive/deadlines.py:139
 #, python-brace-format
 msgid "{n} days left."
 msgstr "Noch {n} Tage."
 
-#: proactive/deadlines.py:144
+#: proactive/deadlines.py:140
 msgid "Due tomorrow."
 msgstr "Morgen fällig."
 
-#: proactive/deadlines.py:144
+#: proactive/deadlines.py:140
 msgid "Due today."
 msgstr "Heute fällig."
 
@@ -4141,10 +4117,6 @@ msgstr "Sync fertig"
 #: proactive/notify/__init__.py:142
 msgid "Werkbank run done"
 msgstr "Werkbank-Lauf fertig"
-
-#: proactive/notify/email.py:66 proactive/notify/email.py:73
-msgid "Or reply with 1 (interesting), 2 (later) or 3 (never again)."
-msgstr "Oder antworte mit 1 (interessant), 2 (später) oder 3 (nie wieder)."
 
 #: proactive/tasks/insights.py:108
 msgid "What you may have missed"
@@ -4905,4 +4877,27 @@ msgstr "nicht erfüllt"
 
 #~ msgid "Unlinked. This chat no longer receives messages."
 #~ msgstr "Verknüpfung gelöst. Dieser Chat bekommt keine Nachrichten mehr."
+
+#~ msgid "Max. messages per week"
+#~ msgstr "Max. Nachrichten pro Woche"
+
+#~ msgid "0 to {max}"
+#~ msgstr "0 bis {max}"
+
+#~ msgid ""
+#~ "Insights beyond this are held back "
+#~ "and shown in the app, not dropped."
+#~ " Critical deadline reminders always arrive"
+#~ " — also with 0."
+#~ msgstr ""
+#~ "Hinweise darüber hinaus werden zurückgehalten"
+#~ " und in der App gezeigt, nicht "
+#~ "verworfen. Kritische Fristerinnerungen kommen "
+#~ "immer an — auch bei 0."
+
+#~ msgid "Choose a number from 0 to {max}."
+#~ msgstr "Wähle eine Zahl von 0 bis {max}."
+
+#~ msgid "Or reply with 1 (interesting), 2 (later) or 3 (never again)."
+#~ msgstr "Oder antworte mit 1 (interessant), 2 (später) oder 3 (nie wieder)."
 

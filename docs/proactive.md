@@ -56,8 +56,9 @@ change a finding's `status` in Obsidian or the note editor; the app follows it.
      the home screen) and desktop browsers, end-to-end encrypted. Generate keys
      once with `python -m proactive.notify.webpush` and put both lines in
      `.env`, plus `PUSH_CONTACT=mailto:…`. No buttons: tapping opens the finding.
-   - **Email:** one system mailbox for sending and for replies — `SMTP_*` and
-     `IMAP_*`. Replies "1", "2" or "3" (or "ja", "später", "nie") are understood.
+   - **Email:** an SMTP account to send from — `SMTP_*`. Send-only: a message
+     is a title, the urgency and a link to the finding; nothing reads the
+     mailbox, so it can be your normal one.
 4. Models: by default each user's proactive jobs use the model they pick in
    Settings > Proactive (or their chat model). `PROACTIVE_MODEL_FIXED` forces one
    model for everyone; `PROACTIVE_MODEL_ALLOWLIST` limits the choice;
@@ -77,8 +78,7 @@ Settings > Proactive:
 2. Switch on **Proactive reminders and insights**.
 3. Turn on **push** on each device (phone, computer) and/or link **email**
    (a code is mailed to you), choose where messages go, and send a test message.
-4. Optional: reminder days, your weekly message limit (critical deadline
-   reminders always arrive, also with 0), quiet hours (default 22:00–07:00 —
+4. Optional: reminder days, quiet hours (default 22:00–07:00 —
    what is found then is sent when they end), the language findings are written
    in, and the model.
 5. **Analyse the archive now** works through as many of your existing

@@ -75,8 +75,8 @@ talk to.
   documents while you are away: deadline reminders at 30/7/1 days (never for
   dates that have passed), and notes on contracts, insurance or savings worth a
   look, with a deep dive on request. Notifications on your phone and desktop
-  (Web Push, end-to-end encrypted) or by email; quiet hours and a weekly limit
-  you set; it learns
+  (Web Push, end-to-end encrypted) or by email, each just a link to the
+  finding; quiet hours you set; it learns
   which topics you care about. Every recommendation needs a quote from your
   document and a web page actually read; web queries never carry your names,
   numbers or amounts. → [docs/proactive.md](docs/proactive.md)

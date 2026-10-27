@@ -24,7 +24,6 @@ class ProactivePrefs:
     channels: str = ""  # comma list of CHANNELS
     model: str = ""  # display name in the user's model registry, "" = default
     deadline_offsets: list[int] = field(default_factory=list)  # [] = operator default
-    max_pushes_per_week: int | None = None  # None = operator default
     language: str = ""
     chat_model: str = ""
     notify_sync: bool = True  # push only: "sync finished"
@@ -55,7 +54,6 @@ def _from_row(r) -> ProactivePrefs:
         channels=",".join(ProactivePrefs("", channels=r["channels"] or "").channel_list()),
         model=r["model"] or "",
         deadline_offsets=offsets,
-        max_pushes_per_week=r["max_pushes_per_week"],
         language=r["language"] or "",
         chat_model=r["chat_model"] or "",
         notify_sync=bool(r["notify_sync"]),
@@ -80,23 +78,15 @@ def save(p: ProactivePrefs) -> None:
     unknown = {c.strip() for c in p.channels.split(",") if c.strip()} - set(CHANNELS)
     if unknown:
         raise ValueError(f"unknown channel choice {p.channels!r}")
-    if p.max_pushes_per_week is not None:
-        from config.proactive import proactive_settings
-
-        # Clamped, not refused: the operator may lower the ceiling after a user
-        # saved a higher value, and saving any other setting must still work.
-        ceiling = proactive_settings().proactive_max_pushes_per_week_limit
-        p.max_pushes_per_week = max(0, min(int(p.max_pushes_per_week), ceiling))
     with connect() as conn:
         conn.execute(
             "INSERT INTO proactive_prefs (user, proactive_optin, channels, model,"
-            " deadline_offsets, max_pushes_per_week, language, chat_model,"
+            " deadline_offsets, language, chat_model,"
             " notify_sync, notify_werkbank, findings_language, quiet_start, quiet_end, updated_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
             " ON CONFLICT(user) DO UPDATE SET proactive_optin = excluded.proactive_optin,"
             " channels = excluded.channels, model = excluded.model,"
             " deadline_offsets = excluded.deadline_offsets,"
-            " max_pushes_per_week = excluded.max_pushes_per_week,"
             " language = excluded.language, chat_model = excluded.chat_model,"
             " notify_sync = excluded.notify_sync, notify_werkbank = excluded.notify_werkbank,"
             " findings_language = excluded.findings_language,"
@@ -108,7 +98,6 @@ def save(p: ProactivePrefs) -> None:
                 p.channels,
                 p.model,
                 ",".join(str(n) for n in p.deadline_offsets),
-                p.max_pushes_per_week,
                 p.language,
                 p.chat_model,
                 int(p.notify_sync),

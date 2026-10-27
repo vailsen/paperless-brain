@@ -4,8 +4,8 @@ Read once from `.env` into `proactive_settings()`. Every proactive code path
 checks this object — never `os.environ` — so `PROACTIVE_ENABLED=false` has one
 meaning everywhere: nothing proactive runs, is registered or creates files.
 
-Channel *availability* follows from server config presence (a bot token, an
-SMTP + IMAP mailbox); there are no per-channel switches. Whether a channel is
+Channel *availability* follows from server config presence (VAPID keys for
+push, an SMTP server for email); there are no per-channel switches. Whether a channel is
 *used* is each user's choice in their settings.
 """
 
@@ -113,8 +113,6 @@ class ProactiveSettings(BaseSettings):
     proactive_model_default: str = ""
     proactive_cloud_allowed: bool = False
     proactive_cloud_max_docs_per_user_day: int = 20
-    proactive_max_pushes_per_week: int = 3
-    proactive_max_pushes_per_week_limit: int = 14
     proactive_push_threshold: float = 0.5
     proactive_quiet_days: int = 10
     proactive_digest_held_items: int = 2
@@ -134,14 +132,6 @@ class ProactiveSettings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
-    imap_host: str = ""
-    imap_port: int = 993
-    imap_security: Literal["ssl", "starttls", "none"] = "ssl"
-    imap_user: str = ""
-    imap_password: str = ""
-    imap_folder: str = "INBOX"
-    imap_processed_folder: str = "PaperlessBrain/Processed"
-    imap_poll_seconds: int = 120
 
     # Web Push (the installed app / browser). Keys: `python -m proactive.notify.webpush`.
     push_vapid_public_key: str = ""
@@ -189,7 +179,6 @@ class ProactiveSettings(BaseSettings):
     def _v_ranges(self) -> "ProactiveSettings":
         positive = {
             "PROACTIVE_NEWDOC_POLL_SECONDS": (self.proactive_newdoc_poll_seconds, 30),
-            "IMAP_POLL_SECONDS": (self.imap_poll_seconds, 30),
             "PROACTIVE_ANALYSIS_VERSION": (self.proactive_analysis_version, 1),
             "PROACTIVE_JOB_MAX_ATTEMPTS": (self.proactive_job_max_attempts, 1),
             "PROACTIVE_JOB_BACKOFF_SECONDS": (self.proactive_job_backoff_seconds, 1),
@@ -199,17 +188,11 @@ class ProactiveSettings(BaseSettings):
                 raise ValueError(f"{key} must be at least {floor}")
         for key, value in {
             "PROACTIVE_CLOUD_MAX_DOCS_PER_USER_DAY": self.proactive_cloud_max_docs_per_user_day,
-            "PROACTIVE_MAX_PUSHES_PER_WEEK": self.proactive_max_pushes_per_week,
-            "PROACTIVE_MAX_PUSHES_PER_WEEK_LIMIT": self.proactive_max_pushes_per_week_limit,
             "PROACTIVE_QUIET_DAYS": self.proactive_quiet_days,
             "PROACTIVE_DIGEST_HELD_ITEMS": self.proactive_digest_held_items,
         }.items():
             if value < 0:
                 raise ValueError(f"{key} must not be negative")
-        if self.proactive_max_pushes_per_week > self.proactive_max_pushes_per_week_limit:
-            raise ValueError(
-                "PROACTIVE_MAX_PUSHES_PER_WEEK is above PROACTIVE_MAX_PUSHES_PER_WEEK_LIMIT"
-            )
         return self
 
     # ── Derived values ────────────────────────────────────────────────────────
@@ -232,10 +215,8 @@ class ProactiveSettings(BaseSettings):
 
     @property
     def email_available(self) -> bool:
-        """Email needs both halves: SMTP to send, IMAP for the replies."""
-        return bool(
-            self.smtp_host and self.smtp_from and self.imap_host and self.imap_user
-        )
+        """Send-only: an SMTP server and a sender address."""
+        return bool(self.smtp_host and self.smtp_from)
 
     @property
     def push_available(self) -> bool:

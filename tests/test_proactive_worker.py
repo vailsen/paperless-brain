@@ -97,18 +97,11 @@ def test_config_rejects_bad_values(key, value):
         _cfg(**{key: value})
 
 
-def test_config_default_pushes_must_not_exceed_ceiling():
-    with pytest.raises(ValueError):
-        _cfg(proactive_max_pushes_per_week=5, proactive_max_pushes_per_week_limit=3)
-
-
 def test_channel_availability_follows_config_presence():
     assert _cfg(push_vapid_public_key="p", push_vapid_private_key="k").push_available
     assert not _cfg(push_vapid_public_key="p").push_available
-    half = _cfg(smtp_host="smtp", smtp_from="a@b")  # no IMAP → no replies → no email
-    assert not half.email_available
-    full = _cfg(smtp_host="smtp", smtp_from="a@b", imap_host="imap", imap_user="u")
-    assert full.email_available
+    assert not _cfg(smtp_host="smtp").email_available           # no sender address
+    assert _cfg(smtp_host="smtp", smtp_from="a@b").email_available  # send-only: no IMAP needed
 
 
 def test_window_crossing_midnight():

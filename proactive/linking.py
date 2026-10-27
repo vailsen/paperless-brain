@@ -1,8 +1,7 @@
 """Channel links and link codes (architecture §7.1, §7.2).
 
 A `channel_link` row is the allowlist: notifications go only to an address the
-user linked, and an email reply counts only if it comes from the owner's
-linked address. (Push devices live in `push_subscription`, registered from the
+user linked. (Push devices live in `push_subscription`, registered from the
 user's own session — no code needed.)
 
 Link codes: 8 characters from an unambiguous alphabet, valid for 10 minutes,

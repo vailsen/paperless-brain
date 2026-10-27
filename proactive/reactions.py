@@ -1,4 +1,4 @@
-"""Reactions from every channel — email replies, the app —
+"""Reactions — from the finding page in the app (push and email only link there) —
 and the system events that move a finding (surface, snooze wake-up).
 
 One entry point, so the rules are the same whichever channel a reaction comes
