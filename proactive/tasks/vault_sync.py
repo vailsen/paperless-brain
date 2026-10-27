@@ -8,7 +8,9 @@ worker wrote — the user waited for a sync they never asked for.
 So the worker asks the app to sync (it cannot itself: no embedding model in
 this process), but only when
 - its own folder (`proactive.paths.findings_root`) has uncommitted changes,
-- no LLM job is due — the batch is over, and
+- no LLM job finished in the last `BATCH_QUIET` — the batch is over (one that
+  runs finishes a job every few seconds; "no job due" would never turn true
+  while the GPU host cannot be woken), and
 - the app is not using the model — nobody is chatting right now.
 
 This is the one sync not started by the user. It is triggered by the worker's
@@ -19,13 +21,28 @@ findings folder is clean.
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
-from proactive import jobs, users
+from proactive import users
 from proactive.jobs import Job, handler
 
 log = logging.getLogger("proactive.vault_sync")
 
 VAULT_SYNC_CHECK = "vault_sync_check"
+BATCH_QUIET = timedelta(minutes=10)
+
+
+def batch_running() -> bool:
+    from proactive import clock
+    from proactive.db import connect
+
+    since = clock.iso(clock.utcnow() - BATCH_QUIET)
+    with connect() as conn:
+        n = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE needs_llm = 1 AND status = 'done' AND finished_at > ?",
+            (since,),
+        ).fetchone()[0]
+    return n > 0
 
 
 def _findings_prefix(user: str) -> str:
@@ -41,8 +58,8 @@ async def vault_sync_check(job: Job) -> None:
     from services import ollama_watchdog
     from vault.notes import pending_rel_paths
 
-    if jobs.pending_count(needs_llm=True, due_only=True):
-        return  # the batch is still running
+    if batch_running():
+        return
     if ollama_watchdog.app_busy():
         return  # a user is chatting; their turn syncs anyway
     for user, _tok in users.eligible():

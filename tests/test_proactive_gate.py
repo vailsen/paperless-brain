@@ -673,17 +673,25 @@ def test_vault_sync_after_the_batch_only_for_the_workers_own_changes(vault_sync_
     assert vault_sync_env == ["alice"]  # bob's own note edit waits for his next chat turn
 
 
-def test_no_vault_sync_while_the_batch_runs_or_a_user_chats(vault_sync_env, monkeypatch):
+def test_a_job_due_on_a_sleeping_host_does_not_block_the_sync(vault_sync_env):
     from proactive import jobs
+
+    jobs.enqueue("doc_new", "", {"doc_id": 9}, needs_llm=True)   # due, but nothing runs
+    _check()
+    assert vault_sync_env == ["alice"]
+
+
+def test_no_vault_sync_while_the_batch_runs_or_a_user_chats(vault_sync_env, monkeypatch):
+    from proactive import clock, jobs
+    from proactive.db import connect
     from services import ollama_watchdog
 
     jobs.enqueue("sweep_doc", "alice", {"doc_id": 1}, needs_llm=True)
+    with connect() as conn:                       # one just finished: batch running
+        conn.execute("UPDATE jobs SET status = 'done', finished_at = ?", (clock.now_iso(),))
     _check()
     assert vault_sync_env == []
-    from proactive.db import connect
-
-    with connect() as conn:
-        conn.execute("UPDATE jobs SET status = 'done'")
+    clock.advance(timedelta(minutes=11))          # quiet since: batch over
     monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: True)
     _check()
     assert vault_sync_env == []
