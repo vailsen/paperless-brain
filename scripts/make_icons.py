@@ -34,6 +34,19 @@ def tile_svg(rounded: bool, mark: float) -> str:
     )
 
 
+def badge_svg() -> str:
+    """Android's status-bar badge: only the alpha channel counts, the system
+    paints it white. The opaque tile came out as a white square, so this is the
+    bare mark — hemispheres opaque, creases cut out through a mask."""
+    inner = mark_svg(64, "#fff", "#fff", "#000").replace('width="64" height="64" ', "")
+    inner = inner.replace("<svg ", "<svg x=\"4\" y=\"4\" width=\"56\" height=\"56\" ", 1)
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+        f'<defs><mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">{inner}</mask></defs>'
+        '<rect width="64" height="64" fill="#fff" mask="url(#m)"/></svg>'
+    )
+
+
 async def main() -> None:
     from playwright.async_api import async_playwright
 
@@ -44,6 +57,7 @@ async def main() -> None:
         (tile_svg(True, 0.68), 512, f"icon-{v}-512.png"),
         (tile_svg(False, 0.56), 512, f"icon-{v}-maskable-512.png"),
         (tile_svg(False, 0.62), 180, f"apple-touch-icon-{v}.png"),
+        (badge_svg(), 96, f"badge-{v}-96.png"),
     ]
     async with async_playwright() as p:
         b = await p.chromium.launch()

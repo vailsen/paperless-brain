@@ -46,7 +46,8 @@ self.addEventListener('push', (event) => {
         self.registration.showNotification(d.title || 'PaperlessBrain', {
             body: d.body || '',
             icon: '/static/icon-v3-192.png',
-            badge: '/static/icon-v3-192.png',
+            // Status-bar icon: alpha only, so a transparent mark (make_icons.py).
+            badge: '/static/badge-v3-96.png',
             tag: d.tag || undefined,
             data: { url: d.url || '/' },
         })

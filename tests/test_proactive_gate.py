@@ -533,3 +533,40 @@ def test_cloud_not_allowed_no_llm_job_but_reminders_run(proactive_on, monkeypatc
     jobs.enqueue("t2_deadline_reminder", "alice")
     asyncio.run(Worker(gate=FakeGate(ready=False)).tick_once())
     assert ran == ["alice"]
+
+
+def test_ids_after_filters_itself_because_paperless_ignores_id_gt(monkeypatch):
+    """Paperless has no `id__gt` filter and ignores unknown ones: the old query
+    returned #2… as "new" every five minutes (seen live, 2026-10-27)."""
+    from proactive import paperless_ro
+
+    archive = list(range(2, 1203))  # 1,201 documents → three pages of 500
+
+    class R:
+        status_code = 200
+
+        def __init__(self, data):
+            self._d = data
+
+        def json(self):
+            return self._d
+
+        def raise_for_status(self):
+            pass
+
+    calls = []
+
+    async def fake_get(token, path, params=None):
+        calls.append(params)
+        ordered = sorted(archive, reverse=params.get("ordering") == "-id")
+        size, page = params["page_size"], params.get("page", 1)
+        chunk = ordered[(page - 1) * size: page * size]
+        nxt = "x" if page * size < len(ordered) else None
+        return R({"results": [{"id": i} for i in chunk], "next": nxt})
+
+    monkeypatch.setattr(paperless_ro, "_get", fake_get)
+    assert asyncio.run(paperless_ro.ids_after("t", 1202, 100)) == []
+    assert len(calls) == 1                                  # newest page reached the cursor
+    assert asyncio.run(paperless_ro.ids_after("t", 1199, 100)) == [1200, 1201, 1202]
+    assert asyncio.run(paperless_ro.ids_after("t", 115, 2)) == [116, 117]
+    assert asyncio.run(paperless_ro.ids_after("t", 0, 3)) == [2, 3, 4]

@@ -20,6 +20,14 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **Old documents were analysed as "new" in the daytime.** Paperless ignores
+  the `id__gt` filter the worker asked for, so every five minutes it got the
+  oldest documents back and analysed them outside the night window (and the
+  night sweep would never have passed its first document). Ids are filtered in
+  the worker now.
+- **Push notifications show the logo in the status bar**, not a white square:
+  Android uses only the transparency of that small icon, so it gets a
+  transparent mark of its own.
 - **The dashboard's document counter no longer looks behind.** Documents
   carrying the no-ingest tag (the inbox) are not counted on the Paperless
   side either, so a finished sync reads "523 / 523", not "523 / 533".

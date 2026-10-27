@@ -46,15 +46,34 @@ async def can_read(token: str, doc_id: int) -> bool:
     return True
 
 
+#: Page size for the id walk; ids only, so one page covers a home archive.
+ID_PAGE = 500
+
+
 async def ids_after(token: str, after_id: int, limit: int = 25) -> list[int]:
-    """Document ids > `after_id` this user can read, ascending."""
-    r = await _get(
-        token,
-        "/api/documents/",
-        {"id__gt": int(after_id), "ordering": "id", "page_size": int(limit), "fields": "id"},
-    )
-    r.raise_for_status()
-    return [int(d["id"]) for d in r.json().get("results", [])]
+    """Document ids > `after_id` this user can read, ascending.
+
+    Filtered here, not by Paperless: its document filterset has no `id__gt`, and
+    an unknown filter is silently ignored — the query returned the oldest
+    documents, so the new-document poll re-queued #2–#115 as "new" every five
+    minutes and the sweep never got past its first document. Newest first, until
+    a page reaches `after_id`."""
+    out: list[int] = []
+    page = 1
+    while True:
+        r = await _get(
+            token,
+            "/api/documents/",
+            {"ordering": "-id", "page_size": ID_PAGE, "page": page, "fields": "id"},
+        )
+        r.raise_for_status()
+        data = r.json()
+        ids = [int(d["id"]) for d in data.get("results", [])]
+        out.extend(i for i in ids if i > after_id)
+        if not ids or min(ids) <= after_id or not data.get("next"):
+            break
+        page += 1
+    return sorted(out)[: int(limit)]
 
 
 async def newest_ids_admin(after_id: int, limit: int = 100) -> list[int]:
