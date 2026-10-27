@@ -29,6 +29,14 @@ class ProactivePrefs:
     chat_model: str = ""
     notify_sync: bool = True  # push only: "sync finished"
     notify_werkbank: bool = True  # push only: "Werkbank run done"
+    findings_language: str = ""  # "" = `language` (the app's)
+    quiet_start: str = "22:00"  # HH:MM local; start == end = no quiet hours
+    quiet_end: str = "07:00"
+
+    @property
+    def content_language(self) -> str:
+        """What findings, dossiers and their messages are written in."""
+        return self.findings_language or self.language or "en"
 
     def channel_list(self) -> list[str]:
         raw = "telegram,email" if self.channels == "both" else self.channels
@@ -49,6 +57,9 @@ def _from_row(r) -> ProactivePrefs:
         chat_model=r["chat_model"] or "",
         notify_sync=bool(r["notify_sync"]),
         notify_werkbank=bool(r["notify_werkbank"]),
+        findings_language=r["findings_language"] or "",
+        quiet_start=r["quiet_start"] or "22:00",
+        quiet_end=r["quiet_end"] or "07:00",
     )
 
 
@@ -59,6 +70,10 @@ def get(user: str) -> ProactivePrefs:
 
 
 def save(p: ProactivePrefs) -> None:
+    for hhmm in (p.quiet_start, p.quiet_end):
+        h, _, m = hhmm.partition(":")
+        if not (h.isdigit() and m.isdigit() and int(h) < 24 and int(m) < 60):
+            raise ValueError(f"not a time: {hhmm!r}")
     unknown = {c.strip() for c in p.channels.split(",") if c.strip()} - set(CHANNELS) - {"both"}
     if unknown:
         raise ValueError(f"unknown channel choice {p.channels!r}")
@@ -73,14 +88,16 @@ def save(p: ProactivePrefs) -> None:
         conn.execute(
             "INSERT INTO proactive_prefs (user, proactive_optin, channels, model,"
             " deadline_offsets, max_pushes_per_week, language, chat_model,"
-            " notify_sync, notify_werkbank, updated_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+            " notify_sync, notify_werkbank, findings_language, quiet_start, quiet_end, updated_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
             " ON CONFLICT(user) DO UPDATE SET proactive_optin = excluded.proactive_optin,"
             " channels = excluded.channels, model = excluded.model,"
             " deadline_offsets = excluded.deadline_offsets,"
             " max_pushes_per_week = excluded.max_pushes_per_week,"
             " language = excluded.language, chat_model = excluded.chat_model,"
             " notify_sync = excluded.notify_sync, notify_werkbank = excluded.notify_werkbank,"
+            " findings_language = excluded.findings_language,"
+            " quiet_start = excluded.quiet_start, quiet_end = excluded.quiet_end,"
             " updated_at = excluded.updated_at",
             (
                 p.user,
@@ -93,6 +110,9 @@ def save(p: ProactivePrefs) -> None:
                 p.chat_model,
                 int(p.notify_sync),
                 int(p.notify_werkbank),
+                p.findings_language,
+                p.quiet_start,
+                p.quiet_end,
                 clock.now_iso(),
             ),
         )

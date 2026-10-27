@@ -49,6 +49,7 @@ class Worker:
         #: Grouping key of the model the last LLM job ran on.
         self.current_model = ""
         self.model_swaps = 0
+        self._yielding = False
 
     # ── lifecycle ────────────────────────────────────────────────────────────
 
@@ -128,6 +129,15 @@ class Worker:
             return False
         if not jobs.pending_count(needs_llm=True, lane="local", due_only=True):
             return False
+        from services import ollama_watchdog
+
+        if ollama_watchdog.app_busy():
+            # A user is chatting: their answer comes first. Jobs stay queued.
+            if not self._yielding:
+                log.info("the app is using the model — LLM jobs wait")
+            self._yielding = True
+            return False
+        self._yielding = False
         return await self.gate.local_ready()
 
     def _note_swap(self, key: str) -> None:

@@ -10,6 +10,7 @@ Effects of a reaction (architecture §4.3, §8):
 
 - `interested` → status `interested`, count, enqueue `deep_dive`
 - `later`      → status `snoozed` for `SNOOZE_DAYS`
+- `dismiss`    → status `dismissed`, counted against the topic, not muted
 - `never`      → status `dismissed`, count, topic muted
 - `done`       → status `done`
 - `wrong`      → status `dismissed` (deadline misread), logged for prompt tuning
@@ -43,6 +44,7 @@ def _message(lang: str, outcome: str) -> str:
     return {
         "interested": _("Noted — a closer look is being prepared."),
         "later": _("Snoozed for a week."),
+        "dismiss": _("Dismissed."),
         "never": _("Understood — no more messages on this topic."),
         "done": _("Marked as done."),
         "wrong": _("Thanks — marked as wrongly detected."),
@@ -80,7 +82,7 @@ async def react(user: str, finding_id: str, action: str, *, channel: str) -> str
             await interests.record(user, f.topic, "interested")
         elif action == "never":
             await interests.record(user, f.topic, "never", "dismissed", mute=True)
-        elif action == "wrong":
+        elif action in ("wrong", "dismiss"):
             await interests.record(user, f.topic, "dismissed")
     if action == "interested":
         from proactive import jobs

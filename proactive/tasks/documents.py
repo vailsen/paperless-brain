@@ -124,7 +124,7 @@ async def per_user(user: str, token: str, a: analysis.Analysis, meta: dict, mode
     """Everything one user gets from one analysed document. Returns used_llm."""
     from proactive import prefs
 
-    lang = prefs.get(user).language or "en"
+    lang = prefs.get(user).content_language
     await deadlines.findings_for(user, a, doc_title=str(meta.get("title") or ""), lang=lang)
     used = False
     for fn in _after_analysis:

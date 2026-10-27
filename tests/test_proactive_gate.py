@@ -570,3 +570,67 @@ def test_ids_after_filters_itself_because_paperless_ignores_id_gt(monkeypatch):
     assert asyncio.run(paperless_ro.ids_after("t", 1199, 100)) == [1200, 1201, 1202]
     assert asyncio.run(paperless_ro.ids_after("t", 115, 2)) == [116, 117]
     assert asyncio.run(paperless_ro.ids_after("t", 0, 3)) == [2, 3, 4]
+
+
+def test_app_activity_makes_the_worker_wait(power_file, monkeypatch):
+    from services import ollama_watchdog as wd
+
+    monkeypatch.setattr(wd, "_role", "worker")
+    wd.touch()                                   # the worker's own requests do not count
+    assert not wd.app_busy()
+    monkeypatch.setattr(wd, "_role", "app")
+    wd.touch()                                   # a user chats
+    t = datetime.now()
+    assert wd.app_busy(t + timedelta(seconds=60))
+    assert not wd.app_busy(t + timedelta(seconds=wd.APP_YIELD_S + 5))
+
+
+def test_worker_leaves_llm_jobs_queued_while_the_app_is_busy(proactive_on, monkeypatch):
+    from proactive import jobs
+    from proactive.worker import Worker
+    from services import ollama_watchdog
+
+    class Open:
+        woke_host = False
+
+        async def local_ready(self):
+            return True
+
+    jobs.enqueue("doc_new", "", {"doc_id": 1}, needs_llm=True)
+    w = Worker(gate=Open())
+    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: True)
+    assert asyncio.run(w._local_ok()) is False
+    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: False)
+    assert asyncio.run(w._local_ok()) is True
+
+
+def test_analyse_now_works_outside_any_window_and_stops_at_the_count(proactive_on, monkeypatch):
+    from proactive.tasks import sweep
+    from proactive.worker import Worker
+
+    monkeypatch.setenv("PROACTIVE_SWEEP_WINDOWS", "")      # no window at all
+    from config import proactive as cfg
+
+    cfg.proactive_settings.cache_clear()
+    done = _sweep_setup(monkeypatch, {"alice": [10, 11, 12, 13, 14]})
+
+    class Open:
+        woke_host = False
+
+        async def local_ready(self):
+            return True
+
+    assert sweep.start_now("alice", 3) == 3
+    sweep.start_now("alice", 3)                            # a second click: still one chain
+    w = Worker(gate=Open())
+    for _ in range(6):
+        asyncio.run(w.tick_once())
+    assert done == [("alice", 10), ("alice", 11), ("alice", 12)]
+    assert sweep.now_remaining("alice") == 0
+    assert sweep.cursor("alice") == (12, False)            # the night continues from here
+
+    sweep.start_now("alice", 10)                           # more than is left
+    for _ in range(6):
+        asyncio.run(w.tick_once())
+    assert [d for _, d in done] == [10, 11, 12, 13, 14]
+    assert sweep.cursor("alice")[1] is True and sweep.now_remaining("alice") == 0

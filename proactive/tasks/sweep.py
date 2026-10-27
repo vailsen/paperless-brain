@@ -156,3 +156,89 @@ async def sweep_doc(job: Job) -> None:
     if used_llm:
         windows.add_processed(win.start_iso, model.key)
     jobs.enqueue(SWEEP_ROUND, dedupe_key=f"schedule:{SWEEP_ROUND}")
+
+
+# ── "Analyse now" (Settings > Proactive) ─────────────────────────────────────
+#
+# The user's own request to work through `n` archive documents now, outside the
+# windows and their budget — same cursor, same processor, one document per job,
+# so a chatting user still gets the GPU between two documents. The remaining
+# count lives in `kv` (`sweep_now:<user>`); one chain of jobs per user.
+
+SWEEP_NOW = "sweep_now"
+SWEEP_NOW_MAX = 500
+
+
+def _now_key(user: str) -> str:
+    return f"sweep_now:{user}"
+
+
+def now_remaining(user: str) -> int:
+    from proactive.db import kv_get
+
+    try:
+        return max(0, int(kv_get(_now_key(user), "0")))
+    except ValueError:
+        return 0
+
+
+def start_now(user: str, n: int) -> int:
+    """Queue `n` (1–`SWEEP_NOW_MAX`) documents for `user`. Returns the count
+    set. A chain already running just gets the new count."""
+    from proactive.db import kv_set
+
+    n = max(1, min(int(n), SWEEP_NOW_MAX))
+    kv_set(_now_key(user), str(n))
+    with connect() as conn:
+        running = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE kind = ? AND user = ? AND status IN ('queued', 'running')",
+            (SWEEP_NOW, user),
+        ).fetchone()[0]
+    if not running:
+        jobs.enqueue(SWEEP_NOW, user, {}, needs_llm=True, dedupe_key=f"{SWEEP_NOW}:{user}:start")
+    return n
+
+
+def stop_now(user: str) -> None:
+    from proactive.db import kv_set
+
+    kv_set(_now_key(user), "0")
+
+
+@handler(SWEEP_NOW, needs_llm=True)
+async def sweep_now(job: Job) -> None:
+    from proactive.db import kv_set
+
+    user = job.user
+    left = now_remaining(user)
+    if left <= 0 or _processor is None:
+        return
+    tok = users.token(user)
+    if not tok:
+        return
+    model = resolve_model(user, tok)
+    if model is None:
+        log.info("%s: analyse-now stopped — no allowed model", user)
+        return
+    last, finished = cursor(user)
+    try:
+        nxt = [] if finished else await ids_after(tok, last, limit=1)
+    except TokenRejected:
+        users.token_rejected(user)
+        return
+    if not nxt:
+        _set_cursor(user, finished=True)
+        kv_set(_now_key(user), "0")
+        log.info("%s: analyse-now — archive done for analysis version %s", user, _version())
+        return
+    try:
+        await _processor(user, tok, nxt[0], model)
+    except TokenRejected:
+        users.token_rejected(user)
+        return
+    _set_cursor(user, nxt[0])
+    left = now_remaining(user) - 1      # re-read: the user may have stopped or changed it
+    kv_set(_now_key(user), str(max(left, 0)))
+    if left > 0:
+        jobs.enqueue(SWEEP_NOW, user, {}, needs_llm=True, model=model,
+                     dedupe_key=f"{SWEEP_NOW}:{user}:{nxt[0]}")

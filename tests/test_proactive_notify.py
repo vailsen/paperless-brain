@@ -348,3 +348,35 @@ def test_worker_logging_never_prints_the_bot_token(caplog, monkeypatch):
     caplog.set_level(logging.INFO)  # root at INFO, as in the worker
     asyncio.run(go())
     assert "SECRET-TOKEN" not in caplog.text
+
+
+@pytest.mark.parametrize("start,end,now,wait_min", [
+    ("22:00", "07:00", "23:30", 7 * 60 + 30),   # across midnight, evening
+    ("22:00", "07:00", "02:00", 5 * 60),        # across midnight, night
+    ("22:00", "07:00", "07:00", 0),             # ends exactly then
+    ("22:00", "07:00", "12:00", 0),
+    ("13:00", "15:00", "14:00", 60),            # same-day window
+    ("07:00", "07:00", "03:00", 0),             # start == end: none
+])
+def test_quiet_hours_wait(start, end, now, wait_min):
+    from datetime import datetime, timezone
+
+    from proactive.notify import quiet_wait
+
+    h, m = map(int, now.split(":"))
+    at = datetime(2026, 10, 27, h, m, tzinfo=timezone.utc)
+    assert quiet_wait(start, end, at) == timedelta(minutes=wait_min)
+
+
+def test_message_in_quiet_hours_waits_but_the_test_message_does_not(channels_on, monkeypatch):
+    from proactive import jobs, notify
+    from proactive.db import connect
+
+    _choose("alice", "telegram")
+    monkeypatch.setattr(notify, "quiet_delay", lambda user: timedelta(hours=5))
+    notify.enqueue(notify.compose("alice", "en", finding_id="f1", title="Insight", urgency="low"))
+    notify.enqueue(notify.compose("alice", "en", finding_id="", title="Test", urgency="low"), quiet=False)
+    with connect() as conn:
+        rows = {('"title": "Insight"' in r["payload_json"]): r["run_after"] > r["created_at"]
+                for r in conn.execute("SELECT * FROM jobs WHERE kind = 'notify_channel'")}
+    assert rows == {True: True, False: False}

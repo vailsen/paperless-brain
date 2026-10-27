@@ -156,6 +156,13 @@ MIGRATIONS: list[str] = [
     ALTER TABLE proactive_prefs ADD COLUMN notify_sync INTEGER NOT NULL DEFAULT 1;
     ALTER TABLE proactive_prefs ADD COLUMN notify_werkbank INTEGER NOT NULL DEFAULT 1;
     """,
+    # 6 — the language findings are written in ('' = the app language: German
+    # documents, English app is the normal case) and quiet hours, per user.
+    """
+    ALTER TABLE proactive_prefs ADD COLUMN findings_language TEXT NOT NULL DEFAULT '';
+    ALTER TABLE proactive_prefs ADD COLUMN quiet_start TEXT NOT NULL DEFAULT '22:00';
+    ALTER TABLE proactive_prefs ADD COLUMN quiet_end TEXT NOT NULL DEFAULT '07:00';
+    """,
 ]
 
 

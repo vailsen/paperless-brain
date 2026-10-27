@@ -43,7 +43,7 @@ async def _build_or_update(user: str, topic: str, seed: int, *, rebuild: bool = 
         log.info("%s: dossier %s not written: %s", user, topic, res["error"])
         return
     llm.record_cloud_doc(user, model)
-    lang = prefs.get(user).language or "en"
+    lang = prefs.get(user).content_language
     d = dossiers.from_result(user, topic, res, lang=lang, version=analysis.version(), existing=existing)
     await dossiers.write(user, d)
     log.info(
@@ -148,8 +148,9 @@ async def dossier_revisit(job: Job) -> None:
     raw = await llm.structured(
         model, user, tok,
         system=REVISIT_SYSTEM.format(language=lang),
-        messages=[{"role": "user", "content": dossiers.render_body(d) + "\n\n" + "\n\n".join(
-            f"Page {u}:\n{p[:4000]}" for u, p in pages)}],
+        messages=[{"role": "user", "content": f"Today: {clock.local_now().date().isoformat()}\n\n"
+                   + dossiers.render_body(d) + "\n\n" + "\n\n".join(
+            f"Page {u}:\n{p[:4000]}" for u, p in pages) + f"\n\nWrite in {lang}."}],
         json_schema=REVISIT_SCHEMA, tool_name="revisit",
     )
     llm.record_cloud_doc(user, model)

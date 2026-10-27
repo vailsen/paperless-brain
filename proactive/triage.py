@@ -54,6 +54,14 @@ risk. Ordinary invoices, receipts, statements and letters that need nothing \
 are NOT worth a finding — say so. Deadlines are handled elsewhere; do not \
 report a deadline alone.
 
+Judge it from TODAY (given below), not from the document's date. An option \
+bound to a window that has already closed — a special termination right "within \
+one month", an objection period, an offer valid until a past date — is history: \
+never present it as something the person can still use. If the matter itself \
+still counts (a premium that went up, conditions that got worse), say what can \
+be done now instead — e.g. compare offers before the next regular renewal. If \
+nothing of it matters any more, it is not worth a finding.
+
 topic: a short subject label (1–3 words, lowercase). If one of the existing \
 labels fits, use it exactly.
 urgency: how soon it matters — low, medium, high, critical.
@@ -66,6 +74,11 @@ Kosten Kritik 2026"). Never a name, number, amount or date from the document.
 dossier_update: true if this document continues a longer matter (a contract \
 over years, a building society savings plan, a court case).\
 """
+
+LANGUAGE_REMINDER = (
+    "\nWrite title and summary in {language}, even if the document is in another "
+    "language. Evidence quotes stay exactly as in the document."
+)
 
 ADVICE_SCHEMA = {
     "type": "object",
@@ -92,20 +105,26 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
     text = sidecar_text(a.doc_id) or ""
     if not text:
         return False
-    lang_code = prefs.get(user).language or "en"
+    lang_code = prefs.get(user).content_language
     from i18n import language_name
 
     lang = language_name(lang_code)
     known = interests.load(user)
     similar = await _similar(user, a.doc_id)
+    from proactive import clock
+
     context = [
-        f"Document #{a.doc_id}: {meta.get('title', '')} ({str(meta.get('created', ''))[:10]})",
+        f"Today: {clock.local_now().date().isoformat()}",
+        f"Document #{a.doc_id}: {meta.get('title', '')} (dated {str(meta.get('created', ''))[:10]})",
         f"Analysis: {a.summary}",
         "Existing topic labels: " + (", ".join(sorted(known.rows)) or "(none)"),
     ]
     if similar:
         context.append("Similar documents: " + "; ".join(f"#{d['doc_id']} {d.get('title', '')}" for d in similar))
     context.append("\nDocument text:\n" + text[:EXCERPT_CHARS])
+    # Last, where it is followed: given a German document, the model otherwise
+    # drifts into German for title and summary whatever the system prompt says.
+    context.append(LANGUAGE_REMINDER.format(language=lang))
 
     llm.check_cloud_cap(user, model)
     raw = await llm.structured(
@@ -150,6 +169,7 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
                 messages=[{"role": "user", "content": (
                     f"Finding: {raw.get('title', '')}\n{raw.get('summary', '')}\n\n"
                     + "\n\n".join(f"Page {u}:\n{p[:4000]}" for u, p in pages)
+                    + f"\n\nWrite the recommendation in {lang}."
                 )}],
                 json_schema=ADVICE_SCHEMA, tool_name="advice",
             )

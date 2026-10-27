@@ -81,6 +81,11 @@ Settings > Proactive:
 3. Turn on **push** on each device (phone, computer), and/or link **Telegram** (send the shown `/start CODE` to the bot) and/or **email**
    (a code is mailed to you), choose where messages go, and send a test message.
 4. Optional: reminder days, your weekly message limit (critical deadline
-   reminders always arrive, also with 0), and the model.
+   reminders always arrive, also with 0), quiet hours (default 22:00–07:00 —
+   what is found then is sent when they end), the language findings are written
+   in, and the model.
+5. **Analyse the archive now** works through as many of your existing
+   documents as you choose right away, instead of waiting for the night. A chat
+   always goes first.
 
 Findings are listed under **Findings** in the navigation.

@@ -200,7 +200,11 @@ async def dossier(user: str, token: str, topic: str, seed: int, existing: dict |
     from werkbank.llm_lane import complete_structured
 
     who, tok = (user, token) if model.uses_registry else ("", "")
-    lang = language_name(existing.get("lang", "en") if existing else "en")
+    from proactive import prefs
+
+    # The user's findings language, not the stored one: a new dossier had no
+    # stored language and was always written in English.
+    lang = language_name(prefs.get(user).content_language)
     system = DOSSIER_SYSTEM.format(topic=topic, language=lang)
 
     if existing and existing.get("doc_ids"):

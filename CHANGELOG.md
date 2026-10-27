@@ -9,6 +9,14 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Quiet hours, per user** (Settings > Proactive, default 22:00–07:00).
+  Reminders and insights found at night are sent when they end.
+- **"Analyse the archive now"**: choose how many documents to analyse right
+  away instead of waiting for the night window.
+- **Language of findings** is its own setting, so findings can be German while
+  the app is English. Findings no longer slip into the document's language.
+- **"Not relevant"** on a finding closes just that one; "Never again" still
+  mutes the whole topic.
 - **Notifications in the app itself (Web Push).** Settings > Proactive > "Turn
   on for this device" — on Android, on an iPhone with the app on the home
   screen, and in desktop browsers, also while the app is closed. End-to-end
@@ -20,6 +28,15 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **A finding could not be answered before it was sent** — new findings had
+  no buttons. They now have all of them.
+- **Insights no longer suggest options whose deadline passed years ago** (a
+  one-month special termination right from 2023). Triage judges from today and
+  proposes what still applies, e.g. comparing offers before the next renewal.
+- **Document links on a finding open the PaperlessBrain document dialog**, not
+  Paperless-ngx.
+- **A chat no longer waits behind the proactive worker**: while the app uses
+  the model, the worker starts no new job.
 - **Old documents were analysed as "new" in the daytime.** Paperless ignores
   the `id__gt` filter the worker asked for, so every five minutes it got the
   oldest documents back and analysed them outside the night window (and the

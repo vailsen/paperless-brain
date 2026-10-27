@@ -396,7 +396,11 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - The weekly message limit never blocks critical deadline reminders; messages over the limit become `held`, never dropped.
 - Model resolution order: `PROACTIVE_MODEL_FIXED` → user choice (must be in `PROACTIVE_MODEL_ALLOWLIST` if set) → `PROACTIVE_MODEL_DEFAULT` → chat model. Resolved in one function only. LLM jobs are grouped by model within a window.
 - No proactive LLM job runs on a cloud backend unless `PROACTIVE_CLOUD_ALLOWED=true`, and then within the per-user daily cap.
-- Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget.
+- Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget — or when the user asks for it ("Analyse now", `sweep.start_now`, one document per job on the same cursor).
+- **A chatting user gets the GPU first.** The worker starts no LLM job while the app made an inference request within `ollama_watchdog.APP_YIELD_S` (`app_busy`); a running job finishes first.
+- **Paperless ignores filters it does not know** (`id__gt` among them) and answers as if unfiltered. Id ranges are filtered in code (`paperless_ro.ids_after`); never trust a document filter that no test pins against a real response.
+- **Every proactive message waits out the user's quiet hours** (`notify.quiet_wait`, per user, default 22:00–07:00); only the test message, which the user just asked for, does not. App events (sync, Werkbank) are not proactive messages.
+- **Triage judges from today, in the findings language.** It gets today's date and a rule that an option whose window has closed is history; the language instruction is repeated last, because a German document otherwise pulls the answer into German. Findings language is its own per-user setting (`content_language`), not the app language.
 - **A background process gets a user's token only from `services/background_access.token_for(user)`** — an explicit, revocable grant the user made in their own session. No grant (None) → skip the user; a 401 → `mark_needs_reauth()`. Never persist a token anywhere else, never create a grant without the user's action.
 - **The vault lock is cross-process** (`vault/locks.py`: `asyncio.Lock` + `flock` on `data/vault_locks/{user}.lock`). Worker and app both take `get_user_lock(user)` for every vault write and sync.
 

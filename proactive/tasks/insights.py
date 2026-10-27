@@ -94,7 +94,7 @@ async def quiet_digest(user: str) -> None:
     )[: cfg.proactive_digest_held_items]
     if not held:
         return
-    lang = prefs.get(user).language or "en"
+    lang = prefs.get(user).content_language
     _ = translator_for(lang)
     for f in held:
         await findings.update(user, f.finding_id, lambda x: (

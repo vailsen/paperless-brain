@@ -67,7 +67,7 @@ async def send_test(job: Job) -> None:
     )
     from proactive import notify
 
-    notify.enqueue(n)  # logs when no linked channel is chosen
+    notify.enqueue(n, quiet=False)  # asked for just now; logs when no channel is chosen
 
 
 @handler("email_verify")

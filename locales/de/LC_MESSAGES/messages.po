@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-27 08:14+0100\n"
+"POT-Creation-Date: 2026-10-27 09:40+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -120,8 +120,8 @@ msgstr "Abbrechen"
 #: app_ui/pages/settings.py:760 app_ui/pages/settings.py:865
 #: app_ui/pages/settings.py:916 app_ui/pages/settings.py:961
 #: app_ui/pages/settings.py:1048 app_ui/pages/settings.py:1128
-#: app_ui/proactive_settings.py:515 app_ui/proactive_settings.py:544
-#: werkbank/ui/archetype_dialog.py:183
+#: app_ui/proactive_settings.py:568 app_ui/proactive_settings.py:597
+#: app_ui/proactive_settings.py:623 werkbank/ui/archetype_dialog.py:183
 msgid "Save"
 msgstr "Speichern"
 
@@ -420,7 +420,7 @@ msgstr "{type}: {value}  ({n} Dok.)"
 msgid "Loading…"
 msgstr "Lade…"
 
-#: app_ui/document_dialog.py:163
+#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:159
 #, python-brace-format
 msgid "#{id} not found"
 msgstr "#{id} nicht gefunden"
@@ -497,7 +497,7 @@ msgstr "Aktionen"
 msgid "Description"
 msgstr "Beschreibung"
 
-#: app_ui/document_dialog.py:617 app_ui/pages/findings.py:31
+#: app_ui/document_dialog.py:617 app_ui/pages/findings.py:36
 msgid "Deadline"
 msgstr "Frist"
 
@@ -648,7 +648,7 @@ msgstr "Browser"
 msgid "Note vault"
 msgstr "Notizspeicher"
 
-#: app_ui/layout.py:56 app_ui/pages/findings.py:64
+#: app_ui/layout.py:56 app_ui/pages/findings.py:87
 msgid "Findings"
 msgstr "Hinweise"
 
@@ -711,7 +711,7 @@ msgstr "Audiodatei hochladen"
 msgid "The file exceeds {n} MB."
 msgstr "Die Datei überschreitet {n} MB."
 
-#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:86
+#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:109
 msgid "Topic"
 msgstr "Thema"
 
@@ -920,21 +920,21 @@ msgstr "Proaktive Erinnerungen und Hinweise"
 msgid "Needs background access."
 msgstr "Benötigt Hintergrundzugriff."
 
-#: app_ui/pages/chat.py:3922 app_ui/proactive_settings.py:129
-#: app_ui/proactive_settings.py:131 werkbank/ui/module_page.py:117
+#: app_ui/pages/chat.py:3922 app_ui/proactive_settings.py:131
+#: app_ui/proactive_settings.py:133 werkbank/ui/module_page.py:117
 #: werkbank/v2/ui/page.py:519 werkbank/v2/ui/page.py:521
 msgid "Model"
 msgstr "Modell"
 
-#: app_ui/proactive_settings.py:134
+#: app_ui/proactive_settings.py:136
 msgid "Set by the operator for all users."
 msgstr "Vom Betreiber für alle Benutzer festgelegt."
 
-#: app_ui/proactive_settings.py:138
+#: app_ui/proactive_settings.py:140
 msgid "none"
 msgstr "keins"
 
-#: app_ui/proactive_settings.py:147
+#: app_ui/proactive_settings.py:149
 #, python-brace-format
 msgid ""
 "This is a cloud model: while your existing documents are analysed, their "
@@ -944,36 +944,37 @@ msgstr ""
 "werden, wird ihr Text an diesen Anbieter geschickt (höchstens {n} "
 "Dokumente pro Tag)."
 
-#: app_ui/proactive_settings.py:158
+#: app_ui/proactive_settings.py:160
 msgid "This model is not allowed for proactive jobs."
 msgstr "Dieses Modell ist für proaktive Aufgaben nicht erlaubt."
 
-#: app_ui/pages/brain.py:303 app_ui/proactive_settings.py:165
-#: app_ui/proactive_settings.py:513 app_ui/proactive_settings.py:542
+#: app_ui/pages/brain.py:303 app_ui/proactive_settings.py:167
+#: app_ui/proactive_settings.py:566 app_ui/proactive_settings.py:595
+#: app_ui/proactive_settings.py:621
 msgid "Saved"
 msgstr "Gespeichert"
 
-#: app_ui/proactive_settings.py:170
+#: app_ui/proactive_settings.py:172
 msgid "Model for reminders and insights"
 msgstr "Modell für Erinnerungen und Hinweise"
 
-#: app_ui/proactive_settings.py:173
+#: app_ui/proactive_settings.py:175
 #, python-brace-format
 msgid "Default ({model})"
 msgstr "Standard ({model})"
 
-#: app_ui/proactive_settings.py:177
+#: app_ui/proactive_settings.py:179
 #, python-brace-format
 msgid "Your earlier choice {model} is not allowed any more; the default is used."
 msgstr ""
 "Deine frühere Wahl {model} ist nicht mehr erlaubt; es wird der Standard "
 "verwendet."
 
-#: app_ui/proactive_settings.py:195
+#: app_ui/proactive_settings.py:197
 msgid "Notification channels"
 msgstr "Benachrichtigungskanäle"
 
-#: app_ui/proactive_settings.py:198
+#: app_ui/proactive_settings.py:200
 msgid ""
 "By default a message contains only a title, the urgency and a link into "
 "the app. Full text only where you switch it on — Telegram chats with a "
@@ -984,104 +985,104 @@ msgstr ""
 "einschaltest — Telegram-Chats mit einem Bot sind nicht Ende-zu-Ende-"
 "verschlüsselt, und auch E-Mails verlassen den Server."
 
-#: app_ui/proactive_settings.py:209
+#: app_ui/proactive_settings.py:211
 msgid "Include the full text"
 msgstr "Vollen Text mitschicken"
 
-#: app_ui/proactive_settings.py:218 app_ui/proactive_settings.py:253
-#: app_ui/proactive_settings.py:350
+#: app_ui/proactive_settings.py:220 app_ui/proactive_settings.py:255
+#: app_ui/proactive_settings.py:352
 msgid "Not set up on this server."
 msgstr "Auf diesem Server nicht eingerichtet."
 
-#: app_ui/proactive_settings.py:221
+#: app_ui/proactive_settings.py:223
 msgid "Linked"
 msgstr "Verknüpft"
 
-#: app_ui/proactive_settings.py:227 app_ui/proactive_settings.py:262
+#: app_ui/proactive_settings.py:229 app_ui/proactive_settings.py:264
 msgid "Unlink"
 msgstr "Verknüpfung lösen"
 
-#: app_ui/proactive_settings.py:238
+#: app_ui/proactive_settings.py:240
 #, python-brace-format
 msgid "Send this to {bot} in Telegram:"
 msgstr "Schick das in Telegram an {bot}:"
 
-#: app_ui/proactive_settings.py:239
+#: app_ui/proactive_settings.py:241
 msgid "your PaperlessBrain bot"
 msgstr "deinen PaperlessBrain-Bot"
 
-#: app_ui/proactive_settings.py:243
+#: app_ui/proactive_settings.py:245
 msgid "Valid for 10 minutes, once."
 msgstr "10 Minuten lang gültig, einmal verwendbar."
 
-#: app_ui/proactive_settings.py:245
+#: app_ui/proactive_settings.py:247
 msgid "Link Telegram"
 msgstr "Telegram verknüpfen"
 
 #: app_ui/pages/chat.py:721 app_ui/pages/chat.py:3453 app_ui/pages/chat.py:3637
-#: app_ui/proactive_settings.py:251 app_ui/proactive_settings.py:305
+#: app_ui/proactive_settings.py:253 app_ui/proactive_settings.py:307
 msgid "Email"
 msgstr "E-Mail"
 
-#: app_ui/proactive_settings.py:265
+#: app_ui/proactive_settings.py:267
 msgid "Your email address"
 msgstr "Deine E-Mail-Adresse"
 
-#: app_ui/proactive_settings.py:272
+#: app_ui/proactive_settings.py:274
 msgid "Please enter a valid email address."
 msgstr "Bitte gib eine gültige E-Mail-Adresse ein."
 
-#: app_ui/proactive_settings.py:276
+#: app_ui/proactive_settings.py:278
 #, python-brace-format
 msgid "Too many codes sent. Try again in {n} minutes."
 msgstr "Zu viele Codes gesendet. Versuche es in {n} Minuten erneut."
 
-#: app_ui/proactive_settings.py:281
+#: app_ui/proactive_settings.py:283
 #, python-brace-format
 msgid "A code is on its way to {address}."
 msgstr "Ein Code ist unterwegs an {address}."
 
-#: app_ui/proactive_settings.py:283
+#: app_ui/proactive_settings.py:285
 msgid "Send code"
 msgstr "Code senden"
 
-#: app_ui/proactive_settings.py:284
+#: app_ui/proactive_settings.py:286
 msgid "Code from the email"
 msgstr "Code aus der E-Mail"
 
-#: app_ui/proactive_settings.py:289
+#: app_ui/proactive_settings.py:291
 msgid "This code is invalid or has expired."
 msgstr "Dieser Code ist ungültig oder abgelaufen."
 
-#: app_ui/proactive_settings.py:292
+#: app_ui/proactive_settings.py:294
 msgid "Email address confirmed."
 msgstr "E-Mail-Adresse bestätigt."
 
-#: app_ui/pages/findings.py:154 app_ui/proactive_settings.py:295
+#: app_ui/pages/findings.py:196 app_ui/proactive_settings.py:297
 msgid "Confirm"
 msgstr "Bestätigen"
 
-#: app_ui/proactive_settings.py:305 app_ui/proactive_settings.py:348
+#: app_ui/proactive_settings.py:307 app_ui/proactive_settings.py:350
 msgid "This app (push)"
 msgstr "Diese App (Push)"
 
-#: app_ui/proactive_settings.py:310
+#: app_ui/proactive_settings.py:312
 msgid "Send reminders and insights via"
 msgstr "Erinnerungen und Hinweise senden über"
 
-#: app_ui/proactive_settings.py:312
+#: app_ui/proactive_settings.py:314
 msgid "Turn on at least one channel above."
 msgstr "Schalte oben mindestens einen Kanal ein."
 
-#: app_ui/proactive_settings.py:327
+#: app_ui/proactive_settings.py:329
 msgid "Test message queued."
 msgstr "Testnachricht eingereiht."
 
-#: app_ui/proactive_settings.py:329
+#: app_ui/proactive_settings.py:331
 msgid "Send test message"
 msgstr "Testnachricht senden"
 
-#: app_ui/proactive_settings.py:354
+#: app_ui/proactive_settings.py:356
 msgid ""
 "Notifications on this phone or computer, also when the app is closed. Tap"
 " one to open it in the app. Turn it on on every device you want them on. "
@@ -1092,15 +1093,15 @@ msgstr ""
 "Gerät ein, auf dem du sie haben willst. Auf dem iPhone füge die App "
 "zuerst zum Home-Bildschirm hinzu."
 
-#: app_ui/proactive_settings.py:360
+#: app_ui/proactive_settings.py:362
 msgid "On for this device."
 msgstr "Für dieses Gerät an."
 
-#: app_ui/proactive_settings.py:361
+#: app_ui/proactive_settings.py:363
 msgid "Off for this device."
 msgstr "Für dieses Gerät aus."
 
-#: app_ui/proactive_settings.py:363
+#: app_ui/proactive_settings.py:365
 msgid ""
 "This browser cannot receive push messages. On an iPhone, open the app "
 "from the home screen."
@@ -1108,75 +1109,122 @@ msgstr ""
 "Dieser Browser kann keine Push-Nachrichten empfangen. Öffne die App auf "
 "dem iPhone über den Home-Bildschirm."
 
-#: app_ui/proactive_settings.py:366
+#: app_ui/proactive_settings.py:368
 msgid "Notifications are blocked for this site in the browser settings."
 msgstr ""
 "Benachrichtigungen sind für diese Seite in den Browser-Einstellungen "
 "blockiert."
 
-#: app_ui/proactive_settings.py:367
+#: app_ui/proactive_settings.py:369
 msgid "Could not turn on notifications."
 msgstr "Benachrichtigungen konnten nicht eingeschaltet werden."
 
-#: app_ui/proactive_settings.py:377
+#: app_ui/proactive_settings.py:379
 msgid "Turn on for this device"
 msgstr "Für dieses Gerät einschalten"
 
-#: app_ui/proactive_settings.py:380
+#: app_ui/proactive_settings.py:382
 msgid "Turn off for this device"
 msgstr "Für dieses Gerät ausschalten"
 
-#: app_ui/proactive_settings.py:386
+#: app_ui/proactive_settings.py:388
 msgid "Devices"
 msgstr "Geräte"
 
-#: app_ui/proactive_settings.py:389
+#: app_ui/proactive_settings.py:391
 msgid "Unknown device"
 msgstr "Unbekanntes Gerät"
 
-#: app_ui/proactive_settings.py:397
+#: app_ui/proactive_settings.py:399
 msgid "Remove"
 msgstr "Entfernen"
 
-#: app_ui/proactive_settings.py:409
+#: app_ui/proactive_settings.py:411
 msgid "Also notify me here (push only)"
 msgstr "Hier auch benachrichtigen (nur Push)"
 
-#: app_ui/proactive_settings.py:410
+#: app_ui/proactive_settings.py:412
 msgid "When a sync finishes"
 msgstr "Wenn ein Sync fertig ist"
 
-#: app_ui/proactive_settings.py:412
+#: app_ui/proactive_settings.py:414
 msgid "When a Werkbank run is done"
 msgstr "Wenn ein Werkbank-Lauf fertig ist"
 
 #: app_ui/proactive_settings.py:493
+msgid "Analyse the archive now"
+msgstr "Archiv jetzt analysieren"
+
+#: app_ui/proactive_settings.py:496
+msgid ""
+"Normally your existing documents are analysed at night. Choose how many "
+"to analyse right away — about 15 seconds each on the GPU. A chat always "
+"goes first; the analysis continues afterwards."
+msgstr ""
+"Deine vorhandenen Dokumente werden normalerweise nachts analysiert. "
+"Wähle, wie viele sofort analysiert werden sollen — etwa 15 Sekunden pro "
+"Dokument auf der GPU. Ein Chat hat immer Vorrang; die Analyse läuft "
+"danach weiter."
+
+#: app_ui/proactive_settings.py:504
+msgid "All documents are analysed."
+msgstr "Alle Dokumente sind analysiert."
+
+#: app_ui/proactive_settings.py:508
+#, python-brace-format
+msgid "{n} documents still to go in this run."
+msgstr "Noch {n} Dokumente in diesem Durchlauf."
+
+#: app_ui/proactive_settings.py:515 app_ui/title_rename_settings.py:263
+#: werkbank/ui/task_dialog.py:457
+msgid "Stop"
+msgstr "Stop"
+
+#: app_ui/proactive_settings.py:519
+msgid "Number of documents"
+msgstr "Anzahl Dokumente"
+
+#: app_ui/proactive_settings.py:528
+#, python-brace-format
+msgid "Choose a number from 1 to {max}."
+msgstr "Wähle eine Zahl von 1 bis {max}."
+
+#: app_ui/proactive_settings.py:532
+#, python-brace-format
+msgid "Started — {n} documents."
+msgstr "Gestartet — {n} Dokumente."
+
+#: app_ui/proactive_settings.py:535
+msgid "Analyse now"
+msgstr "Jetzt analysieren"
+
+#: app_ui/proactive_settings.py:546
 msgid "Deadline reminders"
 msgstr "Fristerinnerungen"
 
-#: app_ui/proactive_settings.py:496
+#: app_ui/proactive_settings.py:549
 msgid "Days before a deadline"
 msgstr "Tage vor einer Frist"
 
-#: app_ui/proactive_settings.py:500
+#: app_ui/proactive_settings.py:553
 #, python-brace-format
 msgid "Empty = {default}."
 msgstr "Leer = {default}."
 
-#: app_ui/proactive_settings.py:507
+#: app_ui/proactive_settings.py:560
 msgid "Enter whole numbers of days, separated by commas."
 msgstr "Gib ganze Tage ein, durch Kommas getrennt."
 
-#: app_ui/proactive_settings.py:520
+#: app_ui/proactive_settings.py:573
 msgid "Max. messages per week"
 msgstr "Max. Nachrichten pro Woche"
 
-#: app_ui/proactive_settings.py:522
+#: app_ui/proactive_settings.py:575
 #, python-brace-format
 msgid "0 to {max}"
 msgstr "0 bis {max}"
 
-#: app_ui/proactive_settings.py:526
+#: app_ui/proactive_settings.py:579
 msgid ""
 "Insights beyond this are held back and shown in the app, not dropped. "
 "Critical deadline reminders always arrive — also with 0."
@@ -1185,10 +1233,46 @@ msgstr ""
 "nicht verworfen. Kritische Fristerinnerungen kommen immer an — auch bei "
 "0."
 
-#: app_ui/proactive_settings.py:537
+#: app_ui/proactive_settings.py:590
 #, python-brace-format
 msgid "Choose a number from 0 to {max}."
 msgstr "Wähle eine Zahl von 0 bis {max}."
+
+#: app_ui/proactive_settings.py:600
+msgid "Quiet hours"
+msgstr "Ruhezeit"
+
+#: app_ui/proactive_settings.py:602
+msgid "From"
+msgstr "Von"
+
+#: app_ui/proactive_settings.py:604
+msgid "Until"
+msgstr "Bis"
+
+#: app_ui/proactive_settings.py:608
+msgid ""
+"Reminders and insights found in this time are sent when it ends. The same"
+" time twice = no quiet hours."
+msgstr ""
+"Erinnerungen und Hinweise aus dieser Zeit werden gesendet, wenn sie "
+"endet. Zweimal dieselbe Uhrzeit = keine Ruhezeit."
+
+#: app_ui/proactive_settings.py:619
+msgid "Enter times as HH:MM."
+msgstr "Gib die Uhrzeiten als HH:MM ein."
+
+#: app_ui/proactive_settings.py:628
+msgid "Language of findings"
+msgstr "Sprache der Hinweise"
+
+#: app_ui/proactive_settings.py:629
+msgid "Same as the app"
+msgstr "Wie die App"
+
+#: app_ui/proactive_settings.py:635
+msgid "Saved — applies to new findings."
+msgstr "Gespeichert — gilt für neue Hinweise."
 
 #: app_ui/pages/chat.py:820 app_ui/pages/chat.py:3265 app_ui/pages/chat.py:3606
 #: app_ui/pages/chat.py:3867 app_ui/pages/chat.py:3954
@@ -1360,10 +1444,6 @@ msgstr "{n} Dokumente konnten nicht benannt werden"
 #, python-brace-format
 msgid "Rename all {n} documents"
 msgstr "Alle {n} Dokumente umbenennen"
-
-#: app_ui/title_rename_settings.py:263 werkbank/ui/task_dialog.py:457
-msgid "Stop"
-msgstr "Stop"
 
 #: app_ui/title_rename_settings.py:275
 msgid "None of the examples could be named."
@@ -1679,7 +1759,7 @@ msgstr "Fällig: {date}"
 msgid "Attachments are read-only."
 msgstr "Anhänge sind schreibgeschützt."
 
-#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:71
+#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:94
 msgid "Open"
 msgstr "Öffnen"
 
@@ -2920,83 +3000,83 @@ msgstr "Dok"
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr "Seite {page} / {total}  ·  {count} Einträge"
 
-#: app_ui/pages/findings.py:22
+#: app_ui/pages/findings.py:27
 msgid "New"
 msgstr "Neu"
 
-#: app_ui/pages/findings.py:23
+#: app_ui/pages/findings.py:28
 msgid "Sent"
 msgstr "Gesendet"
 
-#: app_ui/pages/findings.py:24
+#: app_ui/pages/findings.py:29
 msgid "Held back"
 msgstr "Zurückgehalten"
 
-#: app_ui/pages/findings.py:25 proactive/notify/__init__.py:31
+#: app_ui/pages/findings.py:30 proactive/notify/__init__.py:31
 msgid "Interesting"
 msgstr "Interessant"
 
-#: app_ui/pages/findings.py:26
+#: app_ui/pages/findings.py:31
 msgid "Researched"
 msgstr "Recherchiert"
 
-#: app_ui/pages/findings.py:27 proactive/notify/__init__.py:34
+#: app_ui/pages/findings.py:32 proactive/notify/__init__.py:35
 #: werkbank/ui/module_page.py:180
 msgid "Done"
 msgstr "Fertig"
 
-#: app_ui/pages/findings.py:28
+#: app_ui/pages/findings.py:33
 msgid "Dismissed"
 msgstr "Verworfen"
 
-#: app_ui/pages/findings.py:29
+#: app_ui/pages/findings.py:34
 msgid "Snoozed"
 msgstr "Zurückgestellt"
 
-#: app_ui/pages/findings.py:31
+#: app_ui/pages/findings.py:36
 msgid "Insight"
 msgstr "Hinweis"
 
-#: app_ui/pages/findings.py:44 proactive/notify/__init__.py:97
+#: app_ui/pages/findings.py:67 proactive/notify/__init__.py:98
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr "Dringlichkeit: {urgency}"
 
-#: app_ui/pages/findings.py:46
+#: app_ui/pages/findings.py:69
 #, python-brace-format
 msgid "Due {date}"
 msgstr "Fällig {date}"
 
-#: app_ui/pages/findings.py:71
+#: app_ui/pages/findings.py:94
 msgid "All"
 msgstr "Alle"
 
-#: app_ui/pages/findings.py:82 werkbank/ui/module_page.py:247
+#: app_ui/pages/findings.py:105 werkbank/ui/module_page.py:247
 msgid "Status"
 msgstr "Status"
 
-#: app_ui/pages/findings.py:85
+#: app_ui/pages/findings.py:108
 msgid "All topics"
 msgstr "Alle Themen"
 
-#: app_ui/pages/findings.py:101
+#: app_ui/pages/findings.py:124
 msgid "Nothing here yet."
 msgstr "Hier ist noch nichts."
 
-#: app_ui/pages/findings.py:125
+#: app_ui/pages/findings.py:167
 msgid "All findings"
 msgstr "Alle Hinweise"
 
-#: app_ui/pages/findings.py:133 proactive/reactions.py:50
+#: app_ui/pages/findings.py:175 proactive/reactions.py:52
 msgid "This item no longer exists."
 msgstr "Diesen Eintrag gibt es nicht mehr."
 
-#: app_ui/pages/findings.py:151
+#: app_ui/pages/findings.py:193
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr "„{action}“ auf diesen Eintrag anwenden?"
 
-#: app_ui/pages/findings.py:158 proactive/reactions.py:49
+#: app_ui/pages/findings.py:200 proactive/reactions.py:51
 msgid "Already handled."
 msgstr "Bereits erledigt."
 
@@ -4033,23 +4113,27 @@ msgstr "Empfehlung"
 msgid "Not financial or investment advice. Check the recommendation yourself."
 msgstr "Keine Finanz- oder Anlageberatung. Prüfe die Empfehlung selbst."
 
-#: proactive/reactions.py:44
+#: proactive/reactions.py:45
 msgid "Noted — a closer look is being prepared."
 msgstr "Notiert — eine genauere Prüfung wird vorbereitet."
 
-#: proactive/reactions.py:45
+#: proactive/reactions.py:46
 msgid "Snoozed for a week."
 msgstr "Für eine Woche zurückgestellt."
 
-#: proactive/reactions.py:46
+#: proactive/reactions.py:47
+msgid "Dismissed."
+msgstr "Verworfen."
+
+#: proactive/reactions.py:48
 msgid "Understood — no more messages on this topic."
 msgstr "Verstanden — keine Nachrichten mehr zu diesem Thema."
 
-#: proactive/reactions.py:47
+#: proactive/reactions.py:49
 msgid "Marked as done."
 msgstr "Als erledigt markiert."
 
-#: proactive/reactions.py:48
+#: proactive/reactions.py:50
 msgid "Thanks — marked as wrongly detected."
 msgstr "Danke — als falsch erkannt markiert."
 
@@ -4062,18 +4146,22 @@ msgid "Later"
 msgstr "Später"
 
 #: proactive/notify/__init__.py:33
+msgid "Not relevant"
+msgstr "Nicht relevant"
+
+#: proactive/notify/__init__.py:34
 msgid "Never again"
 msgstr "Nie wieder"
 
-#: proactive/notify/__init__.py:35
+#: proactive/notify/__init__.py:36
 msgid "Wrongly detected"
 msgstr "Falsch erkannt"
 
-#: proactive/notify/__init__.py:141
+#: proactive/notify/__init__.py:142
 msgid "Sync finished"
 msgstr "Sync fertig"
 
-#: proactive/notify/__init__.py:142
+#: proactive/notify/__init__.py:143
 msgid "Werkbank run done"
 msgstr "Werkbank-Lauf fertig"
 

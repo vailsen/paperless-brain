@@ -106,7 +106,10 @@ def _manual(vaults, user="alice", text=MANUAL, name="manual.md") -> Path:
         ("interested", "later", None),
         ("dismissed", "interested", None),
         ("done", "push", None),
-        ("new", "interested", None),
+        # a finding is listed in the app before the ledger scan decided on it
+        ("new", "interested", "interested"),
+        ("new", "dismiss", "dismissed"),
+        ("done", "dismiss", None),
     ],
 )
 def test_transitions(status, event, expected):
@@ -120,7 +123,8 @@ def test_unknown_event_is_an_error():
 
 def test_buttons_follow_kind_and_status():
     assert reactions_for("surfaced", "deadline") == ["done", "wrong"]
-    assert reactions_for("surfaced", "insight") == ["interested", "later", "never", "done"]
+    assert reactions_for("surfaced", "insight") == ["interested", "later", "dismiss", "never", "done"]
+    assert reactions_for("new", "insight") == ["interested", "later", "dismiss", "never", "done"]
     assert reactions_for("dismissed", "insight") == []
 
 

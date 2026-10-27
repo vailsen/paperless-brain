@@ -5,12 +5,17 @@ Registered only with `PROACTIVE_ENABLED=true` (`proactive.app.register`).
 Every lookup goes through `proactive.findings.get(user, …)`, which reads only
 the signed-in user's vault: another user's finding id is simply not found.
 
+Document links open the app's own document dialog. The note file keeps
+Paperless links (they work in Obsidian too); they are rewritten for display.
+
 Email action links land here (`/findings/{id}?action=…`). The action is not
 applied on load — link scanners and prefetchers follow links — but offered as
 one confirm button.
 """
 
 from __future__ import annotations
+
+import re
 
 from nicegui import app as ng_app
 from nicegui import ui
@@ -30,6 +35,24 @@ STATUS_LABELS = {
 }
 KIND_LABELS = {"deadline": N_("Deadline"), "insight": N_("Insight")}
 OPEN_STATUSES = {"new", "surfaced", "held", "interested", "researched", "snoozed"}
+
+
+_DOC_EVENT = "pb_finding_doc"
+# One delegated listener: links in the rendered Markdown are plain anchors.
+_DOC_CLICK_JS = (
+    "<script>document.addEventListener('click',function(e){"
+    "var a=e.target.closest&&e.target.closest('a[href^=\"#pbdoc-\"]');if(!a)return;"
+    "e.preventDefault();emitEvent('" + _DOC_EVENT + "',parseInt(a.getAttribute('href').slice(7),10));"
+    "});</script>"
+)
+
+
+def _in_app_links(body: str) -> str:
+    """`…/documents/241/details` (Paperless) → `#pbdoc-241` (the dialog)."""
+    from config.settings import settings
+
+    base = re.escape(settings.paperless_url.rstrip("/"))
+    return re.sub(base + r"/documents/(\d+)/details/?", r"#pbdoc-\1", body)
 
 
 def _user() -> str:
@@ -121,6 +144,25 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
 
     user = _user()
 
+    from app_ui.document_dialog import create_document_dialog
+    from models.result_document import DocumentResult
+    from services.clients import get_session_paperless
+
+    open_document, _dlg = create_document_dialog()
+
+    async def _open_doc(e) -> None:
+        try:
+            # The user's own token: a finding names only their documents, but
+            # the dialog must not become a way round Paperless' permissions.
+            doc = await get_session_paperless().get_document(int(e.args))
+        except Exception:
+            ui.notify(_("#{id} not found").format(id=e.args), type="warning")
+            return
+        await open_document(DocumentResult(document=doc))
+
+    ui.add_body_html(_DOC_CLICK_JS)
+    ui.on(_DOC_EVENT, _open_doc)
+
     with ui.column().classes("w-full max-w-3xl mx-auto p-4 gap-3"):
         ui.button(_("All findings"), icon="arrow_back", on_click=lambda: ui.navigate.to("/findings")).props(
             "flat dense"
@@ -137,7 +179,7 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             if f.doc_ids:
                 with ui.row().classes("gap-2 flex-wrap"):
                     for d in f.doc_ids:
-                        ui.link(f"#{d}", findings.paperless_link(d), new_tab=True).classes("text-xs")
+                        ui.link(f"#{d}", f"#pbdoc-{d}").classes("text-xs")
 
             allowed = reactions_for(f.status, f.kind)
 
@@ -166,6 +208,6 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 ".finding-md h2{font-size:1rem;font-weight:600;margin:1rem 0 .4rem}"
                 ".finding-md{overflow-x:auto}"
             )
-            ui.markdown(f.body).classes("chat-md finding-md w-full min-w-0")
+            ui.markdown(_in_app_links(f.body)).classes("chat-md finding-md w-full min-w-0")
 
         body(action)

@@ -30,6 +30,7 @@ URGENCY_LABELS = {
 ACTION_LABELS = {
     "interested": N_("Interesting"),
     "later": N_("Later"),
+    "dismiss": N_("Not relevant"),
     "never": N_("Never again"),
     "done": N_("Done"),
     "wrong": N_("Wrongly detected"),
@@ -168,11 +169,41 @@ def enqueue_event(user: str, kind: str, path: str, body: str = "") -> None:
         log.warning("could not queue the %s notification for %s", kind, user, exc_info=True)
 
 
-def enqueue(n: Notification) -> list[str]:
-    """Queue delivery on every chosen channel. Returns the channels queued."""
+def quiet_wait(quiet_start: str, quiet_end: str, now):
+    """How long a message created at `now` (local, aware) waits for quiet hours
+    `quiet_start`–`quiet_end` (HH:MM, may cross midnight) to end; `timedelta(0)`
+    outside them. Start == end means no quiet hours."""
+    from datetime import datetime, time, timedelta
+
+    start, end = time.fromisoformat(quiet_start), time.fromisoformat(quiet_end)
+    if start == end:
+        return timedelta(0)
+    t = now.time().replace(tzinfo=None)
+    inside = (start <= t < end) if start < end else (t >= start or t < end)
+    if not inside:
+        return timedelta(0)
+    until = datetime.combine(now.date(), end, tzinfo=now.tzinfo)
+    if until <= now:
+        until += timedelta(days=1)
+    return until - now
+
+
+def quiet_delay(user: str):
+    """`quiet_wait` for the user's own quiet hours, now."""
+    from proactive import clock, prefs
+
+    p = prefs.get(user)
+    return quiet_wait(p.quiet_start, p.quiet_end, clock.local_now())
+
+
+def enqueue(n: Notification, *, quiet: bool = True) -> list[str]:
+    """Queue delivery on every chosen channel. Returns the channels queued.
+    Inside the user's quiet hours delivery waits until they end (`quiet=False`
+    only for what the user just asked for, the test message)."""
     from proactive import jobs, pushes
 
     channels = chosen_channels(n.user)
+    delay = quiet_delay(n.user) if quiet and channels else None
     if channels and n.counts:
         pushes.record(n.user, "finding" if n.finding_id else "message", n.finding_id)
     for ch in channels:
@@ -181,7 +212,10 @@ def enqueue(n: Notification) -> list[str]:
             n.user,
             {"channel": ch, "notification": n.to_payload()},
             dedupe_key=f"notify:{ch}:{n.finding_id}:{n.title}" if n.finding_id else None,
+            **({"delay": delay} if delay else {}),
         )
+    if delay:
+        log.info("%s: quiet hours — %r waits %s", n.user, n.title, delay)
     if not channels:
         log.info("%s: no linked channel chosen — %r not sent", n.user, n.title)
     return channels

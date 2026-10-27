@@ -111,6 +111,8 @@ def proactive_setting(username: str, token: str) -> None:
         ui.separator().classes("my-4")
         _channels_section(username, body.refresh)
         ui.separator().classes("my-4")
+        _analyse_now_section(username, body.refresh)
+        ui.separator().classes("my-4")
         _reminders_section(username)
         ui.separator().classes("my-4")
         _model_section(username, token, p)
@@ -483,6 +485,57 @@ window.__pbPushOff = async () => {
 """
 
 
+def _analyse_now_section(username: str, refresh) -> None:
+    """Work through part of the archive now instead of waiting for the night."""
+    _ = get_translator()
+    from proactive.tasks import sweep
+
+    ui.label(_("Analyse the archive now")).classes("text-sm font-semibold text-gray-200")
+    ui.label(
+        _(
+            "Normally your existing documents are analysed at night. Choose how many "
+            "to analyse right away — about 15 seconds each on the GPU. A chat always "
+            "goes first; the analysis continues afterwards."
+        )
+    ).classes("text-xs text-gray-400 leading-relaxed")
+    left = sweep.now_remaining(username)
+    _last, finished = sweep.cursor(username)
+    if finished:
+        ui.label(_("All documents are analysed.")).classes("text-xs text-gray-300")
+        return
+    if left:
+        with ui.row().classes("items-center gap-2"):
+            ui.label(_("{n} documents still to go in this run.").format(n=left)).classes(
+                "text-xs text-gray-300")  # TODO i18n-plural
+
+            def _stop() -> None:
+                sweep.stop_now(username)
+                refresh()
+
+            ui.button(_("Stop"), on_click=_stop).props("flat dense size=sm")
+            ui.button(icon="refresh", on_click=refresh).props("flat dense round size=sm")
+        return
+    with ui.row().classes("items-end gap-2 w-full no-wrap"):
+        n_in = ui.number(_("Number of documents"), value=50, min=1, max=sweep.SWEEP_NOW_MAX,
+                         step=10, format="%d").props("outlined dark dense").classes("flex-1 min-w-0")
+
+        def _start() -> None:
+            try:
+                n = int(n_in.value)
+            except (TypeError, ValueError):
+                n = 0
+            if not 1 <= n <= sweep.SWEEP_NOW_MAX:
+                ui.notify(_("Choose a number from 1 to {max}.").format(max=sweep.SWEEP_NOW_MAX),
+                          type="warning")
+                return
+            sweep.start_now(username, n)
+            ui.notify(_("Started — {n} documents.").format(n=n), type="positive")
+            refresh()
+
+        ui.button(_("Analyse now"), icon="play_arrow", on_click=_start).props(
+            "unelevated dense color=primary")
+
+
 def _reminders_section(username: str) -> None:
     _ = get_translator()
     from config.proactive import parse_offsets, proactive_settings
@@ -542,3 +595,44 @@ def _reminders_section(username: str) -> None:
         ui.notify(_("Saved"), type="positive")
 
     ui.button(_("Save"), on_click=_save_limit).props("flat dense size=sm")
+
+    # ── Quiet hours ──────────────────────────────────────────────────────────
+    ui.label(_("Quiet hours")).classes("text-sm font-semibold text-gray-200 mt-4")
+    with ui.row().classes("gap-2 w-full no-wrap"):
+        q_from = ui.input(_("From"), value=p.quiet_start).props(
+            "outlined dark dense type=time").classes("flex-1 min-w-0")
+        q_to = ui.input(_("Until"), value=p.quiet_end).props(
+            "outlined dark dense type=time").classes("flex-1 min-w-0")
+    ui.label(
+        _(
+            "Reminders and insights found in this time are sent when it ends. "
+            "The same time twice = no quiet hours."
+        )
+    ).classes("text-xs text-gray-500")
+
+    def _save_quiet() -> None:
+        cur = pprefs.get(username)
+        cur.quiet_start, cur.quiet_end = (q_from.value or "")[:5], (q_to.value or "")[:5]
+        try:
+            pprefs.save(cur)
+        except ValueError:
+            ui.notify(_("Enter times as HH:MM."), type="warning")
+            return
+        ui.notify(_("Saved"), type="positive")
+
+    ui.button(_("Save"), on_click=_save_quiet).props("flat dense size=sm")
+
+    # ── Findings language ────────────────────────────────────────────────────
+    from i18n import SUPPORTED_LANGUAGES
+
+    ui.label(_("Language of findings")).classes("text-sm font-semibold text-gray-200 mt-4")
+    options = {"": _("Same as the app"), **SUPPORTED_LANGUAGES}
+
+    def _on_lang(e) -> None:
+        cur = pprefs.get(username)
+        cur.findings_language = e.value or ""
+        pprefs.save(cur)
+        ui.notify(_("Saved — applies to new findings."), type="positive")
+
+    ui.select(options, value=p.findings_language if p.findings_language in options else "",
+              on_change=_on_lang).props("outlined dark dense").classes("w-full")

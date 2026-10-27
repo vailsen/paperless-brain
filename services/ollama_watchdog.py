@@ -18,6 +18,10 @@ goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (default 5) — no one is
 waiting at night for a next question, so the long window only burns power.
 The state records who woke it (`wol_by`); any request from the app (a user)
 hands it back to the normal idle time.
+
+The app's requests are also stamped separately (`app_activity`): the worker
+leaves the GPU to a user who is chatting (`app_busy`) and only picks its own
+LLM jobs up again once the app has been quiet for `APP_YIELD_S`.
 """
 
 import asyncio
@@ -38,6 +42,10 @@ except ImportError:  # pragma: no cover
 TOUCH_WRITE_INTERVAL_S = 10.0
 
 _last_touch_write = 0.0
+
+#: The worker starts no LLM job while the app made an inference request this
+#: recently. A running job finishes first (one document, seconds).
+APP_YIELD_S = 180.0
 
 #: "app" or "worker" — set once by the worker at start (`set_role`).
 _role = "app"
@@ -104,10 +112,22 @@ def touch() -> None:
     changes = {"last_activity": datetime.now().isoformat()}
     if _role == "app":
         changes["wol_by"] = "app"  # a user is using it: normal idle time again
+        changes["app_activity"] = changes["last_activity"]
     try:
         _update(**changes)
     except OSError:
         pass
+
+
+def app_busy(now: datetime | None = None) -> bool:
+    """Did the app (a user's chat, ingest, Werkbank) use the model within
+    `APP_YIELD_S`? Read by the worker before it starts an LLM job."""
+    raw = _read().get("app_activity")
+    try:
+        last = datetime.fromisoformat(raw) if raw else None
+    except ValueError:
+        return False
+    return last is not None and ((now or datetime.now()) - last).total_seconds() < APP_YIELD_S
 
 
 def on_wol(host: str = "") -> None:

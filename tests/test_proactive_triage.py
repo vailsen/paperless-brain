@@ -441,3 +441,37 @@ def test_internal_signature():
     assert not verify(body, old[TS_HEADER], old[SIG_HEADER])
     assert not verify(body, None, None)
     assert re.fullmatch(r"[0-9a-f]{64}", h[SIG_HEADER])
+
+
+def test_triage_judges_from_today_in_the_findings_language(env, triage_llm, monkeypatch):
+    """A German letter from 2023 with a one-month termination right: the model
+    must see today's date, and is told the language last (it drifted into the
+    document's language when only the system prompt said it)."""
+    from proactive import clock, llm, prefs, triage
+
+    p = prefs.get("alice")
+    p.findings_language = "de"
+    prefs.save(p)
+    seen = {}
+
+    async def structured(model, user, token, *, tool_name, system="", messages=(), **kw):
+        seen[tool_name] = (system, messages[-1]["content"])
+        return {**triage_llm[tool_name], "needs_web": False} if tool_name == "triage" else triage_llm[tool_name]
+
+    monkeypatch.setattr(llm, "structured", structured)
+    asyncio.run(triage.triage("alice", "t", _analysis(), {"title": "Riester", "created": "2023-02-01"}, _model()))
+    system, user_msg = seen["triage"]
+    assert "window that has already closed" in system
+    assert f"Today: {clock.local_now().date().isoformat()}" in user_msg
+    assert "dated 2023-02-01" in user_msg
+    assert user_msg.rstrip().endswith("Evidence quotes stay exactly as in the document.")
+    assert "in German" in user_msg
+
+
+def test_not_relevant_closes_one_finding_and_keeps_the_topic(env):
+    from proactive import interests, reactions
+
+    fid = _insight(env, 0, topic="bausparkonto")
+    msg = asyncio.run(reactions.react("alice", fid, "dismiss", channel="app"))
+    assert _status(fid) == "dismissed" and msg == "Dismissed."
+    assert "bausparkonto" not in interests.load("alice").muted

@@ -2,7 +2,10 @@
 
     new ──push──> surfaced ──interested──> interested ──researched──> researched ──done──> done
      │               ├──later──> snoozed ──wake──> surfaced
-     └──hold──> held └──never──> dismissed (+ topic muted)
+     └──hold──> held ├──dismiss──> dismissed (this one only)
+                     └──never──> dismissed (+ topic muted)
+    Reactions also apply to `new`: a finding is listed in the app before the
+    ledger scan has decided whether to send it.
     held ──digest──> surfaced
     dismissed ──reopen──> new      (only when the evidence changed)
 
@@ -17,9 +20,9 @@ from __future__ import annotations
 STATUSES = (
     "new", "surfaced", "held", "interested", "researched", "done", "dismissed", "snoozed",
 )
-REACTIONS = ("interested", "later", "never", "done", "wrong")
+REACTIONS = ("interested", "later", "dismiss", "never", "done", "wrong")
 
-_OPEN = {"surfaced", "held", "snoozed"}
+_OPEN = {"new", "surfaced", "held", "snoozed"}
 
 #: event → (allowed from, to)
 TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
@@ -32,7 +35,8 @@ TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
     "reopen": (frozenset({"dismissed", "done"}), "new"),
     # reactions
     "interested": (frozenset(_OPEN), "interested"),
-    "later": (frozenset({"surfaced", "held"}), "snoozed"),
+    "later": (frozenset({"new", "surfaced", "held"}), "snoozed"),
+    "dismiss": (frozenset(_OPEN | {"interested", "researched"}), "dismissed"),
     "never": (frozenset(_OPEN | {"interested", "researched"}), "dismissed"),
     "done": (frozenset(_OPEN | {"interested", "researched"}), "done"),
     "wrong": (frozenset(_OPEN), "dismissed"),
@@ -50,5 +54,5 @@ def transition(status: str, event: str) -> str | None:
 
 def reactions_for(status: str, kind: str) -> list[str]:
     """Buttons to offer for a finding in `status`."""
-    offer = ["done", "wrong"] if kind == "deadline" else ["interested", "later", "never", "done"]
+    offer = ["done", "wrong"] if kind == "deadline" else ["interested", "later", "dismiss", "never", "done"]
     return [r for r in offer if transition(status, r) is not None]

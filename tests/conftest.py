@@ -49,6 +49,17 @@ def proactive_on(tmp_path, monkeypatch):
 
     monkeypatch.setenv("PROACTIVE_ENABLED", "true")
     monkeypatch.setenv("PROACTIVE_DB_PATH", str(tmp_path / "proactive.db"))
+    # Quiet hours depend on the wall clock; a test run at 23:00 must not hold
+    # every message back. Their own tests call `quiet_wait` directly.
+    from datetime import timedelta
+
+    from proactive import notify
+
+    monkeypatch.setattr(notify, "quiet_delay", lambda user: timedelta(0))
+    # Nor may the developer's own app (its data/power_state.json) pause the worker.
+    from services import ollama_watchdog
+
+    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: False)
     cfg.proactive_settings.cache_clear()
     clock.reset()
     yield tmp_path / "proactive.db"
