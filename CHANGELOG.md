@@ -7,6 +7,17 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Added
+
+- **Notifications in the app itself (Web Push).** Settings > Proactive > "Turn
+  on for this device" — on Android, on an iPhone with the app on the home
+  screen, and in desktop browsers, also while the app is closed. End-to-end
+  encrypted; tapping a notification opens the finding, where you answer. Pick
+  it per user next to (or instead of) Telegram and email, for deadline
+  reminders and insights. Two extra push-only notices, each with its own
+  switch: a sync that imported or removed documents, and a finished Werkbank
+  run. Operator: generate keys once with `python -m proactive.notify.webpush`.
+
 ### Fixed
 
 - **The dashboard's document counter no longer looks behind.** Documents

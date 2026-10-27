@@ -981,6 +981,14 @@ window.__toggleHideAction = function(key) {{
             else:
                 _log("✅ Sync complete")
                 _notify(_("Sync complete"), type="positive")
+                # Push to the user's devices — only when something changed; a
+                # sync that found nothing is not news.
+                if _ingested or state.deleted_ids:
+                    from proactive.notify import enqueue_event
+
+                    # TODO i18n-plural
+                    enqueue_event(_username, "sync", "/", _("{new} new, {removed} removed").format(
+                        new=len(_ingested), removed=len(state.deleted_ids)))
 
             new_p = await _fetch_paperless_count()
             new_c = await _safe_chroma_count()

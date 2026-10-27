@@ -247,7 +247,8 @@ def test_deep_dive_runs_werkbank_with_the_guard_set(monkeypatch):
     async def whoami(t):
         return {"first_name": "Alice", "username": "alice"}
 
-    async def run_from_request(request, user, model):
+    async def run_from_request(request, user, model, *, notify=True):
+        seen["notify"] = notify
         screen = web_query_guard.get()
         seen["guarded"] = screen is not None and screen("Alice Riester") is not None
         seen["request"] = request
@@ -265,5 +266,6 @@ def test_deep_dive_runs_werkbank_with_the_guard_set(monkeypatch):
     f = Finding(finding_id="abcdefg", kind="insight", title="Riester", topic="riester", doc_ids=[1], body="b")
     out = asyncio.run(deep_dive_app.run("alice", "tok", f, ResolvedModel("q", "local", "default", "q")))
     assert seen["guarded"] and "generic terms" in seen["request"]
+    assert seen["notify"] is False  # its result message is the notification
     assert web_query_guard.get() is None  # reset after the run
     assert out["fetched"] == {"https://x": "2026-10-26"} and out["run_id"] == "run1"

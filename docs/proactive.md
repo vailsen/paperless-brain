@@ -52,6 +52,10 @@ change a finding's `status` in Obsidian or the note editor; the app follows it.
      app.
    - Bare metal / LXC: `deploy/paperlessbrain-worker.service` (systemd).
 3. Channels — offered to users only when configured:
+   - **Push (the app itself):** notifications on Android, iPhone (app added to
+     the home screen) and desktop browsers, end-to-end encrypted. Generate keys
+     once with `python -m proactive.notify.webpush` and put both lines in
+     `.env`, plus `PUSH_CONTACT=mailto:…`. No buttons: tapping opens the finding.
    - **Telegram:** create a bot with @BotFather, put its token in
      `TELEGRAM_BOT_TOKEN`. Only the worker may poll it; do not use the token in
      any other bot.
@@ -74,7 +78,7 @@ Settings > Proactive:
 1. **Allow background access** — the app keeps your Paperless token encrypted on
    the server so the worker can act as you. Withdraw it any time.
 2. Switch on **Proactive reminders and insights**.
-3. Link **Telegram** (send the shown `/start CODE` to the bot) and/or **email**
+3. Turn on **push** on each device (phone, computer), and/or link **Telegram** (send the shown `/start CODE` to the bot) and/or **email**
    (a code is mailed to you), choose where messages go, and send a test message.
 4. Optional: reminder days, your weekly message limit (critical deadline
    reminders always arrive, also with 0), and the model.

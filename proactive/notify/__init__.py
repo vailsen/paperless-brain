@@ -6,7 +6,8 @@ failing channel is retried on its own and a working one never sends twice.
 Only channels that are available (server config present), chosen by the user
 *and* linked by them are used. The default content is title + urgency + link;
 the full text only where the user opted in for that channel (both channels
-leave the premises; Telegram bot chats are not end-to-end encrypted).
+leave the premises; Telegram bot chats are not end-to-end encrypted). Push
+(`webpush`) carries title, note and urgency; tapping it opens the link.
 
 Everything here runs in the worker. The app only enqueues jobs.
 """
@@ -115,10 +116,56 @@ def chosen_channels(user: str) -> list[str]:
     from config.proactive import proactive_settings
     from proactive import linking, prefs
 
+    from proactive.notify import webpush
+
     cfg = proactive_settings()
-    available = {"telegram": cfg.telegram_available, "email": cfg.email_available}
-    links = linking.links(user)
-    return [c for c in prefs.get(user).channel_list() if available[c] and c in links]
+    available = {
+        "push": cfg.push_available,
+        "telegram": cfg.telegram_available,
+        "email": cfg.email_available,
+    }
+    linked = set(linking.links(user))
+    if cfg.push_available and webpush.devices(user):
+        linked.add("push")
+    return [c for c in prefs.get(user).channel_list() if available[c] and c in linked]
+
+
+def push_body(n: Notification) -> str:
+    """The default content without the title (shown above it) and the link
+    (tapping opens it)."""
+    lines = n.body_short.split("\n")
+    return "\n".join(x for x in lines if x and x != n.title and x != n.link)
+
+
+EVENT_TITLES = {
+    "sync": N_("Sync finished"),
+    "werkbank": N_("Werkbank run done"),
+}
+
+
+def enqueue_event(user: str, kind: str, path: str, body: str = "") -> None:
+    """An app event ("sync finished", "Werkbank run done") for the user's push
+    devices — push only, never Telegram or email, no weekly limit; each kind
+    has its own switch. Called from the app; never raises into it."""
+    try:
+        from config.proactive import is_enabled, proactive_settings
+
+        if not (user and is_enabled() and proactive_settings().push_available):
+            return
+        from proactive import jobs, prefs
+
+        from i18n import translator_for
+
+        p = prefs.get(user)
+        if not {"sync": p.notify_sync, "werkbank": p.notify_werkbank}.get(kind, False):
+            return
+        title = translator_for(p.language or "en")(EVENT_TITLES[kind])
+        jobs.enqueue(
+            "push_event", user,
+            {"title": title, "body": body[:200], "url": app_link(path), "tag": kind},
+        )
+    except Exception:
+        log.warning("could not queue the %s notification for %s", kind, user, exc_info=True)
 
 
 def enqueue(n: Notification) -> list[str]:

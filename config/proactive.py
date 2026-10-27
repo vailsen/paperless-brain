@@ -145,6 +145,11 @@ class ProactiveSettings(BaseSettings):
     imap_processed_folder: str = "PaperlessBrain/Processed"
     imap_poll_seconds: int = 120
 
+    # Web Push (the installed app / browser). Keys: `python -m proactive.notify.webpush`.
+    push_vapid_public_key: str = ""
+    push_vapid_private_key: str = ""
+    push_contact: str = ""  # mailto:… or https://…; empty = PROACTIVE_APP_BASE_URL
+
     # ── Validation ────────────────────────────────────────────────────────────
 
     @field_validator("proactive_deadline_offsets_days")
@@ -237,6 +242,10 @@ class ProactiveSettings(BaseSettings):
         return bool(
             self.smtp_host and self.smtp_from and self.imap_host and self.imap_user
         )
+
+    @property
+    def push_available(self) -> bool:
+        return bool(self.push_vapid_public_key and self.push_vapid_private_key)
 
     def db_path(self, app_path: Path) -> Path:
         p = Path(self.proactive_db_path)

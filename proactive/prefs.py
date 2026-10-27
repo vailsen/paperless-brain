@@ -14,24 +14,26 @@ from dataclasses import dataclass, field
 from proactive import clock
 from proactive.db import connect
 
-CHANNEL_CHOICES = ("telegram", "email", "both")
+CHANNELS = ("push", "telegram", "email")
 
 
 @dataclass
 class ProactivePrefs:
     user: str
     optin: bool = False
-    channels: str = ""  # telegram | email | both | ""
+    channels: str = ""  # comma list of CHANNELS; "both" (older) = telegram,email
     model: str = ""  # display name in the user's model registry, "" = default
     deadline_offsets: list[int] = field(default_factory=list)  # [] = operator default
     max_pushes_per_week: int | None = None  # None = operator default
     language: str = ""
     chat_model: str = ""
+    notify_sync: bool = True  # push only: "sync finished"
+    notify_werkbank: bool = True  # push only: "Werkbank run done"
 
     def channel_list(self) -> list[str]:
-        if self.channels == "both":
-            return ["telegram", "email"]
-        return [self.channels] if self.channels in ("telegram", "email") else []
+        raw = "telegram,email" if self.channels == "both" else self.channels
+        chosen = {c.strip() for c in raw.split(",")}
+        return [c for c in CHANNELS if c in chosen]
 
 
 def _from_row(r) -> ProactivePrefs:
@@ -45,6 +47,8 @@ def _from_row(r) -> ProactivePrefs:
         max_pushes_per_week=r["max_pushes_per_week"],
         language=r["language"] or "",
         chat_model=r["chat_model"] or "",
+        notify_sync=bool(r["notify_sync"]),
+        notify_werkbank=bool(r["notify_werkbank"]),
     )
 
 
@@ -55,7 +59,8 @@ def get(user: str) -> ProactivePrefs:
 
 
 def save(p: ProactivePrefs) -> None:
-    if p.channels and p.channels not in CHANNEL_CHOICES:
+    unknown = {c.strip() for c in p.channels.split(",") if c.strip()} - set(CHANNELS) - {"both"}
+    if unknown:
         raise ValueError(f"unknown channel choice {p.channels!r}")
     if p.max_pushes_per_week is not None:
         from config.proactive import proactive_settings
@@ -67,13 +72,15 @@ def save(p: ProactivePrefs) -> None:
     with connect() as conn:
         conn.execute(
             "INSERT INTO proactive_prefs (user, proactive_optin, channels, model,"
-            " deadline_offsets, max_pushes_per_week, language, chat_model, updated_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?)"
+            " deadline_offsets, max_pushes_per_week, language, chat_model,"
+            " notify_sync, notify_werkbank, updated_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)"
             " ON CONFLICT(user) DO UPDATE SET proactive_optin = excluded.proactive_optin,"
             " channels = excluded.channels, model = excluded.model,"
             " deadline_offsets = excluded.deadline_offsets,"
             " max_pushes_per_week = excluded.max_pushes_per_week,"
             " language = excluded.language, chat_model = excluded.chat_model,"
+            " notify_sync = excluded.notify_sync, notify_werkbank = excluded.notify_werkbank,"
             " updated_at = excluded.updated_at",
             (
                 p.user,
@@ -84,6 +91,8 @@ def save(p: ProactivePrefs) -> None:
                 p.max_pushes_per_week,
                 p.language,
                 p.chat_model,
+                int(p.notify_sync),
+                int(p.notify_werkbank),
                 clock.now_iso(),
             ),
         )

@@ -21,6 +21,7 @@ def register() -> bool:
         return False
     import app_ui.pages.findings  # noqa: F401 — /findings, /findings/{id} (+ ?action=)
     import proactive.internal_api  # noqa: F401 — signed worker → app calls
+    import proactive.push_routes  # noqa: F401 — /api/push/subscribe, /unsubscribe
 
     print("[startup] proactive system enabled", flush=True)
     return True

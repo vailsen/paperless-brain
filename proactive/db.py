@@ -1,6 +1,6 @@
 """`proactive.db` — the proactive system's operational store (architecture §4.1).
 
-Disposable by design except `channel_link`: job queue, schedules, cursors and
+Disposable by design except `channel_link` and `push_subscription`: job queue, schedules, cursors and
 the analysis cache can all be rebuilt; notification dedupe lives in the finding
 files, so losing this file causes a re-sweep, never a notification storm.
 
@@ -139,6 +139,22 @@ MIGRATIONS: list[str] = [
         finding_id TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX push_log_user_at ON push_log(user, at);
+    """,
+    # 5 — Web Push: one row per device a user turned notifications on for (a
+    # user has several, unlike a Telegram chat), and the two app events that
+    # go to those devices only. Like `channel_link`, not disposable.
+    """
+    CREATE TABLE push_subscription (
+        endpoint   TEXT PRIMARY KEY,
+        user       TEXT NOT NULL,
+        p256dh     TEXT NOT NULL,
+        auth       TEXT NOT NULL,
+        device     TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+    );
+    CREATE INDEX push_subscription_user ON push_subscription(user);
+    ALTER TABLE proactive_prefs ADD COLUMN notify_sync INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE proactive_prefs ADD COLUMN notify_werkbank INTEGER NOT NULL DEFAULT 1;
     """,
 ]
 

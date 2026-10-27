@@ -183,7 +183,7 @@ def _model_section(username: str, token: str, p) -> None:
 
 
 def _channels_section(username: str, refresh) -> None:
-    """Where notifications go: link Telegram / email, choose, opt in to full text."""
+    """Where notifications go: push devices, Telegram, email; choose, opt in to full text."""
     _ = get_translator()
     from config.proactive import proactive_settings
     from proactive import jobs, linking
@@ -208,6 +208,8 @@ def _channels_section(username: str, refresh) -> None:
         ui.switch(
             _("Include the full text"), value=links[channel]["full_text"], on_change=_on
         ).classes("text-xs text-gray-300")
+
+    _push_block(username, refresh)
 
     # ── Telegram ─────────────────────────────────────────────────────────────
     with ui.column().classes("w-full gap-1 mb-3"):
@@ -293,26 +295,32 @@ def _channels_section(username: str, refresh) -> None:
             ui.button(_("Confirm"), on_click=_confirm).props("flat dense size=sm")
 
     # ── Choice ───────────────────────────────────────────────────────────────
-    usable = [c for c in ("telegram", "email") if c in links and (
-        cfg.telegram_available if c == "telegram" else cfg.email_available)]
-    options = {"": _("No messages")}
-    if "telegram" in usable:
-        options["telegram"] = "Telegram"
-    if "email" in usable:
-        options["email"] = _("Email")
-    if len(usable) == 2:
-        options["both"] = _("Telegram and email")
+    from proactive.notify import webpush
+
+    linked = set(links)
+    if cfg.push_available and webpush.devices(username):
+        linked.add("push")
+    available = {"push": cfg.push_available, "telegram": cfg.telegram_available,
+                 "email": cfg.email_available}
+    labels = {"push": _("This app (push)"), "telegram": "Telegram", "email": _("Email")}
+    usable = [c for c in pprefs.CHANNELS if available[c] and c in linked]
     p = pprefs.get(username)
+    chosen = set(p.channel_list())
 
-    def _on_choice(e) -> None:
-        cur = pprefs.get(username)
-        cur.channels = e.value or ""
-        pprefs.save(cur)
+    ui.label(_("Send reminders and insights via")).classes("text-xs font-semibold text-gray-300")
+    if not usable:
+        ui.label(_("Turn on at least one channel above.")).classes("text-xs text-gray-500")
+    for ch in usable:
+        def _on_choice(e, ch=ch) -> None:
+            cur = pprefs.get(username)
+            now = set(cur.channel_list())
+            now.add(ch) if e.value else now.discard(ch)
+            cur.channels = ",".join(c for c in pprefs.CHANNELS if c in now)
+            pprefs.save(cur)
 
-    ui.select(
-        options, value=p.channels if p.channels in options else "",
-        label=_("Send messages via"), on_change=_on_choice,
-    ).props("outlined dark dense").classes("w-full")
+        ui.checkbox(labels[ch], value=ch in chosen, on_change=_on_choice).props("dense").classes(
+            "text-xs text-gray-300"
+        )
 
     def _test() -> None:
         jobs.enqueue("send_test", username)
@@ -321,6 +329,158 @@ def _channels_section(username: str, refresh) -> None:
     ui.button(_("Send test message"), icon="send", on_click=_test).props(
         "flat dense size=sm"
     ).classes("mt-1")
+
+
+def _push_block(username: str, refresh) -> None:
+    """Web Push on this device. Turning it on must run in the click itself:
+    iOS (and Chrome's quiet UI) only grant the permission inside a user
+    gesture, which a round trip to the server would end — hence a JS handler,
+    not `on_click`."""
+    import json
+
+    _ = get_translator()
+    from config.proactive import proactive_settings
+    from proactive import prefs as pprefs
+    from proactive.notify import webpush
+
+    cfg = proactive_settings()
+    with ui.column().classes("w-full gap-1 mb-3"):
+        ui.label(_("This app (push)")).classes("text-xs font-semibold text-gray-300")
+        if not cfg.push_available:
+            ui.label(_("Not set up on this server.")).classes("text-xs text-gray-500")
+            return
+        ui.label(
+            _(
+                "Notifications on this phone or computer, also when the app is closed. "
+                "Tap one to open it in the app. Turn it on on every device you want them on. "
+                "On an iPhone, add the app to the home screen first."
+            )
+        ).classes("text-xs text-gray-400 leading-relaxed")
+        msgs = {
+            "on": _("On for this device."),
+            "off": _("Off for this device."),
+            "unsupported": _(
+                "This browser cannot receive push messages. On an iPhone, open the app "
+                "from the home screen."
+            ),
+            "denied": _("Notifications are blocked for this site in the browser settings."),
+            "failed": _("Could not turn on notifications."),
+        }
+        ui.label("").props("id=pb-push-status").classes("text-xs text-gray-300")
+        ui.run_javascript(
+            f"window.__pbPushMsgs = {json.dumps(msgs)};"
+            f"window.__pbPushKey = {json.dumps(cfg.push_vapid_public_key)};"
+            + _PUSH_JS
+            + "window.__pbPushState();"
+        )
+        with ui.row().classes("gap-2"):
+            ui.button(_("Turn on for this device"), icon="notifications_active").props(
+                "flat dense size=sm"
+            ).on("click", js_handler="() => window.__pbPushOn()")
+            ui.button(_("Turn off for this device"), icon="notifications_off").props(
+                "flat dense size=sm"
+            ).on("click", js_handler="() => window.__pbPushOff()")
+
+        devs = webpush.devices(username)
+        if devs:
+            ui.label(_("Devices")).classes("text-xs text-gray-400 mt-1")
+        for d in devs:
+            with ui.row().classes("items-center gap-2 w-full min-w-0"):
+                ui.label(d["device"] or _("Unknown device")).classes("text-xs text-gray-300")
+                ui.label(d["created_at"][:10]).classes("text-xs text-gray-500")
+
+                def _remove(ep=d["endpoint"]) -> None:
+                    webpush.unsubscribe(username, ep)
+                    refresh()
+
+                ui.button(icon="close", on_click=_remove).props("flat dense round size=xs").tooltip(
+                    _("Remove")
+                )
+
+        p = pprefs.get(username)
+
+        def _toggle(field: str):
+            def _on(e) -> None:
+                cur = pprefs.get(username)
+                setattr(cur, field, bool(e.value))
+                pprefs.save(cur)
+            return _on
+
+        ui.label(_("Also notify me here (push only)")).classes("text-xs text-gray-400 mt-1")
+        ui.switch(_("When a sync finishes"), value=p.notify_sync,
+                  on_change=_toggle("notify_sync")).props("dense").classes("text-xs text-gray-300")
+        ui.switch(_("When a Werkbank run is done"), value=p.notify_werkbank,
+                  on_change=_toggle("notify_werkbank")).props("dense").classes("text-xs text-gray-300")
+
+
+# Defined once per page load; reads __pbPushMsgs / __pbPushKey set just before.
+_PUSH_JS = r"""
+window.__pbPushSay = (k) => {
+  const el = document.getElementById('pb-push-status');
+  if (el) el.textContent = (window.__pbPushMsgs || {})[k] || '';
+};
+window.__pbPushSupported = () =>
+  'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+window.__pbPushDevice = () => {
+  const ua = navigator.userAgent;
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android'
+    : /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : '';
+  const br = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox'
+    : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+  return [os, br].filter(Boolean).join(' · ');
+};
+window.__pbPushState = async () => {
+  if (!window.__pbPushSupported()) return window.__pbPushSay('unsupported');
+  if (Notification.permission === 'denied') return window.__pbPushSay('denied');
+  const reg = await navigator.serviceWorker.getRegistration('/');
+  const sub = reg && await reg.pushManager.getSubscription();
+  window.__pbPushSay(sub && Notification.permission === 'granted' ? 'on' : 'off');
+};
+window.__pbPushOn = async () => {
+  try {
+    if (!window.__pbPushSupported()) return window.__pbPushSay('unsupported');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return window.__pbPushSay(perm === 'denied' ? 'denied' : 'off');
+    await navigator.serviceWorker.register('/sw.js');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const b64 = window.__pbPushKey.replace(/-/g, '+').replace(/_/g, '/');
+      const raw = atob(b64 + '='.repeat((4 - b64.length % 4) % 4));
+      const key = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    }
+    const r = await fetch('/api/push/subscribe', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON(), device: window.__pbPushDevice() }),
+    });
+    if (!r.ok) return window.__pbPushSay('failed');
+    location.reload();
+  } catch (e) {
+    console.warn('push subscribe failed', e);
+    window.__pbPushSay('failed');
+  }
+};
+window.__pbPushOff = async () => {
+  try {
+    const reg = window.__pbPushSupported() && await navigator.serviceWorker.getRegistration('/');
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (sub) {
+      await fetch('/api/push/unsubscribe', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      });
+      await sub.unsubscribe();
+    }
+    location.reload();
+  } catch (e) {
+    console.warn('push unsubscribe failed', e);
+    window.__pbPushSay('failed');
+  }
+};
+"""
 
 
 def _reminders_section(username: str) -> None:

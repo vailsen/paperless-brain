@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-27 07:37+0100\n"
+"POT-Creation-Date: 2026-10-27 08:14+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -104,8 +104,8 @@ msgstr "Dienst gespeichert."
 #: app_ui/pages/brain.py:278 app_ui/pages/brain.py:292
 #: app_ui/pages/brain.py:773 app_ui/pages/chat.py:1421
 #: app_ui/pages/chat.py:3610 app_ui/pages/chat.py:3874
-#: app_ui/pages/chat.py:3958 app_ui/pages/dashboard.py:1028
-#: app_ui/pages/dashboard.py:1233 app_ui/pages/dashboard.py:1423
+#: app_ui/pages/chat.py:3958 app_ui/pages/dashboard.py:1036
+#: app_ui/pages/dashboard.py:1241 app_ui/pages/dashboard.py:1431
 #: app_ui/pages/settings.py:1239 app_ui/title_rename_settings.py:79
 #: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
 #: werkbank/ui/module_page.py:136 werkbank/v2/ui/brief_dialog.py:158
@@ -120,7 +120,7 @@ msgstr "Abbrechen"
 #: app_ui/pages/settings.py:760 app_ui/pages/settings.py:865
 #: app_ui/pages/settings.py:916 app_ui/pages/settings.py:961
 #: app_ui/pages/settings.py:1048 app_ui/pages/settings.py:1128
-#: app_ui/proactive_settings.py:355 app_ui/proactive_settings.py:384
+#: app_ui/proactive_settings.py:515 app_ui/proactive_settings.py:544
 #: werkbank/ui/archetype_dialog.py:183
 msgid "Save"
 msgstr "Speichern"
@@ -183,15 +183,15 @@ msgstr ""
 msgid "Model default"
 msgstr "Modell-Standard"
 
-#: app_ui/ai_models_settings.py:237 proactive/notify/__init__.py:24
+#: app_ui/ai_models_settings.py:237 proactive/notify/__init__.py:25
 msgid "Low"
 msgstr "Niedrig"
 
-#: app_ui/ai_models_settings.py:238 proactive/notify/__init__.py:25
+#: app_ui/ai_models_settings.py:238 proactive/notify/__init__.py:26
 msgid "Medium"
 msgstr "Mittel"
 
-#: app_ui/ai_models_settings.py:239 proactive/notify/__init__.py:26
+#: app_ui/ai_models_settings.py:239 proactive/notify/__init__.py:27
 msgid "High"
 msgstr "Hoch"
 
@@ -493,7 +493,7 @@ msgstr "Kein extrahierter Text verfügbar."
 msgid "Actions"
 msgstr "Aktionen"
 
-#: app_ui/document_dialog.py:610 app_ui/pages/dashboard.py:1779
+#: app_ui/document_dialog.py:610 app_ui/pages/dashboard.py:1787
 msgid "Description"
 msgstr "Beschreibung"
 
@@ -501,7 +501,7 @@ msgstr "Beschreibung"
 msgid "Deadline"
 msgstr "Frist"
 
-#: app_ui/document_dialog.py:624 app_ui/pages/dashboard.py:1735
+#: app_ui/document_dialog.py:624 app_ui/pages/dashboard.py:1743
 msgid "Certain"
 msgstr "Sicher"
 
@@ -949,7 +949,7 @@ msgid "This model is not allowed for proactive jobs."
 msgstr "Dieses Modell ist für proaktive Aufgaben nicht erlaubt."
 
 #: app_ui/pages/brain.py:303 app_ui/proactive_settings.py:165
-#: app_ui/proactive_settings.py:353 app_ui/proactive_settings.py:382
+#: app_ui/proactive_settings.py:513 app_ui/proactive_settings.py:542
 msgid "Saved"
 msgstr "Gespeichert"
 
@@ -988,125 +988,195 @@ msgstr ""
 msgid "Include the full text"
 msgstr "Vollen Text mitschicken"
 
-#: app_ui/proactive_settings.py:216 app_ui/proactive_settings.py:251
+#: app_ui/proactive_settings.py:218 app_ui/proactive_settings.py:253
+#: app_ui/proactive_settings.py:350
 msgid "Not set up on this server."
 msgstr "Auf diesem Server nicht eingerichtet."
 
-#: app_ui/proactive_settings.py:219
+#: app_ui/proactive_settings.py:221
 msgid "Linked"
 msgstr "Verknüpft"
 
-#: app_ui/proactive_settings.py:225 app_ui/proactive_settings.py:260
+#: app_ui/proactive_settings.py:227 app_ui/proactive_settings.py:262
 msgid "Unlink"
 msgstr "Verknüpfung lösen"
 
-#: app_ui/proactive_settings.py:236
+#: app_ui/proactive_settings.py:238
 #, python-brace-format
 msgid "Send this to {bot} in Telegram:"
 msgstr "Schick das in Telegram an {bot}:"
 
-#: app_ui/proactive_settings.py:237
+#: app_ui/proactive_settings.py:239
 msgid "your PaperlessBrain bot"
 msgstr "deinen PaperlessBrain-Bot"
 
-#: app_ui/proactive_settings.py:241
+#: app_ui/proactive_settings.py:243
 msgid "Valid for 10 minutes, once."
 msgstr "10 Minuten lang gültig, einmal verwendbar."
 
-#: app_ui/proactive_settings.py:243
+#: app_ui/proactive_settings.py:245
 msgid "Link Telegram"
 msgstr "Telegram verknüpfen"
 
 #: app_ui/pages/chat.py:721 app_ui/pages/chat.py:3453 app_ui/pages/chat.py:3637
-#: app_ui/proactive_settings.py:249 app_ui/proactive_settings.py:302
+#: app_ui/proactive_settings.py:251 app_ui/proactive_settings.py:305
 msgid "Email"
 msgstr "E-Mail"
 
-#: app_ui/proactive_settings.py:263
+#: app_ui/proactive_settings.py:265
 msgid "Your email address"
 msgstr "Deine E-Mail-Adresse"
 
-#: app_ui/proactive_settings.py:270
+#: app_ui/proactive_settings.py:272
 msgid "Please enter a valid email address."
 msgstr "Bitte gib eine gültige E-Mail-Adresse ein."
 
-#: app_ui/proactive_settings.py:274
+#: app_ui/proactive_settings.py:276
 #, python-brace-format
 msgid "Too many codes sent. Try again in {n} minutes."
 msgstr "Zu viele Codes gesendet. Versuche es in {n} Minuten erneut."
 
-#: app_ui/proactive_settings.py:279
+#: app_ui/proactive_settings.py:281
 #, python-brace-format
 msgid "A code is on its way to {address}."
 msgstr "Ein Code ist unterwegs an {address}."
 
-#: app_ui/proactive_settings.py:281
+#: app_ui/proactive_settings.py:283
 msgid "Send code"
 msgstr "Code senden"
 
-#: app_ui/proactive_settings.py:282
+#: app_ui/proactive_settings.py:284
 msgid "Code from the email"
 msgstr "Code aus der E-Mail"
 
-#: app_ui/proactive_settings.py:287
+#: app_ui/proactive_settings.py:289
 msgid "This code is invalid or has expired."
 msgstr "Dieser Code ist ungültig oder abgelaufen."
 
-#: app_ui/proactive_settings.py:290
+#: app_ui/proactive_settings.py:292
 msgid "Email address confirmed."
 msgstr "E-Mail-Adresse bestätigt."
 
-#: app_ui/pages/findings.py:154 app_ui/proactive_settings.py:293
+#: app_ui/pages/findings.py:154 app_ui/proactive_settings.py:295
 msgid "Confirm"
 msgstr "Bestätigen"
 
-#: app_ui/proactive_settings.py:298
-msgid "No messages"
-msgstr "Keine Nachrichten"
+#: app_ui/proactive_settings.py:305 app_ui/proactive_settings.py:348
+msgid "This app (push)"
+msgstr "Diese App (Push)"
 
-#: app_ui/proactive_settings.py:304
-msgid "Telegram and email"
-msgstr "Telegram und E-Mail"
+#: app_ui/proactive_settings.py:310
+msgid "Send reminders and insights via"
+msgstr "Erinnerungen und Hinweise senden über"
 
-#: app_ui/proactive_settings.py:314
-msgid "Send messages via"
-msgstr "Nachrichten senden über"
+#: app_ui/proactive_settings.py:312
+msgid "Turn on at least one channel above."
+msgstr "Schalte oben mindestens einen Kanal ein."
 
-#: app_ui/proactive_settings.py:319
+#: app_ui/proactive_settings.py:327
 msgid "Test message queued."
 msgstr "Testnachricht eingereiht."
 
-#: app_ui/proactive_settings.py:321
+#: app_ui/proactive_settings.py:329
 msgid "Send test message"
 msgstr "Testnachricht senden"
 
-#: app_ui/proactive_settings.py:333
+#: app_ui/proactive_settings.py:354
+msgid ""
+"Notifications on this phone or computer, also when the app is closed. Tap"
+" one to open it in the app. Turn it on on every device you want them on. "
+"On an iPhone, add the app to the home screen first."
+msgstr ""
+"Benachrichtigungen auf diesem Handy oder Computer, auch wenn die App "
+"geschlossen ist. Ein Tippen öffnet sie in der App. Schalte sie auf jedem "
+"Gerät ein, auf dem du sie haben willst. Auf dem iPhone füge die App "
+"zuerst zum Home-Bildschirm hinzu."
+
+#: app_ui/proactive_settings.py:360
+msgid "On for this device."
+msgstr "Für dieses Gerät an."
+
+#: app_ui/proactive_settings.py:361
+msgid "Off for this device."
+msgstr "Für dieses Gerät aus."
+
+#: app_ui/proactive_settings.py:363
+msgid ""
+"This browser cannot receive push messages. On an iPhone, open the app "
+"from the home screen."
+msgstr ""
+"Dieser Browser kann keine Push-Nachrichten empfangen. Öffne die App auf "
+"dem iPhone über den Home-Bildschirm."
+
+#: app_ui/proactive_settings.py:366
+msgid "Notifications are blocked for this site in the browser settings."
+msgstr ""
+"Benachrichtigungen sind für diese Seite in den Browser-Einstellungen "
+"blockiert."
+
+#: app_ui/proactive_settings.py:367
+msgid "Could not turn on notifications."
+msgstr "Benachrichtigungen konnten nicht eingeschaltet werden."
+
+#: app_ui/proactive_settings.py:377
+msgid "Turn on for this device"
+msgstr "Für dieses Gerät einschalten"
+
+#: app_ui/proactive_settings.py:380
+msgid "Turn off for this device"
+msgstr "Für dieses Gerät ausschalten"
+
+#: app_ui/proactive_settings.py:386
+msgid "Devices"
+msgstr "Geräte"
+
+#: app_ui/proactive_settings.py:389
+msgid "Unknown device"
+msgstr "Unbekanntes Gerät"
+
+#: app_ui/proactive_settings.py:397
+msgid "Remove"
+msgstr "Entfernen"
+
+#: app_ui/proactive_settings.py:409
+msgid "Also notify me here (push only)"
+msgstr "Hier auch benachrichtigen (nur Push)"
+
+#: app_ui/proactive_settings.py:410
+msgid "When a sync finishes"
+msgstr "Wenn ein Sync fertig ist"
+
+#: app_ui/proactive_settings.py:412
+msgid "When a Werkbank run is done"
+msgstr "Wenn ein Werkbank-Lauf fertig ist"
+
+#: app_ui/proactive_settings.py:493
 msgid "Deadline reminders"
 msgstr "Fristerinnerungen"
 
-#: app_ui/proactive_settings.py:336
+#: app_ui/proactive_settings.py:496
 msgid "Days before a deadline"
 msgstr "Tage vor einer Frist"
 
-#: app_ui/proactive_settings.py:340
+#: app_ui/proactive_settings.py:500
 #, python-brace-format
 msgid "Empty = {default}."
 msgstr "Leer = {default}."
 
-#: app_ui/proactive_settings.py:347
+#: app_ui/proactive_settings.py:507
 msgid "Enter whole numbers of days, separated by commas."
 msgstr "Gib ganze Tage ein, durch Kommas getrennt."
 
-#: app_ui/proactive_settings.py:360
+#: app_ui/proactive_settings.py:520
 msgid "Max. messages per week"
 msgstr "Max. Nachrichten pro Woche"
 
-#: app_ui/proactive_settings.py:362
+#: app_ui/proactive_settings.py:522
 #, python-brace-format
 msgid "0 to {max}"
 msgstr "0 bis {max}"
 
-#: app_ui/proactive_settings.py:366
+#: app_ui/proactive_settings.py:526
 msgid ""
 "Insights beyond this are held back and shown in the app, not dropped. "
 "Critical deadline reminders always arrive — also with 0."
@@ -1115,14 +1185,14 @@ msgstr ""
 "nicht verworfen. Kritische Fristerinnerungen kommen immer an — auch bei "
 "0."
 
-#: app_ui/proactive_settings.py:377
+#: app_ui/proactive_settings.py:537
 #, python-brace-format
 msgid "Choose a number from 0 to {max}."
 msgstr "Wähle eine Zahl von 0 bis {max}."
 
 #: app_ui/pages/chat.py:820 app_ui/pages/chat.py:3265 app_ui/pages/chat.py:3606
 #: app_ui/pages/chat.py:3867 app_ui/pages/chat.py:3954
-#: app_ui/pages/dashboard.py:1228 app_ui/pages/settings.py:280
+#: app_ui/pages/dashboard.py:1236 app_ui/pages/settings.py:280
 #: app_ui/similar_dialog.py:113
 #, python-brace-format
 msgid "Error: {err}"
@@ -1274,8 +1344,8 @@ msgstr ""
 msgid "Start dry run"
 msgstr "Probelauf starten"
 
-#: app_ui/pages/chat.py:3727 app_ui/pages/dashboard.py:1097
-#: app_ui/pages/dashboard.py:1124 app_ui/title_rename_settings.py:231
+#: app_ui/pages/chat.py:3727 app_ui/pages/dashboard.py:1105
+#: app_ui/pages/dashboard.py:1132 app_ui/title_rename_settings.py:231
 #: app_ui/title_rename_settings.py:266 app_ui/title_rename_settings.py:268
 #: werkbank/v2/ui/board.py:140
 msgid "Close"
@@ -2448,7 +2518,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "Lade..."
 
-#: app_ui/pages/dashboard.py:486 app_ui/pages/dashboard.py:991
+#: app_ui/pages/dashboard.py:486 app_ui/pages/dashboard.py:999
 #, python-brace-format
 msgid "Last sync: {ts}"
 msgstr "Letzter Sync: {ts}"
@@ -2537,21 +2607,26 @@ msgstr "Sync gestoppt"
 msgid "Sync complete"
 msgstr "Sync abgeschlossen"
 
-#: app_ui/pages/dashboard.py:996 app_ui/pages/dashboard.py:1465
+#: app_ui/pages/dashboard.py:990
+#, python-brace-format
+msgid "{new} new, {removed} removed"
+msgstr "{new} neu, {removed} entfernt"
+
+#: app_ui/pages/dashboard.py:1004 app_ui/pages/dashboard.py:1473
 #, python-brace-format, python-format
 msgid "{pct} % indexed in ChromaDB"
 msgstr "{pct} % in ChromaDB indexiert"
 
-#: app_ui/pages/dashboard.py:1001
+#: app_ui/pages/dashboard.py:1009
 #, python-brace-format
 msgid "Sync error: {err}"
 msgstr "Sync Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1016
+#: app_ui/pages/dashboard.py:1024
 msgid "Sync"
 msgstr "Synchronisieren"
 
-#: app_ui/pages/dashboard.py:1019
+#: app_ui/pages/dashboard.py:1027
 msgid ""
 "New documents are always ingested. Additionally, outdated documents (old "
 "prompt version) are re-ingested — up to how many? Empty = all. Large "
@@ -2561,20 +2636,20 @@ msgstr ""
 "Dokumente (alte Prompt-Version) neu eingelesen — wie viele maximal? Leer "
 "= alle. Große Zahlen können lange dauern."
 
-#: app_ui/pages/dashboard.py:1023
+#: app_ui/pages/dashboard.py:1031
 msgid "Max. re-ingests (empty = all)"
 msgstr "Max. Neu-Einlesungen (leer = alle)"
 
-#: app_ui/pages/dashboard.py:1038 werkbank/ui/task_dialog.py:360
+#: app_ui/pages/dashboard.py:1046 werkbank/ui/task_dialog.py:360
 #: werkbank/v2/ui/brief_dialog.py:159
 msgid "Start"
 msgstr "Starten"
 
-#: app_ui/pages/dashboard.py:1052
+#: app_ui/pages/dashboard.py:1060
 msgid "Stopping after the current document…"
 msgstr "Stoppe nach dem aktuellen Dokument…"
 
-#: app_ui/pages/dashboard.py:1069
+#: app_ui/pages/dashboard.py:1077
 msgid ""
 "No model configured for dreaming. Please set one in Settings > Memory "
 "maintenance."
@@ -2582,102 +2657,102 @@ msgstr ""
 "Kein Modell für Träumen konfiguriert. Bitte in Einstellungen > "
 "Gedächtnis-Pflege einstellen."
 
-#: app_ui/pages/dashboard.py:1078
+#: app_ui/pages/dashboard.py:1086
 msgid "No memory entries available."
 msgstr "Keine Gedächtniseinträge vorhanden."
 
-#: app_ui/pages/dashboard.py:1091
+#: app_ui/pages/dashboard.py:1099
 msgid "Error during memory analysis"
 msgstr "Fehler bei Gedächtnis-Analyse"
 
-#: app_ui/pages/dashboard.py:1112
+#: app_ui/pages/dashboard.py:1120
 msgid "Memory analysis"
 msgstr "Gedächtnis-Analyse"
 
-#: app_ui/pages/dashboard.py:1115
+#: app_ui/pages/dashboard.py:1123
 msgid "No actions suggested."
 msgstr "Keine Maßnahmen vorgeschlagen."
 
-#: app_ui/pages/dashboard.py:1118
+#: app_ui/pages/dashboard.py:1126
 msgid "LLM response (debug)"
 msgstr "LLM-Antwort (Debug)"
 
-#: app_ui/pages/dashboard.py:1121
+#: app_ui/pages/dashboard.py:1129
 msgid "(empty)"
 msgstr "(leer)"
 
-#: app_ui/pages/dashboard.py:1139
+#: app_ui/pages/dashboard.py:1147
 msgid "Memory cleanup"
 msgstr "Gedächtnis-Bereinigung"
 
-#: app_ui/pages/dashboard.py:1143
+#: app_ui/pages/dashboard.py:1151
 #, python-brace-format
 msgid "{n} actions suggested — deselect to skip"
 msgstr "{n} Maßnahmen vorgeschlagen — abwählen um zu überspringen"
 
-#: app_ui/pages/dashboard.py:1163
+#: app_ui/pages/dashboard.py:1171
 msgid "🗑 Delete"
 msgstr "🗑 Löschen"
 
-#: app_ui/pages/dashboard.py:1164
+#: app_ui/pages/dashboard.py:1172
 msgid "✏️ Update"
 msgstr "✏️ Aktualisieren"
 
-#: app_ui/pages/dashboard.py:1166
+#: app_ui/pages/dashboard.py:1174
 msgid "🏷️ Update tags"
 msgstr "🏷️ Tags aktualisieren"
 
-#: app_ui/pages/dashboard.py:1184
+#: app_ui/pages/dashboard.py:1192
 #, python-brace-format
 msgid "Current: {text}"
 msgstr "Aktuell: {text}"
 
-#: app_ui/pages/dashboard.py:1191
+#: app_ui/pages/dashboard.py:1199
 #, python-brace-format
 msgid "New: {text}"
 msgstr "Neu: {text}"
 
-#: app_ui/pages/dashboard.py:1202
+#: app_ui/pages/dashboard.py:1210
 #, python-brace-format
 msgid "Tags old: {tags}"
 msgstr "Tags alt: {tags}"
 
-#: app_ui/pages/dashboard.py:1205
+#: app_ui/pages/dashboard.py:1213
 #, python-brace-format
 msgid "Tags new: {tags}"
 msgstr "Tags neu: {tags}"
 
-#: app_ui/pages/dashboard.py:1214
+#: app_ui/pages/dashboard.py:1222
 msgid "No actions selected."
 msgstr "Keine Maßnahmen ausgewählt."
 
-#: app_ui/pages/dashboard.py:1222
+#: app_ui/pages/dashboard.py:1230
 #, python-brace-format
 msgid "Cleanup complete: {d} deleted, {u} updated."
 msgstr "Bereinigung abgeschlossen: {d} gelöscht, {u} aktualisiert."
 
-#: app_ui/pages/dashboard.py:1237
+#: app_ui/pages/dashboard.py:1245
 msgid "Run selected"
 msgstr "Ausgewählte ausführen"
 
-#: app_ui/pages/dashboard.py:1248
+#: app_ui/pages/dashboard.py:1256
 msgid "No user signed in."
 msgstr "Kein Nutzer angemeldet."
 
-#: app_ui/pages/dashboard.py:1253
+#: app_ui/pages/dashboard.py:1261
 msgid "📂 Synchronizing vault…"
 msgstr "📂 Vault wird synchronisiert…"
 
-#: app_ui/pages/dashboard.py:1263
+#: app_ui/pages/dashboard.py:1271
 msgid "Vault synchronized."
 msgstr "Vault synchronisiert."
 
-#: app_ui/pages/dashboard.py:1266
+#: app_ui/pages/dashboard.py:1274
 #, python-brace-format
 msgid "Vault sync error: {err}"
 msgstr "Vault-Sync Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1298
+#: app_ui/pages/dashboard.py:1306
 #, python-brace-format
 msgid ""
 "Several local models point at different hosts ({hosts}). Set "
@@ -2687,160 +2762,160 @@ msgstr ""
 "OLLAMA_SERVER in der .env, um festzulegen, welche Maschine die Power-"
 "Buttons steuern."
 
-#: app_ui/pages/dashboard.py:1306
+#: app_ui/pages/dashboard.py:1314
 msgid "OLLAMA_HOST_LAN_MAC_ADDRESS_WOL not configured"
 msgstr "OLLAMA_HOST_LAN_MAC_ADDRESS_WOL nicht konfiguriert"
 
-#: app_ui/pages/dashboard.py:1319
+#: app_ui/pages/dashboard.py:1327
 #, python-brace-format
 msgid "WoL error: {err}"
 msgstr "WoL Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1322
+#: app_ui/pages/dashboard.py:1330
 #, python-brace-format
 msgid "Magic packet → {target}"
 msgstr "Magic Packet → {target}"
 
-#: app_ui/pages/dashboard.py:1323
+#: app_ui/pages/dashboard.py:1331
 msgid "Waking up…"
 msgstr "Weckt auf…"
 
-#: app_ui/pages/dashboard.py:1342
+#: app_ui/pages/dashboard.py:1350
 msgid "Ollama is online!"
 msgstr "Ollama ist online!"
 
-#: app_ui/pages/dashboard.py:1355
+#: app_ui/pages/dashboard.py:1363
 msgid "OLLAMA_SSH_USER not configured"
 msgstr "OLLAMA_SSH_USER nicht konfiguriert"
 
-#: app_ui/pages/dashboard.py:1358
+#: app_ui/pages/dashboard.py:1366
 msgid "Shutting down…"
 msgstr "Fährt herunter…"
 
-#: app_ui/pages/dashboard.py:1386
+#: app_ui/pages/dashboard.py:1394
 #, python-brace-format
 msgid "Shutdown failed: {err}"
 msgstr "Herunterfahren fehlgeschlagen: {err}"
 
-#: app_ui/pages/dashboard.py:1387
+#: app_ui/pages/dashboard.py:1395
 #, python-brace-format
 msgid "ssh exited with {code}"
 msgstr "ssh endete mit Code {code}"
 
-#: app_ui/pages/dashboard.py:1392 app_ui/pages/dashboard.py:1396
-#: app_ui/pages/dashboard.py:1474
+#: app_ui/pages/dashboard.py:1400 app_ui/pages/dashboard.py:1404
+#: app_ui/pages/dashboard.py:1482
 msgid "Online"
 msgstr "Online"
 
-#: app_ui/pages/dashboard.py:1395
+#: app_ui/pages/dashboard.py:1403
 #, python-brace-format
 msgid "SSH error: {err}"
 msgstr "SSH Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1406 app_ui/pages/dashboard.py:1474
-#: app_ui/pages/dashboard.py:1479
+#: app_ui/pages/dashboard.py:1414 app_ui/pages/dashboard.py:1482
+#: app_ui/pages/dashboard.py:1487
 msgid "Offline"
 msgstr "Offline"
 
-#: app_ui/pages/dashboard.py:1409
+#: app_ui/pages/dashboard.py:1417
 msgid "Server is shutting down…"
 msgstr "Server wird heruntergefahren…"
 
-#: app_ui/pages/dashboard.py:1414
+#: app_ui/pages/dashboard.py:1422
 msgid "Shut down server"
 msgstr "Server herunterfahren"
 
-#: app_ui/pages/dashboard.py:1416 app_ui/pages/login.py:90
+#: app_ui/pages/dashboard.py:1424 app_ui/pages/login.py:90
 #: app_ui/pages/settings.py:805
 msgid "Password"
 msgstr "Passwort"
 
-#: app_ui/pages/dashboard.py:1420
+#: app_ui/pages/dashboard.py:1428
 msgid "Wrong password"
 msgstr "Falsches Passwort"
 
-#: app_ui/pages/dashboard.py:1434
+#: app_ui/pages/dashboard.py:1442
 msgid "Shut down"
 msgstr "Herunterfahren"
 
-#: app_ui/pages/dashboard.py:1468
+#: app_ui/pages/dashboard.py:1476
 msgid "Paperless not reachable"
 msgstr "Paperless nicht erreichbar"
 
-#: app_ui/pages/dashboard.py:1477
+#: app_ui/pages/dashboard.py:1485
 #, python-brace-format
 msgid "{n} docs"
 msgstr "{n} Docs"
 
-#: app_ui/pages/dashboard.py:1477 werkbank/ui/module_page.py:181
+#: app_ui/pages/dashboard.py:1485 werkbank/ui/module_page.py:181
 msgid "Error"
 msgstr "Fehler"
 
-#: app_ui/pages/dashboard.py:1503 app_ui/pages/dashboard.py:1505
-#: app_ui/pages/dashboard.py:1518
+#: app_ui/pages/dashboard.py:1511 app_ui/pages/dashboard.py:1513
+#: app_ui/pages/dashboard.py:1526
 msgid "Not configured"
 msgstr "Nicht konfiguriert"
 
-#: app_ui/pages/dashboard.py:1514
+#: app_ui/pages/dashboard.py:1522
 #, python-brace-format
 msgid "iCal ({n} calendars)"
 msgstr "iCal ({n} Kalender)"
 
-#: app_ui/pages/dashboard.py:1570
+#: app_ui/pages/dashboard.py:1578
 msgid "upcoming"
 msgstr "bevorstehend"
 
-#: app_ui/pages/dashboard.py:1572
+#: app_ui/pages/dashboard.py:1580
 #, python-brace-format
 msgid "{n} overdue"
 msgstr "{n} überfällig"
 
-#: app_ui/pages/dashboard.py:1574
+#: app_ui/pages/dashboard.py:1582
 msgid "Show overdue deadlines only"
 msgstr "Nur überfällige Fristen anzeigen"
 
-#: app_ui/pages/dashboard.py:1673
+#: app_ui/pages/dashboard.py:1681
 msgid "No deadlines found."
 msgstr "Keine Fristen gefunden."
 
-#: app_ui/pages/dashboard.py:1684
+#: app_ui/pages/dashboard.py:1692
 msgid "Overdue only"
 msgstr "Nur überfällige"
 
-#: app_ui/pages/dashboard.py:1687
+#: app_ui/pages/dashboard.py:1695
 msgid "Show all"
 msgstr "Alle anzeigen"
 
-#: app_ui/pages/dashboard.py:1699
+#: app_ui/pages/dashboard.py:1707
 #, python-brace-format
 msgid "{n} hidden"
 msgstr "{n} ausgeblendet"
 
-#: app_ui/pages/dashboard.py:1702
+#: app_ui/pages/dashboard.py:1710
 msgid "Show"
 msgstr "Einblenden"
 
-#: app_ui/pages/dashboard.py:1702 app_ui/pages/dashboard.py:1752
+#: app_ui/pages/dashboard.py:1710 app_ui/pages/dashboard.py:1760
 msgid "Hide"
 msgstr "Ausblenden"
 
-#: app_ui/pages/dashboard.py:1735
+#: app_ui/pages/dashboard.py:1743
 msgid "Uncertain"
 msgstr "Unsicher"
 
-#: app_ui/pages/dashboard.py:1752
+#: app_ui/pages/dashboard.py:1760
 msgid "Show again"
 msgstr "Wieder anzeigen"
 
-#: app_ui/pages/dashboard.py:1777 proactive/deadlines.py:38
+#: app_ui/pages/dashboard.py:1785 proactive/deadlines.py:38
 msgid "Date"
 msgstr "Datum"
 
-#: app_ui/pages/dashboard.py:1780
+#: app_ui/pages/dashboard.py:1788
 msgid "Doc"
 msgstr "Dok"
 
-#: app_ui/pages/dashboard.py:1809
+#: app_ui/pages/dashboard.py:1817
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr "Seite {page} / {total}  ·  {count} Einträge"
@@ -2857,7 +2932,7 @@ msgstr "Gesendet"
 msgid "Held back"
 msgstr "Zurückgehalten"
 
-#: app_ui/pages/findings.py:25 proactive/notify/__init__.py:30
+#: app_ui/pages/findings.py:25 proactive/notify/__init__.py:31
 msgid "Interesting"
 msgstr "Interessant"
 
@@ -2865,7 +2940,7 @@ msgstr "Interessant"
 msgid "Researched"
 msgstr "Recherchiert"
 
-#: app_ui/pages/findings.py:27 proactive/notify/__init__.py:33
+#: app_ui/pages/findings.py:27 proactive/notify/__init__.py:34
 #: werkbank/ui/module_page.py:180
 msgid "Done"
 msgstr "Fertig"
@@ -2882,7 +2957,7 @@ msgstr "Zurückgestellt"
 msgid "Insight"
 msgstr "Hinweis"
 
-#: app_ui/pages/findings.py:44 proactive/notify/__init__.py:96
+#: app_ui/pages/findings.py:44 proactive/notify/__init__.py:97
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr "Dringlichkeit: {urgency}"
@@ -3978,21 +4053,29 @@ msgstr "Als erledigt markiert."
 msgid "Thanks — marked as wrongly detected."
 msgstr "Danke — als falsch erkannt markiert."
 
-#: proactive/notify/__init__.py:27
+#: proactive/notify/__init__.py:28
 msgid "Critical"
 msgstr "Kritisch"
 
-#: proactive/notify/__init__.py:31
+#: proactive/notify/__init__.py:32
 msgid "Later"
 msgstr "Später"
 
-#: proactive/notify/__init__.py:32
+#: proactive/notify/__init__.py:33
 msgid "Never again"
 msgstr "Nie wieder"
 
-#: proactive/notify/__init__.py:34
+#: proactive/notify/__init__.py:35
 msgid "Wrongly detected"
 msgstr "Falsch erkannt"
+
+#: proactive/notify/__init__.py:141
+msgid "Sync finished"
+msgstr "Sync fertig"
+
+#: proactive/notify/__init__.py:142
+msgid "Werkbank run done"
+msgstr "Werkbank-Lauf fertig"
 
 #: proactive/notify/email.py:66 proactive/notify/email.py:73
 msgid "Or reply with 1 (interesting), 2 (later) or 3 (never again)."
@@ -4021,21 +4104,21 @@ msgstr "Verknüpfung gelöst. Dieser Chat bekommt keine Nachrichten mehr."
 msgid "What you may have missed"
 msgstr "Was du verpasst haben könntest"
 
-#: proactive/tasks/notify.py:47
+#: proactive/tasks/notify.py:63
 msgid "PaperlessBrain test message"
 msgstr "PaperlessBrain-Testnachricht"
 
-#: proactive/tasks/notify.py:49
+#: proactive/tasks/notify.py:65
 msgid "If you can read this, notifications reach you on this channel."
 msgstr ""
 "Wenn du das lesen kannst, erreichen dich Benachrichtigungen auf diesem "
 "Kanal."
 
-#: proactive/tasks/notify.py:72
+#: proactive/tasks/notify.py:88
 msgid "Your PaperlessBrain confirmation code"
 msgstr "Dein PaperlessBrain-Bestätigungscode"
 
-#: proactive/tasks/notify.py:74
+#: proactive/tasks/notify.py:90
 #, python-brace-format
 msgid ""
 "Your code: {code}\n"
@@ -4734,4 +4817,13 @@ msgstr "teilweise erfüllt"
 #: werkbank/v2/ui/style.py:130
 msgid "not met"
 msgstr "nicht erfüllt"
+
+#~ msgid "No messages"
+#~ msgstr "Keine Nachrichten"
+
+#~ msgid "Telegram and email"
+#~ msgstr "Telegram und E-Mail"
+
+#~ msgid "Send messages via"
+#~ msgstr "Nachrichten senden über"
 

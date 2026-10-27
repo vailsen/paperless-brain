@@ -16,6 +16,13 @@ async def notify_channel(job: Job) -> None:
     """Deliver one notification on one channel. Retried on its own."""
     channel = job.payload["channel"]
     n = Notification.from_payload(job.payload["notification"])
+    if channel == "push":
+        from proactive.notify import push_body, webpush
+
+        await webpush.send(
+            job.user, webpush.payload(n.title, push_body(n), n.link, tag=n.finding_id)
+        )
+        return
     link = linking.links(job.user).get(channel)
     if link is None:
         log.info("%s: %s no longer linked — not sent", job.user, channel)
@@ -31,6 +38,15 @@ async def notify_channel(job: Job) -> None:
         log.info("%s: email sent %s", job.user, mid)
     else:
         raise ValueError(f"unknown channel {channel!r}")
+
+
+@handler("push_event")
+async def push_event(job: Job) -> None:
+    """An app event (`notify.enqueue_event`) to the user's push devices."""
+    from proactive.notify import webpush
+
+    p = job.payload
+    await webpush.send(job.user, webpush.payload(p["title"], p.get("body", ""), p["url"], p.get("tag", "")))
 
 
 @handler("send_test")

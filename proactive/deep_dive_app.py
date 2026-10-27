@@ -97,6 +97,7 @@ async def run(user: str, token: str, finding, model) -> dict:
             ),
             user,
             model.name,
+            notify=False,  # the deep dive's own result message follows
         )
     finally:
         web_query_guard.reset(reset)

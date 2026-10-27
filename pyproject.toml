@@ -41,6 +41,8 @@ dependencies = [
     "pydantic>=2.14,<3",
     "pydantic-settings>=2.16,<3",
     "cryptography>=50.0.2,<51",
+    # Web Push for the proactive notifications (VAPID + RFC 8291 encryption).
+    "pywebpush>=2.5,<3",
     "pypdfium2>=5.14,<6",
     "weasyprint>=70,<71",
     "python-docx>=1.2,<2",
