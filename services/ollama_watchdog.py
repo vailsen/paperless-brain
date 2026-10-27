@@ -12,6 +12,12 @@ the host. Diagnostics D6.
 Rules unchanged: only a host woken through WoL (`on_wol`) is ever shut down,
 after `OLLAMA_IDLE_SHUTDOWN_MINUTES` without `touch()`. The worker calls
 `touch()` and `on_wol()` like the app does and adds no shutdown logic.
+
+One exception to the idle time: a host the *worker* woke and nobody else used
+goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (default 5) — no one is
+waiting at night for a next question, so the long window only burns power.
+The state records who woke it (`wol_by`); any request from the app (a user)
+hands it back to the normal idle time.
 """
 
 import asyncio
@@ -32,6 +38,14 @@ except ImportError:  # pragma: no cover
 TOUCH_WRITE_INTERVAL_S = 10.0
 
 _last_touch_write = 0.0
+
+#: "app" or "worker" — set once by the worker at start (`set_role`).
+_role = "app"
+
+
+def set_role(role: str) -> None:
+    global _role
+    _role = role
 
 
 def _state_path() -> Path:
@@ -76,6 +90,7 @@ def state() -> dict:
         "wol_active": bool(d.get("wol_active")),
         "last_activity": last_dt,
         "wol_host": d.get("wol_host", ""),
+        "wol_by": d.get("wol_by", "app"),
     }
 
 
@@ -86,15 +101,18 @@ def touch() -> None:
     if now - _last_touch_write < TOUCH_WRITE_INTERVAL_S:
         return
     _last_touch_write = now
+    changes = {"last_activity": datetime.now().isoformat()}
+    if _role == "app":
+        changes["wol_by"] = "app"  # a user is using it: normal idle time again
     try:
-        _update(last_activity=datetime.now().isoformat())
+        _update(**changes)
     except OSError:
         pass
 
 
 def on_wol(host: str = "") -> None:
     global _last_touch_write
-    changes = {"wol_active": True, "last_activity": datetime.now().isoformat()}
+    changes = {"wol_active": True, "last_activity": datetime.now().isoformat(), "wol_by": _role}
     if host:
         changes["wol_host"] = host
     _update(**changes)
@@ -138,7 +156,12 @@ def shutdown_due(now: datetime | None = None) -> bool:
     if not s["wol_active"] or s["last_activity"] is None:
         return False
     now = now or datetime.now()
-    return now - s["last_activity"] > timedelta(minutes=settings.ollama_idle_shutdown_minutes)
+    minutes = settings.ollama_idle_shutdown_minutes
+    if s["wol_by"] == "worker":
+        from config.proactive import proactive_settings
+
+        minutes = proactive_settings().proactive_idle_shutdown_minutes
+    return now - s["last_activity"] > timedelta(minutes=minutes)
 
 
 async def idle_watchdog() -> None:

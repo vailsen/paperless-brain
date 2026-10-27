@@ -197,6 +197,9 @@ async def _amain() -> int:
     from config.proactive import proactive_settings
     from config.settings import settings
     from proactive import llm
+    from services import ollama_watchdog
+
+    ollama_watchdog.set_role("worker")
     from proactive.gate import InferenceGate, OperatorModelMissing, probe
 
     cfg = proactive_settings()

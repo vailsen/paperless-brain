@@ -12,6 +12,10 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **The dashboard's document counter no longer looks behind.** Documents
   carrying the no-ingest tag (the inbox) are not counted on the Paperless
   side either, so a finished sync reads "523 / 523", not "523 / 533".
+- **A host woken at night goes back to sleep sooner.** When the proactive
+  worker woke the GPU host and no one used it, it shuts down after 5 idle
+  minutes (`PROACTIVE_IDLE_SHUTDOWN_MINUTES`), not 30. Using the app hands it
+  back to the normal idle time.
 - **Email link codes are rate-limited.** "Send code" mails any address typed
   in; per user it now sends 3 in the first hour, then 1 an hour, and starts
   over 24 hours after the first.

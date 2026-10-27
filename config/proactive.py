@@ -106,6 +106,7 @@ class ProactiveSettings(BaseSettings):
     proactive_newdoc_poll_seconds: int = 300
 
     proactive_wol_auto: bool = True
+    proactive_idle_shutdown_minutes: int = 5
     proactive_sweep_windows: str = "01:00-05:00/200"
     proactive_model_fixed: str = ""
     proactive_model_allowlist: str = ""

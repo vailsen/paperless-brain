@@ -108,6 +108,30 @@ class _FrozenDT(datetime):
         return datetime.fromisoformat(s)
 
 
+def test_worker_wake_shuts_down_sooner_until_a_user_uses_it(power_file, monkeypatch):
+    from config import proactive as cfg
+    from config.settings import settings
+    from services import ollama_watchdog as wd
+
+    monkeypatch.setattr(settings, "ollama_idle_shutdown_minutes", 30)
+    monkeypatch.setenv("PROACTIVE_IDLE_SHUTDOWN_MINUTES", "5")
+    cfg.proactive_settings.cache_clear()
+    monkeypatch.setattr(wd, "_role", "worker")
+    wd.on_wol("10.0.0.5")
+    t0 = wd.state()["last_activity"]
+    assert wd.state()["wol_by"] == "worker"
+    assert not wd.shutdown_due(t0 + timedelta(minutes=4))
+    assert wd.shutdown_due(t0 + timedelta(minutes=6))
+
+    monkeypatch.setattr(wd, "_role", "app")                # a user chats
+    wd.touch()
+    t1 = wd.state()["last_activity"]
+    assert wd.state()["wol_by"] == "app"
+    assert not wd.shutdown_due(t1 + timedelta(minutes=29))
+    assert wd.shutdown_due(t1 + timedelta(minutes=31))
+    cfg.proactive_settings.cache_clear()
+
+
 def test_host_that_was_already_on_is_never_shut_down(power_file):
     from services import ollama_watchdog as wd
 
