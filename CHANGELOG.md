@@ -42,6 +42,10 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **A chat no longer starts with syncing what the worker wrote overnight.**
+  Once its batch is done and nobody is chatting, the worker has the app
+  commit and index its findings, so the first question of the day starts
+  right away.
 - **A finding could not be answered before it was sent** — new findings had
   no buttons. They now have all of them.
 - **Insights no longer suggest options whose deadline passed years ago** (a

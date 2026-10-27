@@ -45,6 +45,11 @@ async def deep_dive(user: str, finding_id: str, model: dict) -> dict:
     return await call("deep_dive", {"user": user, "finding_id": finding_id, "model": model}, timeout=1800)
 
 
+async def vault_sync(user: str) -> dict:
+    """Have the app commit and index the user's vault (`vault.sync.sync_user`)."""
+    return await call("vault_sync", {"user": user}, timeout=900)
+
+
 async def dossier(user: str, topic: str, seed_doc_id: int, existing: dict | None, model: dict) -> dict:
     return await call("dossier", {
         "user": user, "topic": topic, "seed_doc_id": int(seed_doc_id or 0),

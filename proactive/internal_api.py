@@ -92,3 +92,18 @@ async def _dossier(request: Request) -> dict:
     return await dossier(
         user, tok, str(data.get("topic", "")), int(data.get("seed_doc_id") or 0), data.get("existing"), model,
     )
+
+
+@app.post("/api/internal/proactive/vault_sync")
+async def _vault_sync(request: Request) -> dict:
+    """The worker's findings, committed and indexed after its batch
+    (`proactive.tasks.vault_sync`). The same sync a chat turn runs, under the
+    same per-user lock — no Paperless token involved, so no grant needed."""
+    data = await _authorized(request)
+    user = str(data.get("user") or "")
+    if not user:
+        raise HTTPException(status_code=400, detail="no user")
+    from vault.sync import sync_user
+
+    await sync_user(user, force=True)
+    return {"ok": True}

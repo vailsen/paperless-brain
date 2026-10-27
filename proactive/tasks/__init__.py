@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proactive.tasks import daily, documents, heartbeat, insights, ledger, notify, sweep, topics  # noqa: F401
+from proactive.tasks import daily, documents, heartbeat, insights, ledger, notify, sweep, topics, vault_sync  # noqa: F401
 
 documents.install()
 
@@ -26,3 +26,4 @@ def attach(worker: "Worker") -> None:
     scheduler.ensure(daily.DAILY_RUN, f"daily:{worker.cfg.daily_run_time:%H:%M}")
     # Email is send-only now; drop the reply poller's schedule from older DBs.
     scheduler.remove("imap_poll")
+    scheduler.ensure(vault_sync.VAULT_SYNC_CHECK, "every:300")

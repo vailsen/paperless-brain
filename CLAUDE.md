@@ -465,7 +465,11 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 
 ## Sync triggering
 
-- **On user interaction only. No background scheduler. No time-based sync.**
+- **On user interaction only. No background scheduler. No time-based sync.** One exception:
+  the proactive worker, after its batch, has the app sync a vault whose *findings folder* it
+  changed (`proactive/tasks/vault_sync.py`) — only when no LLM job is due and the app is not
+  using the model, so the next chat turn does not start with the worker's backlog. It is
+  triggered by the worker's own writes, never by the clock alone.
 - Run `sync_user(username)` at the start of a turn before any brain/vault retrieval.
 - Guard with a **per-user `asyncio.Lock`** + **at most once per turn** (per-turn flag / short
   cooldown). Also expose a manual "Sync now" dashboard button.

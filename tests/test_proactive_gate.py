@@ -634,3 +634,59 @@ def test_analyse_now_works_outside_any_window_and_stops_at_the_count(proactive_o
         asyncio.run(w.tick_once())
     assert [d for _, d in done] == [10, 11, 12, 13, 14]
     assert sweep.cursor("alice")[1] is True and sweep.now_remaining("alice") == 0
+
+
+@pytest.fixture
+def vault_sync_env(proactive_on, monkeypatch):
+    from proactive import internal_client, users
+    from proactive.tasks import vault_sync
+    from vault import notes
+
+    monkeypatch.setattr(users, "eligible", lambda: [("alice", "t-a"), ("bob", "t-b")])
+    monkeypatch.setattr(vault_sync, "_findings_prefix", lambda user: "PaperlessBrain Findings/")
+    pending = {"alice": {"PaperlessBrain Findings/Notices/x.md"}, "bob": {"Inbox/todo.md"}}
+
+    async def pending_rel_paths(user):
+        return pending[user]
+
+    synced = []
+
+    async def fake_sync(user):
+        synced.append(user)
+        return {"ok": True}
+
+    monkeypatch.setattr(notes, "pending_rel_paths", pending_rel_paths)
+    monkeypatch.setattr(internal_client, "vault_sync", fake_sync)
+    return synced
+
+
+def _check():
+    from proactive.jobs import Job
+    from proactive.tasks.vault_sync import vault_sync_check
+
+    asyncio.run(vault_sync_check(Job(id=0, kind="vault_sync_check", user="", payload={},
+                                     needs_llm=False, status="running", attempts=0, run_after="")))
+
+
+def test_vault_sync_after_the_batch_only_for_the_workers_own_changes(vault_sync_env):
+    _check()
+    assert vault_sync_env == ["alice"]  # bob's own note edit waits for his next chat turn
+
+
+def test_no_vault_sync_while_the_batch_runs_or_a_user_chats(vault_sync_env, monkeypatch):
+    from proactive import jobs
+    from services import ollama_watchdog
+
+    jobs.enqueue("sweep_doc", "alice", {"doc_id": 1}, needs_llm=True)
+    _check()
+    assert vault_sync_env == []
+    from proactive.db import connect
+
+    with connect() as conn:
+        conn.execute("UPDATE jobs SET status = 'done'")
+    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: True)
+    _check()
+    assert vault_sync_env == []
+    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: False)
+    _check()
+    assert vault_sync_env == ["alice"]
