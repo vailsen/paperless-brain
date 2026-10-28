@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-28 08:05+0000\n"
+"POT-Creation-Date: 2026-10-28 08:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -413,7 +413,8 @@ msgid "Show in PDF"
 msgstr ""
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
-#: proactive/findings.py:224
+#: proactive/findings.py:230 proactive/findings.py:558
+#: proactive/findings.py:559
 msgid "Summary"
 msgstr ""
 
@@ -1775,7 +1776,7 @@ msgstr ""
 msgid "p. {n}"
 msgstr ""
 
-#: app_ui/pages/chat.py:210 proactive/findings.py:233
+#: app_ui/pages/chat.py:210 proactive/findings.py:239 proactive/findings.py:564
 #: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr ""
@@ -3785,16 +3786,21 @@ msgstr ""
 msgid "Open questions"
 msgstr ""
 
-#: proactive/findings.py:226
+#: proactive/findings.py:232
 msgid "Evidence"
 msgstr ""
 
-#: proactive/findings.py:238
+#: proactive/findings.py:244 proactive/findings.py:560
 msgid "Recommendation"
 msgstr ""
 
-#: proactive/findings.py:248
+#: proactive/findings.py:254
 msgid "Not financial or investment advice. Check the recommendation yourself."
+msgstr ""
+
+#: proactive/findings.py:531 proactive/findings.py:556
+#, python-brace-format
+msgid "Seen in {n} documents: {docs}"
 msgstr ""
 
 #: proactive/reactions.py:45

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-28 08:05+0000\n"
+"POT-Creation-Date: 2026-10-28 08:08+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -439,7 +439,8 @@ msgid "Show in PDF"
 msgstr "Im PDF zeigen"
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
-#: proactive/findings.py:224
+#: proactive/findings.py:230 proactive/findings.py:558
+#: proactive/findings.py:559
 msgid "Summary"
 msgstr "Zusammenfassung"
 
@@ -1880,7 +1881,7 @@ msgstr "PDF herunterladen"
 msgid "p. {n}"
 msgstr "S. {n}"
 
-#: app_ui/pages/chat.py:210 proactive/findings.py:233
+#: app_ui/pages/chat.py:210 proactive/findings.py:239 proactive/findings.py:564
 #: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr "Quellen"
@@ -4068,17 +4069,22 @@ msgstr "Aktueller Stand"
 msgid "Open questions"
 msgstr "Offene Fragen"
 
-#: proactive/findings.py:226
+#: proactive/findings.py:232
 msgid "Evidence"
 msgstr "Belege"
 
-#: proactive/findings.py:238
+#: proactive/findings.py:244 proactive/findings.py:560
 msgid "Recommendation"
 msgstr "Empfehlung"
 
-#: proactive/findings.py:248
+#: proactive/findings.py:254
 msgid "Not financial or investment advice. Check the recommendation yourself."
 msgstr "Keine Finanz- oder Anlageberatung. Prüfe die Empfehlung selbst."
+
+#: proactive/findings.py:531 proactive/findings.py:556
+#, python-brace-format
+msgid "Seen in {n} documents: {docs}"
+msgstr "In {n} Dokumenten: {docs}"
 
 #: proactive/reactions.py:45
 msgid "Noted — a closer look is being prepared."

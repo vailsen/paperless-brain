@@ -24,7 +24,14 @@ async def ledger_scan(job: Job) -> None:
     from proactive import scoring
 
     today = clock.local_now().date().isoformat()
-    for user, _tok in users.eligible():
+    from proactive import series
+
+    for user, tok in users.eligible():
+        try:
+            await series.consolidate(user, tok)  # once per user; a no-op afterwards
+        except Exception:
+            # Housekeeping: it must never stop new findings from being sent.
+            log.warning("%s: merging split findings failed", user, exc_info=True)
         known = interests.load(user)
         for f in findings.list_findings(user):
             if f.kind == "deadline":

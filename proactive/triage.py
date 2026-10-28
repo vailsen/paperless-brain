@@ -121,6 +121,15 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
     ]
     if similar:
         context.append("Similar documents: " + "; ".join(f"#{d['doc_id']} {d.get('title', '')}" for d in similar))
+    corr = meta.get("correspondent") if isinstance(meta.get("correspondent"), int) else None
+    known_series = [f for f in findings.list_findings(user)
+                    if f.kind == "insight" and corr is not None and f.correspondent == corr]
+    if known_series:
+        # The same sender's earlier findings: a recurring letter (each monthly
+        # invoice announcing the same price change) is that finding again,
+        # under its topic, not a new one.
+        context.append("Already reported for this sender (reuse the topic if it is the same matter): " + "; ".join(
+            f"topic {f.topic!r}: {f.title}" for f in known_series[:5]))
     context.append("\nDocument text:\n" + text[:EXCERPT_CHARS])
     # Last, where it is followed: given a German document, the model otherwise
     # drifts into German for title and summary whatever the system prompt says.
@@ -189,14 +198,15 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
         doc_ids=[a.doc_id],
         evidence_hash=findings.evidence_hash([a.doc_id], [e["quote"] for e in evidence] + [topic]),
         analysis_version=a.version,
-        finding_key=f"insight:{topic}:{a.doc_id}",
+        finding_key=findings.series_key(topic, corr, a.doc_id),
+        correspondent=corr,
         lang=lang_code,
         body=findings.render_body(
             lang_code, summary=str(raw.get("summary") or ""), evidence=evidence,
             sources=sources, recommendation=rec,
         ),
     )
-    made, outcome = await findings.upsert(user, f)
+    made, outcome = await findings.upsert_series(user, f)
     log.info("%s: triage of doc %s → finding %s (%s, advice=%s)", user, a.doc_id, made.finding_id, outcome, bool(rec))
     if raw.get("dossier_update"):
         from proactive import jobs

@@ -16,6 +16,11 @@ off by default. Design and invariants: [proactive-architecture.md](proactive-arc
   save, a contract to review, a change to notice? If so you get a short message
   with **Interesting / Later / Never again**. "Interesting" starts a deep-research
   run (the Werkbank) on it; the result arrives as a second message.
+  Letters from the same sender about the same matter are **one** finding: the
+  twelfth invoice announcing the same price change joins the first finding
+  (its document and quote are added) instead of sending a twelfth message. A
+  finding you dismissed stays dismissed when another such letter arrives —
+  unless it turns critical.
 - **Learning what matters.** Reactions are counted per topic in
   `PaperlessBrain Findings/_interests.md` in your vault. Topics you like are sent
   more readily, topics you mute are held back — except critical ones.

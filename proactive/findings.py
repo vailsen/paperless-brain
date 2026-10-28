@@ -42,7 +42,7 @@ KEYS = (
     "pbrain_id", "finding_id", "finding_key", "kind", "title", "status", "topic",
     "urgency", "priority", "advice", "doc_ids", "evidence_hash", "analysis_version",
     "created", "surfaced_at", "snoozed_until", "deadline", "deadline_kind",
-    "reminders_sent", "lang",
+    "reminders_sent", "lang", "correspondent",
 )
 
 
@@ -87,6 +87,9 @@ class Finding:
     finding_key: str = ""
     lang: str = "en"
     pbrain_id: str = ""
+    #: Paperless correspondent id of the documents (insights): with the topic
+    #: it is what makes a series — twelve invoices, one price change — one finding.
+    correspondent: int | None = None
     # not in frontmatter
     user: str = ""
     rel: str = ""  # vault-relative path
@@ -119,6 +122,8 @@ class Finding:
         if self.kind != "deadline":
             for k in ("deadline", "deadline_kind", "reminders_sent"):
                 d.pop(k)
+        if self.correspondent is not None:
+            d["correspondent"] = int(self.correspondent)
         return d
 
     @property
@@ -185,6 +190,7 @@ def parse(text: str, *, user: str = "", rel: str = "") -> Finding | None:
         finding_key=str(m.get("finding_key") or ""),
         lang=str(m.get("lang") or "en"),
         pbrain_id=get_id(m),
+        correspondent=_ints([m.get("correspondent")])[0] if _ints([m.get("correspondent")]) else None,
         user=user,
         rel=rel,
         body=note.body,
@@ -463,3 +469,121 @@ async def upsert(user: str, f: Finding) -> tuple[Finding, str]:
 
     updated = await update(user, existing.finding_id, mutate, body=lambda _cur: f.body)
     return updated or existing, "reopened" if reopen else "updated"
+
+
+# ── Series: several documents, one finding ───────────────────────────────────
+
+_EV_QUOTE = re.compile(r"^> (?!— \[#)(.+)$")
+_EV_REF = re.compile(r"^> — \[#(\d+)\]")
+#: A merged finding keeps at most this many quotes (newest documents first).
+MAX_EVIDENCE = 12
+_URGENCY_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+
+def series_key(topic: str, correspondent: int | None, doc_id: int) -> str:
+    """One finding per (topic, sender); without a sender, one per document."""
+    if correspondent:
+        return f"insight:{topic}:c{int(correspondent)}"
+    return f"insight:{topic}:{int(doc_id)}"
+
+
+def parse_evidence(body: str) -> list[dict]:
+    """The `[{doc_id, quote}]` of a body written by `render_body`."""
+    out, quote = [], None
+    for line in body.splitlines():
+        m = _EV_REF.match(line)
+        if m and quote is not None:
+            out.append({"doc_id": int(m.group(1)), "quote": quote})
+            quote = None
+            continue
+        q = _EV_QUOTE.match(line)
+        quote = q.group(1).strip() if q else None
+    return out
+
+
+def _section(body: str, heading: str) -> str:
+    lines, inside = [], False
+    for line in body.splitlines():
+        if line.startswith("## "):
+            inside = line[3:].strip() == heading
+            continue
+        if inside:
+            lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def series_body(lang: str, *, summary: str, doc_ids: list[int], evidence: list[dict],
+                sources: list[dict] | None = None, recommendation: str = "") -> str:
+    """`render_body` for a series: the documents named in the summary, the
+    quotes of the newest documents first, deduplicated."""
+    from i18n import translator_for
+
+    _ = translator_for(lang)
+    seen, ev = set(), []
+    for e in sorted(evidence, key=lambda e: -int(e["doc_id"])):
+        k = " ".join(e["quote"].lower().split())
+        if k not in seen:
+            seen.add(k)
+            ev.append(e)
+    docs = sorted(set(int(d) for d in doc_ids))
+    text = summary.strip()
+    if len(docs) > 1:
+        text += "\n\n" + _("Seen in {n} documents: {docs}").format(
+            n=len(docs), docs=", ".join(f"#{d}" for d in docs)
+        )
+    return render_body(lang, summary=text, evidence=ev[:MAX_EVIDENCE], sources=sources,
+                       recommendation=recommendation)
+
+
+async def add_to_series(user: str, existing: Finding, new: Finding) -> tuple[Finding, str]:
+    """Attach `new` (one more document of the same series) to `existing`.
+
+    Nothing is sent for it: the matter is already known. The user's status
+    stands — a dismissed or done series stays so, unless the new document makes
+    it critical. Returns `(finding, "merged" | "unchanged" | "reopened")`."""
+    from i18n import translator_for
+    from proactive.states import transition
+
+    new_docs = [d for d in new.doc_ids if d not in existing.doc_ids]
+    if not new_docs:
+        return existing, "unchanged"
+    old_ev = parse_evidence(existing.body)
+    ev = old_ev + [e for e in parse_evidence(new.body) if e["doc_id"] in new_docs]
+    doc_ids = sorted(set(existing.doc_ids) | set(new_docs))
+    escalates = _URGENCY_RANK.get(new.urgency, 1) > _URGENCY_RANK.get(existing.urgency, 1)
+    reopen = new.urgency == "critical" and escalates and transition(existing.status, "reopen") is not None
+    _ = translator_for(existing.lang)
+    seen_prefix = _("Seen in {n} documents: {docs}").split("{n}")[0]
+    summary = "\n\n".join(
+        p for p in _section(existing.body, _("Summary")).split("\n\n") if not p.startswith(seen_prefix)
+    ) or _section(new.body, _("Summary"))
+    rec = _section(new.body, _("Recommendation")) or _section(existing.body, _("Recommendation"))
+    rec = rec.split("\n> ")[0].strip()  # the disclaimer is re-added by code
+    srcs = []
+    for body in (new.body, existing.body):
+        for line in _section(body, _("Sources")).splitlines():
+            m = re.match(r"^- (\S+) \((.*)\)$", line.strip())
+            if m and m.group(1) not in [x["url"] for x in srcs]:
+                srcs.append({"url": m.group(1), "retrieved": m.group(2)})
+    fields = {
+        "doc_ids": doc_ids,
+        "urgency": new.urgency if escalates else existing.urgency,
+        "advice": bool(rec),
+        "evidence_hash": evidence_hash(doc_ids, [existing.finding_key]),
+        "finding_key": new.finding_key,
+        "correspondent": new.correspondent if new.correspondent is not None else existing.correspondent,
+    }
+    if reopen:
+        fields.update(status="new", surfaced_at=None, snoozed_until=None)
+    body = series_body(existing.lang, summary=summary, doc_ids=doc_ids, evidence=ev,
+                       sources=srcs, recommendation=rec)
+    done = await update(user, existing.finding_id, lambda _cur: dict(fields), body=lambda _cur: body)
+    return done or existing, "reopened" if reopen else "merged"
+
+
+async def upsert_series(user: str, f: Finding) -> tuple[Finding, str]:
+    """`upsert` for insights: a new document of a known series joins it."""
+    existing = find_by_key(user, f.finding_key)
+    if existing is not None and set(f.doc_ids) - set(existing.doc_ids):
+        return await add_to_series(user, existing, f)
+    return await upsert(user, f)
