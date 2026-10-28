@@ -58,23 +58,41 @@ async def _similar(request: Request) -> dict:
     return {"docs": [{"doc_id": h.document.id, "title": h.document.title} for h in hits]}
 
 
-@app.post("/api/internal/proactive/deep_dive")
-async def _deep_dive(request: Request) -> dict:
-    data = await _authorized(request)
-    user = data.get("user", "")
-    tok = _token(user)
+def _finding_and_model(data: dict):
     from proactive import findings
-    from proactive.deep_dive_app import run
     from proactive.models import ResolvedModel
 
-    f = findings.get(user, str(data.get("finding_id", "")))
+    f = findings.get(data.get("user", ""), str(data.get("finding_id", "")))
     if f is None:
         raise HTTPException(status_code=404, detail="no such finding")
     m = data.get("model") or {}
     model = ResolvedModel(m.get("name", ""), m.get("lane", "local"), m.get("source", "default"), m.get("model_id", ""))
     if not model.name:
         raise HTTPException(status_code=400, detail="no model")
-    return await run(user, tok, f, model)
+    return f, model
+
+
+@app.post("/api/internal/proactive/deep_dive")
+async def _deep_dive(request: Request) -> dict:
+    """Start the deep dive's Werkbank run; answers with its id right away."""
+    data = await _authorized(request)
+    user = data.get("user", "")
+    tok = _token(user)
+    from proactive.deep_dive_app import start
+
+    f, model = _finding_and_model(data)
+    return {"run_id": await start(user, tok, f, model)}
+
+
+@app.post("/api/internal/proactive/deep_dive_result")
+async def _deep_dive_result(request: Request) -> dict:
+    data = await _authorized(request)
+    user = data.get("user", "")
+    tok = _token(user)
+    from proactive.deep_dive_app import result
+
+    f, model = _finding_and_model(data)
+    return await result(user, tok, str(data.get("run_id", "")), f, model)
 
 
 @app.post("/api/internal/proactive/dossier")

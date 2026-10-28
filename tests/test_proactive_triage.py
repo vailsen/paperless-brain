@@ -363,27 +363,68 @@ def test_triage_nothing_worth_it_writes_nothing(env, triage_llm):
 # ── Deep dive ────────────────────────────────────────────────────────────────
 
 
-def test_deep_dive_result_is_validated_written_and_does_not_count(env, monkeypatch):
-    from proactive import findings, internal_client, models, pushes
+def test_deep_dive_starts_the_run_and_links_it_in_the_finding(env, monkeypatch):
+    from proactive import findings, internal_client, jobs, models
 
     fid = _insight(env, 0, status="interested")
     monkeypatch.setattr(models, "resolve_model", lambda u, t, p=None: _model())
 
-    async def remote(user, finding_id, model):
-        return {
-            "summary": "Ein Wechsel lohnt sich.",
-            "recommendation": "Angebote vergleichen.",
-            "evidence": [{"doc_id": 1, "quote": "Die Abschluss- und Vertriebskosten betragen 2,5 % der Beitragssumme."}],
-            "sources": ["https://a.example/x", "https://not-fetched.example"],
-            "fetched": {"https://a.example/x": "2026-10-26"},
-        }
+    async def start(user, finding_id, model):
+        return "run1"
 
-    monkeypatch.setattr(internal_client, "deep_dive", remote)
+    monkeypatch.setattr(internal_client, "deep_dive", start)
     _run("deep_dive", "alice", {"finding_id": fid})
     f = findings.get("alice", fid)
+    assert f.status == "interested" and f.research_run == "run1"
+    assert jobs.pending_count(kind="deep_dive_poll") == 1
+
+
+def _poll(env, monkeypatch, answer):
+    from proactive import findings, internal_client, models
+
+    fid = _insight(env, 0, status="interested")
+    asyncio.run(findings.update("alice", fid, lambda x: {"research_run": "run1"}))
+    monkeypatch.setattr(models, "resolve_model", lambda u, t, p=None: _model())
+
+    async def result(user, finding_id, run_id, model):
+        return answer
+
+    monkeypatch.setattr(internal_client, "deep_dive_result", result)
+    _run("deep_dive_poll", "alice", {"finding_id": fid, "run_id": "run1"})
+    return findings.get("alice", fid)
+
+
+def test_deep_dive_poll_waits_for_a_running_run(env, monkeypatch):
+    from proactive import jobs
+
+    f = _poll(env, monkeypatch, {"state": "running"})
+    assert f.status == "interested"
+    (j,) = [jobs.get(i) for i in range(1, 5) if jobs.get(i) and jobs.get(i).kind == "deep_dive_poll"]
+    assert j.status == "queued" and j.attempts == 0
+
+
+def test_deep_dive_result_is_validated_written_and_does_not_count(env, monkeypatch):
+    from proactive import pushes
+
+    f = _poll(env, monkeypatch, {
+        "state": "done",
+        "summary": "Ein Wechsel lohnt sich.",
+        "recommendation": "Angebote vergleichen.",
+        "evidence": [{"doc_id": 1, "quote": "Die Abschluss- und Vertriebskosten betragen 2,5 % der Beitragssumme."}],
+        "sources": ["https://a.example/x", "https://not-fetched.example"],
+        "fetched": {"https://a.example/x": "2026-10-26"},
+    })
     assert f.status == "researched" and f.advice
     assert "https://a.example/x" in f.body and "not-fetched" not in f.body
+    head = f.body.split("\n---\n")[0]
+    assert head.startswith("## Research result (") and "/werkbank?run=run1" in head
+    assert "### Summary" in head and "Ein Wechsel lohnt sich." in head
     assert len(_tg(env)) == 1 and pushes.last_push("alice") is None  # asked for: not logged
+
+
+def test_deep_dive_run_deleted_leaves_the_finding_unresearched(env, monkeypatch):
+    f = _poll(env, monkeypatch, {"state": "gone"})
+    assert f.status == "interested" and f.research_run is None
 
 
 def test_deep_dive_defers_while_the_app_is_down(env, monkeypatch):

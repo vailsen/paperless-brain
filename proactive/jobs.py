@@ -267,6 +267,15 @@ def get(job_id: int) -> Job | None:
     return Job.from_row(row) if row else None
 
 
+def is_pending(dedupe_key: str) -> bool:
+    """Is a job with this key queued or running?"""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT 1 FROM jobs WHERE dedupe_key = ? AND status IN ('queued', 'running') LIMIT 1",
+            (dedupe_key,),
+        ).fetchone() is not None
+
+
 def pending_count(
     *, needs_llm: bool | None = None, kind: str | None = None, due_only: bool = False,
     lane: str | None = None,

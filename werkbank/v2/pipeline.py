@@ -43,6 +43,12 @@ def track(run_id: str, task: "asyncio.Task") -> None:
     task.add_done_callback(lambda _t, rid=run_id: _running.pop(rid, None))
 
 
+def is_executing(run_id: str) -> bool:
+    """Is a task of this process working on the run right now?"""
+    task = _running.get(run_id)
+    return task is not None and not task.done()
+
+
 def cancel_run(run_id: str) -> bool:
     """Stop a run that is executing. True if something was actually cancelled."""
     task = _running.pop(run_id, None)

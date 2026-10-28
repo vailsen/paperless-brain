@@ -260,6 +260,15 @@ def list_runs(user_id: str, limit: int = 50) -> list[dict]:
         ]
 
 
+def run_status(run_id: str, user_id: str) -> str | None:
+    """The run's status, or None if there is no such run (deleted)."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT status FROM wb2_runs WHERE run_id=? AND user_id=?", (run_id, user_id)
+        ).fetchone()
+    return row["status"] if row else None
+
+
 def run_exists(run_id: str, user_id: str) -> bool:
     with connect() as conn:
         return conn.execute(

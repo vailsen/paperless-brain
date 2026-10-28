@@ -60,8 +60,14 @@ def _in_app_links(body: str) -> str:
     """`…/documents/241/details` (Paperless) → `#pbdoc-241` (the dialog)."""
     from config.settings import settings
 
+    from config.proactive import proactive_settings
+
     base = re.escape(settings.paperless_url.rstrip("/"))
     body = re.sub(base + r"/documents/(\d+)/details/?", r"#pbdoc-\1", body)
+    # Links into the app itself (the deep dive's report) stay in the app.
+    app = proactive_settings().proactive_app_base_url.rstrip("/")
+    if app:
+        body = re.sub(re.escape(app) + r"(?=/)", "", body)
     # markdown2 does not autolink bare URLs; Obsidian does.
     return _BARE_URL.sub(lambda m: f"<{m.group(0)}>", body)
 
@@ -150,6 +156,7 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
     page_layout()
     _ = get_translator()
     from proactive import findings, reactions
+    from proactive import jobs as _jobs
     from proactive.notify import ACTION_LABELS
     from proactive.states import reactions_for
 
@@ -221,6 +228,23 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                     for d in f.doc_ids:
                         ui.link(f"#{d}", f"#pbdoc-{d}").classes("text-xs")
 
+            if f.research_run and f.status in ("interested", "researched"):
+                running = f.status == "interested"
+                with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    if running:
+                        ui.spinner(size="sm").props("color=primary")
+                    ui.label(
+                        _("Research running — it gives way while you chat.") if running
+                        else _("Researched — the result is at the top.")
+                    ).classes("text-xs text-gray-400 flex-1 min-w-0")
+                    ui.button(_("Open in deep research"), icon="auto_awesome",
+                              on_click=lambda r=f.research_run: ui.navigate.to(f"/werkbank?run={quote(r)}")).props(
+                        "flat dense no-caps"
+                    ).classes("text-xs flex-shrink-0")
+            elif f.status == "interested" and _jobs.is_pending(f"deep_dive:{f.finding_id}"):
+                ui.label(_("Research queued — it starts as soon as the model is free.")).classes(
+                    "text-xs text-gray-400")
+
             allowed = reactions_for(f.status, f.kind)
 
             async def _do(a: str) -> None:
@@ -252,3 +276,17 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             ui.markdown(_in_app_links(findings.tidy_sources(f.body, f.lang))).classes("chat-md finding-md w-full min-w-0")
 
         body(action)
+
+        # A deep dive finishes while the page is open: show the result without a reload.
+        def _key(f) -> tuple:
+            return (f.status, f.research_run) if f else ()
+
+        seen = {"key": _key(findings.get(user, finding_id))}
+
+        def _watch() -> None:
+            k = _key(findings.get(user, finding_id))
+            if k and k != seen["key"]:
+                seen["key"] = k
+                body.refresh("")
+
+        ui.timer(15.0, _watch)

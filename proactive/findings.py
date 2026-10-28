@@ -90,6 +90,8 @@ class Finding:
     #: Paperless correspondent id of the documents (insights): with the topic
     #: it is what makes a series — twelve invoices, one price change — one finding.
     correspondent: int | None = None
+    #: The Werkbank run of the deep dive ("Interesting"), once it was started.
+    research_run: str | None = None
     # not in frontmatter
     user: str = ""
     rel: str = ""  # vault-relative path
@@ -124,6 +126,8 @@ class Finding:
                 d.pop(k)
         if self.correspondent is not None:
             d["correspondent"] = int(self.correspondent)
+        if self.research_run:
+            d["research_run"] = self.research_run
         return d
 
     @property
@@ -191,6 +195,7 @@ def parse(text: str, *, user: str = "", rel: str = "") -> Finding | None:
         lang=str(m.get("lang") or "en"),
         pbrain_id=get_id(m),
         correspondent=_ints([m.get("correspondent")])[0] if _ints([m.get("correspondent")]) else None,
+        research_run=_s(m.get("research_run")),
         user=user,
         rel=rel,
         body=note.body,

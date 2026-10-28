@@ -235,7 +235,7 @@ def test_web_query_guard_applies_inside_werkbank_belts():
     assert asyncio.run(belt.execute("web_search", {"query": "Alice Vertrag Nr. 4711"})) == "results"
 
 
-def test_deep_dive_runs_werkbank_with_the_guard_set(monkeypatch):
+def test_deep_dive_runs_werkbank_in_the_background_with_guard_and_yield(monkeypatch):
     from proactive import deep_dive_app, paperless_ro
     from proactive.findings import Finding
     from proactive.models import ResolvedModel
@@ -243,30 +243,97 @@ def test_deep_dive_runs_werkbank_with_the_guard_set(monkeypatch):
     from werkbank.v2 import pipeline, store
     from werkbank.v2.tools import web_query_guard
 
-    seen = {}
+    seen = {"status": []}
 
     async def whoami(t):
         return {"first_name": "Alice", "username": "alice"}
 
-    async def run_from_request(request, user, model, *, notify=True):
+    def create_draft(request, user, model):
+        seen["request"] = request
+        return "run1"
+
+    async def brief_draft(run_id, user, model):
+        return object()
+
+    async def start_run(run_id, user, model, *, notify=True, progress=None):
         seen["notify"] = notify
         screen = web_query_guard.get()
         seen["guarded"] = screen is not None and screen("Alice Riester") is not None
-        seen["request"] = request
-        return "run1", None
+        seen["yields"] = llm_lane.yield_to_chat.get()
+
+    monkeypatch.setattr(paperless_ro, "whoami", whoami)
+    monkeypatch.setattr(pipeline, "register_token", lambda u, t: None)
+    monkeypatch.setattr(pipeline, "create_draft", create_draft)
+    monkeypatch.setattr(pipeline, "brief_draft", brief_draft)
+    monkeypatch.setattr(pipeline, "confirm_draft", lambda r, u, b: None)
+    monkeypatch.setattr(pipeline, "start_run", start_run)
+    monkeypatch.setattr(store, "set_run_status", lambda r, u, st: seen["status"].append(st))
+    f = Finding(finding_id="abcdefg", kind="insight", title="Riester", topic="riester", doc_ids=[1], body="b")
+    model = ResolvedModel("q", "local", "default", "q")
+
+    async def go():
+        run_id = await deep_dive_app.start("alice", "tok", f, model)
+        assert pipeline.is_executing(run_id)  # answered before the run is over
+        await pipeline._running[run_id]
+        return run_id
+
+    assert asyncio.run(go()) == "run1"
+    assert seen["guarded"] and seen["yields"] and "generic terms" in seen["request"]
+    assert seen["notify"] is False  # its result message is the notification
+    assert seen["status"] == ["running"]  # listed as running, not as "start / resume"
+    assert web_query_guard.get() is None and llm_lane.yield_to_chat.get() is False
+
+
+def test_deep_dive_result_reports_the_run_state(monkeypatch):
+    from proactive import deep_dive_app
+    from proactive.findings import Finding
+    from proactive.models import ResolvedModel
+    from werkbank import llm_lane
+    from werkbank.v2 import pipeline, store
 
     async def condensed(*a, **k):
         return {"summary": "s", "recommendation": "r", "evidence": [], "sources": ["https://x"]}
 
-    monkeypatch.setattr(paperless_ro, "whoami", whoami)
-    monkeypatch.setattr(pipeline, "run_from_request", run_from_request)
-    monkeypatch.setattr(pipeline, "register_token", lambda u, t: None)
+    status = {"run1": "running"}
+    monkeypatch.setattr(store, "run_status", lambda r, u: status.get(r))
     monkeypatch.setattr(store, "load_report", lambda r, u: "report")
     monkeypatch.setattr(store, "fetched_pages", lambda r, u: {"https://x": "2026-10-26"})
     monkeypatch.setattr(llm_lane, "complete_structured", condensed)
     f = Finding(finding_id="abcdefg", kind="insight", title="Riester", topic="riester", doc_ids=[1], body="b")
-    out = asyncio.run(deep_dive_app.run("alice", "tok", f, ResolvedModel("q", "local", "default", "q")))
-    assert seen["guarded"] and "generic terms" in seen["request"]
-    assert seen["notify"] is False  # its result message is the notification
-    assert web_query_guard.get() is None  # reset after the run
-    assert out["fetched"] == {"https://x": "2026-10-26"} and out["run_id"] == "run1"
+    m = ResolvedModel("q", "local", "default", "q")
+
+    def res(run_id):
+        return asyncio.run(deep_dive_app.result("alice", "tok", run_id, f, m))
+
+    assert res("nope") == {"state": "gone"}
+    assert res("run1") == {"state": "stalled"}  # nothing in this process works on it
+    monkeypatch.setattr(pipeline, "is_executing", lambda r: True)
+    assert res("run1") == {"state": "running"}
+    status["run1"] = "done"
+    out = res("run1")
+    assert out["state"] == "done" and out["fetched"] == {"https://x": "2026-10-26"} and out["run_id"] == "run1"
+
+
+def test_a_proactive_run_waits_while_a_user_chats(monkeypatch):
+    from services import ollama_watchdog
+    from werkbank import llm_lane
+
+    busy = [True, True, False]
+    slept = []
+
+    async def sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(ollama_watchdog, "chat_busy", lambda: busy.pop(0))
+    monkeypatch.setattr(llm_lane.asyncio, "sleep", sleep)
+
+    asyncio.run(llm_lane._wait_for_chat(llm_lane._LOCAL_SEM))  # unset: no wait
+    assert slept == []
+
+    async def proactive():
+        llm_lane.yield_to_chat.set(True)
+        await llm_lane._wait_for_chat(llm_lane._API_SEM)    # cloud lane: no wait
+        await llm_lane._wait_for_chat(llm_lane._LOCAL_SEM)
+
+    asyncio.run(proactive())
+    assert len(slept) == 2 and busy == []

@@ -1,12 +1,19 @@
 """App-side research for the proactive system: deep dives and dossiers.
 
-Deep dive (`run`, Phase 8): a full Werkbank v2 run for the finding — planner,
-agents, the D-checks, the report — started headless with the user's token from
-their background-access grant. The proactive query guard is set for the run
-(`werkbank.v2.tools.web_query_guard`), so every web search of every agent is
-screened in code. The report is then condensed into summary / recommendation /
-evidence / sources, and returned with the pages the run actually fetched; the
-worker validates and writes. Nothing here writes the finding.
+Deep dive (`start` + `result`, Phase 8): a full Werkbank v2 run for the
+finding — planner, agents, the D-checks, the report — started headless with the
+user's token from their background-access grant. `start` puts the run in the
+Werkbank list at once (status "briefing", then "running") and returns its id;
+the run goes on in the background, so the user sees it immediately and the
+worker's request does not hang for the length of a run. The proactive query
+guard is set for the run (`werkbank.v2.tools.web_query_guard`), so every web
+search of every agent is screened in code, and `llm_lane.yield_to_chat`, so a
+user who starts chatting gets the GPU after the call in progress.
+
+`result` is what the worker polls: the run's state, and once the report is
+written, the report condensed into summary / recommendation / evidence /
+sources with the pages the run actually fetched; the worker validates and
+writes. Nothing here writes the finding.
 
 Dossier (`dossier`, Phase 8): candidates from the index (semantic search on the
 topic, neighbours of the seed document, same correspondent), a relevance pass,
@@ -80,27 +87,63 @@ async def _names(user: str, token: str) -> list[str]:
         return [user.lower()]
 
 
-async def run(user: str, token: str, finding, model) -> dict:
-    from i18n import language_name
-    from werkbank.llm_lane import complete_structured
+async def start(user: str, token: str, finding, model) -> str:
+    """Create the Werkbank run for `finding`, launch it in the background and
+    return its id at once."""
+    import asyncio
+
+    from werkbank.llm_lane import yield_to_chat
     from werkbank.v2 import pipeline, store
     from werkbank.v2.tools import web_query_guard
 
-    who, tok = (user, token) if model.uses_registry else ("", "")
     pipeline.register_token(user, token)
-    reset = web_query_guard.set(_names_guard(await _names(user, token)))
-    try:
-        run_id, _state = await pipeline.run_from_request(
-            REQUEST.format(
-                title=finding.title, topic=finding.topic,
-                docs=", ".join(f"#{d}" for d in finding.doc_ids), body=finding.body[:6000],
-            ),
-            user,
-            model.name,
-            notify=False,  # the deep dive's own result message follows
-        )
-    finally:
-        web_query_guard.reset(reset)
+    request = REQUEST.format(
+        title=finding.title, topic=finding.topic,
+        docs=", ".join(f"#{d}" for d in finding.doc_ids), body=finding.body[:6000],
+    )
+    run_id = pipeline.create_draft(request, user, model.name)  # listed from now on
+    guard = _names_guard(await _names(user, token))
+
+    async def go() -> None:
+        # Set inside the task: these hold for every call the run makes.
+        g, y = web_query_guard.set(guard), yield_to_chat.set(True)
+        try:
+            brief = await pipeline.brief_draft(run_id, user, model.name)
+            if brief is None:  # deleted while briefing
+                return
+            pipeline.confirm_draft(run_id, user, brief)
+            store.set_run_status(run_id, user, "running")
+            await pipeline.start_run(run_id, user, model.name, notify=False)
+            log.info("%s: deep dive for %s finished (Werkbank run %s)", user, finding.finding_id, run_id)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("%s: deep dive run %s failed", user, run_id)
+            if store.run_status(run_id, user) not in (None, "done"):
+                store.set_run_status(run_id, user, "failed")
+        finally:
+            web_query_guard.reset(g)
+            yield_to_chat.reset(y)
+
+    pipeline.track(run_id, asyncio.create_task(go()))
+    return run_id
+
+
+async def result(user: str, token: str, run_id: str, finding, model) -> dict:
+    """`{"state": …}` of the run. "gone" = deleted, "running" = working on it
+    in this process, "stalled" = not finished and nothing works on it (the app
+    restarted, or it failed — the user can resume it in the Werkbank), "done"
+    with the condensed result."""
+    from i18n import language_name
+    from werkbank.llm_lane import complete_structured
+    from werkbank.v2 import pipeline, store
+
+    status = store.run_status(run_id, user)
+    if status is None:
+        return {"state": "gone"}
+    if status != "done":
+        return {"state": "running" if pipeline.is_executing(run_id) else "stalled"}
+    who, tok = (user, token) if model.uses_registry else ("", "")
     report = store.load_report(run_id, user)
     lang = language_name(finding.lang or "en")
     raw = await complete_structured(
@@ -108,8 +151,8 @@ async def run(user: str, token: str, finding, model) -> dict:
         [{"role": "user", "content": CONDENSE.format(language=lang, report=report[:16000])}],
         model=model.name, user_id=who, token=tok, json_schema=RESULT_SCHEMA, tool_name="deep_dive_result",
     )
-    log.info("%s: deep dive for %s done (Werkbank run %s)", user, finding.finding_id, run_id)
     return {
+        "state": "done",
         "summary": str(raw.get("summary") or ""),
         "recommendation": str(raw.get("recommendation") or ""),
         "evidence": raw.get("evidence") or [],

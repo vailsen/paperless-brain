@@ -4,6 +4,7 @@ Werkbank run in the app), the quiet-period digest."""
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
 from proactive import clock, findings, interests, pushes, users
 from proactive.jobs import Defer, Job, handler
@@ -19,16 +20,28 @@ async def _triage(user, token, a, meta, model) -> bool:
     return await triage(user, token, a, meta, model)
 
 
+#: How often the worker asks the app whether a deep dive's run is done, and
+#: how long it keeps asking for a run nothing works on (the app restarted; the
+#: user can resume it in the Werkbank).
+DEEP_DIVE_POLL_S = 120
+DEEP_DIVE_STALLED_POLL_S = 900
+DEEP_DIVE_GIVE_UP_DAYS = 14
+
+
+def _model_payload(model) -> dict:
+    return {"name": model.name, "lane": model.lane, "source": model.source, "model_id": model.model_id}
+
+
 @handler("deep_dive", needs_llm=True)
 async def deep_dive(job: Job) -> None:
-    """`run_deep_dive(finding)`: research in the app (documents + web, guard
-    active), validated and written here, then one message (it was asked for,
-    so it does not count against the weekly limit)."""
-    from proactive import analysis, notify, scoring
+    """Start the research for an "Interesting" finding: a Werkbank run in the
+    app (documents + web, guard active, steps aside for a chat). The run id goes
+    into the finding at once — the finding page links to it while it runs — and
+    `deep_dive_poll` picks the result up."""
+    from proactive import jobs
     from proactive.internal_client import InternalUnavailable
-    from proactive.internal_client import deep_dive as remote
+    from proactive.internal_client import deep_dive as remote_start
     from proactive.models import resolve_model
-    from proactive.states import reactions_for, transition
 
     fid = job.payload["finding_id"]
     tok = users.token(job.user)
@@ -40,19 +53,70 @@ async def deep_dive(job: Job) -> None:
     model = resolve_model(job.user, tok)
     if model is None:
         raise Defer("no allowed model", 3600)
+    run_id = f.research_run
+    if not run_id:
+        try:
+            run_id = await remote_start(job.user, fid, _model_payload(model))
+        except InternalUnavailable as exc:
+            raise Defer(f"app not reachable ({exc})", 600) from exc
+        await findings.update(job.user, fid, lambda x: {"research_run": run_id})
+    jobs.enqueue(
+        "deep_dive_poll", job.user,
+        {"finding_id": fid, "run_id": run_id, "since": clock.now_iso()},
+        delay=timedelta(seconds=DEEP_DIVE_POLL_S), dedupe_key=f"deep_dive_poll:{fid}",
+    )
+
+
+@handler("deep_dive_poll")
+async def deep_dive_poll(job: Job) -> None:
+    """Is the deep dive's run done? Then validate, write, send one message.
+
+    Not an LLM job for the gate: the run itself is the app's work, and it keeps
+    `app_busy` true for as long as it runs — a gated poll would never get to
+    ask. The one model call (condensing the report) happens in the app, right
+    after the run, on the host the run kept awake."""
+    from proactive import analysis, notify, scoring
+    from proactive.internal_client import InternalUnavailable
+    from proactive.internal_client import deep_dive_result as remote_result
+    from proactive.models import resolve_model
+    from proactive.states import reactions_for, transition
+
+    fid, run_id = job.payload["finding_id"], job.payload["run_id"]
+    tok = users.token(job.user)
+    if not tok:
+        return
+    f = findings.get(job.user, fid)
+    if f is None or f.status != "interested" or f.research_run != run_id:
+        return
+    model = resolve_model(job.user, tok)
+    if model is None:
+        raise Defer("no allowed model", 3600)
     try:
-        res = await remote(job.user, fid, {
-            "name": model.name, "lane": model.lane, "source": model.source, "model_id": model.model_id,
-        })
+        res = await remote_result(job.user, fid, run_id, _model_payload(model))
     except InternalUnavailable as exc:
         raise Defer(f"app not reachable ({exc})", 600) from exc
+    state = res.get("state")
+    if state == "gone":
+        # The user deleted the run: the finding is interesting again, unresearched.
+        log.info("%s: deep dive run %s of %s was deleted", job.user, run_id, fid)
+        await findings.update(job.user, fid, lambda x: {"research_run": None} if x.research_run == run_id else None)
+        return
+    if state != "done":
+        age = clock.utcnow() - clock.parse(job.payload.get("since") or clock.now_iso())
+        if state == "stalled" and age > timedelta(days=DEEP_DIVE_GIVE_UP_DAYS):
+            log.info("%s: deep dive run %s of %s stalled, no longer polled", job.user, run_id, fid)
+            return
+        raise Defer(f"run {run_id} {state}", DEEP_DIVE_POLL_S if state == "running" else DEEP_DIVE_STALLED_POLL_S)
+
     texts = {d: analysis.sidecar_text(d) or "" for d in f.doc_ids}
     rec, ev, src = scoring.validate_advice(
         res.get("recommendation", ""), res.get("evidence") or [], res.get("sources") or [],
         doc_texts=texts, fetched=res.get("fetched") or {},
     )
-    body = findings.render_body(
-        f.lang, summary=res.get("summary") or "", evidence=ev, sources=src, recommendation=rec,
+    body = research_body(
+        f.lang, run_id, findings.render_body(
+            f.lang, summary=res.get("summary") or "", evidence=ev, sources=src, recommendation=rec,
+        ),
     )
     original = f.body
 
@@ -68,6 +132,20 @@ async def deep_dive(job: Job) -> None:
         full_text=res.get("summary") or "", actions=reactions_for("researched", "insight"),
         counts=False,
     ))
+
+
+def research_body(lang: str, run_id: str, sections: str) -> str:
+    """The research result under its own heading, with a link to the full
+    report — above the original finding, which stays below a rule."""
+    from i18n import translator_for
+    from proactive.notify import app_link
+
+    _ = translator_for(lang)
+    head = _("Research result ({date})").format(date=clock.local_now().date().isoformat())
+    link = _("[Full report in deep research]({url})").format(url=app_link(f"/werkbank?run={run_id}"))
+    # The run's sections one level down, under the research heading.
+    demoted = "\n".join("#" + line if line.startswith("## ") else line for line in sections.splitlines())
+    return f"## {head}\n\n{link}\n\n{demoted}\n"
 
 
 @daily.also

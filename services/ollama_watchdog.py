@@ -119,6 +119,22 @@ def touch() -> None:
         pass
 
 
+#: Monotonic time of the last chat request in this process (`chat_touch`).
+_chat_last: float | None = None
+
+
+def chat_touch() -> None:
+    """A user's chat just sent an inference request. Process-local: what waits
+    on it (a proactive Werkbank run, `chat_busy`) runs in the app too."""
+    global _chat_last
+    _chat_last = time.monotonic()
+
+
+def chat_busy() -> bool:
+    """Did a chat use the model within `APP_YIELD_S`?"""
+    return _chat_last is not None and time.monotonic() - _chat_last < APP_YIELD_S
+
+
 def app_busy(now: datetime | None = None) -> bool:
     """Did the app (a user's chat, ingest, Werkbank) use the model within
     `APP_YIELD_S`? Read by the worker before it starts an LLM job."""

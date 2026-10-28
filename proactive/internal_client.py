@@ -40,9 +40,18 @@ async def similar(user: str, doc_id: int, k: int = 5) -> list[dict]:
     return (await call("similar", {"user": user, "doc_id": int(doc_id), "k": k}, timeout=60)).get("docs", [])
 
 
-async def deep_dive(user: str, finding_id: str, model: dict) -> dict:
-    # A research run takes minutes; the job waits for it.
-    return await call("deep_dive", {"user": user, "finding_id": finding_id, "model": model}, timeout=1800)
+async def deep_dive(user: str, finding_id: str, model: dict) -> str:
+    """Start the research run in the app; returns its Werkbank run id at once
+    (only the brief's setup happens in the request)."""
+    out = await call("deep_dive", {"user": user, "finding_id": finding_id, "model": model}, timeout=120)
+    return str(out["run_id"])
+
+
+async def deep_dive_result(user: str, finding_id: str, run_id: str, model: dict) -> dict:
+    """The run's state; once it is done, the condensed result (one model call)."""
+    return await call("deep_dive_result", {
+        "user": user, "finding_id": finding_id, "run_id": run_id, "model": model,
+    }, timeout=900)
 
 
 async def vault_sync(user: str) -> dict:

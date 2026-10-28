@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-28 21:04+0100\n"
+"POT-Creation-Date: 2026-10-28 21:30+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -394,7 +394,7 @@ msgstr ""
 msgid "Loading…"
 msgstr ""
 
-#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:193
+#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:200
 #, python-brace-format
 msgid "#{id} not found"
 msgstr ""
@@ -413,8 +413,8 @@ msgid "Show in PDF"
 msgstr ""
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
-#: proactive/findings.py:230 proactive/findings.py:613
-#: proactive/findings.py:614
+#: proactive/findings.py:235 proactive/findings.py:618
+#: proactive/findings.py:619
 msgid "Summary"
 msgstr ""
 
@@ -615,7 +615,7 @@ msgstr ""
 msgid "Note vault"
 msgstr ""
 
-#: app_ui/layout.py:56 app_ui/pages/findings.py:98
+#: app_ui/layout.py:56 app_ui/pages/findings.py:104
 msgid "Findings"
 msgstr ""
 
@@ -676,7 +676,7 @@ msgstr ""
 msgid "The file exceeds {n} MB."
 msgstr ""
 
-#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:120
+#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:126
 msgid "Topic"
 msgstr ""
 
@@ -978,7 +978,7 @@ msgstr ""
 msgid "Email address confirmed."
 msgstr ""
 
-#: app_ui/pages/findings.py:236 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:260 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr ""
 
@@ -1622,7 +1622,7 @@ msgstr ""
 msgid "Attachments are read-only."
 msgstr ""
 
-#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:105
+#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:111
 msgid "Open"
 msgstr ""
 
@@ -1651,13 +1651,13 @@ msgid "Range"
 msgstr ""
 
 #: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:341
-#: app_ui/pages/findings.py:175
+#: app_ui/pages/findings.py:182
 #, python-brace-format
 msgid "#{id} unpinned"
 msgstr ""
 
 #: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:344
-#: app_ui/pages/findings.py:179
+#: app_ui/pages/findings.py:186
 #, python-brace-format
 msgid "#{id} pinned"
 msgstr ""
@@ -1778,7 +1778,7 @@ msgstr ""
 msgid "p. {n}"
 msgstr ""
 
-#: app_ui/pages/chat.py:211 proactive/findings.py:240 proactive/findings.py:619
+#: app_ui/pages/chat.py:211 proactive/findings.py:245 proactive/findings.py:624
 #: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr ""
@@ -2870,50 +2870,66 @@ msgstr ""
 msgid "Insight"
 msgstr ""
 
-#: app_ui/pages/findings.py:78 proactive/notify/__init__.py:99
+#: app_ui/pages/findings.py:84 proactive/notify/__init__.py:99
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr ""
 
-#: app_ui/pages/findings.py:80
+#: app_ui/pages/findings.py:86
 #, python-brace-format
 msgid "Due {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:105
+#: app_ui/pages/findings.py:111
 msgid "All"
 msgstr ""
 
-#: app_ui/pages/findings.py:116 werkbank/ui/module_page.py:247
+#: app_ui/pages/findings.py:122 werkbank/ui/module_page.py:247
 msgid "Status"
 msgstr ""
 
-#: app_ui/pages/findings.py:119
+#: app_ui/pages/findings.py:125
 msgid "All topics"
 msgstr ""
 
-#: app_ui/pages/findings.py:135
+#: app_ui/pages/findings.py:141
 msgid "Nothing here yet."
 msgstr ""
 
-#: app_ui/pages/findings.py:202
+#: app_ui/pages/findings.py:209
 msgid "All findings"
 msgstr ""
 
-#: app_ui/pages/findings.py:206
+#: app_ui/pages/findings.py:213
 msgid "Chat about this"
 msgstr ""
 
-#: app_ui/pages/findings.py:215 proactive/reactions.py:55
+#: app_ui/pages/findings.py:222 proactive/reactions.py:55
 msgid "This item no longer exists."
 msgstr ""
 
-#: app_ui/pages/findings.py:233
+#: app_ui/pages/findings.py:237
+msgid "Research running — it gives way while you chat."
+msgstr ""
+
+#: app_ui/pages/findings.py:238
+msgid "Researched — the result is at the top."
+msgstr ""
+
+#: app_ui/pages/findings.py:240
+msgid "Open in deep research"
+msgstr ""
+
+#: app_ui/pages/findings.py:245
+msgid "Research queued — it starts as soon as the model is free."
+msgstr ""
+
+#: app_ui/pages/findings.py:257
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr ""
 
-#: app_ui/pages/findings.py:240 proactive/reactions.py:54
+#: app_ui/pages/findings.py:264 proactive/reactions.py:54
 msgid "Already handled."
 msgstr ""
 
@@ -3800,19 +3816,19 @@ msgstr ""
 msgid "Open questions"
 msgstr ""
 
-#: proactive/findings.py:232
+#: proactive/findings.py:237
 msgid "Evidence"
 msgstr ""
 
-#: proactive/findings.py:245 proactive/findings.py:615
+#: proactive/findings.py:250 proactive/findings.py:620
 msgid "Recommendation"
 msgstr ""
 
-#: proactive/findings.py:309
+#: proactive/findings.py:314
 msgid "Not financial or investment advice. Check the recommendation yourself."
 msgstr ""
 
-#: proactive/findings.py:586 proactive/findings.py:611
+#: proactive/findings.py:591 proactive/findings.py:616
 #, python-brace-format
 msgid "Seen in {n} documents: {docs}"
 msgstr ""
@@ -3887,7 +3903,17 @@ msgstr ""
 msgid "{n} new while you were away"
 msgstr ""
 
-#: proactive/tasks/insights.py:108
+#: proactive/tasks/insights.py:144
+#, python-brace-format
+msgid "Research result ({date})"
+msgstr ""
+
+#: proactive/tasks/insights.py:145
+#, python-brace-format
+msgid "[Full report in deep research]({url})"
+msgstr ""
+
+#: proactive/tasks/insights.py:186
 msgid "What you may have missed"
 msgstr ""
 
@@ -3912,111 +3938,111 @@ msgid ""
 "If you did not ask for this, ignore this message."
 msgstr ""
 
-#: services/chat_service.py:998
+#: services/chat_service.py:999
 msgid "🔍 Searching documents..."
 msgstr ""
 
-#: services/chat_service.py:999
+#: services/chat_service.py:1000
 msgid "🔎 Analytical search..."
 msgstr ""
 
-#: services/chat_service.py:1000
+#: services/chat_service.py:1001
 msgid "🧲 Searching similar documents..."
 msgstr ""
 
-#: services/chat_service.py:1001
+#: services/chat_service.py:1002
 msgid "📋 Loading document details..."
 msgstr ""
 
-#: services/chat_service.py:1002
+#: services/chat_service.py:1003
 msgid "📊 Loading table..."
 msgstr ""
 
-#: services/chat_service.py:1003
+#: services/chat_service.py:1004
 msgid "📄 Reading page text..."
 msgstr ""
 
-#: services/chat_service.py:1004
+#: services/chat_service.py:1005
 msgid "👁 Visual analysis..."
 msgstr ""
 
-#: services/chat_service.py:1005
+#: services/chat_service.py:1006
 msgid "🖼 Showing image..."
 msgstr ""
 
-#: services/chat_service.py:1006
+#: services/chat_service.py:1007
 msgid "🌐 Web search..."
 msgstr ""
 
-#: services/chat_service.py:1007
+#: services/chat_service.py:1008
 msgid "🌐 Loading web page..."
 msgstr ""
 
-#: services/chat_service.py:1008
+#: services/chat_service.py:1009
 msgid "🧮 Calculating..."
 msgstr ""
 
-#: services/chat_service.py:1009
+#: services/chat_service.py:1010
 msgid "📅 Getting date..."
 msgstr ""
 
-#: services/chat_service.py:1010
+#: services/chat_service.py:1011
 msgid "📌 Loading deadlines..."
 msgstr ""
 
-#: services/chat_service.py:1011
+#: services/chat_service.py:1012
 msgid "📌 Creating deadline..."
 msgstr ""
 
-#: services/chat_service.py:1012
+#: services/chat_service.py:1013
 msgid "🗒 Saving note..."
 msgstr ""
 
-#: services/chat_service.py:1013
+#: services/chat_service.py:1014
 msgid "📧 Searching emails..."
 msgstr ""
 
-#: services/chat_service.py:1014
+#: services/chat_service.py:1015
 msgid "📅 Searching calendar..."
 msgstr ""
 
-#: services/chat_service.py:1015
+#: services/chat_service.py:1016
 msgid "📝 Creating letter template..."
 msgstr ""
 
-#: services/chat_service.py:1016
+#: services/chat_service.py:1017
 msgid "📧 Creating email template..."
 msgstr ""
 
-#: services/chat_service.py:1017
+#: services/chat_service.py:1018
 msgid "🧠 Saving fact..."
 msgstr ""
 
-#: services/chat_service.py:1018
+#: services/chat_service.py:1019
 msgid "🧠 Searching memory..."
 msgstr ""
 
-#: services/chat_service.py:1019
+#: services/chat_service.py:1020
 msgid "🧠 Updating fact..."
 msgstr ""
 
-#: services/chat_service.py:1020
+#: services/chat_service.py:1021
 msgid "🧠 Deleting fact..."
 msgstr ""
 
-#: services/chat_service.py:1021
+#: services/chat_service.py:1022
 msgid "📓 Searching notes..."
 msgstr ""
 
-#: services/chat_service.py:1022
+#: services/chat_service.py:1023
 msgid "💾 Creating document..."
 msgstr ""
 
-#: services/chat_service.py:1023
+#: services/chat_service.py:1024
 msgid "⬇️ Preparing download..."
 msgstr ""
 
-#: services/chat_service.py:1024
+#: services/chat_service.py:1025
 msgid "⚙️ Starting deep research..."
 msgstr ""
 

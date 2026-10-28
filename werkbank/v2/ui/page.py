@@ -400,7 +400,7 @@ def _has_open_work(run_id: str, user_id: str) -> bool:
 
 
 @ui.page("/werkbank")
-def werkbank_page() -> None:
+def werkbank_page(run: str = "") -> None:
     if not require_auth():
         return
     page_layout()
@@ -570,3 +570,9 @@ def werkbank_page() -> None:
             run_list.refresh()
 
     ui.timer(4.0, _poll)
+
+    # `?run=` (a finding's deep dive) opens that run's board.
+    if run and store.run_exists(run, user_id):
+        _model = next((r["model"] for r in store.list_runs(user_id) if r["run_id"] == run), "")
+        ui.timer(0.1, lambda: _open_run(run, user_id, _model or (models[0] if models else ""), run_list.refresh, dialog_host),
+                 once=True)

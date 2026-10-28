@@ -24,6 +24,7 @@ from models.web_result import WebSearchResult
 from pipelines.search import search
 from services.citations import cite_ref, page_for, sidecar_page_texts, split_sentences
 from services.clients import chroma, cross_ref_index, paperless, sidecar_service, vision
+from services.ollama_watchdog import chat_touch as _chat_touch
 from services.ollama_watchdog import touch as _wol_touch
 from services.paperless import PaperlessClient as _PaperlessClient
 
@@ -3776,6 +3777,7 @@ class OpenAICompatibleChatBackend:
         for _i in range(max_iterations):
             yield IterationEvent(_i + 1)
             _wol_touch()
+            _chat_touch()  # a proactive research run steps aside
 
             payload: dict = {
                 "model": self.model,
