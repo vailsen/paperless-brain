@@ -111,9 +111,10 @@ def load(user: str) -> Interests:
         return Interests()
 
 
-async def record(user: str, topic: str, *events: str, mute: bool = False) -> Interests:
+async def record(user: str, topic: str, *events: str, mute: bool = False, unmute: bool = False) -> Interests:
     """Count events (`surfaced` | `interested` | `dismissed` | `never`) for a
-    topic in one write; `mute` also adds the topic to `muted`."""
+    topic in one write; `mute` also adds the topic to `muted`, `unmute` takes
+    it off again."""
     from vault.locks import get_user_lock
     from vault.note_text import apply_edits, join_note, split_note
     from vault.notes import NoteConflict, read_note, save_note
@@ -133,6 +134,8 @@ async def record(user: str, topic: str, *events: str, mute: bool = False) -> Int
                 r.last_reaction = today
         if mute:
             i.muted.add(topic)
+        if unmute:
+            i.muted.discard(topic)
         return i
 
     path = _path(user)
@@ -159,7 +162,7 @@ async def record(user: str, topic: str, *events: str, mute: bool = False) -> Int
         i = _apply(parse(snap.text))
         note = split_note(snap.text)
         fm_raw = note.fm_raw
-        if mute:
+        if mute or unmute:
             fm_raw = apply_edits(fm_raw, set_={"muted": sorted(i.muted)})
         text = join_note(type(note)(fm_raw, render_table(i), note.open_fence, note.close_fence))
         try:

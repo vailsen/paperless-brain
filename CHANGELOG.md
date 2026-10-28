@@ -31,6 +31,13 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   the app is English. Findings no longer slip into the document's language.
 - **"Not relevant"** on a finding closes just that one; "Never again" still
   mutes the whole topic.
+  Deadlines have it too, next to "Done" and "Wrongly detected"; it stops the
+  reminders.
+- **"Restore"** on a dismissed or done finding opens it again, without a new
+  message. A topic muted with "Never again" is unmuted.
+- **"Chat about this"** on a finding starts a new conversation with the
+  finding as context and its documents pinned; "Back to finding" returns.
+  The document dialog on a finding page has the pin button too.
 - **Notifications in the app itself (Web Push).** Settings > Proactive > "Turn
   on for this device" — on Android, on an iPhone with the app on the home
   screen, and in desktop browsers, also while the app is closed. End-to-end

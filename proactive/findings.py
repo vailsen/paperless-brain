@@ -235,6 +235,7 @@ def render_body(
             out.append(f"> {quote}")
             out.append(f"> — [#{e['doc_id']}]({paperless_link(e['doc_id'])})")
             out.append("")
+    sources = dedupe_sources(sources or [])
     if sources:
         out += [f"## {_('Sources')}", ""]
         for s in sources:
@@ -245,6 +246,60 @@ def render_body(
         out.append(f"> {disclaimer(lang)}")
         out.append("")
     return "\n".join(out)
+
+
+#: A finding lists at most this many web sources (the newest run's first).
+MAX_SOURCES = 10
+# Query parameters that only track the visit: the same page fetched twice
+# came back with a new `msockid` each time and listed twenty times.
+_TRACKING = re.compile(r"^(utm_.*|msockid|gclid|fbclid|dclid|msclkid|mc_cid|mc_eid|srsltid|_ga|_gl|ref|ref_src)$", re.I)
+_SOURCE_LINE = re.compile(r"^- (\S+) \((.*)\)$")
+
+
+def source_key(url: str) -> str:
+    """What makes two source URLs the same page: scheme, `www.`, a trailing
+    slash, the fragment and tracking parameters do not count."""
+    from urllib.parse import parse_qsl, urlencode, urlsplit
+
+    try:
+        u = urlsplit(url.strip())
+    except ValueError:
+        return url.strip()
+    host = (u.hostname or "").lower().removeprefix("www.")
+    query = urlencode(sorted((k, v) for k, v in parse_qsl(u.query, keep_blank_values=True)
+                             if not _TRACKING.match(k)))
+    return f"{host}{u.path.rstrip('/')}" + (f"?{query}" if query else "")
+
+
+def dedupe_sources(sources: list[dict]) -> list[dict]:
+    """First occurrence of each page, at most `MAX_SOURCES`."""
+    seen, out = set(), []
+    for s in sources:
+        key = source_key(str(s.get("url", "")))
+        if key and key not in seen:
+            seen.add(key)
+            out.append(s)
+    return out[:MAX_SOURCES]
+
+
+def tidy_sources(body: str, lang: str) -> str:
+    """`body` with its Sources list deduplicated — for findings written before
+    `dedupe_sources` existed. Display only; the file is left as it is."""
+    from i18n import translator_for
+
+    heading = f"## {translator_for(lang)('Sources')}"
+    lines = body.splitlines()
+    try:
+        start = lines.index(heading) + 1
+    except ValueError:
+        return body
+    end = next((i for i in range(start, len(lines)) if lines[i].startswith("## ")), len(lines))
+    entries = [m for m in (_SOURCE_LINE.match(x.strip()) for x in lines[start:end]) if m]
+    kept = dedupe_sources([{"url": m.group(1), "retrieved": m.group(2)} for m in entries])
+    if len(kept) == len(entries):
+        return body
+    new = ["", *(f"- {s['url']} ({s['retrieved']})" for s in kept), ""]
+    return "\n".join(lines[:start] + new + lines[end:])
 
 
 def disclaimer(lang: str) -> str:
@@ -562,8 +617,8 @@ async def add_to_series(user: str, existing: Finding, new: Finding) -> tuple[Fin
     srcs = []
     for body in (new.body, existing.body):
         for line in _section(body, _("Sources")).splitlines():
-            m = re.match(r"^- (\S+) \((.*)\)$", line.strip())
-            if m and m.group(1) not in [x["url"] for x in srcs]:
+            m = _SOURCE_LINE.match(line.strip())
+            if m:
                 srcs.append({"url": m.group(1), "retrieved": m.group(2)})
     fields = {
         "doc_ids": doc_ids,

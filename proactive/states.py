@@ -8,6 +8,7 @@
     ledger scan has decided whether to send it.
     held ──digest──> surfaced
     dismissed ──reopen──> new      (only when the evidence changed)
+    dismissed/done ──restore──> surfaced   (the user takes it back; no new push)
 
 Reactions are accepted only from the states where they make sense: the same
 button pressed twice, or in two open tabs, finds a state it does not apply to
@@ -19,7 +20,7 @@ from __future__ import annotations
 STATUSES = (
     "new", "surfaced", "held", "interested", "researched", "done", "dismissed", "snoozed",
 )
-REACTIONS = ("interested", "later", "dismiss", "never", "done", "wrong")
+REACTIONS = ("interested", "later", "dismiss", "never", "done", "wrong", "restore")
 
 _OPEN = {"new", "surfaced", "held", "snoozed"}
 
@@ -39,6 +40,7 @@ TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
     "never": (frozenset(_OPEN | {"interested", "researched"}), "dismissed"),
     "done": (frozenset(_OPEN | {"interested", "researched"}), "done"),
     "wrong": (frozenset(_OPEN), "dismissed"),
+    "restore": (frozenset({"dismissed", "done"}), "surfaced"),
 }
 
 
@@ -53,5 +55,6 @@ def transition(status: str, event: str) -> str | None:
 
 def reactions_for(status: str, kind: str) -> list[str]:
     """Buttons to offer for a finding in `status`."""
-    offer = ["done", "wrong"] if kind == "deadline" else ["interested", "later", "dismiss", "never", "done"]
+    offer = (["done", "dismiss", "wrong"] if kind == "deadline"
+             else ["interested", "later", "dismiss", "never", "done"]) + ["restore"]
     return [r for r in offer if transition(status, r) is not None]

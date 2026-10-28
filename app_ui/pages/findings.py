@@ -16,6 +16,7 @@ one confirm button.
 from __future__ import annotations
 
 import re
+from urllib.parse import quote
 
 from nicegui import app as ng_app
 from nicegui import ui
@@ -158,7 +159,30 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
     from models.result_document import DocumentResult
     from services.clients import get_session_paperless
 
-    open_document, _dlg = create_document_dialog()
+    from services.user_prefs import get_pref, set_pref
+
+    def _pinned_ids() -> set[int]:
+        return set(get_pref("pinned_doc_ids") or [])
+
+    def _pin(result: DocumentResult) -> None:
+        # Same prefs as the browser and the chat: a pin here shows up in the chat.
+        doc = result.document
+        ids = _pinned_ids()
+        cache: list[dict] = list(get_pref("pinned_docs_cache") or [])
+        if doc.id in ids:
+            ids.discard(doc.id)
+            cache = [c for c in cache if c["id"] != doc.id]
+            ui.notify(_("#{id} unpinned").format(id=doc.id), timeout=1500)
+        else:
+            ids.add(doc.id)
+            cache.append({"id": doc.id, "title": doc.title})
+            ui.notify(_("#{id} pinned").format(id=doc.id), type="positive", timeout=1500)
+        set_pref("pinned_doc_ids", list(ids))
+        set_pref("pinned_docs_cache", cache)
+
+    open_document, _dlg = create_document_dialog(
+        pin_fn=_pin, get_pin_state_fn=lambda doc_id: doc_id in _pinned_ids(),
+    )
 
     async def _open_doc(e) -> None:
         try:
@@ -174,9 +198,15 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
     ui.on(_DOC_EVENT, _open_doc)
 
     with ui.column().classes("w-full max-w-3xl mx-auto p-4 gap-3"):
-        ui.button(_("All findings"), icon="arrow_back", on_click=lambda: ui.navigate.to("/findings")).props(
-            "flat dense"
-        )
+        with ui.row().classes("w-full items-center justify-between gap-2"):
+            ui.button(_("All findings"), icon="arrow_back", on_click=lambda: ui.navigate.to("/findings")).props(
+                "flat dense"
+            )
+            # A new conversation with this finding as context and its documents pinned.
+            ui.button(_("Chat about this"), icon="forum",
+                      on_click=lambda: ui.navigate.to(f"/chat?finding={quote(finding_id)}")).props(
+                "unelevated dense no-caps color=primary"
+            )
 
         @ui.refreshable
         def body(pending_action: str) -> None:
@@ -219,6 +249,6 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 ".finding-md{overflow-x:auto}"
                 ".finding-md a{overflow-wrap:anywhere}"
             )
-            ui.markdown(_in_app_links(f.body)).classes("chat-md finding-md w-full min-w-0")
+            ui.markdown(_in_app_links(findings.tidy_sources(f.body, f.lang))).classes("chat-md finding-md w-full min-w-0")
 
         body(action)

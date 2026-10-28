@@ -14,6 +14,8 @@ Effects of a reaction (architecture §4.3, §8):
 - `never`      → status `dismissed`, count, topic muted
 - `done`       → status `done`
 - `wrong`      → status `dismissed` (deadline misread), logged for prompt tuning
+- `restore`    → a dismissed or done finding is open again (`surfaced`), no
+                 new push; a topic muted with "never" is unmuted
 
 A reaction that does not apply to the current status (the same button pressed
 twice, or the second of two channels) changes nothing and says so.
@@ -48,6 +50,7 @@ def _message(lang: str, outcome: str) -> str:
         "never": _("Understood — no more messages on this topic."),
         "done": _("Marked as done."),
         "wrong": _("Thanks — marked as wrongly detected."),
+        "restore": _("Restored — open again."),
         "ignored": _("Already handled."),
         "missing": _("This item no longer exists."),
     }[outcome]
@@ -67,6 +70,10 @@ async def react(user: str, finding_id: str, action: str, *, channel: str) -> str
         changes: dict = {"status": nxt}
         if action == "later":
             changes["snoozed_until"] = (clock.local_now().date() + timedelta(days=SNOOZE_DAYS)).isoformat()
+        if action == "restore":
+            changes["snoozed_until"] = None
+            if not f.surfaced_at:
+                changes["surfaced_at"] = clock.local_now().isoformat(timespec="seconds")
         return changes
 
     f = await findings.update(user, finding_id, mutate)
@@ -84,6 +91,8 @@ async def react(user: str, finding_id: str, action: str, *, channel: str) -> str
             await interests.record(user, f.topic, "never", "dismissed", mute=True)
         elif action in ("wrong", "dismiss"):
             await interests.record(user, f.topic, "dismissed")
+        elif action == "restore" and interests.slugify(f.topic) in interests.load(user).muted:
+            await interests.record(user, f.topic, unmute=True)
     if action == "interested":
         from proactive import jobs
 

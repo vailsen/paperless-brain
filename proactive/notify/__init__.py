@@ -34,9 +34,10 @@ ACTION_LABELS = {
     "never": N_("Never again"),
     "done": N_("Done"),
     "wrong": N_("Wrongly detected"),
+    "restore": N_("Restore"),
 }
 INSIGHT_ACTIONS = ["interested", "later", "never"]
-DEADLINE_ACTIONS = ["done", "wrong"]
+DEADLINE_ACTIONS = ["done", "dismiss", "wrong"]
 
 
 @dataclass

@@ -113,10 +113,11 @@ def test_unknown_event_is_an_error():
 
 
 def test_buttons_follow_kind_and_status():
-    assert reactions_for("surfaced", "deadline") == ["done", "wrong"]
+    assert reactions_for("surfaced", "deadline") == ["done", "dismiss", "wrong"]
     assert reactions_for("surfaced", "insight") == ["interested", "later", "dismiss", "never", "done"]
     assert reactions_for("new", "insight") == ["interested", "later", "dismiss", "never", "done"]
-    assert reactions_for("dismissed", "insight") == []
+    assert reactions_for("dismissed", "insight") == ["restore"]
+    assert reactions_for("done", "deadline") == ["restore"]
 
 
 # ── Paths ────────────────────────────────────────────────────────────────────
@@ -250,6 +251,41 @@ def test_never_mutes_the_topic(push_on, vaults):
     i = interests.load("alice")
     assert "kfz-versicherung" in i.muted
     assert (i.rows["kfz-versicherung"].never, i.rows["kfz-versicherung"].dismissed) == (1, 1)
+
+
+def test_restore_reopens_without_a_push_and_unmutes(push_on, vaults):
+    from proactive import findings, interests, reactions
+
+    _manual(vaults, text=MANUAL.replace("status: new", "status: surfaced"))
+    asyncio.run(reactions.react("alice", "abcdefg", "never", channel="app"))
+    sent_before = len(push_on)
+    msg = asyncio.run(reactions.react("alice", "abcdefg", "restore", channel="app"))
+    assert msg == "Restored — open again."
+    assert findings.get("alice", "abcdefg").status == "surfaced"
+    assert "kfz-versicherung" not in interests.load("alice").muted
+    _run_worker()
+    assert len(push_on) == sent_before
+
+
+def test_sources_are_deduplicated_and_capped():
+    from proactive.findings import MAX_SOURCES, dedupe_sources, render_body, tidy_sources
+
+    urls = [
+        "https://www.vodafone.de/kabel.html?msockid=aaa",
+        "http://vodafone.de/kabel.html/",
+        "https://www.vodafone.de/kabel.html?msockid=bbb&utm_source=x",
+        "https://x.de/a?id=3",
+        "https://x.de/a?id=4",
+    ]
+    kept = [s["url"] for s in dedupe_sources([{"url": u} for u in urls])]
+    assert kept == [urls[0], urls[3], urls[4]]
+    many = [{"url": f"https://x.de/{i}", "retrieved": "2026-10-28"} for i in range(30)]
+    assert len(dedupe_sources(many)) == MAX_SOURCES
+
+    old = render_body("en", summary="s") + "## Sources\n\n" + "".join(
+        f"- {u} (2026-10-28)\n" for u in urls) + "\n## Recommendation\n\nDo it.\n"
+    shown = tidy_sources(old, "en")
+    assert shown.count("vodafone.de") == 1 and "## Recommendation" in shown and "Do it." in shown
 
 
 def test_status_edited_in_obsidian_is_respected(push_on, vaults):
