@@ -39,12 +39,20 @@ OPEN_STATUSES = {"new", "surfaced", "held", "interested", "researched", "snoozed
 
 _DOC_EVENT = "pb_finding_doc"
 # One delegated listener: links in the rendered Markdown are plain anchors.
+# Web sources open in a new tab — in the installed PWA a plain link would
+# replace the app.
 _DOC_CLICK_JS = (
     "<script>document.addEventListener('click',function(e){"
-    "var a=e.target.closest&&e.target.closest('a[href^=\"#pbdoc-\"]');if(!a)return;"
-    "e.preventDefault();emitEvent('" + _DOC_EVENT + "',parseInt(a.getAttribute('href').slice(7),10));"
+    "var a=e.target.closest&&e.target.closest('.finding-md a[href]');if(!a)return;"
+    "var h=a.getAttribute('href');"
+    "if(h.indexOf('#pbdoc-')===0){e.preventDefault();"
+    "emitEvent('" + _DOC_EVENT + "',parseInt(h.slice(7),10));}"
+    "else if(/^https?:/.test(h)){e.preventDefault();window.open(h,'_blank','noopener');}"
     "});</script>"
 )
+# A bare URL (the "Sources" list) — not one already inside a Markdown link,
+# an <autolink> or an attribute. Trailing punctuation is not part of it.
+_BARE_URL = re.compile(r"(?<![(<\[\"'=])\bhttps?://[^\s<>()\[\]]+[^\s<>()\[\].,;:!?'\"]")
 
 
 def _in_app_links(body: str) -> str:
@@ -52,7 +60,9 @@ def _in_app_links(body: str) -> str:
     from config.settings import settings
 
     base = re.escape(settings.paperless_url.rstrip("/"))
-    return re.sub(base + r"/documents/(\d+)/details/?", r"#pbdoc-\1", body)
+    body = re.sub(base + r"/documents/(\d+)/details/?", r"#pbdoc-\1", body)
+    # markdown2 does not autolink bare URLs; Obsidian does.
+    return _BARE_URL.sub(lambda m: f"<{m.group(0)}>", body)
 
 
 def _user() -> str:
@@ -207,6 +217,7 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             ui.add_css(
                 ".finding-md h2{font-size:1rem;font-weight:600;margin:1rem 0 .4rem}"
                 ".finding-md{overflow-x:auto}"
+                ".finding-md a{overflow-wrap:anywhere}"
             )
             ui.markdown(_in_app_links(f.body)).classes("chat-md finding-md w-full min-w-0")
 

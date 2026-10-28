@@ -336,3 +336,18 @@ def test_interests_weight_and_manual_merge():
     assert (r.surfaced, r.interested, r.dismissed, r.last_reaction) == (4, 3, 1, "2026-10-21")
     assert i.weight("kfz-versicherung") == pytest.approx(2 * 4 / 6)
     assert i.weight("unknown") == 1.0
+
+
+def test_findings_page_links_bare_source_urls():
+    """The writer lists sources as bare URLs; markdown2 would leave them as text."""
+    from app_ui.pages.findings import _in_app_links
+
+    body = (
+        "- https://example.org/geg-2026 (2026-10-27)\n"
+        "- https://example.org/norm.html.\n"
+        "- [Text](https://keep.example/x) and <https://already.example>\n"
+    )
+    out = _in_app_links(body)
+    assert "- <https://example.org/geg-2026> (2026-10-27)" in out
+    assert "- <https://example.org/norm.html>." in out
+    assert "[Text](https://keep.example/x) and <https://already.example>" in out
