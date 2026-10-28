@@ -78,7 +78,8 @@ def unsubscribe(user: str, endpoint: str) -> None:
 def devices(user: str) -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
-            "SELECT endpoint, device, created_at FROM push_subscription WHERE user = ?"
+            "SELECT endpoint, device, created_at, last_status, last_sent FROM push_subscription"
+            " WHERE user = ?"
             " ORDER BY created_at",
             (user,),
         ).fetchall()
@@ -91,6 +92,14 @@ def _subscriptions(user: str) -> list[dict]:
             "SELECT endpoint, p256dh, auth FROM push_subscription WHERE user = ?", (user,)
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def _record(endpoint: str, status: int) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE push_subscription SET last_status = ?, last_sent = ? WHERE endpoint = ?",
+            (int(status), clock.now_iso(), endpoint),
+        )
 
 
 def payload(title: str, body: str, link: str, tag: str = "") -> dict:
@@ -107,8 +116,12 @@ def _contact() -> str:
     return c or "mailto:admin@localhost"
 
 
-def _send_one(sub: dict, data: dict) -> int:
-    """POST one encrypted message. Returns the HTTP status (201 = accepted)."""
+def _send_one(sub: dict, data: dict, urgency: str = "normal") -> int:
+    """POST one encrypted message. Returns the HTTP status (201 = accepted).
+
+    `urgency` is the Web Push `Urgency` header (RFC 8030). `high` is what makes
+    Android deliver at once — a phone in Doze, or one just back from airplane
+    mode, otherwise holds `normal` messages for its next maintenance window."""
     from config.proactive import proactive_settings
     from pywebpush import WebPushException, webpush
 
@@ -123,19 +136,21 @@ def _send_one(sub: dict, data: dict) -> int:
             vapid_claims={"sub": _contact()},
             ttl=24 * 3600,
             timeout=15,
+            headers={"Urgency": urgency},
         )
         return r.status_code
     except WebPushException as exc:
         return exc.response.status_code if exc.response is not None else 0
 
 
-async def send(user: str, data: dict) -> int:
+async def send(user: str, data: dict, *, urgency: str = "normal") -> int:
     """Deliver to every device of `user`. Returns how many accepted it. Raises
     (→ job retry) only when devices exist and none accepted."""
     subs = _subscriptions(user)
     ok = 0
     for sub in subs:
-        status = await asyncio.to_thread(_send_one, sub, data)
+        status = await asyncio.to_thread(_send_one, sub, data, urgency)
+        _record(sub["endpoint"], status)
         if status in (200, 201, 202):
             ok += 1
         elif status in (404, 410):

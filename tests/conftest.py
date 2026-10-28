@@ -94,10 +94,10 @@ def fake_push(monkeypatch, devices: dict[str, str], sent: list) -> None:
         webpush.subscribe(user, {"endpoint": f"https://fcm.googleapis.com/fcm/send/{dev}",
                                  "keys": {"p256dh": "k", "auth": "a"}})
 
-    def send_one(sub, data):
+    def send_one(sub, data, urgency="normal"):
         text = "\n".join(x for x in (data.get("title"), data.get("body")) if x)
         sent.append(("sendMessage", {"chat_id": sub["endpoint"].rsplit("/", 1)[-1], "text": text,
-                                     "url": data.get("url", "")}))
+                                     "url": data.get("url", ""), "urgency": urgency}))
         return 201
 
     monkeypatch.setattr(webpush, "_send_one", send_one)

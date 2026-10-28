@@ -169,6 +169,20 @@ MIGRATIONS: list[str] = [
     DELETE FROM link_code WHERE channel = 'telegram';
     DELETE FROM kv WHERE key LIKE 'telegram%';
     """,
+    # 8 — what the push service said last time, per device (shown in the
+    # settings, so "no push arrived" can be told apart from "not accepted"),
+    # and messages held back during quiet hours, sent as one at their end.
+    """
+    ALTER TABLE push_subscription ADD COLUMN last_status INTEGER;
+    ALTER TABLE push_subscription ADD COLUMN last_sent TEXT;
+    CREATE TABLE quiet_hold (
+        id           INTEGER PRIMARY KEY,
+        user         TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        created_at   TEXT NOT NULL
+    );
+    CREATE INDEX quiet_hold_user ON quiet_hold(user);
+    """,
 ]
 
 

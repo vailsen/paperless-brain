@@ -38,9 +38,12 @@ class ProactivePrefs:
         return self.findings_language or self.language or "en"
 
     def channel_list(self) -> list[str]:
-        # "both" (= Telegram + email) and "telegram" are older values: Telegram
-        # is gone, email stays.
-        raw = "email" if self.channels == "both" else self.channels
+        # "both" is the older "every channel" choice (Telegram + email back
+        # then): it means every channel now — mapping it to email alone sent
+        # mail but no push to users who had chosen both.
+        if self.channels == "both":
+            return list(CHANNELS)
+        raw = self.channels
         chosen = {c.strip() for c in raw.split(",")}
         return [c for c in CHANNELS if c in chosen]
 

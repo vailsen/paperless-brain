@@ -205,6 +205,11 @@ def enqueue(n: Notification, *, quiet: bool = True) -> list[str]:
     delay = quiet_delay(n.user) if quiet and channels else None
     if channels and n.counts:
         pushes.record(n.user, "finding" if n.finding_id else "message", n.finding_id)
+    if delay:
+        # Held, not queued per message: at the end of quiet hours everything
+        # goes out as one message per channel, not twenty in two minutes.
+        hold(n, delay)
+        return channels
     for ch in channels:
         jobs.enqueue(
             "notify_channel",
@@ -213,8 +218,62 @@ def enqueue(n: Notification, *, quiet: bool = True) -> list[str]:
             dedupe_key=f"notify:{ch}:{n.finding_id}:{n.title}" if n.finding_id else None,
             **({"delay": delay} if delay else {}),
         )
-    if delay:
-        log.info("%s: quiet hours — %r waits %s", n.user, n.title, delay)
     if not channels:
         log.info("%s: no linked channel chosen — %r not sent", n.user, n.title)
     return channels
+
+
+# ── Quiet hours: hold, then one message ──────────────────────────────────────
+
+QUIET_FLUSH = "quiet_flush"
+#: Titles listed in the summary; the rest is "+ N more".
+SUMMARY_LINES = 8
+
+
+def hold(n: Notification, delay) -> None:
+    """Keep `n` until the user's quiet hours end; one flush job per user."""
+    import json
+
+    from proactive import clock, jobs
+    from proactive.db import connect
+
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO quiet_hold (user, payload_json, created_at) VALUES (?,?,?)",
+            (n.user, json.dumps(n.to_payload(), ensure_ascii=False), clock.now_iso()),
+        )
+    jobs.enqueue(QUIET_FLUSH, n.user, {}, delay=delay, dedupe_key=f"{QUIET_FLUSH}:{n.user}")
+    log.info("%s: quiet hours — %r held for %s", n.user, n.title, delay)
+
+
+def take_held(user: str) -> list[Notification]:
+    import json
+
+    from proactive.db import connect
+
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, payload_json FROM quiet_hold WHERE user = ? ORDER BY id", (user,)
+        ).fetchall()
+        conn.execute("DELETE FROM quiet_hold WHERE user = ?", (user,))
+    return [Notification.from_payload(json.loads(r["payload_json"])) for r in rows]
+
+
+def summary(user: str, held: list[Notification]) -> Notification:
+    """One message for everything that waited: the most urgent first."""
+    from i18n import translator_for
+    from proactive import prefs
+
+    lang = (held[0].lang if held else "") or prefs.get(user).language or "en"
+    _ = translator_for(lang)
+    order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    items = sorted(held, key=lambda x: order.get(x.urgency, 2))
+    lines = [f"• {x.title}" for x in items[:SUMMARY_LINES]]
+    if len(items) > SUMMARY_LINES:
+        lines.append(_("+ {n} more").format(n=len(items) - SUMMARY_LINES))
+    top = items[0].urgency if items else "low"
+    # TODO i18n-plural
+    return compose(
+        user, lang, finding_id="", title=_("{n} new while you were away").format(n=len(items)),
+        urgency=top, note="\n".join(lines), counts=False,
+    )

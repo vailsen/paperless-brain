@@ -19,8 +19,10 @@ async def notify_channel(job: Job) -> None:
     if channel == "push":
         from proactive.notify import push_body, webpush
 
+        # Reminders and findings are what the user turned push on for: deliver
+        # at once, not at the phone's next maintenance window.
         await webpush.send(
-            job.user, webpush.payload(n.title, push_body(n), n.link, tag=n.finding_id)
+            job.user, webpush.payload(n.title, push_body(n), n.link, tag=n.finding_id), urgency="high"
         )
         return
     link = linking.links(job.user).get(channel) if channel == "email" else None
@@ -92,3 +94,23 @@ async def email_verify(job: Job) -> None:
     # The code is only needed until it is sent; do not leave it in the queue.
     with connect() as conn:
         conn.execute("UPDATE jobs SET payload_json = '{}' WHERE id = ?", (job.id,))
+
+
+@handler("quiet_flush")
+async def quiet_flush(job: Job) -> None:
+    """Quiet hours are over: what was held goes out — one as it is, several as
+    one summary (per channel), never a burst."""
+    from proactive import notify
+
+    held = notify.take_held(job.user)
+    if not held:
+        return
+    if notify.quiet_delay(job.user):
+        # Settings changed meanwhile and it is quiet again: hold them again.
+        for n in held:
+            notify.hold(n, notify.quiet_delay(job.user))
+        return
+    msg = held[0] if len(held) == 1 else notify.summary(job.user, held)
+    notify.enqueue(msg, quiet=False)
+    log.info("%s: quiet hours over — %d held message(s) sent as %s", job.user, len(held),
+             "one" if len(held) == 1 else "a summary")

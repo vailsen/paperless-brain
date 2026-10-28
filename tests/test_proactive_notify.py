@@ -174,7 +174,9 @@ def test_stored_telegram_choice_reads_as_the_remaining_channels(proactive_on):
     p = prefs.get("alice")
     assert p.channel_list() == ["push"] and p.channels == "push"
     prefs.save(p)
-    assert prefs.ProactivePrefs("a", channels="both").channel_list() == ["email"]
+    # "both" was the "every channel" choice: push and email now (not email alone,
+    # which sent mail but never a push to the people who had chosen it).
+    assert prefs.ProactivePrefs("a", channels="both").channel_list() == ["push", "email"]
 
 
 def test_email_verification_code_is_mailed_and_scrubbed(channels_on, smtp):
@@ -190,7 +192,6 @@ def test_email_verification_code_is_mailed_and_scrubbed(channels_on, smtp):
 
 def test_worker_logging_never_prints_request_urls(caplog, monkeypatch):
     """httpx logs request URLs at INFO; a URL can carry a secret."""
-    import logging
 
     import httpx
 
@@ -229,7 +230,7 @@ def test_quiet_hours_wait(start, end, now, wait_min):
     assert quiet_wait(start, end, at) == timedelta(minutes=wait_min)
 
 
-def test_message_in_quiet_hours_waits_but_the_test_message_does_not(channels_on, monkeypatch):
+def test_message_in_quiet_hours_is_held_but_the_test_message_is_not(channels_on, monkeypatch):
     from proactive import jobs, notify
     from proactive.db import connect
 
@@ -238,6 +239,48 @@ def test_message_in_quiet_hours_waits_but_the_test_message_does_not(channels_on,
     notify.enqueue(notify.compose("alice", "en", finding_id="f1", title="Insight", urgency="low"))
     notify.enqueue(notify.compose("alice", "en", finding_id="", title="Test", urgency="low"), quiet=False)
     with connect() as conn:
-        rows = {('"title": "Insight"' in r["payload_json"]): r["run_after"] > r["created_at"]
-                for r in conn.execute("SELECT * FROM jobs WHERE kind = 'notify_channel'")}
-    assert rows == {True: True, False: False}
+        queued = [r["payload_json"] for r in conn.execute("SELECT * FROM jobs WHERE kind = 'notify_channel'")]
+        held = conn.execute("SELECT COUNT(*) FROM quiet_hold WHERE user = 'alice'").fetchone()[0]
+        flush = conn.execute("SELECT run_after > created_at FROM jobs WHERE kind = 'quiet_flush'").fetchall()
+    assert len(queued) == 1 and '"title": "Test"' in queued[0]
+    assert held == 1 and [tuple(f) for f in flush] == [(1,)]
+    assert jobs.pending_count(kind="quiet_flush") == 1
+
+
+def test_quiet_hours_end_with_one_summary_not_a_burst(channels_on, monkeypatch, smtp):
+    from proactive import clock, notify
+    from proactive.worker import Worker
+    import proactive.tasks  # noqa: F401
+
+    _choose("alice", "email")
+    monkeypatch.setattr(notify, "quiet_delay", lambda user: timedelta(hours=5))
+    for i, urg in enumerate(["low", "critical", "medium"] * 4):
+        notify.enqueue(notify.compose("alice", "en", finding_id=f"f{i}", title=f"Insight {i}", urgency=urg))
+    monkeypatch.setattr(notify, "quiet_delay", lambda user: timedelta(0))
+    clock.advance(timedelta(hours=5, minutes=1))
+    for _ in range(3):
+        asyncio.run(Worker().tick_once())
+    mails = [m[1] for m in smtp if m[0] == "send"]
+    assert len(mails) == 1                                         # one, not twelve
+    msg = mails[0]
+    assert msg["Subject"] == "12 new while you were away"
+    body = msg.get_body(("plain",)).get_content()
+    assert body.index("Insight 1") < body.index("Insight 2")       # critical before medium
+    assert "Insight 0" not in body and "+ 4 more" in body           # the 4 low ones, counted
+    assert "Urgency: Critical" in body
+
+
+def test_a_single_held_message_goes_out_as_itself(channels_on, monkeypatch, smtp):
+    from proactive import clock, notify
+    from proactive.worker import Worker
+    import proactive.tasks  # noqa: F401
+
+    _choose("alice", "email")
+    monkeypatch.setattr(notify, "quiet_delay", lambda user: timedelta(hours=1))
+    notify.enqueue(notify.compose("alice", "en", finding_id="f1", title="Kündigungsfrist", urgency="high"))
+    monkeypatch.setattr(notify, "quiet_delay", lambda user: timedelta(0))
+    clock.advance(timedelta(hours=1, minutes=1))
+    for _ in range(3):
+        asyncio.run(Worker().tick_once())
+    (msg,) = [m[1] for m in smtp if m[0] == "send"]
+    assert msg["Subject"] == "Kündigungsfrist"

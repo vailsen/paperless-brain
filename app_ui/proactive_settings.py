@@ -353,6 +353,7 @@ def _push_block(username: str, refresh) -> None:
             with ui.row().classes("items-center gap-2 w-full min-w-0"):
                 ui.label(d["device"] or _("Unknown device")).classes("text-xs text-gray-300")
                 ui.label(d["created_at"][:10]).classes("text-xs text-gray-500")
+                ui.label(_push_status(d)).classes("text-xs text-gray-500")
 
                 def _remove(ep=d["endpoint"]) -> None:
                     webpush.unsubscribe(username, ep)
@@ -570,3 +571,18 @@ def _reminders_section(username: str) -> None:
 
     ui.select(options, value=p.findings_language if p.findings_language in options else "",
               on_change=_on_lang).props("outlined dark dense").classes("w-full")
+
+
+def _push_status(d: dict) -> str:
+    """What the push service said to the last message for this device —
+    accepted means it is on its way; the phone showing it is up to the phone."""
+    _ = get_translator()
+    status, sent = d.get("last_status"), d.get("last_sent")
+    if not sent:
+        return _("nothing sent yet")
+    from proactive import clock
+
+    when = clock.parse(sent).astimezone(clock.local_now().tzinfo).strftime("%d.%m. %H:%M")
+    if status in (200, 201, 202):
+        return _("last message accepted {when}").format(when=when)
+    return _("last message refused ({status}) {when}").format(status=status or "—", when=when)

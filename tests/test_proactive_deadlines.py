@@ -18,9 +18,8 @@ DOC_TEXT = (
 @pytest.fixture
 def env(proactive_on, tmp_path, monkeypatch):
     """Vaults, sidecars, a fake Paperless, a fake push service, two users."""
-    from config import proactive as cfgmod
     from config.settings import settings
-    from proactive import clock, findings, linking, prefs, users
+    from proactive import clock, findings, prefs, users
     from proactive.tasks import documents
     from tests.conftest import fake_push
 
@@ -286,7 +285,6 @@ def test_dedupe_survives_losing_the_db(env, fake_llm, proactive_on):
     """reminders_sent lives in the finding file, not in proactive.db."""
     from pathlib import Path
 
-    from proactive import linking
 
     _make_findings(env, fake_llm)
     _worker_run("daily_run")

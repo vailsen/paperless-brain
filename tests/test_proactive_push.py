@@ -30,9 +30,11 @@ def sent(monkeypatch):
         pass
 
     calls = Calls()
+    calls.urgency = []
 
-    def fake(sub, data):
+    def fake(sub, data, urgency="normal"):
         calls.append((sub["endpoint"], data))
+        calls.urgency.append(urgency)
         return fake.status
 
     fake.status = 201
@@ -147,7 +149,7 @@ def test_a_failing_push_service_raises_for_a_retry(push_on, sent):
 
 
 def test_app_events_go_to_push_only_and_follow_their_switch(push_on, sent):
-    from proactive import jobs, linking, prefs
+    from proactive import linking, prefs
     from proactive.notify import enqueue_event, webpush
 
     p = prefs.get("alice")
@@ -200,3 +202,40 @@ def test_subscribe_route_rejects_a_foreign_origin():
     assert _same_origin(R("https://brain.lan", "brain.lan"))
     assert not _same_origin(R("https://evil.example", "brain.lan"))
     assert _same_origin(R(None, "brain.lan"))
+
+
+def test_findings_go_out_with_high_urgency_and_the_result_is_recorded(proactive_on, monkeypatch):
+    """Urgency high: Android delivers at once instead of at its next
+    maintenance window (a phone just back from airplane mode, in Doze)."""
+    import asyncio
+
+    from proactive.notify import webpush
+
+    calls = []
+
+    def fake(sub, data, urgency="normal"):
+        calls.append(urgency)
+        return 201
+
+    from config import proactive as cfgmod
+
+    pub, priv = webpush.generate_keys()
+    monkeypatch.setenv("PUSH_VAPID_PUBLIC_KEY", pub)
+    monkeypatch.setenv("PUSH_VAPID_PRIVATE_KEY", priv)
+    cfgmod.proactive_settings.cache_clear()
+    monkeypatch.setattr(webpush, "_send_one", fake)
+    webpush.subscribe("alice", {"endpoint": "https://fcm.googleapis.com/fcm/send/x", "keys": {"p256dh": "k", "auth": "a"}})
+    from proactive import jobs, prefs
+    from proactive.notify import compose, enqueue
+    from proactive.worker import Worker
+    import proactive.tasks  # noqa: F401
+
+    p = prefs.get("alice")
+    p.optin, p.channels, p.language, p.quiet_start, p.quiet_end = True, "push", "en", "00:00", "00:00"
+    prefs.save(p)
+    enqueue(compose("alice", "en", finding_id="f1", title="Frist", urgency="medium"))
+    jobs.enqueue("push_event", "alice", {"title": "Sync finished", "url": "/"})
+    asyncio.run(Worker().tick_once())
+    assert sorted(calls) == ["high", "normal"]
+    (dev,) = webpush.devices("alice")
+    assert dev["last_status"] == 201 and dev["last_sent"]
