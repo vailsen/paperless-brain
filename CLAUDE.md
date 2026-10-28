@@ -13,10 +13,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 python main.py
 # App runs at http://0.0.0.0:8080
 
-# Deploy: tag a release, CI publishes the image, the server pulls it
+# Release: tag it; CI publishes latest / lean / the version
 git tag vX.Y.Z && git push origin main --tags   # .github/workflows/release.yml
-ssh <server> "cd /root/paperlessbrain && docker compose pull && docker compose up -d"
 ```
+
+The dev server deploys itself: every merge to `main`, and every manual
+"Run workflow" on any branch, publishes `:dev` (never `:latest`), and a systemd
+timer on the server (`paperlessbrain-autodeploy`, every 2 min) pulls it,
+restarts both containers and prunes old images. It waits up to 3 h for a
+running Werkbank run, which a restart would stop. Watchtower is gone: it
+recreated containers past Compose and raced manual deploys.
 
 ## Dependencies
 
