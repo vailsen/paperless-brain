@@ -227,7 +227,7 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 
 ### Ollama watchdog
 
-`services/ollama_watchdog.py`: shuts the Ollama host down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity, but only a host that was woken via WoL. `touch()` resets the idle timer. The state (woken?, last activity, host) lives in `data/power_state.json`, not in module globals: the proactive worker is a second process sending inference requests, and the app's watchdog must see them. Waking goes through `services/wol.wake()` — the dashboard button and the worker's LLM gate (`proactive/gate.py`) both use it. A host the worker woke (`wol_by: worker`) goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (5) instead; any `touch()` from the app hands it back to the normal idle time.
+`services/ollama_watchdog.py`: shuts the Ollama host down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity, but only a host that was woken via WoL. `touch()` resets the idle timer. The state (woken?, last activity, host) lives in `data/power_state.json`, not in module globals: the proactive worker is a second process sending inference requests, and the app's watchdog must see them. Waking goes through `services/wol.wake()` — the dashboard button and the worker's LLM gate (`proactive/gate.py`) both use it. A shutdown counts only when ssh says so (`BatchMode=yes`, exit status checked) and is verified a few minutes later; a failed or ineffective one keeps `wol_active` and is retried (`watchdog_step`), every decision logged as `[watchdog]`. A host the worker woke (`wol_by: worker`) goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (5) instead; any `touch()` from the app hands it back to the normal idle time.
 
 ## Deployment target
 

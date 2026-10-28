@@ -132,7 +132,11 @@ def app_busy(now: datetime | None = None) -> bool:
 
 def on_wol(host: str = "") -> None:
     global _last_touch_write
-    changes = {"wol_active": True, "last_activity": datetime.now().isoformat(), "wol_by": _role}
+    changes = {
+        "wol_active": True, "last_activity": datetime.now().isoformat(), "wol_by": _role,
+        # A fresh wake starts clean: no leftover retry or verification.
+        "shutdown_pending_since": None, "shutdown_retry_at": None, "shutdown_error": "",
+    }
     if host:
         changes["wol_host"] = host
     _update(**changes)
@@ -140,33 +144,74 @@ def on_wol(host: str = "") -> None:
 
 
 def on_manual_shutdown() -> None:
-    _update(wol_active=False)
+    _update(wol_active=False, shutdown_pending_since=None, shutdown_retry_at=None)
 
 
-async def _ssh_shutdown() -> None:
+#: After a shutdown command, check this long later that the host is really gone.
+VERIFY_AFTER_S = 180
+#: A failed or ineffective shutdown is tried again after this long.
+RETRY_AFTER_S = 300
+
+
+def _log(msg: str) -> None:
+    print(f"[watchdog] {msg}", flush=True)
+
+
+def _target_host() -> str:
     from config.settings import settings
 
     m = re.search(r"(\d+\.\d+\.\d+\.\d+)", settings.ollama_server)
-    host = m.group(1) if m else state()["wol_host"]
-    user = settings.ollama_ssh_user
+    return m.group(1) if m else state()["wol_host"]
+
+
+async def _ssh_shutdown() -> tuple[bool, str]:
+    """Run `sudo shutdown -h now` on the host. `(True, "")` when the command
+    was accepted (or the connection dropped because the host went down),
+    `(False, reason)` otherwise.
+
+    `BatchMode=yes`: without it ssh may sit at a password or passphrase prompt
+    until the timeout — which used to count as success, so the host was marked
+    off while it kept running all morning."""
+    from config.settings import settings
+
+    host, user = _target_host(), settings.ollama_ssh_user
     if not host or not user:
-        return
+        return False, "no host or OLLAMA_SSH_USER"
     try:
         proc = await asyncio.create_subprocess_exec(
             "ssh",
             "-o", "StrictHostKeyChecking=no",
             "-o", "ConnectTimeout=5",
+            "-o", "BatchMode=yes",
             f"{user}@{host}",
             "sudo shutdown -h now",
             stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
         )
         try:
-            await asyncio.wait_for(proc.wait(), timeout=8.0)
+            _out, err = await asyncio.wait_for(proc.communicate(), timeout=15.0)
         except asyncio.TimeoutError:
-            pass
+            proc.kill()
+            return False, "ssh did not finish within 15 s"
+    except Exception as exc:
+        return False, f"ssh could not run: {exc}"
+    detail = (err or b"").decode(errors="replace").strip().splitlines()
+    last = detail[-1] if detail else ""
+    if proc.returncode == 0:
+        return True, ""
+    # The host closing the connection while it shuts down is success.
+    if proc.returncode == 255 and re.search(r"closed by remote host|Connection reset", last, re.I):
+        return True, ""
+    return False, last or f"ssh exited with {proc.returncode}"
+
+
+async def _host_reachable(host: str, port: int = 11434) -> bool:
+    try:
+        _r, w = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=3.0)
+        w.close()
+        return True
     except Exception:
-        pass
+        return False
 
 
 def shutdown_due(now: datetime | None = None) -> bool:
@@ -174,6 +219,9 @@ def shutdown_due(now: datetime | None = None) -> bool:
 
     s = state()
     if not s["wol_active"] or s["last_activity"] is None:
+        return False
+    retry = _read().get("shutdown_retry_at")
+    if retry and (now or datetime.now()) < datetime.fromisoformat(retry):
         return False
     now = now or datetime.now()
     minutes = settings.ollama_idle_shutdown_minutes
@@ -184,10 +232,52 @@ def shutdown_due(now: datetime | None = None) -> bool:
     return now - s["last_activity"] > timedelta(minutes=minutes)
 
 
+async def watchdog_step(now: datetime | None = None) -> str:
+    """One check. Returns what it did (for tests and the log):
+    `idle` | `shutdown` | `failed` | `verified` | `still_up`."""
+    now = now or datetime.now()
+    d = _read()
+    pending = d.get("shutdown_pending_since")
+    if pending:
+        if (now - datetime.fromisoformat(pending)).total_seconds() < VERIFY_AFTER_S:
+            return "idle"
+        host = _target_host()
+        if host and await _host_reachable(host):
+            # The command was accepted but the machine is still there (sudo
+            # rule, inhibitor, a hung shutdown): it is ours again to retry.
+            _log(f"{host} still answers {VERIFY_AFTER_S}s after the shutdown command — trying again")
+            _update(
+                wol_active=True, shutdown_pending_since=None,
+                shutdown_error="host still reachable after shutdown",
+                shutdown_retry_at=(now + timedelta(seconds=RETRY_AFTER_S)).isoformat(),
+            )
+            return "still_up"
+        _update(shutdown_pending_since=None, shutdown_error="")
+        _log(f"{host or 'host'} is off")
+        return "verified"
+    if not shutdown_due(now):
+        return "idle"
+    s = state()
+    idle_min = int((now - s["last_activity"]).total_seconds() // 60)
+    _log(f"shutting down {_target_host() or 'the host'}: idle {idle_min} min, woken by {s['wol_by']}")
+    ok, why = await _ssh_shutdown()
+    if ok:
+        _update(wol_active=False, shutdown_pending_since=now.isoformat(), shutdown_error="",
+                shutdown_retry_at=None)
+        return "shutdown"
+    # Keep `wol_active`: a failed shutdown must be retried, not forgotten. It
+    # used to be marked off regardless, so one failure left the host running.
+    _log(f"shutdown failed: {why} — retrying in {RETRY_AFTER_S // 60} min")
+    _update(shutdown_error=why, shutdown_retry_at=(now + timedelta(seconds=RETRY_AFTER_S)).isoformat())
+    return "failed"
+
+
 async def idle_watchdog() -> None:
-    """Background task (app only): SSH-shutdown after IDLE_MINUTES of no Ollama use post-WoL."""
+    """Background task (app only): shut the host down once it has been idle
+    after a WoL wake — and make sure it really went down."""
     while True:
         await asyncio.sleep(60)
-        if shutdown_due():
-            await _ssh_shutdown()
-            on_manual_shutdown()
+        try:
+            await watchdog_step()
+        except Exception as exc:  # the watchdog must outlive one bad check
+            _log(f"check failed: {type(exc).__name__}: {exc}")

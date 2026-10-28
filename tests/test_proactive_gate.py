@@ -828,3 +828,86 @@ def test_inside_a_window_new_documents_wake_the_host(proactive_on, monkeypatch, 
     rg = RecordingGate()
     asyncio.run(Worker(gate=rg.gate).tick_once())
     assert len(rg.woken) == 1 and ran == ["doc_new_t"]
+
+
+# ── Shutdown: verified, retried, logged (the PC still on in the morning) ─────
+
+
+@pytest.fixture
+def woken(power_file, monkeypatch):
+    from config.settings import settings
+    from services import ollama_watchdog as wd
+
+    monkeypatch.setattr(settings, "ollama_server", "http://10.0.0.5:11434")
+    monkeypatch.setattr(settings, "ollama_idle_shutdown_minutes", 30)
+    wd.on_wol("10.0.0.5")
+    return wd
+
+
+def _idle(wd, minutes):
+    return wd.state()["last_activity"] + timedelta(minutes=minutes)
+
+
+def test_failed_shutdown_is_retried_not_forgotten(woken, monkeypatch, capsys):
+    wd = woken
+    calls = []
+
+    async def ssh():
+        calls.append(1)
+        return (False, "Permission denied (publickey).") if len(calls) == 1 else (True, "")
+
+    monkeypatch.setattr(wd, "_ssh_shutdown", ssh)
+    t = _idle(wd, 31)
+    assert asyncio.run(wd.watchdog_step(t)) == "failed"
+    assert wd.state()["wol_active"]                              # still ours to shut down
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=1))) == "idle"   # waits to retry
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=6))) == "shutdown"
+    assert len(calls) == 2
+    out = capsys.readouterr().out
+    assert "shutdown failed: Permission denied" in out and "idle 31 min" in out
+
+
+def test_shutdown_is_verified_and_repeated_if_the_host_stays_up(woken, monkeypatch):
+    wd = woken
+    up = [True]
+
+    async def ssh():
+        return True, ""
+
+    async def reachable(host, port=11434):
+        return up[0]
+
+    monkeypatch.setattr(wd, "_ssh_shutdown", ssh)
+    monkeypatch.setattr(wd, "_host_reachable", reachable)
+    t = _idle(wd, 31)
+    assert asyncio.run(wd.watchdog_step(t)) == "shutdown"
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=1))) == "idle"   # give it time
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=4))) == "still_up"
+    assert wd.state()["wol_active"]
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=10))) == "shutdown"
+    up[0] = False
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=14))) == "verified"
+    assert not wd.state()["wol_active"]
+
+
+def test_ssh_runs_in_batch_mode(monkeypatch, woken):
+    """Without BatchMode ssh can sit at a prompt until the timeout."""
+    wd = woken
+    seen = {}
+
+    class P:
+        returncode = 0
+
+        async def communicate(self):
+            return b"", b""
+
+    async def fake_exec(*args, **kw):
+        seen["args"] = args
+        return P()
+
+    from config.settings import settings
+
+    monkeypatch.setattr(settings, "ollama_ssh_user", "pb")
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+    assert asyncio.run(wd._ssh_shutdown()) == (True, "")
+    assert "BatchMode=yes" in seen["args"] and "pb@10.0.0.5" in seen["args"]
