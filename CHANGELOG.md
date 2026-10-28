@@ -49,6 +49,13 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **"Interesting" research is visible right away and gives way to chat.** The
+  run appears in AI deep research as running (it showed a start button, which
+  would have started it twice), the finding shows "Research running" with a
+  link to it, and the research pauses between steps while someone chats.
+  The result goes on top of the finding under "Research result" with a link
+  to the full report; the page updates by itself. Deleting the run afterwards
+  keeps the result in the finding.
 - **A chat no longer starts with syncing what the worker wrote overnight.**
   Once its batch is done and nobody is chatting, the worker has the app
   commit and index its findings, so the first question of the day starts
