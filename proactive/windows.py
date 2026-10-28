@@ -19,6 +19,20 @@ from proactive import clock
 from proactive.db import connect
 
 
+#: Backlog work: runs only inside a sweep window, counted against its budget.
+#: Outside a window these jobs are not even looked at — in particular they
+#: never make the worker wake the inference host (they used to: the host was
+#: woken, the job saw no window and deferred itself, every half hour).
+WINDOWED_KINDS = frozenset({"sweep_doc", "dossier_build", "dossier_revisit"})
+
+#: Work the user just asked for ("Analyse now", "Interesting" → deep dive).
+#: The only reason to wake the host outside a window — and only while the
+#: request is fresh (`USER_WAKE_FRESH`), so a job that keeps deferring does
+#: not wake the machine again and again through the evening.
+USER_REQUESTED_KINDS = frozenset({"sweep_now", "deep_dive"})
+USER_WAKE_FRESH = timedelta(minutes=30)
+
+
 @dataclass(frozen=True)
 class OpenWindow:
     window: SweepWindow

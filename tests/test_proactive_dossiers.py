@@ -86,7 +86,7 @@ def _run(kind, user="", payload=None, gate_ok=True):
     class G:
         woke_host = False
 
-        async def local_ready(self):
+        async def local_ready(self, may_wake=True):
             return gate_ok
 
     jobs.enqueue(kind, user, payload or {})
@@ -160,10 +160,11 @@ def test_rebuild_waits_for_a_window(env, remote, monkeypatch):
     cfgmod.proactive_settings.cache_clear()
     _run("dossier_build", "alice", {"topic": "bausparvertrag"})
     (j,) = [jobs.get(i) for i in range(1, 10) if jobs.get(i) and jobs.get(i).kind == "dossier_build"]
-    assert j.status == "queued" and "outside the sweep windows" in j.last_error
+    # Outside a window a backlog job is not even picked up (and so never wakes
+    # the host): untouched, not deferred.
+    assert j.status == "queued" and j.attempts == 0 and j.last_error is None
     monkeypatch.setenv("PROACTIVE_SWEEP_WINDOWS", f"{now - timedelta(hours=1):%H:%M}-{now + timedelta(hours=3):%H:%M}/10")
     cfgmod.proactive_settings.cache_clear()
-    clock.advance(timedelta(hours=1))  # past the deferral
     _run("heartbeat")
     assert remote[-1]["existing"] is None  # a full rebuild, not an update
     assert dossiers.load("alice", "bausparvertrag").analysis_version == 2

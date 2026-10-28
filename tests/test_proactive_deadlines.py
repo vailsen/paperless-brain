@@ -116,7 +116,7 @@ def _worker_run(kind, user="", payload=None):
     class Open:
         woke_host = False
 
-        async def local_ready(self):
+        async def local_ready(self, may_wake=True):
             return True
 
     jobs.enqueue(kind, user, payload or {})
@@ -324,7 +324,7 @@ def test_reminders_go_out_while_the_host_sleeps(env, fake_llm):
     class Asleep:
         woke_host = False
 
-        async def local_ready(self):
+        async def local_ready(self, may_wake=True):
             raise AssertionError("the reminder path must not need the LLM")
 
     _make_findings(env, fake_llm)

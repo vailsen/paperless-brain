@@ -95,13 +95,22 @@ class Worker:
         was requested. Returns the number of jobs run."""
         from proactive import jobs, scheduler
 
+        from proactive import windows
+
         scheduler.tick()
         ran = 0
         while not self.stopping.is_set():
+            in_window = windows.current() is not None
+            if not in_window:
+                self._drop_stale_backlog()
+            # Backlog jobs are invisible outside a window: not claimed, and —
+            # above all — never a reason to wake the host.
+            outside = frozenset() if in_window else windows.WINDOWED_KINDS
             job = jobs.claim_next(
-                llm_ok=await self._local_ok(),
+                llm_ok=await self._local_ok(in_window, outside),
                 cloud_ok=True,  # resolution never yields a cloud model unless allowed
                 prefer_model=self.current_model,
+                exclude_kinds=outside,
             )
             if job is None:
                 break
@@ -119,14 +128,29 @@ class Worker:
             ran += 1
         return ran
 
-    async def _local_ok(self) -> bool:
+    def _drop_stale_backlog(self) -> None:
+        """Backlog documents queued for a window that has closed: dropped
+        without running (cursor not advanced — next window starts there)."""
+        from proactive import jobs, windows
+
+        for job in jobs.drop_queued({"sweep_doc"}, "its sweep window has ended"):
+            start = job.payload.get("window_start")
+            if start:
+                windows.close(start, "window_end")
+            log.info("%s: doc %s dropped — its window has ended", job.user, job.payload.get("doc_id"))
+
+    async def _local_ok(self, in_window: bool = True, outside=frozenset()) -> bool:
         """Ask the gate only when a local LLM job is actually due — the gate may
-        wake the host, which must never happen for nothing."""
-        from proactive import jobs
+        wake the host, which must never happen for nothing.
+
+        Waking is for the sweep windows. Outside them the host is only used if
+        it is already on — except for what the user asked for minutes ago
+        ("Analyse now", a deep dive after "Interesting")."""
+        from proactive import clock, jobs, windows
 
         if self.gate is None:
             return False
-        if not jobs.pending_count(needs_llm=True, lane="local", due_only=True):
+        if not jobs.pending_count(needs_llm=True, lane="local", due_only=True, exclude_kinds=outside):
             return False
         from services import ollama_watchdog
 
@@ -137,7 +161,11 @@ class Worker:
             self._yielding = True
             return False
         self._yielding = False
-        return await self.gate.local_ready()
+        may_wake = in_window or bool(jobs.pending_count(
+            needs_llm=True, lane="local", due_only=True, kinds=windows.USER_REQUESTED_KINDS,
+            created_since=clock.iso(clock.utcnow() - windows.USER_WAKE_FRESH),
+        ))
+        return await self.gate.local_ready(may_wake=may_wake)
 
     def _note_swap(self, key: str) -> None:
         from proactive import windows

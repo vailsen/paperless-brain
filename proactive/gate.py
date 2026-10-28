@@ -33,6 +33,8 @@ WAKE_TIMEOUT_S = 240.0
 WAKE_POLL_S = 5.0
 BACKOFF_START_S = 300.0
 BACKOFF_MAX_S = 3600.0
+#: Outside a window the host is only checked for being on already.
+ASLEEP_RECHECK_S = 300.0
 
 
 class OperatorModelMissing(RuntimeError):
@@ -101,6 +103,7 @@ class InferenceGate:
         self._backoff = BACKOFF_START_S
         self._verified = False
         self.woke_host = False  # for window_log: did this worker wake it
+        self._waiting_for_window = False
 
     @classmethod
     def from_settings(cls) -> "InferenceGate":
@@ -138,7 +141,10 @@ class InferenceGate:
             )
         self._verified = True
 
-    async def local_ready(self) -> bool:
+    async def local_ready(self, may_wake: bool = True) -> bool:
+        """True if local LLM jobs may run now. `may_wake=False` (outside the
+        sweep windows, nothing the user just asked for): only a host that is
+        already up counts — it is never woken."""
         if not self.server:
             # No operator host: local registry models are tried directly and a
             # connection error defers the job (`proactive.llm`).
@@ -146,11 +152,21 @@ class InferenceGate:
         now = self._now()
         if now < self._ready_until:
             return True
-        if now < self._retry_at:
+        if now < self._retry_at and not (may_wake and self._waiting_for_window):
+            # (A window opening or a fresh request ends the asleep-recheck wait.)
             return False
         if await self._probe(self.server):
             await self._mark_ready()
             return True
+        if not may_wake:
+            # Asleep, and not ours to wake now. Look again in a few minutes
+            # (the user may switch it on); no backoff growth, one log line.
+            self._retry_at = now + ASLEEP_RECHECK_S
+            if not self._waiting_for_window:
+                log.info("inference host is off and no sweep window is open — LLM jobs wait")
+            self._waiting_for_window = True
+            return False
+        self._waiting_for_window = False
         if not self.can_wake:
             self._fail("inference host unreachable and waking is off or not configured")
             return False

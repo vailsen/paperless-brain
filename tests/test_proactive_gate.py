@@ -36,7 +36,7 @@ class FakeGate:
         self.asked = 0
         self.woke_host = False
 
-    async def local_ready(self):
+    async def local_ready(self, may_wake=True):
         self.asked += 1
         return self.ready
 
@@ -593,7 +593,7 @@ def test_worker_leaves_llm_jobs_queued_while_the_app_is_busy(proactive_on, monke
     class Open:
         woke_host = False
 
-        async def local_ready(self):
+        async def local_ready(self, may_wake=True):
             return True
 
     jobs.enqueue("doc_new", "", {"doc_id": 1}, needs_llm=True)
@@ -617,7 +617,7 @@ def test_analyse_now_works_outside_any_window_and_stops_at_the_count(proactive_o
     class Open:
         woke_host = False
 
-        async def local_ready(self):
+        async def local_ready(self, may_wake=True):
             return True
 
     assert sweep.start_now("alice", 3) == 3
@@ -698,3 +698,133 @@ def test_no_vault_sync_while_the_batch_runs_or_a_user_chats(vault_sync_env, monk
     monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: False)
     _check()
     assert vault_sync_env == ["alice"]
+
+
+# ── Waking only inside the sweep windows (the evening wake-ups) ──────────────
+
+
+class RecordingGate:
+    """A real InferenceGate over a host that is asleep, recording wakes."""
+
+    def __init__(self):
+        from proactive.gate import InferenceGate
+
+        self.woken = []
+
+        async def probe(url):
+            return bool(self.woken)  # awake once woken
+
+        async def no_sleep(s):
+            pass
+
+        self.gate = InferenceGate(
+            server="http://10.0.0.5:11434", mac="aa:bb:cc:dd:ee:ff", wol_auto=True,
+            probe_fn=probe, wake_fn=lambda mac, srv: self.woken.append(srv), sleep=no_sleep,
+        )
+
+
+def _no_window(monkeypatch):
+    from config import proactive as cfgmod
+    from proactive import clock
+
+    far = clock.local_now() + timedelta(hours=6)
+    monkeypatch.setenv("PROACTIVE_SWEEP_WINDOWS", f"{far:%H:%M}-{far + timedelta(hours=1):%H:%M}/10")
+    cfgmod.proactive_settings.cache_clear()
+
+
+def _llm_handlers(ran):
+    from proactive import jobs
+
+    for kind in ("doc_new_t", "deep_dive", "sweep_now", "dossier_revisit", "sweep_doc"):
+        async def h(job, kind=kind):
+            ran.append(kind)
+        jobs.handler(kind, needs_llm=True)(h)
+
+
+@pytest.fixture
+def restore_handlers():
+    from proactive import jobs
+
+    saved = dict(jobs._HANDLERS)
+    yield
+    jobs._HANDLERS.clear()
+    jobs._HANDLERS.update(saved)
+
+
+def test_outside_a_window_a_new_document_never_wakes_the_host(proactive_on, monkeypatch, restore_handlers):
+    from proactive import jobs
+    from proactive.worker import Worker
+
+    _no_window(monkeypatch)
+    ran = []
+    _llm_handlers(ran)
+    jobs.enqueue("doc_new_t")
+    rg = RecordingGate()
+    asyncio.run(Worker(gate=rg.gate).tick_once())
+    assert rg.woken == [] and ran == []
+    assert jobs.pending_count(kind="doc_new_t") == 1  # waits for a window or the host
+
+
+def test_outside_a_window_backlog_jobs_are_not_even_considered(proactive_on, monkeypatch, restore_handlers):
+    from proactive import jobs
+    from proactive.worker import Worker
+
+    _no_window(monkeypatch)
+    ran = []
+    _llm_handlers(ran)
+    jobs.enqueue("dossier_revisit", "alice")
+    asked = []
+
+    class G:
+        woke_host = False
+
+        async def local_ready(self, may_wake=True):
+            asked.append(may_wake)
+            return True
+
+    asyncio.run(Worker(gate=G()).tick_once())
+    assert asked == [] and ran == []  # the gate was not even asked
+
+
+def test_stale_backlog_is_dropped_when_the_window_closed(proactive_on, monkeypatch, restore_handlers):
+    from proactive import jobs
+    from proactive.worker import Worker
+
+    _no_window(monkeypatch)
+    ran = []
+    _llm_handlers(ran)
+    jid = jobs.enqueue("sweep_doc", "alice", {"doc_id": 7, "window_start": "2026-10-27T00:00:00Z"})
+    asyncio.run(Worker(gate=RecordingGate().gate).tick_once())
+    j = jobs.get(jid)
+    assert j.status == "done" and "window" in j.last_error and ran == []
+
+
+def test_a_fresh_user_request_may_wake_a_stale_one_may_not(proactive_on, monkeypatch, restore_handlers):
+    from proactive import clock, jobs
+    from proactive.worker import Worker
+
+    _no_window(monkeypatch)
+    ran = []
+    _llm_handlers(ran)
+    jobs.enqueue("deep_dive", "alice", {"finding_id": "x"})
+    clock.advance(timedelta(hours=2))  # the request is old by now (kept deferring)
+    rg = RecordingGate()
+    asyncio.run(Worker(gate=rg.gate).tick_once())
+    assert rg.woken == [] and ran == []
+
+    jobs.enqueue("sweep_now", "alice")  # "Analyse now", just pressed
+    asyncio.run(Worker(gate=rg.gate).tick_once())
+    assert len(rg.woken) == 1 and "sweep_now" in ran
+
+
+def test_inside_a_window_new_documents_wake_the_host(proactive_on, monkeypatch, restore_handlers):
+    from proactive import jobs
+    from proactive.worker import Worker
+
+    _window_env(monkeypatch)
+    ran = []
+    _llm_handlers(ran)
+    jobs.enqueue("doc_new_t")
+    rg = RecordingGate()
+    asyncio.run(Worker(gate=rg.gate).tick_once())
+    assert len(rg.woken) == 1 and ran == ["doc_new_t"]

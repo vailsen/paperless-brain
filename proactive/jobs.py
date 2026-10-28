@@ -149,6 +149,7 @@ def claim_next(
     cloud_ok: bool | None = None,
     prefer_model: str = "",
     kinds: set[str] | None = None,
+    exclude_kinds: set[str] | frozenset[str] | None = None,
 ) -> Job | None:
     """Mark the next due job `running` and return it.
 
@@ -171,6 +172,9 @@ def claim_next(
             return None
         sql += f" AND kind IN ({','.join('?' * len(kinds))})"
         args.extend(sorted(kinds))
+    if exclude_kinds:
+        sql += f" AND kind NOT IN ({','.join('?' * len(exclude_kinds))})"
+        args.extend(sorted(exclude_kinds))
     # Jobs without LLM first (they are cheap and some are time-critical, like
     # reminders), then the loaded model's jobs, then the rest by age.
     sql += " ORDER BY needs_llm, (model_key != ?), run_after, id LIMIT 1"
@@ -266,9 +270,23 @@ def get(job_id: int) -> Job | None:
 def pending_count(
     *, needs_llm: bool | None = None, kind: str | None = None, due_only: bool = False,
     lane: str | None = None,
+    kinds: set[str] | frozenset[str] | None = None,
+    exclude_kinds: set[str] | frozenset[str] | None = None,
+    created_since: str | None = None,
 ) -> int:
     sql = "SELECT COUNT(*) FROM jobs WHERE status IN ('queued', 'running')"
     args: list[Any] = []
+    if kinds is not None:
+        if not kinds:
+            return 0
+        sql += f" AND kind IN ({','.join('?' * len(kinds))})"
+        args.extend(sorted(kinds))
+    if exclude_kinds:
+        sql += f" AND kind NOT IN ({','.join('?' * len(exclude_kinds))})"
+        args.extend(sorted(exclude_kinds))
+    if created_since is not None:
+        sql += " AND created_at >= ?"
+        args.append(created_since)
     if needs_llm is not None:
         sql += " AND needs_llm = ?"
         args.append(int(needs_llm))
@@ -283,6 +301,25 @@ def pending_count(
         args.append(clock.now_iso())
     with connect() as conn:
         return conn.execute(sql, args).fetchone()[0]
+
+
+def drop_queued(kinds: set[str] | frozenset[str], reason: str) -> list[Job]:
+    """Finish queued jobs of `kinds` without running them (e.g. backlog work
+    left over when its sweep window closed). Returns the dropped jobs."""
+    if not kinds:
+        return []
+    marks = ",".join("?" * len(kinds))
+    with connect() as conn:
+        rows = conn.execute(
+            f"SELECT * FROM jobs WHERE status = 'queued' AND kind IN ({marks})", sorted(kinds)
+        ).fetchall()
+        if rows:
+            conn.execute(
+                f"UPDATE jobs SET status = 'done', finished_at = ?, last_error = ?"
+                f" WHERE status = 'queued' AND kind IN ({marks})",
+                [clock.now_iso(), f"dropped: {reason}"[:2000], *sorted(kinds)],
+            )
+    return [Job.from_row(r) for r in rows]
 
 
 # ── Running one job ──────────────────────────────────────────────────────────

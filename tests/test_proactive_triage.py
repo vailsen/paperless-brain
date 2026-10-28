@@ -153,7 +153,7 @@ def _run(kind, user="", payload=None):
     class Open:
         woke_host = False
 
-        async def local_ready(self):
+        async def local_ready(self, may_wake=True):
             return True
 
     jobs.enqueue(kind, user, payload or {})

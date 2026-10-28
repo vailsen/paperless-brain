@@ -66,8 +66,11 @@ change a finding's `status` in Obsidian or the note editor; the app follows it.
 5. Work on the existing archive runs only inside `PROACTIVE_SWEEP_WINDOWS`
    (default 01:00–05:00, at most 200 documents a night, shared fairly between
    users). With `PROACTIVE_WOL_AUTO=true` the worker wakes the GPU host through the
-   same Wake-on-LAN path as the dashboard button; the existing idle rule shuts it
-   down again.
+   same Wake-on-LAN path as the dashboard button — **only inside a sweep window**,
+   or for something a user asked for in the last 30 minutes ("Analyse now", the
+   closer look after "Interesting"). Outside the windows everything else (a new
+   document, its triage, a dossier update) waits until the host is on anyway or
+   the next window opens. The idle rule shuts a worker-woken host down again.
 
 ## Setting it up (user)
 
