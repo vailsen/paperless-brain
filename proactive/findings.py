@@ -92,6 +92,9 @@ class Finding:
     correspondent: int | None = None
     #: The Werkbank run of the deep dive ("Interesting"), once it was started.
     research_run: str | None = None
+    #: The topic as the model wrote it ("Kfz-Versicherung"). `topic` is the key
+    #: derived from it (`interests.slugify`) and what everything matches on.
+    topic_label: str = ""
     # not in frontmatter
     user: str = ""
     rel: str = ""  # vault-relative path
@@ -128,7 +131,13 @@ class Finding:
             d["correspondent"] = int(self.correspondent)
         if self.research_run:
             d["research_run"] = self.research_run
+        if self.topic_label:
+            d["topic_label"] = self.topic_label
         return d
+
+    @property
+    def topic_display(self) -> str:
+        return topic_display(self.topic, self.topic_label, self.lang)
 
     @property
     def deadline_date(self) -> date | None:
@@ -136,6 +145,28 @@ class Finding:
             return date.fromisoformat(str(self.deadline)) if self.deadline else None
         except ValueError:
             return None
+
+
+def topic_label_for(label: str, topic: str) -> str:
+    """The model's label, if it is the one `topic` was derived from."""
+    from proactive.interests import slugify
+
+    label = " ".join((label or "").split())[:60]
+    return label if label and slugify(label) == topic else ""
+
+
+def topic_display(topic: str, label: str = "", lang: str = "en") -> str:
+    """How a topic is shown. Findings from before `topic_label` only have the
+    key: German capitalises each part ("kfz-versicherung" → "Kfz-Versicherung"),
+    English the first letter. Umlauts are not guessed back — "ue" is also the
+    "ue" in "Feuer"."""
+    if label:
+        return label
+    if not topic:
+        return ""
+    if lang == "de":
+        return "-".join(p[:1].upper() + p[1:] for p in topic.split("-"))
+    return topic[:1].upper() + topic[1:].replace("-", " ")
 
 
 def _s(v) -> str | None:
@@ -196,6 +227,7 @@ def parse(text: str, *, user: str = "", rel: str = "") -> Finding | None:
         pbrain_id=get_id(m),
         correspondent=_ints([m.get("correspondent")])[0] if _ints([m.get("correspondent")]) else None,
         research_run=_s(m.get("research_run")),
+        topic_label=str(m.get("topic_label") or ""),
         user=user,
         rel=rel,
         body=note.body,
@@ -633,6 +665,8 @@ async def add_to_series(user: str, existing: Finding, new: Finding) -> tuple[Fin
         "finding_key": new.finding_key,
         "correspondent": new.correspondent if new.correspondent is not None else existing.correspondent,
     }
+    if not existing.topic_label and new.topic_label:
+        fields["topic_label"] = new.topic_label
     if reopen:
         fields.update(status="new", surfaced_at=None, snoozed_until=None)
     body = series_body(existing.lang, summary=summary, doc_ids=doc_ids, evidence=ev,

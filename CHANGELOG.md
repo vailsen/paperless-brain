@@ -49,6 +49,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **Topics are spelled as words** ("Kfz-Versicherung", "Orthopädie"), not
+  as lowercase keys. New findings keep the label the model wrote; older ones
+  are capitalised (umlauts written as "ae" stay so).
 - **"Interesting" research is visible right away and gives way to chat.** The
   run appears in AI deep research as running (it showed a start button, which
   would have started it twice), the finding shows "Research running" with a

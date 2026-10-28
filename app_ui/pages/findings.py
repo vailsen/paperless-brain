@@ -85,7 +85,7 @@ def _meta_line(f) -> str:
     if f.deadline:
         parts.append(_("Due {date}").format(date=f.deadline))
     if f.topic:
-        parts.append(f.topic)
+        parts.append(f.topic_display)
     return " · ".join(parts)
 
 
@@ -106,7 +106,11 @@ async def findings_page() -> None:
         @ui.refreshable
         def body() -> None:
             items = findings.list_findings(user)
-            topics = sorted({f.topic for f in items if f.topic})
+            # key → label; a finding with a label wins over one without
+            topics: dict[str, str] = {}
+            for f in sorted(items, key=lambda f: bool(f.topic_label)):
+                if f.topic:
+                    topics[f.topic] = f.topic_display
             with ui.row().classes("w-full gap-2 flex-nowrap"):
                 status_opts = {"open": _("Open"), "all": _("All")}
                 status_opts.update({k: _(v) for k, v in STATUS_LABELS.items()})
@@ -122,7 +126,8 @@ async def findings_page() -> None:
                 ui.select(status_opts, value=state["status"], label=_("Status"), on_change=_on_status).props(
                     "outlined dark dense"
                 ).classes("flex-1 min-w-0")
-                ui.select({"": _("All topics"), **{t: t for t in topics}}, value=state["topic"],
+                ui.select({"": _("All topics"), **dict(sorted(topics.items(), key=lambda kv: kv[1].lower()))},
+                          value=state["topic"],
                           label=_("Topic"), on_change=_on_topic).props("outlined dark dense").classes("flex-1 min-w-0")
 
             def _keep(f) -> bool:

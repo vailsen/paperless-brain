@@ -62,8 +62,9 @@ still counts (a premium that went up, conditions that got worse), say what can \
 be done now instead — e.g. compare offers before the next regular renewal. If \
 nothing of it matters any more, it is not worth a finding.
 
-topic: a short subject label (1–3 words, lowercase). If one of the existing \
-labels fits, use it exactly.
+topic: a short subject label (1–3 words) in {language}, spelled as in normal \
+text (German nouns capitalised, umlauts kept). If one of the existing labels \
+fits, use it exactly.
 urgency: how soon it matters — low, medium, high, critical.
 title: one line, in {language}.
 summary: 2–4 sentences in {language}: what you noticed and why it may matter.
@@ -117,7 +118,7 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
         f"Today: {clock.local_now().date().isoformat()}",
         f"Document #{a.doc_id}: {meta.get('title', '')} (dated {str(meta.get('created', ''))[:10]})",
         f"Analysis: {a.summary}",
-        "Existing topic labels: " + (", ".join(sorted(known.rows)) or "(none)"),
+        "Existing topic labels: " + (", ".join(sorted(_labels(user, known.rows, lang_code))) or "(none)"),
     ]
     if similar:
         context.append("Similar documents: " + "; ".join(f"#{d['doc_id']} {d.get('title', '')}" for d in similar))
@@ -129,7 +130,7 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
         # invoice announcing the same price change) is that finding again,
         # under its topic, not a new one.
         context.append("Already reported for this sender (reuse the topic if it is the same matter): " + "; ".join(
-            f"topic {f.topic!r}: {f.title}" for f in known_series[:5]))
+            f"topic {f.topic_display!r}: {f.title}" for f in known_series[:5]))
     context.append("\nDocument text:\n" + text[:EXCERPT_CHARS])
     # Last, where it is followed: given a German document, the model otherwise
     # drifts into German for title and summary whatever the system prompt says.
@@ -144,7 +145,8 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
     )
     if not raw or not raw.get("worth_finding"):
         return True
-    topic = slugify(str(raw.get("topic") or a.topic_hint))
+    label = str(raw.get("topic") or a.topic_hint)
+    topic = slugify(label)
     quotes = [q for q in (raw.get("evidence_quotes") or []) if isinstance(q, str)]
     evidence = [{"doc_id": a.doc_id, "quote": q} for q in quotes]
     rec, sources = "", []
@@ -193,6 +195,7 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
         kind="insight",
         title=str(raw.get("title") or meta.get("title") or topic)[:150],
         topic=topic,
+        topic_label=findings.topic_label_for(label, topic),
         urgency=str(raw.get("urgency") or "medium"),
         advice=bool(rec),
         doc_ids=[a.doc_id],
@@ -214,6 +217,13 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
         jobs.enqueue("dossier_update", user, {"topic": topic, "doc_id": a.doc_id},
                      needs_llm=True, model=model, dedupe_key=f"dossier:{user}:{topic}:{a.doc_id}")
     return True
+
+
+def _labels(user: str, topics, lang: str) -> list[str]:
+    """The known topics as the model should reuse them: the label a finding
+    carries, else the key made readable. Reusing a label keeps the key."""
+    seen = {f.topic: f.topic_label for f in findings.list_findings(user) if f.topic_label}
+    return [findings.topic_display(t, seen.get(t, ""), lang) for t in topics]
 
 
 async def _similar(user: str, doc_id: int) -> list[dict]:

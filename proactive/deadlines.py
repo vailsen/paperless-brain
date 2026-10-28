@@ -76,6 +76,7 @@ async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str) -> 
             kind="deadline",
             title=f"{title} ({d.date})",
             topic=slugify(a.topic_hint),
+            topic_label=findings.topic_label_for(a.topic_hint, slugify(a.topic_hint)),
             urgency=urgency(d, today),
             doc_ids=[a.doc_id],
             evidence_hash=findings.evidence_hash([a.doc_id], [d.date, d.kind, d.quote]),

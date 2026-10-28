@@ -387,3 +387,19 @@ def test_findings_page_links_bare_source_urls():
     assert "- <https://example.org/geg-2026> (2026-10-27)" in out
     assert "- <https://example.org/norm.html>." in out
     assert "[Text](https://keep.example/x) and <https://already.example>" in out
+
+
+def test_topics_keep_their_spelling_for_display():
+    from proactive.findings import Finding, parse, topic_display, topic_label_for
+
+    assert topic_label_for("Kfz-Versicherung", "kfz-versicherung") == "Kfz-Versicherung"
+    assert topic_label_for("Orthopädie", "orthopaedie") == "Orthopädie"
+    assert topic_label_for("Strom", "gas") == ""  # not the label the key came from
+    # older findings: only the key
+    assert topic_display("kfz-versicherung", "", "de") == "Kfz-Versicherung"
+    assert topic_display("car-insurance", "", "en") == "Car insurance"
+    f = Finding(finding_id="abcdefg", kind="insight", title="t", topic="orthopaedie",
+                topic_label="Orthopädie", lang="de")
+    assert f.meta()["topic_label"] == "Orthopädie"
+    text = "---\n" + "".join(f"{k}: {v!r}\n" for k, v in f.meta().items() if v is not None) + "---\nbody\n"
+    assert parse(text).topic_display == "Orthopädie"
