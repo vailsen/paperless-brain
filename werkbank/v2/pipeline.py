@@ -164,6 +164,9 @@ async def start_run(
         _log.warning("werkbank v2 %s: vault sync failed: %s", run_id, exc)
 
     state.model = model
+    from services import inference_activity
+
+    inference_activity.purpose.set("werkbank")  # the dashboard names who uses the model
     ctx = context_for(user_id, model, run_id)
     prompt_log = PromptLog()
     caps = registry.user_capabilities(user_id, token_for(user_id))

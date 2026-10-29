@@ -6,6 +6,7 @@ import html as _html
 import json
 import os
 import re
+import time
 from datetime import date, datetime
 
 import httpx
@@ -579,6 +580,25 @@ async def dashboard():
                                             .tooltip(_("Shut down (SSH)"))
                                         )
                             _status_items.append((dot, badge, key))
+                            if key == "ollama":
+                                # Generating or idle, what is loaded, last speed —
+                                # filled by the compute timer once Ollama answers.
+                                compute_rows: dict = {"rows": []}
+
+                                @ui.refreshable
+                                def compute_view() -> None:
+                                    for icon, text in compute_rows["rows"]:
+                                        with ui.row().classes("items-start gap-1 no-wrap w-full min-w-0"):
+                                            ui.icon(icon).style(
+                                                "font-size:.9rem;color:var(--c-text-muted);margin-top:1px")
+                                            ui.label(text).classes("text-xs min-w-0").style(
+                                                "color:var(--c-text-2);overflow-wrap:anywhere")
+
+                                compute_box = ui.column().classes("w-full min-w-0 gap-0").style(
+                                    "padding-left:16px;margin-top:-4px;")
+                                with compute_box:
+                                    compute_view()
+                                compute_box.set_visibility(False)
 
                         ui.separator().classes("my-1")
 
@@ -1493,6 +1513,27 @@ window.__toggleHideAction = function(key) {{
             f"background:{'#22c55e' if ok else '#ef4444'};"
         )
         badge_el.set_text(detail)
+
+    # Compute line under Ollama: our own request log (both processes) + /api/ps.
+    _ollama_srv = _resolve_ollama_server(_username, _token)
+
+    async def _refresh_compute() -> None:
+        from app_ui.inference_status import lines
+        from services import inference_activity
+
+        if not _ollama_srv or compute_box.is_deleted:
+            return
+        models = await inference_activity.loaded_models(_ollama_srv)
+        snap = inference_activity.snapshot(inference_activity.host_of(_ollama_srv))
+        rows = lines(_, models, snap, time.time()) if models is not None else []
+        if rows != compute_rows["rows"]:
+            compute_rows["rows"] = rows
+            compute_view.refresh()
+        compute_box.set_visibility(bool(rows))
+
+    if _ollama_srv:
+        await _refresh_compute()
+        ui.timer(5.0, _refresh_compute)
 
     # E-Mail / Calendar config status (no live test — just check if configured)
     _creds = load_credentials(_username, _token) if _username and _token else {}

@@ -26,6 +26,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **What the GPU host is doing, on the dashboard.** Under "Ollama": generating
+  or idle (and for what — chat, ingest, deep research, proactive — for how
+  long), which model is in memory with its VRAM and when it unloads, and the
+  speed of the last generation in tokens per second. Ollama itself does not
+  say whether it is generating; the app and the worker log their own requests.
 - **Research reports live in your vault**, in `PaperlessBrain Research/`
   (`RESEARCH_SUBFOLDER`): every finished AI deep research run — started there,
   from the chat, or by "Interesting" on a finding — is a Markdown note. It

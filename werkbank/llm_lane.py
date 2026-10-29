@@ -215,13 +215,16 @@ async def _call_openai_compatible(
     if think is not None:
         payload["think"] = think  # Ollama/qwen3 specific
 
-    async with httpx.AsyncClient(timeout=180) as client:
+    from services import inference_activity
+
+    async with httpx.AsyncClient(timeout=180) as client, inference_activity.track(base_url, model) as activity:
         resp = await client.post(
             f"{base_url.rstrip('/')}/chat/completions",
             json=payload,
             headers=headers,
         )
         resp.raise_for_status()
+        activity.usage(resp.json())
 
     choice = resp.json().get("choices", [{}])[0]
     msg = choice.get("message", {})
@@ -643,11 +646,14 @@ async def _call_openai_compatible_structured(
         "stream": False,
     }
 
-    async with httpx.AsyncClient(timeout=180) as client:
+    from services import inference_activity
+
+    async with httpx.AsyncClient(timeout=180) as client, inference_activity.track(base_url, model) as activity:
         resp = await client.post(
             f"{base_url.rstrip('/')}/chat/completions", json=payload, headers=headers
         )
         resp.raise_for_status()
+        activity.usage(resp.json())
 
     choice = resp.json().get("choices", [{}])[0]
     msg = choice.get("message", {})

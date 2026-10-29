@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-29 10:31+0000\n"
+"POT-Creation-Date: 2026-10-29 10:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -101,8 +101,8 @@ msgstr ""
 #: app_ui/pages/brain.py:278 app_ui/pages/brain.py:292
 #: app_ui/pages/brain.py:773 app_ui/pages/chat.py:1427
 #: app_ui/pages/chat.py:3672 app_ui/pages/chat.py:3936
-#: app_ui/pages/chat.py:4020 app_ui/pages/dashboard.py:1036
-#: app_ui/pages/dashboard.py:1241 app_ui/pages/dashboard.py:1431
+#: app_ui/pages/chat.py:4020 app_ui/pages/dashboard.py:1056
+#: app_ui/pages/dashboard.py:1261 app_ui/pages/dashboard.py:1451
 #: app_ui/pages/settings.py:1239 app_ui/title_rename_settings.py:79
 #: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
 #: werkbank/ui/module_page.py:136 werkbank/v2/ui/brief_dialog.py:158
@@ -468,7 +468,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: app_ui/document_dialog.py:610 app_ui/pages/dashboard.py:1787
+#: app_ui/document_dialog.py:610 app_ui/pages/dashboard.py:1828
 msgid "Description"
 msgstr ""
 
@@ -477,7 +477,7 @@ msgstr ""
 msgid "Deadline"
 msgstr ""
 
-#: app_ui/document_dialog.py:624 app_ui/pages/dashboard.py:1743
+#: app_ui/document_dialog.py:624 app_ui/pages/dashboard.py:1784
 msgid "Certain"
 msgstr ""
 
@@ -660,24 +660,89 @@ msgstr ""
 msgid "Oldest first"
 msgstr ""
 
-#: app_ui/layout.py:42 app_ui/pages/dashboard.py:406 tests/test_i18n.py:119
-msgid "Dashboard"
-msgstr ""
-
-#: app_ui/layout.py:43 app_ui/pages/chat.py:1735 app_ui/pages/dashboard.py:422
-#: app_ui/pages/settings.py:398
+#: app_ui/inference_status.py:13 app_ui/layout.py:43 app_ui/pages/chat.py:1735
+#: app_ui/pages/dashboard.py:423 app_ui/pages/settings.py:398
 msgid "Chat"
 msgstr ""
 
-#: app_ui/layout.py:44 app_ui/pages/chat.py:732 app_ui/pages/dashboard.py:429
+#: app_ui/inference_status.py:14
+msgid "Ingest"
+msgstr ""
+
+#: app_ui/inference_status.py:15 app_ui/layout.py:44 app_ui/pages/chat.py:732
+#: app_ui/pages/dashboard.py:430
 msgid "Deep research"
 msgstr ""
 
-#: app_ui/layout.py:45 app_ui/pages/dashboard.py:436
+#: app_ui/inference_status.py:16 app_ui/pages/settings.py:361
+msgid "Proactive"
+msgstr ""
+
+#: app_ui/inference_status.py:17
+msgid "Background task"
+msgstr ""
+
+#: app_ui/inference_status.py:46
+#, python-brace-format
+msgid "Generating — {what} · {model} · {time}"
+msgstr ""
+
+#: app_ui/inference_status.py:51
+#, python-brace-format
+msgid "{n} more"
+msgstr ""
+
+#: app_ui/inference_status.py:54
+msgid "Idle"
+msgstr ""
+
+#: app_ui/inference_status.py:61
+#, python-brace-format
+msgid "{gb} GB"
+msgstr ""
+
+#: app_ui/inference_status.py:64
+#, python-brace-format
+msgid "unloads in {min} min"
+msgstr ""
+
+#: app_ui/inference_status.py:66
+#, python-brace-format
+msgid "In memory: {models}"
+msgstr ""
+
+#: app_ui/inference_status.py:68
+msgid "No model in memory"
+msgstr ""
+
+#: app_ui/inference_status.py:72 app_ui/pages/chat.py:1280
+msgid "just now"
+msgstr ""
+
+#: app_ui/inference_status.py:73
+#, python-brace-format
+msgid "{n} min ago"
+msgstr ""
+
+#: app_ui/inference_status.py:73
+#, python-brace-format
+msgid "{n} h ago"
+msgstr ""
+
+#: app_ui/inference_status.py:77
+#, python-brace-format
+msgid "Last: {rate} tokens/s · {what} · {when}"
+msgstr ""
+
+#: app_ui/layout.py:42 app_ui/pages/dashboard.py:407 tests/test_i18n.py:119
+msgid "Dashboard"
+msgstr ""
+
+#: app_ui/layout.py:45 app_ui/pages/dashboard.py:437
 msgid "Browser"
 msgstr ""
 
-#: app_ui/layout.py:46 app_ui/pages/dashboard.py:443
+#: app_ui/layout.py:46 app_ui/pages/dashboard.py:444
 msgid "Note vault"
 msgstr ""
 
@@ -1239,7 +1304,7 @@ msgstr ""
 
 #: app_ui/pages/chat.py:824 app_ui/pages/chat.py:3327 app_ui/pages/chat.py:3668
 #: app_ui/pages/chat.py:3929 app_ui/pages/chat.py:4016
-#: app_ui/pages/dashboard.py:1236 app_ui/pages/settings.py:280
+#: app_ui/pages/dashboard.py:1256 app_ui/pages/settings.py:280
 #: app_ui/similar_dialog.py:113
 #, python-brace-format
 msgid "Error: {err}"
@@ -1367,8 +1432,8 @@ msgstr ""
 msgid "Start dry run"
 msgstr ""
 
-#: app_ui/pages/chat.py:3789 app_ui/pages/dashboard.py:1105
-#: app_ui/pages/dashboard.py:1132 app_ui/title_rename_settings.py:231
+#: app_ui/pages/chat.py:3789 app_ui/pages/dashboard.py:1125
+#: app_ui/pages/dashboard.py:1152 app_ui/title_rename_settings.py:231
 #: app_ui/title_rename_settings.py:266 app_ui/title_rename_settings.py:268
 #: werkbank/v2/ui/board.py:140
 msgid "Close"
@@ -1716,13 +1781,13 @@ msgstr ""
 msgid "Range"
 msgstr ""
 
-#: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:341
+#: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:342
 #: app_ui/pages/findings.py:312
 #, python-brace-format
 msgid "#{id} unpinned"
 msgstr ""
 
-#: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:344
+#: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:345
 #: app_ui/pages/findings.py:316
 #, python-brace-format
 msgid "#{id} pinned"
@@ -1851,11 +1916,11 @@ msgid ": Doc #{id}"
 msgstr ""
 
 #: app_ui/pages/chat.py:724 app_ui/pages/chat.py:2822
-#: app_ui/pages/dashboard.py:481 app_ui/pages/settings.py:344
+#: app_ui/pages/dashboard.py:482 app_ui/pages/settings.py:344
 msgid "Documents"
 msgstr ""
 
-#: app_ui/pages/chat.py:726 app_ui/pages/dashboard.py:600
+#: app_ui/pages/chat.py:726 app_ui/pages/dashboard.py:620
 #: app_ui/pages/settings.py:768
 msgid "Calendar"
 msgstr ""
@@ -2008,10 +2073,6 @@ msgstr ""
 msgid ""
 "Hello! I am your document assistant. I can search and read documents and "
 "answer general questions. What would you like to know?"
-msgstr ""
-
-#: app_ui/pages/chat.py:1280
-msgid "just now"
 msgstr ""
 
 #: app_ui/pages/chat.py:1282
@@ -2409,66 +2470,66 @@ msgstr ""
 msgid "New conversation"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:311
+#: app_ui/pages/dashboard.py:312
 msgid "January"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:311
+#: app_ui/pages/dashboard.py:312
 msgid "February"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:311
+#: app_ui/pages/dashboard.py:312
 msgid "March"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:311
+#: app_ui/pages/dashboard.py:312
 msgid "April"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:312
+#: app_ui/pages/dashboard.py:313
 msgid "May"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:312
+#: app_ui/pages/dashboard.py:313
 msgid "June"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:312
+#: app_ui/pages/dashboard.py:313
 msgid "July"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:312
+#: app_ui/pages/dashboard.py:313
 msgid "August"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:313
+#: app_ui/pages/dashboard.py:314
 msgid "September"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:313
+#: app_ui/pages/dashboard.py:314
 msgid "October"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:313
+#: app_ui/pages/dashboard.py:314
 msgid "November"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:313
+#: app_ui/pages/dashboard.py:314
 msgid "December"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:410
+#: app_ui/pages/dashboard.py:411
 msgid "Help — Module overview"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:424
+#: app_ui/pages/dashboard.py:425
 msgid ""
 "AI assistant with access to your document archive, your memory, the web, "
 "email and calendar. Ask questions, have documents summarized, draft "
 "letters or run research. Pick the AI model you want at the top."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:431
+#: app_ui/pages/dashboard.py:432
 msgid ""
 "Autonomous multi-step agent for complex tasks. Enter a request → the AI "
 "plans it, breaks it into sub-tasks and carries them out on its own "
@@ -2478,7 +2539,7 @@ msgid ""
 "the last 3 years', 'Research current funding programs for my project'."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:438
+#: app_ui/pages/dashboard.py:439
 msgid ""
 "Full-screen view of the document archive (Paperless-ngx). Search by full "
 "text or semantic similarity, filter by type, correspondent, tag or date. "
@@ -2487,7 +2548,7 @@ msgid ""
 " or deep research comes from this archive."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:445
+#: app_ui/pages/dashboard.py:446
 msgid ""
 "Your notes and the assistant's long-term memory, in one place — a file "
 "tree with a markdown editor. Write notes here or in Obsidian; edit their "
@@ -2497,400 +2558,400 @@ msgid ""
 "(dashboard) tidies up the assistant's own memory entries."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:482
+#: app_ui/pages/dashboard.py:483
 msgid "Loading..."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:486 app_ui/pages/dashboard.py:999
+#: app_ui/pages/dashboard.py:487 app_ui/pages/dashboard.py:1019
 #, python-brace-format
 msgid "Last sync: {ts}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:502
+#: app_ui/pages/dashboard.py:503
 msgid "Synchronize Paperless now"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:508
+#: app_ui/pages/dashboard.py:509
 msgid "Stop the sync after the current document"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:515 app_ui/pages/dashboard.py:732
+#: app_ui/pages/dashboard.py:516 app_ui/pages/dashboard.py:752
 msgid "Sync log"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:518
+#: app_ui/pages/dashboard.py:519
 msgid "Brain vault"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:527
+#: app_ui/pages/dashboard.py:528
 msgid "Synchronize vault now"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:533
+#: app_ui/pages/dashboard.py:534
 msgid "Analyze and clean up memory"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:544
+#: app_ui/pages/dashboard.py:545
 msgid "System status"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:553
+#: app_ui/pages/dashboard.py:554
 msgid "Ollama (Local LLM)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:572
+#: app_ui/pages/dashboard.py:573
 msgid "Wake up (WoL)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:579
+#: app_ui/pages/dashboard.py:580
 msgid "Shut down (SSH)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:591 app_ui/pages/settings.py:691
+#: app_ui/pages/dashboard.py:611 app_ui/pages/settings.py:691
 msgid "Email (IMAP)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:609
+#: app_ui/pages/dashboard.py:629
 msgid "Deadlines"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:635
+#: app_ui/pages/dashboard.py:655
 msgid "Calendar & deadlines"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:773
+#: app_ui/pages/dashboard.py:793
 #, python-brace-format
 msgid "⚠ {n} docs with outdated prompt version (current v{v})"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:785
+#: app_ui/pages/dashboard.py:805
 msgid "Sync already running…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:852
+#: app_ui/pages/dashboard.py:872
 #, python-brace-format
 msgid "✓ #{id} imported"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:855
+#: app_ui/pages/dashboard.py:875
 #, python-brace-format
 msgid "✗ #{id} error"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:865
+#: app_ui/pages/dashboard.py:885
 #, python-brace-format
 msgid "#{id} removed"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:980
+#: app_ui/pages/dashboard.py:1000
 msgid "Sync stopped"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:983
+#: app_ui/pages/dashboard.py:1003
 msgid "Sync complete"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:990
+#: app_ui/pages/dashboard.py:1010
 #, python-brace-format
 msgid "{new} new, {removed} removed"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1004 app_ui/pages/dashboard.py:1473
+#: app_ui/pages/dashboard.py:1024 app_ui/pages/dashboard.py:1493
 #, python-brace-format, python-format
 msgid "{pct} % indexed in ChromaDB"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1009
+#: app_ui/pages/dashboard.py:1029
 #, python-brace-format
 msgid "Sync error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1024
+#: app_ui/pages/dashboard.py:1044
 msgid "Sync"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1027
+#: app_ui/pages/dashboard.py:1047
 msgid ""
 "New documents are always ingested. Additionally, outdated documents (old "
 "prompt version) are re-ingested — up to how many? Empty = all. Large "
 "numbers can take a long time."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1031
+#: app_ui/pages/dashboard.py:1051
 msgid "Max. re-ingests (empty = all)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1046 werkbank/ui/task_dialog.py:360
+#: app_ui/pages/dashboard.py:1066 werkbank/ui/task_dialog.py:360
 #: werkbank/v2/ui/brief_dialog.py:159
 msgid "Start"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1060
+#: app_ui/pages/dashboard.py:1080
 msgid "Stopping after the current document…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1077
+#: app_ui/pages/dashboard.py:1097
 msgid ""
 "No model configured for dreaming. Please set one in Settings > Memory "
 "maintenance."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1086
+#: app_ui/pages/dashboard.py:1106
 msgid "No memory entries available."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1099
+#: app_ui/pages/dashboard.py:1119
 msgid "Error during memory analysis"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1120
+#: app_ui/pages/dashboard.py:1140
 msgid "Memory analysis"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1123
+#: app_ui/pages/dashboard.py:1143
 msgid "No actions suggested."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1126
+#: app_ui/pages/dashboard.py:1146
 msgid "LLM response (debug)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1129
+#: app_ui/pages/dashboard.py:1149
 msgid "(empty)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1147
+#: app_ui/pages/dashboard.py:1167
 msgid "Memory cleanup"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1151
+#: app_ui/pages/dashboard.py:1171
 #, python-brace-format
 msgid "{n} actions suggested — deselect to skip"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1171
+#: app_ui/pages/dashboard.py:1191
 msgid "🗑 Delete"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1172
+#: app_ui/pages/dashboard.py:1192
 msgid "✏️ Update"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1174
+#: app_ui/pages/dashboard.py:1194
 msgid "🏷️ Update tags"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1192
+#: app_ui/pages/dashboard.py:1212
 #, python-brace-format
 msgid "Current: {text}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1199
+#: app_ui/pages/dashboard.py:1219
 #, python-brace-format
 msgid "New: {text}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1210
+#: app_ui/pages/dashboard.py:1230
 #, python-brace-format
 msgid "Tags old: {tags}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1213
+#: app_ui/pages/dashboard.py:1233
 #, python-brace-format
 msgid "Tags new: {tags}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1222
+#: app_ui/pages/dashboard.py:1242
 msgid "No actions selected."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1230
+#: app_ui/pages/dashboard.py:1250
 #, python-brace-format
 msgid "Cleanup complete: {d} deleted, {u} updated."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1245
+#: app_ui/pages/dashboard.py:1265
 msgid "Run selected"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1256
+#: app_ui/pages/dashboard.py:1276
 msgid "No user signed in."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1261
+#: app_ui/pages/dashboard.py:1281
 msgid "📂 Synchronizing vault…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1271
+#: app_ui/pages/dashboard.py:1291
 msgid "Vault synchronized."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1274
+#: app_ui/pages/dashboard.py:1294
 #, python-brace-format
 msgid "Vault sync error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1306
+#: app_ui/pages/dashboard.py:1326
 #, python-brace-format
 msgid ""
 "Several local models point at different hosts ({hosts}). Set "
 "OLLAMA_SERVER in .env to say which machine the power buttons control."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1314
+#: app_ui/pages/dashboard.py:1334
 msgid "OLLAMA_HOST_LAN_MAC_ADDRESS_WOL not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1327
+#: app_ui/pages/dashboard.py:1347
 #, python-brace-format
 msgid "WoL error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1330
+#: app_ui/pages/dashboard.py:1350
 #, python-brace-format
 msgid "Magic packet → {target}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1331
+#: app_ui/pages/dashboard.py:1351
 msgid "Waking up…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1350
+#: app_ui/pages/dashboard.py:1370
 msgid "Ollama is online!"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1363
+#: app_ui/pages/dashboard.py:1383
 msgid "OLLAMA_SSH_USER not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1366
+#: app_ui/pages/dashboard.py:1386
 msgid "Shutting down…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1394
+#: app_ui/pages/dashboard.py:1414
 #, python-brace-format
 msgid "Shutdown failed: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1395
+#: app_ui/pages/dashboard.py:1415
 #, python-brace-format
 msgid "ssh exited with {code}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1400 app_ui/pages/dashboard.py:1404
-#: app_ui/pages/dashboard.py:1482
+#: app_ui/pages/dashboard.py:1420 app_ui/pages/dashboard.py:1424
+#: app_ui/pages/dashboard.py:1502
 msgid "Online"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1403
+#: app_ui/pages/dashboard.py:1423
 #, python-brace-format
 msgid "SSH error: {err}"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1414 app_ui/pages/dashboard.py:1482
-#: app_ui/pages/dashboard.py:1487
+#: app_ui/pages/dashboard.py:1434 app_ui/pages/dashboard.py:1502
+#: app_ui/pages/dashboard.py:1507
 msgid "Offline"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1417
+#: app_ui/pages/dashboard.py:1437
 msgid "Server is shutting down…"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1422
+#: app_ui/pages/dashboard.py:1442
 msgid "Shut down server"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1424 app_ui/pages/login.py:90
+#: app_ui/pages/dashboard.py:1444 app_ui/pages/login.py:90
 #: app_ui/pages/settings.py:805
 msgid "Password"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1428
+#: app_ui/pages/dashboard.py:1448
 msgid "Wrong password"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1442
+#: app_ui/pages/dashboard.py:1462
 msgid "Shut down"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1476
+#: app_ui/pages/dashboard.py:1496
 msgid "Paperless not reachable"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1485
+#: app_ui/pages/dashboard.py:1505
 #, python-brace-format
 msgid "{n} docs"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1485 werkbank/ui/module_page.py:181
+#: app_ui/pages/dashboard.py:1505 werkbank/ui/module_page.py:181
 msgid "Error"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1511 app_ui/pages/dashboard.py:1513
-#: app_ui/pages/dashboard.py:1526
+#: app_ui/pages/dashboard.py:1552 app_ui/pages/dashboard.py:1554
+#: app_ui/pages/dashboard.py:1567
 msgid "Not configured"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1522
+#: app_ui/pages/dashboard.py:1563
 #, python-brace-format
 msgid "iCal ({n} calendars)"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1578
+#: app_ui/pages/dashboard.py:1619
 msgid "upcoming"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1580
+#: app_ui/pages/dashboard.py:1621
 #, python-brace-format
 msgid "{n} overdue"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1582
+#: app_ui/pages/dashboard.py:1623
 msgid "Show overdue deadlines only"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1681
+#: app_ui/pages/dashboard.py:1722
 msgid "No deadlines found."
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1692
+#: app_ui/pages/dashboard.py:1733
 msgid "Overdue only"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1695
+#: app_ui/pages/dashboard.py:1736
 msgid "Show all"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1707
+#: app_ui/pages/dashboard.py:1748
 #, python-brace-format
 msgid "{n} hidden"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1710
+#: app_ui/pages/dashboard.py:1751
 msgid "Show"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1710 app_ui/pages/dashboard.py:1760
+#: app_ui/pages/dashboard.py:1751 app_ui/pages/dashboard.py:1801
 msgid "Hide"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1743
+#: app_ui/pages/dashboard.py:1784
 msgid "Uncertain"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1760
+#: app_ui/pages/dashboard.py:1801
 msgid "Show again"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1785 proactive/deadlines.py:38
+#: app_ui/pages/dashboard.py:1826 proactive/deadlines.py:38
 msgid "Date"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1788
+#: app_ui/pages/dashboard.py:1829
 msgid "Doc"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1817
+#: app_ui/pages/dashboard.py:1858
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr ""
@@ -3226,10 +3287,6 @@ msgstr ""
 
 #: app_ui/pages/settings.py:353
 msgid "Import and export your settings"
-msgstr ""
-
-#: app_ui/pages/settings.py:361
-msgid "Proactive"
 msgstr ""
 
 #: app_ui/pages/settings.py:362

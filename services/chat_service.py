@@ -3806,9 +3806,11 @@ class OpenAICompatibleChatBackend:
             think_chars = 0
             loop_detected = False
 
+            from services import inference_activity
+
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
-            ) as client:
+            ) as client, inference_activity.track(self.base_url, self.model, "chat") as activity:
                 async with client.stream(
                     "POST",
                     f"{self.base_url}/chat/completions",
@@ -3839,6 +3841,13 @@ class OpenAICompatibleChatBackend:
 
                         choice = (chunk.get("choices") or [{}])[0]
                         delta = choice.get("delta") or {}
+                        # The dashboard's speed: one streamed delta ≈ one token;
+                        # a server that reports usage at the end corrects it.
+                        if chunk.get("usage"):
+                            activity.usage(chunk)
+                        elif delta.get("content") or delta.get("reasoning_content") or delta.get(
+                                "thinking") or delta.get("reasoning") or delta.get("tool_calls"):
+                            activity.token()
 
                         # Dedicated reasoning field (DeepSeek-R1, some Qwen configs)
                         for key in ("reasoning_content", "thinking", "reasoning"):

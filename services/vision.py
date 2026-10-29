@@ -280,7 +280,10 @@ class OllamaVisionClient(VisionClient):
         return f"{self.base_url.rstrip('/')}/api/chat"
 
     async def _vision_json(self, prompt: str, image_b64: str) -> str:
-        async with httpx.AsyncClient() as client:
+        from services import inference_activity
+
+        async with httpx.AsyncClient() as client, inference_activity.track(
+                self.base_url, self.model, "ingest") as activity:
             response = await client.post(
                 self._chat_url(),
                 json={
@@ -307,10 +310,14 @@ class OllamaVisionClient(VisionClient):
                 timeout=600,
             )
             response.raise_for_status()
+            activity.usage(response.json())
         return response.json()["message"]["content"]
 
     async def _vision_text(self, prompt: str, image_b64: str) -> str:
-        async with httpx.AsyncClient() as client:
+        from services import inference_activity
+
+        async with httpx.AsyncClient() as client, inference_activity.track(
+                self.base_url, self.model, "ingest") as activity:
             response = await client.post(
                 self._oai_url(),
                 json={
@@ -328,10 +335,14 @@ class OllamaVisionClient(VisionClient):
                 timeout=300,
             )
             response.raise_for_status()
+            activity.usage(response.json())
         return response.json()["choices"][0]["message"]["content"]
 
     async def _text(self, prompt: str) -> str:
-        async with httpx.AsyncClient() as client:
+        from services import inference_activity
+
+        async with httpx.AsyncClient() as client, inference_activity.track(
+                self.base_url, self.model, "ingest") as activity:
             response = await client.post(
                 self._oai_url(),
                 json={
@@ -343,6 +354,7 @@ class OllamaVisionClient(VisionClient):
                 timeout=120,
             )
             response.raise_for_status()
+            activity.usage(response.json())
         return response.json()["choices"][0]["message"]["content"]
 
 

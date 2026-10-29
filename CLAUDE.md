@@ -235,6 +235,15 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 
 `services/ollama_watchdog.py`: shuts the Ollama host down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity, but only a host that was woken via WoL. `touch()` resets the idle timer. The state (woken?, last activity, host) lives in `data/power_state.json`, not in module globals: the proactive worker is a second process sending inference requests, and the app's watchdog must see them. Waking goes through `services/wol.wake()` — the dashboard button and the worker's LLM gate (`proactive/gate.py`) both use it. A shutdown counts only when ssh says so (`BatchMode=yes`, exit status checked) and is verified a few minutes later; a failed or ineffective one keeps `wol_active` and is retried (`watchdog_step`), every decision logged as `[watchdog]`. A host the worker woke (`wol_by: worker`) goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (5) instead; any `touch()` from the app hands it back to the normal idle time.
 
+### Compute status
+
+`services/inference_activity.py`, shown by `app_ui/inference_status.py` on the dashboard.
+Ollama's `/api/ps` says what is loaded, never whether it generates — so every model
+request of the app *and* the worker is bracketed with `inference_activity.track(base_url,
+model)` (shared file `data/inference_activity.json`, `flock`, written at start and end
+only). A new call path to a model goes through `track` too, or the dashboard calls the
+host idle while it works. Tracking never fails a request.
+
 ## Deployment target
 
 LXC container (see `.deploy.env` for target host), remote path from `DEPLOY_REMOTE_DIR`, systemd service `paperlessbrain`. Server uses Python 3.14.
