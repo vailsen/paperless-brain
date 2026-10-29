@@ -41,6 +41,38 @@ def _fact_label(state: RunState, fact_id: str) -> str:
     return f"[{fact_id}] {claim[:110]}{'…' if len(claim) > 110 else ''}"
 
 
+def unsourced(state: RunState) -> dict[str, str]:
+    """fact id → why it has no real source: model knowledge, sources that were
+    never retrieved (every one at trust `model` — a failed call or an invented
+    id), or derived from such a fact.
+
+    The last one is the point. A synthesizer fact is `derived` and reads like a
+    conclusion; built on a model-knowledge premise it carried that premise into
+    the recommendation with nothing to show for it — the reflection named the
+    premise and not the advice resting on it.
+    """
+    from werkbank.v2.models import SourceTrust
+
+    weak: dict[str, str] = {}
+    facts = state.all_facts()
+    for fact in facts:
+        if fact.evidence in (Evidence.MODEL_KNOWLEDGE, Evidence.NONE):
+            weak[fact.id] = "Modellwissen"
+        elif fact.sources and all(s.trust is SourceTrust.MODEL for s in fact.sources):
+            weak[fact.id] = "Quelle nicht abgerufen"
+    changed = True
+    while changed:  # derived from a derived fact counts too
+        changed = False
+        for fact in facts:
+            if fact.id in weak or fact.evidence is not Evidence.DERIVED:
+                continue
+            premises = [d for d in fact.derived_from if d in weak]
+            if premises:
+                weak[fact.id] = "abgeleitet aus " + ", ".join(premises)
+                changed = True
+    return weak
+
+
 def build(state: RunState) -> str:
     """The complete block, wrapped in its markers."""
     lines: list[str] = [HEADING, ""]
@@ -85,16 +117,14 @@ def build(state: RunState) -> str:
             lines.append(f"  widerspricht {_fact_label(state, right)}")
         lines.append("")
 
-    # 4. Claims with no source at all.
-    from_memory = [
-        f for f in state.all_facts()
-        if f.evidence in (Evidence.MODEL_KNOWLEDGE, Evidence.NONE)
-    ]
-    if from_memory:
+    # 4. Claims with no source at all — and what was concluded from them.
+    weak = unsourced(state)
+    if weak:
         empty = False
         lines += ["**Aussagen ohne Quelle (Modellwissen)**", ""]
-        for fact in from_memory:
-            lines.append(f"- {_fact_label(state, fact.id)}")
+        for fact in state.all_facts():
+            if fact.id in weak:
+                lines.append(f"- {_fact_label(state, fact.id)} — {weak[fact.id]}")
         lines.append("")
 
     # 5. Criteria the critic did not see satisfied.

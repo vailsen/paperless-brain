@@ -22,7 +22,7 @@ from werkbank.v2.llm import LLMContext, PromptLog, call_structured
 from werkbank.v2.models import Brief, CoverageCheck, CoverageVerdict, Subtask
 from werkbank.v2.plan_checks import (
     PlanReport,
-    ensure_contradiction_checker,
+    drop_contradiction_checker,
     validate_plan,
 )
 from werkbank.v2.registry import Registry
@@ -89,7 +89,7 @@ async def build_plan(
         plan = await call_structured(
             "planner", system, user, Plan, ctx, prompt_log=prompt_log
         )
-        subtasks = ensure_contradiction_checker(plan.subtasks)
+        subtasks = drop_contradiction_checker(plan.subtasks)
         report = validate_plan(subtasks, brief, known)
         if report.ok or attempt == 1:
             break
@@ -187,7 +187,7 @@ async def plan_with_review(
         "Plan again so these are covered too."
     )
     plan = await call_structured("planner", system, user, Plan, ctx, prompt_log=prompt_log)
-    revised = ensure_contradiction_checker(plan.subtasks)
+    revised = drop_contradiction_checker(plan.subtasks)
     revised_report = validate_plan(revised, brief, set(registry.agents))
     if revised_report.ok:
         coverage = await review_coverage(

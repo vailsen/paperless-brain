@@ -80,6 +80,17 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **Deep research reports are shorter and say what they rest on.** A report
+  started from a finding answered four generic questions (switch, cancel,
+  renegotiate, claim) with a section of law each, and listed sources that had
+  only been mentioned in the request. Now: the run is asked the finding's own
+  question and to work out the numbers; the report opens with the answer;
+  header, assignment, subtasks and sources are written by code (no more fact
+  markers on the brief, no second, wrong source list, no header lines flagged
+  as "unsupported"); a conclusion built on the model's own knowledge is
+  named in the self-reflection along with its premise; the contradiction
+  check runs once instead of twice; the note is named after the report's
+  title; a site's home page is never a finding's source.
 - **The research result now alerts the phone.** It was sent under the
   finding's own title and tag, so the phone swapped the old notification for
   it without a sound. It reads "Research done: …" now.

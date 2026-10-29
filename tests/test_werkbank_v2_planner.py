@@ -203,32 +203,29 @@ def test_duplicate_subtask_ids_are_rejected():
     assert not report.ok and any("not unique" in d for d in report.defects)
 
 
-# ── The contradiction pass is appended, not requested ─────────────────────────
+# ── The contradiction pass runs once, in code — not as a subtask ─────────────
 
 
-def test_the_contradiction_checker_is_appended_when_the_planner_forgets_it():
-    plan = plan_checks.ensure_contradiction_checker([_sub("st1"), _sub("st2")])
-    checkers = [s for s in plan if s.agent == "contradiction_checker"]
-    assert len(checkers) == 1
-    assert set(checkers[0].depends_on) == {"st1", "st2"}
-
-
-def test_it_depends_on_the_leaves_not_on_everything():
-    plan = plan_checks.ensure_contradiction_checker(
-        [_sub("st1"), _sub("st2", depends_on=["st1"])]
-    )
-    checker = next(s for s in plan if s.agent == "contradiction_checker")
-    assert checker.depends_on == ["st2"]
-
-
-def test_an_existing_checker_is_reused_and_its_dependencies_corrected():
-    plan = plan_checks.ensure_contradiction_checker([
-        _sub("st1"), _sub("st2"),
-        _sub("st3", "contradiction_checker", depends_on=["st1"]),
+def test_a_planned_contradiction_checker_is_taken_out():
+    """It ran twice: as a subtask over its dependencies' facts, and as the
+    pass over every fact. The subtask only added a section saying nothing."""
+    plan = plan_checks.drop_contradiction_checker([
+        _sub("st1"), _sub("st2", "synthesizer", depends_on=["st1"]),
+        _sub("st3", "contradiction_checker", depends_on=["st2"]),
+        _sub("st4", "synthesizer", depends_on=["st2", "st3"]),
     ])
-    checkers = [s for s in plan if s.agent == "contradiction_checker"]
-    assert len(checkers) == 1
-    assert set(checkers[0].depends_on) == {"st1", "st2"}
+    assert [s.subtask_id for s in plan] == ["st1", "st2", "st4"]
+    assert plan[2].depends_on == ["st2"]  # no dangling dependency on the dropped one
+
+
+def test_a_plan_without_one_is_left_as_it_is():
+    subtasks = [_sub("st1"), _sub("st2")]
+    assert plan_checks.drop_contradiction_checker(subtasks) == subtasks
+
+
+def test_the_planner_is_not_offered_the_contradiction_checker():
+    view = {a["id"] for a in registry.load_defaults().planner_view()}
+    assert "contradiction_checker" not in view and "synthesizer" in view
 
 
 # ── Execution levels ──────────────────────────────────────────────────────────

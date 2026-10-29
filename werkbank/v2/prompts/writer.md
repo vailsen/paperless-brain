@@ -26,22 +26,36 @@ restored if it differs.
 It is not decoration. It lists what could not be answered, which claims rest on
 no source, and where sources contradict each other.
 
-## Structure
+## What you write — and what you do not
 
-1. Title, client, model, date, duration
-2. Table of contents
-3. The assignment: the original request verbatim, then the brief
-4. The subtasks with their agents
-5. The report itself
-6. `<!-- reflection:begin -->` … `<!-- reflection:end -->`
-7. Sources, grouped by trust level:
-   - `authoritative` — documents
-   - `user_asserted` — own notes, mail, calendar entries
-   - `external` — web
-   - `computed` / `derived` — calculated or condensed
+Code puts the frame around your text: the title line, client, model and run
+time, the assignment verbatim with the brief, the subtask table, and the source
+list grouped by trust level. **Do not write any of these**, and no table of
+contents. Give the report a short `title` (a few words, not a sentence).
 
-Name the trust level in the source list. A reader has to be able to tell
-whether a statement comes from a contract or from a note someone once wrote.
+Your `markdown` is the findings, then the reflection block:
+
+1. **The answer first.** One short section that answers the question in a few
+   sentences: what applies, what it is worth, what to do next and by when — or
+   that nothing needs doing. With markers, like every paragraph.
+2. Then only what that answer rests on, in sections the reader needs to check
+   it. Say each thing once; do not restate in a later section what an earlier
+   one said.
+3. Leave out what does not bear on the answer, even when a fact supports it:
+   definitions of everyday terms, law that turned out not to apply, background a
+   reader of this question already knows. A shorter report that answers the
+   question is the better report.
+4. `<!-- reflection:begin -->` … `<!-- reflection:end -->`, unchanged.
+
+Numbers beat descriptions: where a fact computes something (interest saved,
+a difference in rates, a cost), state the number.
+
+## Facts marked "ohne Quelle"
+
+A fact marked `⚠ ohne Quelle` rests on the model's own knowledge, on a source
+that was never retrieved, or on such a fact. Write it as what it is — "probably",
+"usually, unless the contract says otherwise" — never as settled, and never as
+the reason for a recommendation without saying so.
 
 ## Where facts contradict each other
 

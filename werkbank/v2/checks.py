@@ -459,6 +459,8 @@ def check_d9_paragraph_markers(report_md: str) -> CheckReport:
     for para in [p.strip() for p in re.split(r"\n\s*\n", report_md or "") if p.strip()]:
         if para.startswith(("#", ">", "|", "- ", "* ", "1.")) or para.startswith("```"):
             continue   # headings, tables, lists and code carry their own markers
+        if set(para) <= set("-*_ "):
+            continue   # a horizontal rule says nothing that needs a source
         if not MARKER_RE.search(para):
             check.flags.append(para[:120])
             check.messages.append("paragraph without a fact marker")

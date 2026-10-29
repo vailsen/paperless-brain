@@ -217,9 +217,12 @@ Ergänzungen gegenüber dem Text unten:
   die Paraphrase eines Modells). Begründung in den Findings.
 - **PLANNER-Regel 7** (Definitions-Subtask bei Vergleichen), im Prompt und über
   den Brief bereits in Phase 2 abgesichert.
-- **`ensure_contradiction_checker()` hängt den Pass an und korrigiert seine
-  Abhängigkeiten auf die Blätter** — auch wenn der Planer ihn schon gesetzt hat,
-  aber nur an einen Teil gehängt hat.
+- **Der Widerspruchs-Pass läuft genau einmal, im Code, über alle Facts**
+  (`contradictions.find` nach dem Plan). Früher hängte
+  `ensure_contradiction_checker()` zusätzlich einen Subtask an — der lief ein
+  zweites Mal, sah nur die Facts seiner Abhängigkeiten und brachte ein Fact
+  „keine Widersprüche", eine eigene Lücke und einen Abschnitt in den Bericht.
+  `drop_contradiction_checker()` nimmt einen geplanten wieder heraus.
 - **Ein `covered`-Verdict ohne genannte Subtask-ID wird auf `partial`
   abgestuft.** Ein Urteil ohne Beleg ist eine Meinung.
 - **Registry-Pfad:** `config/agents.yaml` im Repo, zur Laufzeit unter

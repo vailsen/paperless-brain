@@ -73,29 +73,22 @@ def topological_order(subtasks: list[Subtask]) -> list[list[str]]:
     return levels
 
 
-def ensure_contradiction_checker(subtasks: list[Subtask]) -> list[Subtask]:
-    """Append the contradiction pass if the planner did not, or fix its deps.
+def drop_contradiction_checker(subtasks: list[Subtask]) -> list[Subtask]:
+    """Take a planned contradiction subtask out of the plan.
 
-    Appended by code rather than demanded from the model: it must run exactly
-    once, over everything, and a planner that forgets it produces a report that
-    silently picks one side of a conflict.
+    The contradiction pass runs once, in code, over every accepted fact of the
+    run (`contradictions.find`, after the plan). Planned as a subtask as well,
+    it ran a second time — seeing only the facts of the subtasks it depended
+    on — and put a fact ("no contradictions"), a gap of its own and a section
+    into the report that said nothing the pass did not.
     """
-    others = [s for s in subtasks if s.agent != CONTRADICTION_CHECKER]
-    existing = [s for s in subtasks if s.agent == CONTRADICTION_CHECKER]
-    if not others:
+    dropped = {s.subtask_id for s in subtasks if s.agent == CONTRADICTION_CHECKER}
+    if not dropped:
         return subtasks
-
-    depended_on = {dep for s in others for dep in s.depends_on}
-    leaves = [s.subtask_id for s in others if s.subtask_id not in depended_on]
-
-    checker = existing[0] if existing else Subtask(
-        subtask_id=f"st{max(int(s.subtask_id[2:]) for s in others) + 1}",
-        question="Welche der gefundenen Aussagen widersprechen einander?",
-        agent=CONTRADICTION_CHECKER,
-        acceptance_criteria=["benennt jeden Widerspruch mit beiden Fact-IDs"],
-    )
-    checker.depends_on = leaves          # always over the whole run, not a subset
-    return others + [checker]
+    out = [s for s in subtasks if s.subtask_id not in dropped]
+    for s in out:
+        s.depends_on = [d for d in s.depends_on if d not in dropped]
+    return out
 
 
 def validate_plan(
@@ -163,9 +156,5 @@ def validate_plan(
             report.fail(
                 f"no subtask covers acceptance criterion {index}: {criterion!r}"
             )
-
-    checkers = [s for s in subtasks if s.agent == CONTRADICTION_CHECKER]
-    if len(checkers) > 1:
-        report.fail("contradiction_checker appears more than once; it runs exactly once")
 
     return report

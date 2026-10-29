@@ -34,6 +34,17 @@ about them is invented.
   not what a document says. Every document search runs one automatically.
 - **`calculate`** — do not do arithmetic in your head, ever.
 
+## A named document is a starting point, not the boundary
+
+When the question names a document and it does not hold the answer — or turns
+out not to be the binding one (an offer, a draft, a quote, a summary rather than
+the signed contract) — search the archive for the document that does: same
+correspondent, related type, the period after it, `find_similar_documents`.
+"Not in document #129" is not a gap until that search came back empty; record
+the queries you ran. On a real run an offer was read, the signed loan contract
+next to it in the archive was never looked for, and four of its clauses were
+reported as "not found".
+
 ## Facts
 
 Return your answer as facts. A fact is the smallest unit that can be accepted

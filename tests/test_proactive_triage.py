@@ -337,6 +337,28 @@ def test_triage_with_fetched_page_keeps_advice_and_disclaimer(env, triage_llm, m
     assert queries == ["Riester Kosten Kritik 2026"]
 
 
+def test_a_sites_home_page_is_never_fetched_as_a_source(env, triage_llm, monkeypatch):
+    """A portal's front page came back as a hit, was fetched, and became the
+    finding's source — and later the deep dive's."""
+    from proactive import triage, web
+
+    fetched = []
+
+    async def searx(q, **kw):
+        return [{"url": "https://www.wikipedia.de/", "title": "", "snippet": ""},
+                {"url": "https://verbraucher.example/riester", "title": "", "snippet": ""}]
+
+    async def fetch(url):
+        fetched.append(url)
+        return "Riester-Verträge sind oft teuer."
+
+    monkeypatch.setattr(web, "_searx", searx)
+    monkeypatch.setattr(web, "_fetch", fetch)
+    asyncio.run(triage.triage("alice", "t", _analysis(), {"title": "Riester"}, _model()))
+    assert fetched == ["https://verbraucher.example/riester"]
+    assert "wikipedia" not in _finding_text(env)
+
+
 def test_triage_query_with_the_users_name_is_not_sent(env, triage_llm, monkeypatch):
     from proactive import triage, web
 
