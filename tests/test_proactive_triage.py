@@ -623,3 +623,34 @@ def test_a_failed_deep_dive_run_is_not_polled_for_two_weeks(env, monkeypatch):
     assert f.status == "interested"  # the page offers "Research again"
     polls = [jobs.get(i) for i in range(1, 6) if jobs.get(i) and jobs.get(i).kind == "deep_dive_poll"]
     assert all(j.status != "queued" for j in polls)
+
+
+def test_deep_dive_may_quote_further_documents_the_user_can_read(env, monkeypatch, tmp_path):
+    """The run found the signed contract (#2) behind the offer (#1): its quote
+    counts, and #2 joins the finding. #3 the user cannot read: dropped."""
+    from proactive import paperless_ro
+
+    contract = "Darlehensvertrag. Sondertilgung: bis zu 5 % der Darlehenssumme jährlich."
+    for d, text in ((2, contract), (3, "Geheim. Sondertilgung: 10 %.")):
+        (tmp_path / "sidecars" / f"{d}.json").write_text(json.dumps({"pages": [{"page_text": text}]}))
+    checked = []
+
+    async def can_read(token, doc_id):
+        checked.append(doc_id)
+        return doc_id == 2
+
+    monkeypatch.setattr(paperless_ro, "can_read", can_read)
+    f = _poll(env, monkeypatch, {
+        "state": "done",
+        "summary": "Der Vertrag erlaubt 5 %.",
+        "recommendation": "Angebote vergleichen.",
+        "evidence": [
+            {"doc_id": 2, "quote": "Sondertilgung: bis zu 5 % der Darlehenssumme jährlich."},
+            {"doc_id": 3, "quote": "Sondertilgung: 10 %."},
+        ],
+        "sources": ["https://a.example/x"],
+        "fetched": {"https://a.example/x": "2026-10-26"},
+    })
+    assert sorted(checked) == [2, 3]
+    assert f.doc_ids == [1, 2] and f.advice
+    assert "bis zu 5 % der Darlehenssumme" in f.body and "10 %" not in f.body

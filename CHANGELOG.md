@@ -80,6 +80,17 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **A research result says what it does not know.** "Open points" lists
+  the gaps and the assumptions behind a comparison (before or after tax,
+  fixed or variable, a teaser rate) above the recommendation, and the result
+  no longer claims what you did or intend.
+- **A research may quote the binding document it found** (the signed contract
+  behind an offer), if you can read it in Paperless; that document then
+  belongs to the finding.
+- **A site's home page is no longer a source**, and source links are stored
+  without tracking parameters.
+- **A research started again after deleting the old one no longer stays on
+  "Research running"** after it has finished.
 - **Deep research reports are shorter and say what they rest on.** A report
   started from a finding answered four generic questions (switch, cancel,
   renegotiate, claim) with a section of law each, and listed sources that had
