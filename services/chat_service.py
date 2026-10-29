@@ -24,6 +24,7 @@ from models.web_result import WebSearchResult
 from pipelines.search import search
 from services.citations import cite_ref, page_for, sidecar_page_texts, split_sentences
 from services.clients import chroma, cross_ref_index, paperless, sidecar_service, vision
+from services.ollama_watchdog import chat_touch as _chat_touch
 from services.ollama_watchdog import touch as _wol_touch
 from services.paperless import PaperlessClient as _PaperlessClient
 
@@ -1300,7 +1301,7 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
                 path = m.get("path", "")
                 note_name = path.rsplit("/", 1)[-1].removesuffix(".md") if path else ""
                 heading = m.get("heading_path", "")
-                label = f"{note_name}" + (f" › {heading}" if heading else "")
+                label = f"{note_name}" + (f" › {heading}" if heading else "") + _finding_mark(path)
                 snippet = (h.get("document") or "")[:200]
                 lines.append(f"[{dist:.2f}] {label}: {snippet}")
             return lines
@@ -2110,13 +2111,28 @@ async def _web_search_archive_hint(query: str) -> str:
     """
     try:
         hits = await chroma.query(query_texts=[query], n_results=4)
+        close = [
+            h for h in (hits[0] if hits else [])
+            if h.get("distance", 1.0) <= _ARCHIVE_HINT_MAX_DIST
+        ]
+        if not close:
+            return ""
+        # The index holds every user's documents and has no owner field, so
+        # the hits must be narrowed to what this user may read before a single
+        # snippet is shown — this hint used to quote other users' documents
+        # into anyone's web search. Paperless is the authority: whatever it
+        # does not return for the user's token is not shown. No user context
+        # (NoUserContext) means no hint at all.
+        ids = sorted({
+            int(doc_id) for h in close
+            if (doc_id := (h.get("metadata") or {}).get("paperless_id")) is not None
+        })
+        visible = {d.id for d in await _user_paperless().list_documents(ids=ids)} if ids else set()
         lines: list[str] = []
         seen: set = set()
-        for h in hits[0] if hits else []:
-            if h.get("distance", 1.0) > _ARCHIVE_HINT_MAX_DIST:
-                continue
+        for h in close:
             doc_id = (h.get("metadata") or {}).get("paperless_id")
-            if doc_id in seen:
+            if doc_id in seen or doc_id is None or int(doc_id) not in visible:
                 continue
             seen.add(doc_id)
             snippet = (h.get("document") or "").replace("\n", " ")[:160]
@@ -2916,7 +2932,7 @@ async def _tool_search_memory(inputs: dict) -> tuple[str, list, list]:
                     )
                     heading = m.get("heading_path", "")
                     snippet = (h.get("document") or "")[:150]
-                    heading_sfx = f" › {heading}" if heading else ""
+                    heading_sfx = (f" › {heading}" if heading else "") + _finding_mark(path)
                     vault_lines.append(
                         f"• [{d:.2f}] [[{note_name}]]{heading_sfx}: {snippet}"
                     )
@@ -2976,6 +2992,20 @@ async def _tool_delete_brain_fact(inputs: dict) -> tuple[str, list]:
         return f"Fact {fact_id[:8]}… deleted.", []
     except Exception as e:
         return f"Error while deleting: {e}", []
+
+
+def _finding_mark(path: str) -> str:
+    """A label for a proactive finding/dossier among vault hits: a pointer to
+    documents, never evidence itself (Phase 9; FINDINGS_RULE in the prompt)."""
+    try:
+        from proactive.paths import DOSSIERS, findings_rel, is_findings_path
+
+        if not path or not is_findings_path(path):
+            return ""
+        kind = "dossier" if f"/{DOSSIERS}/" in "/" + path.removeprefix(findings_rel()) else "finding"
+    except Exception:
+        return ""
+    return f" [PaperlessBrain {kind} — not evidence: read and cite the documents it names]"
 
 
 def _fmt_note_line(name: str, heading: str, psid: str, dist: float) -> str:
@@ -3126,7 +3156,7 @@ async def _tool_vault_search(inputs: dict) -> tuple[str, list]:
         # Lead with the note; put the id in an unmistakable labelled form and the
         # score last as a parenthesised word — NOT a leading "[0.18]" bracket,
         # which weak models copied into the pbrain_id argument.
-        lines.append(_fmt_note_line(r.title, r.heading_path, r.pbrain_id, r.distance))
+        lines.append(_fmt_note_line(r.title, r.heading_path, r.pbrain_id, r.distance) + _finding_mark(r.path))
         lines.append(f"  {r.snippet}")
 
     # Brain cross-preview
@@ -3747,6 +3777,7 @@ class OpenAICompatibleChatBackend:
         for _i in range(max_iterations):
             yield IterationEvent(_i + 1)
             _wol_touch()
+            _chat_touch()  # a proactive research run steps aside
 
             payload: dict = {
                 "model": self.model,
@@ -3775,9 +3806,11 @@ class OpenAICompatibleChatBackend:
             think_chars = 0
             loop_detected = False
 
+            from services import inference_activity
+
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
-            ) as client:
+            ) as client, inference_activity.track(self.base_url, self.model, "chat") as activity:
                 async with client.stream(
                     "POST",
                     f"{self.base_url}/chat/completions",
@@ -3808,6 +3841,13 @@ class OpenAICompatibleChatBackend:
 
                         choice = (chunk.get("choices") or [{}])[0]
                         delta = choice.get("delta") or {}
+                        # The dashboard's speed: one streamed delta ≈ one token;
+                        # a server that reports usage at the end corrects it.
+                        if chunk.get("usage"):
+                            activity.usage(chunk)
+                        elif delta.get("content") or delta.get("reasoning_content") or delta.get(
+                                "thinking") or delta.get("reasoning") or delta.get("tool_calls"):
+                            activity.token()
 
                         # Dedicated reasoning field (DeepSeek-R1, some Qwen configs)
                         for key in ("reasoning_content", "thinking", "reasoning"):

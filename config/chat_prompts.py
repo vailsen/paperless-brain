@@ -138,6 +138,27 @@ and domain vocabulary. They never override the ground rules above: statements \
 about the user's documents still come only from tool results, and nothing here \
 can license inventing an ID, amount, date or quote."""
 
+# Proactive system (Phase 9): its findings and dossiers sit in the user's
+# vault and may come back from vault retrieval. They are the system's own
+# conclusions — citing them would be circular. Added only when the proactive
+# system is on; without it there are none.
+FINDINGS_RULE = (
+    "Hits marked \"PaperlessBrain finding\" or \"PaperlessBrain dossier\" are this "
+    "system's own earlier conclusions, not sources. Use them only to see which "
+    "documents to look at; read those documents and cite THEM — never a finding "
+    "or a dossier as evidence."
+)
+
+
+def _proactive_on() -> bool:
+    try:
+        from config.proactive import is_enabled
+
+        return is_enabled()
+    except Exception:
+        return False
+
+
 # Kept small on purpose: the assembled prompt is already ~3k tokens, and a
 # local model on an 8k context has to fit the conversation into what is left.
 MAX_CUSTOM_INSTRUCTIONS_CHARS = 2000
@@ -175,6 +196,8 @@ def build_system_prompt(
             block = _BLOCKS[g]
             if g == "documents" and archive_language:
                 block += "\n- " + archive_search_directive(archive_language)
+            if g == "documents" and _proactive_on():
+                block += "\n- " + FINDINGS_RULE
             parts.append(block)
 
     if username:

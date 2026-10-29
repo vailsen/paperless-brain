@@ -15,9 +15,15 @@
 
 name: Release image
 
+# Releases (v* tags) publish latest / lean / the version. Everything else — a
+# merge to main, or "Run workflow" on any branch — publishes only dev /
+# dev-lean, which the dev server follows (it polls ghcr every 2 minutes).
+# Before this, a manual build of an unfinished branch overwrote :latest for
+# everyone who pulls it.
 on:
   push:
     tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -67,7 +73,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: |
-            latest=${{ matrix.variant == 'full' }}
+            latest=${{ matrix.variant == 'full' && startsWith(github.ref, 'refs/tags/') }}
             suffix=${{ matrix.flavor }},onlatest=true
           tags: |
             type=ref,event=tag
@@ -78,7 +84,9 @@ jobs:
             # Without it the flavor is appended here too and the moving tag is
             # published as "lean-lean", so the ":lean" the README tells people to
             # pull does not exist.
-            type=raw,value=lean,suffix=,enable=${{ matrix.variant == 'lean' }}
+            type=raw,value=lean,suffix=,enable=${{ matrix.variant == 'lean' && startsWith(github.ref, 'refs/tags/') }}
+            # dev / dev-lean: every build that is not a release.
+            type=raw,value=dev,enable=${{ !startsWith(github.ref, 'refs/tags/') }}
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3

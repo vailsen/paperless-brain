@@ -202,8 +202,14 @@ def get_translator():
     MUST be called inside a page function or event handler — it reads the
     user's preferences, which need a connected client/session.
     """
-    lang = get_pref("language", DEFAULT_LANG)
-    if lang == DEFAULT_LANG:
+    return translator_for(get_pref("language", DEFAULT_LANG))
+
+
+def translator_for(lang: str):
+    """The gettext callable for an explicit language — for code that runs
+    outside any session (the proactive worker renders notifications in each
+    recipient's language, copied into its own store)."""
+    if not lang or lang == DEFAULT_LANG:
         return gettext.NullTranslations().gettext  # msgid IS English
     try:
         return gettext.translation("messages", LOCALES_DIR, languages=[lang]).gettext

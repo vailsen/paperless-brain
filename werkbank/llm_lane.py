@@ -38,6 +38,7 @@ is_api_model(model) -> bool
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 import re
@@ -110,6 +111,22 @@ def _sem_for(model: str, user_id: str, token: str) -> asyncio.Semaphore:
     if cfg:
         return _API_SEM if cfg.get("lane") == "api" else _LOCAL_SEM
     return _API_SEM if is_api_model(model) else _LOCAL_SEM
+
+
+#: Set for a proactive research run (`proactive.deep_dive_app`): before each
+#: local-lane call it waits while a user is chatting, so the chat gets the GPU.
+#: A call already running finishes first. Interactive runs leave it unset.
+yield_to_chat: contextvars.ContextVar[bool] = contextvars.ContextVar("yield_to_chat", default=False)
+_YIELD_POLL_S = 5.0
+
+
+async def _wait_for_chat(sem: asyncio.Semaphore) -> None:
+    if sem is not _LOCAL_SEM or not yield_to_chat.get():
+        return
+    from services.ollama_watchdog import chat_busy
+
+    while chat_busy():
+        await asyncio.sleep(_YIELD_POLL_S)
 
 
 def _touch_watchdog(sem: asyncio.Semaphore) -> None:
@@ -198,13 +215,16 @@ async def _call_openai_compatible(
     if think is not None:
         payload["think"] = think  # Ollama/qwen3 specific
 
-    async with httpx.AsyncClient(timeout=180) as client:
+    from services import inference_activity
+
+    async with httpx.AsyncClient(timeout=180) as client, inference_activity.track(base_url, model) as activity:
         resp = await client.post(
             f"{base_url.rstrip('/')}/chat/completions",
             json=payload,
             headers=headers,
         )
         resp.raise_for_status()
+        activity.usage(resp.json())
 
     choice = resp.json().get("choices", [{}])[0]
     msg = choice.get("message", {})
@@ -367,6 +387,7 @@ async def complete(
     think=False disables qwen3-style thinking tokens (Ollama only, ignored for Claude).
     """
     sem = _sem_for(model, user_id, token)
+    await _wait_for_chat(sem)
     async with sem:
         _touch_watchdog(sem)
         text, _, _ = await _raw_call(
@@ -402,6 +423,7 @@ async def complete_turn(
     stop_reason: "end_turn" | "tool_use"
     """
     sem = _sem_for(model, user_id, token)
+    await _wait_for_chat(sem)
     async with sem:
         _touch_watchdog(sem)
         try:
@@ -487,6 +509,7 @@ async def complete_structured(
         ValueError: if the response cannot be parsed / tool not called.
     """
     sem = _sem_for(model, user_id, token)
+    await _wait_for_chat(sem)
     async with sem:
         _touch_watchdog(sem)
         cfg = _get_registry_cfg(model, user_id, token)
@@ -623,11 +646,14 @@ async def _call_openai_compatible_structured(
         "stream": False,
     }
 
-    async with httpx.AsyncClient(timeout=180) as client:
+    from services import inference_activity
+
+    async with httpx.AsyncClient(timeout=180) as client, inference_activity.track(base_url, model) as activity:
         resp = await client.post(
             f"{base_url.rstrip('/')}/chat/completions", json=payload, headers=headers
         )
         resp.raise_for_status()
+        activity.usage(resp.json())
 
     choice = resp.json().get("choices", [{}])[0]
     msg = choice.get("message", {})

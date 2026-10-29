@@ -351,6 +351,27 @@ async def settings_page() -> None:
         _group("voice", "mic", _("Voice"), _("Voice memos and dictation"))
         _group("connect", "hub", _("Connections"), _("Email, calendar and sender profile"))
         _group("data", "backup", _("Backup"), _("Import and export your settings"))
+        # Only with PROACTIVE_ENABLED=true: no group, no card, no proactive.db.
+        from config.proactive import is_enabled as _proactive_enabled
+
+        if _proactive_enabled():
+            _group(
+                "proactive",
+                "notifications_active",
+                _("Proactive"),
+                _("Reminders, insights and notification channels"),
+            )
+
+        if "proactive" in _groups:
+            with _card("proactive"):
+                from app_ui.proactive_settings import proactive_setting
+
+                _section_header(
+                    "notifications_active",
+                    _("Proactive system"),
+                    _("Deadline reminders and insights while you are away"),
+                )
+                proactive_setting(username, token)
 
         # ── Sprache / Language ─────────────────────────────────────────────────
         with _card("general"):

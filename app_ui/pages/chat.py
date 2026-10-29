@@ -18,6 +18,7 @@ from app_ui.layout import page_layout, require_auth
 from app_ui.model_picker import model_select
 from app_ui.pages.browser import _render_card
 from config.chat_prompts import build_system_prompt
+from config.proactive import is_enabled as proactive_enabled
 from werkbank.settings_store import get_archive_language
 from i18n import DEFAULT_LANG, detect_language, get_translator
 from services.citations import number_citations
@@ -324,6 +325,9 @@ def _activity_hint(_tool_name: str, tool_input: dict) -> str:
         return _(": Doc #{id}").format(id=doc_id)
     return ""
 
+
+# How much of a finding goes along with each turn of a "Chat about this".
+FINDING_CTX_CHARS = 6000
 
 _CHAT_CSS = """<style>
 html, body { overflow: hidden !important; }
@@ -707,7 +711,7 @@ html, body { overflow: hidden !important; }
 
 
 @ui.page("/chat")
-async def chat():
+async def chat(finding: str = ""):
     if not require_auth():
         return
     page_layout()
@@ -1374,6 +1378,8 @@ async def chat():
             compact_btn.classes(remove="text-amber-500", add="text-gray-600")
 
     def _load_conv(conv_id: str) -> None:
+        if conv_id != _s.get("conv_id"):
+            _set_finding_ctx(None)
         messages = _chat_hist.load_messages(conv_id, _username)
         _s["messages"] = messages
         _s["conv_id"] = conv_id
@@ -1442,6 +1448,7 @@ async def chat():
         ng_app.storage.user.pop("chat_token_count", None)
         ng_app.storage.user.pop("chat_context_window", None)
         ng_app.storage.user.pop("chat_conv_id", None)
+        _set_finding_ctx(None)
         # Deliberately empty: coming back must not reopen the latest
         # conversation from the database (chat_on_open == "last").
         ng_app.storage.user["chat_fresh"] = True
@@ -1936,6 +1943,19 @@ async def chat():
                                         _chat_cfg["show_thinking"] = e.value
                                         _save_chat_settings()
                                     _think_cb.on_value_change(_on_think_toggle)
+
+                    # Finding context ("Chat about this" on a finding page; auto-hide)
+                    finding_row = ui.row().style(
+                        "flex-shrink:0; min-height:30px; background:var(--c-surface-2);"
+                        "border-top:1px solid var(--c-surface);"
+                    )
+                    finding_row.set_visibility(False)
+                    with finding_row:
+                        finding_bar = ui.element("div").style(
+                            "max-width:860px; margin:0 auto; width:100%;"
+                            "display:flex; align-items:center; gap:4px;"
+                            "padding:4px 12px; min-width:0;"
+                        )
 
                     # Pinned docs chips row (auto-hide)
                     pinned_row = ui.row().style(
@@ -2705,6 +2725,36 @@ window.__openVaultNote = function(noteId) {{
     def _pinned_ids() -> set[int]:
         return {d["id"] for d in _s["pinned_docs"]}
 
+    def _set_finding_ctx(fid: str | None) -> None:
+        """The finding this conversation is about ("Chat about this"), or None.
+        Kept in user storage next to `chat_conv_id`, so a reload keeps it."""
+        f = None
+        if fid and proactive_enabled():
+            from proactive import findings as _findings
+
+            f = _findings.get(_username, fid)  # the user's own ledger only
+        _s["finding_ctx"] = (
+            {"id": f.finding_id, "title": f.title, "text": _findings.tidy_sources(f.body, f.lang)}
+            if f else None
+        )
+        if f:
+            ng_app.storage.user["chat_finding"] = f.finding_id
+        else:
+            ng_app.storage.user.pop("chat_finding", None)
+        finding_bar.clear()
+        finding_row.set_visibility(f is not None)
+        if f is None:
+            return
+        with finding_bar:
+            ui.button(
+                _("Back to finding"), icon="arrow_back",
+                on_click=lambda i=f.finding_id: ui.navigate.to(f"/findings/{i}"),
+            ).props("flat dense no-caps").classes("pb-accent-text text-xs flex-shrink-0")
+            ui.label(f.title).classes("text-xs text-gray-400 truncate flex-1 min-w-0")
+            ui.button(icon="close", on_click=lambda: _set_finding_ctx(None)).props(
+                "flat dense dark"
+            ).classes("text-gray-400 flex-shrink-0").tooltip(_("Remove finding from the chat"))
+
     def _refresh_pinned_chips() -> None:
         pinned_chips_container.clear()
         has_pins = bool(_s["pinned_docs"])
@@ -2992,6 +3042,18 @@ window.__openVaultNote = function(noteId) {{
 
         # Inject pinned-doc context into LLM messages without polluting stored history
         llm_messages = list(_s["messages"])
+        if _s.get("finding_ctx"):
+            _fc = _s["finding_ctx"]
+            llm_messages[-1] = {
+                "role": "user",
+                "content": (
+                    "[The user opened this chat from a PaperlessBrain finding. The finding is "
+                    "the system's own note, not evidence: cite the documents it names, never "
+                    "the finding.]\n<finding>\n# " + _fc["title"] + "\n\n"
+                    + _fc["text"][:FINDING_CTX_CHARS] + "\n</finding>\n\n"
+                    + llm_messages[-1]["content"]
+                ),
+            }
         if _s["pinned_docs"]:
             _pin_prefix = (
                 "[Angeheftete Dokumente: "
@@ -4074,6 +4136,29 @@ window.__openVaultNote = function(noteId) {{
     else:
         with messages_container:
             _welcome_msg()
+    if finding and proactive_enabled():
+        # "Chat about this" on a finding: a new conversation, its documents pinned.
+        from proactive import findings as _findings
+
+        _f = _findings.get(_username, finding)
+        if _f is not None:
+            _new_conv()
+            async def _title(d: int) -> str:
+                try:
+                    return (await get_session_paperless().get_document(d)).title
+                except Exception:
+                    return ""  # no access or gone: not pinned
+
+            _new = [d for d in _f.doc_ids if d not in _pinned_ids()]
+            for _d, _t in zip(_new, await asyncio.gather(*(_title(d) for d in _new))):
+                if _t:
+                    _s["pinned_docs"].append({"id": _d, "title": _t})
+            _sync_pin_storage()
+        _set_finding_ctx(finding)
+        # A reload must not start yet another conversation.
+        ui.run_javascript("history.replaceState(null, '', '/chat')")
+    else:
+        _set_finding_ctx(ng_app.storage.user.get("chat_finding"))
     _refresh_pinned_chips()
     _refresh_history_list()
 

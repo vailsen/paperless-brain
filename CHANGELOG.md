@@ -7,6 +7,137 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Removed
+
+- **"Save to Paperless" for AI deep research reports.** The report is a note
+  in your vault now (see Added); a model's research does not belong in the
+  document archive. Download as Markdown or PDF stays.
+- **Replying to notification emails, and with it everything that read the
+  mailbox.** It moved every unread mail of the inbox, not just replies, into
+  `PaperlessBrain/Processed`. Email is now send-only, like push: title,
+  urgency and one link to the finding. `IMAP_*` in `.env` is ignored. Mails
+  it moved are still in that label — move them back to the inbox in Gmail.
+- **The weekly message limit.** Every finding worth a message is sent; the
+  first nights of the archive run are busier, then it settles.
+- **Telegram as a notification channel.** Push in the app does the same
+  without a bot to set up and is end-to-end encrypted. Existing Telegram links
+  are deleted on upgrade; a user who had picked Telegram keeps their other
+  channels. `TELEGRAM_BOT_TOKEN` in `.env` is ignored and can be removed.
+
+### Added
+
+- **What the GPU host is doing, on the dashboard.** Under "Ollama": generating
+  or idle (and for what — chat, ingest, deep research, proactive — for how
+  long), which model is in memory with its VRAM and when it unloads, and the
+  speed of the last generation in tokens per second. Ollama itself does not
+  say whether it is generating; the app and the worker log their own requests.
+- **Research reports live in your vault**, in `PaperlessBrain Research/`
+  (`RESEARCH_SUBFOLDER`): every finished AI deep research run — started there,
+  from the chat, or by "Interesting" on a finding — is a Markdown note. It
+  stays when the run is deleted, the chat finds it like any note, and a
+  researched finding (and its topic's dossier) links it Obsidian-style. On
+  the findings page "Full report" opens it as a PDF, made on demand — no
+  switch to the deep-research page. Runs finished before this get their note
+  the next time AI deep research is opened, or the finding is.
+- **Findings: sort and group.** Sort by relevance, urgency, deadline or date;
+  group by topic, by status, or by topic and then status — headlines to
+  scroll past, nothing to open or close. Each status has an icon, a coloured
+  edge marks what presses (high urgency, a deadline within a week), and a
+  line on top counts open, waiting, pressing and researched findings. The
+  choice is remembered.
+- **Quiet hours, per user** (Settings > Proactive, default 22:00–07:00).
+  Reminders and insights found at night are sent when they end.
+- **"Analyse the archive now"**: choose how many documents to analyse right
+  away instead of waiting for the night window.
+- **Language of findings** is its own setting, so findings can be German while
+  the app is English. Findings no longer slip into the document's language.
+- **"Not relevant"** on a finding closes just that one; "Never again" still
+  mutes the whole topic.
+  Deadlines have it too, next to "Done" and "Wrongly detected"; it stops the
+  reminders.
+- **"Restore"** on a dismissed or done finding opens it again, without a new
+  message. A topic muted with "Never again" is unmuted.
+- **"Chat about this"** on a finding starts a new conversation with the
+  finding as context and its documents pinned; "Back to finding" returns.
+  The document dialog on a finding page has the pin button too.
+- **Notifications in the app itself (Web Push).** Settings > Proactive > "Turn
+  on for this device" — on Android, on an iPhone with the app on the home
+  screen, and in desktop browsers, also while the app is closed. End-to-end
+  encrypted; tapping a notification opens the finding, where you answer. Pick
+  it per user next to (or instead of) email, for deadline
+  reminders and insights. Two extra push-only notices, each with its own
+  switch: a sync that imported or removed documents, and a finished Werkbank
+  run. Operator: generate keys once with `python -m proactive.notify.webpush`.
+
+### Fixed
+
+- **The research result now alerts the phone.** It was sent under the
+  finding's own title and tag, so the phone swapped the old notification for
+  it without a sound. It reads "Research done: …" now.
+- **The GPU host no longer wakes up in the evening.** The worker wakes it only
+  inside a sweep window, or for something you asked for in the last 30
+  minutes ("Analyse now", "Interesting"). A new document outside the window
+  waits until the host is on anyway.
+- **A host the worker woke is really shut down.** A failed shutdown (ssh
+  refused, a prompt, a timeout) counted as done, and the PC stayed on until
+  morning. Now it is checked a few minutes later and retried; every decision
+  is logged as `[watchdog]`.
+- **Push for "push and email" users.** Choosing both channels sent email
+  only. Push now goes out with high urgency (delivered at once, not at the
+  phone's next maintenance window), and the settings show per device what the
+  push service answered to the last message.
+- **What was found at night is one message in the morning**, most urgent
+  first, not twenty within two minutes.
+- **One finding per sender and matter.** Twelve invoices announcing the same
+  price change are one finding listing twelve documents, sent once; findings
+  split up before are merged once.
+- **Topics are spelled as words** ("Kfz-Versicherung", "Orthopädie"), not
+  as lowercase keys. New findings keep the label the model wrote; older ones
+  are capitalised (umlauts written as "ae" stay so).
+- **"Interesting" research is visible right away and gives way to chat.** The
+  run appears in AI deep research as running (it showed a start button, which
+  would have started it twice), the finding shows "Research running" with a
+  link to it, and the research pauses between steps while someone chats.
+  The result goes on top of the finding under "Research result" with a link
+  to the full report; the page updates by itself. Deleting the run afterwards
+  keeps the result in the finding.
+- **A chat no longer starts with syncing what the worker wrote overnight.**
+  Once its batch is done and nobody is chatting, the worker has the app
+  commit and index its findings, so the first question of the day starts
+  right away.
+- **A finding could not be answered before it was sent** — new findings had
+  no buttons. They now have all of them.
+- **Insights no longer suggest options whose deadline passed years ago** (a
+  one-month special termination right from 2023). Triage judges from today and
+  proposes what still applies, e.g. comparing offers before the next renewal.
+- **Document links on a finding open the PaperlessBrain document dialog**, not
+  Paperless-ngx.
+- **A chat no longer waits behind the proactive worker**: while the app uses
+  the model, the worker starts no new job.
+- **Old documents were analysed as "new" in the daytime.** Paperless ignores
+  the `id__gt` filter the worker asked for, so every five minutes it got the
+  oldest documents back and analysed them outside the night window (and the
+  night sweep would never have passed its first document). Ids are filtered in
+  the worker now.
+- **Push notifications show the logo in the status bar**, not a white square:
+  Android uses only the transparency of that small icon, so it gets a
+  transparent mark of its own.
+- **The dashboard's document counter no longer looks behind.** Documents
+  carrying the no-ingest tag (the inbox) are not counted on the Paperless
+  side either, so a finished sync reads "523 / 523", not "523 / 533".
+- **A host woken at night goes back to sleep sooner.** When the proactive
+  worker woke the GPU host and no one used it, it shuts down after 5 idle
+  minutes (`PROACTIVE_IDLE_SHUTDOWN_MINUTES`), not 30. Using the app hands it
+  back to the normal idle time.
+- **Email link codes are rate-limited.** "Send code" mails any address typed
+  in; per user it now sends 3 in the first hour, then 1 an hour, and starts
+  over 24 hours after the first.
+- **Tags are readable in light mode.** Chips kept the dark theme's light text
+  on a pale tint; each theme now has its own lightness, the tag's hue is kept.
+- **The proactive worker starts in Docker.** It ran the installed copy of the
+  code, which lacks the translations, and crashed on import; it now runs from
+  `/app` like the app (`python -m proactive.worker`).
+
 ## [0.11.0] — 2026-10-23
 
 ### Added

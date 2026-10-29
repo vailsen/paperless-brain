@@ -36,3 +36,41 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
     if (event.data === 'keepalive') event.ports[0].postMessage('alive');
 });
+
+// Web Push (proactive/notify/webpush.py): title, short body, a link. No
+// buttons — iOS shows none; tapping opens the link, where the reactions are.
+self.addEventListener('push', (event) => {
+    let d = {};
+    try { d = event.data ? event.data.json() : {}; } catch (e) { d = { title: event.data && event.data.text() }; }
+    event.waitUntil(
+        self.registration.showNotification(d.title || 'PaperlessBrain', {
+            body: d.body || '',
+            icon: '/static/icon-v3-192.png',
+            // Status-bar icon: alpha only, so a transparent mark (make_icons.py).
+            badge: '/static/badge-v3-96.png',
+            tag: d.tag || undefined,
+            // Same tag = same finding: without renotify a second message about
+            // it (the research result, a snoozed one waking up) replaced the
+            // first one silently — no sound, no banner.
+            renotify: !!d.tag,
+            data: { url: d.url || '/' },
+        })
+    );
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const url = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
+    // Only ever open our own origin, whatever the payload says.
+    const target = url.origin === self.location.origin ? url.href : self.location.origin + '/';
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+            for (const w of wins) {
+                if (new URL(w.url).origin === self.location.origin && 'navigate' in w) {
+                    return w.focus().then(() => w.navigate(target));
+                }
+            }
+            return self.clients.openWindow(target);
+        })
+    );
+});

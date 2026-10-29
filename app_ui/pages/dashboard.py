@@ -6,7 +6,7 @@ import html as _html
 import json
 import os
 import re
-import socket
+import time
 from datetime import date, datetime
 
 import httpx
@@ -38,7 +38,7 @@ from services.clients import (
     vision,
 )
 from services.credential_store import load_credentials
-from services.ollama_watchdog import on_manual_shutdown, on_wol
+from services.ollama_watchdog import on_manual_shutdown
 
 # ── module-level sync state (persists across page navigations) ───────────────
 
@@ -210,12 +210,6 @@ def _power_hosts(username: str = "", token: str = "") -> list[str]:
     return hosts
 
 
-def _wol_broadcast(username: str = "", token: str = "") -> str:
-    srv = _resolve_ollama_server(username, token)
-    m = re.search(r"(\d+\.\d+\.\d+)\.\d+", srv)
-    return f"{m.group(1)}.255" if m else "255.255.255.255"
-
-
 def _ollama_host_ip(username: str = "", token: str = "") -> str:
     srv = _resolve_ollama_server(username, token)
     m = re.search(r"(\d+\.\d+\.\d+\.\d+)", srv)
@@ -223,16 +217,31 @@ def _ollama_host_ip(username: str = "", token: str = "") -> str:
 
 
 async def _fetch_paperless_count() -> int | None:
+    """Documents the sync would index: all of Paperless minus those carrying the
+    no-ingest tag (the same rule as ``check_sync_state``). Counting the inbox too
+    made a finished sync read "523 / 533", as if it were behind."""
+    from werkbank.settings_store import get_no_ingest_tag
+
+    base = settings.paperless_url.rstrip("/")
     try:
         async with httpx.AsyncClient(
             headers={"Authorization": f"Token {settings.paperless_superuser_token}"},
             timeout=5,
         ) as client:
-            resp = await client.get(
-                f"{settings.paperless_url.rstrip('/')}/api/documents/?page_size=1"
-            )
+            resp = await client.get(f"{base}/api/documents/?page_size=1")
             resp.raise_for_status()
-            return resp.json().get("count", 0)
+            total = resp.json().get("count", 0)
+            tag = get_no_ingest_tag()
+            if not tag:
+                return total
+            resp = await client.get(f"{base}/api/tags/", params={"name__iexact": tag})
+            resp.raise_for_status()
+            skipped = sum(
+                t.get("document_count", 0)
+                for t in resp.json().get("results", [])
+                if t.get("name") == tag
+            )
+            return max(total - skipped, 0)
     except Exception:
         return None
 
@@ -571,6 +580,25 @@ async def dashboard():
                                             .tooltip(_("Shut down (SSH)"))
                                         )
                             _status_items.append((dot, badge, key))
+                            if key == "ollama":
+                                # Generating or idle, what is loaded, last speed —
+                                # filled by the compute timer once Ollama answers.
+                                compute_rows: dict = {"rows": []}
+
+                                @ui.refreshable
+                                def compute_view() -> None:
+                                    for icon, text in compute_rows["rows"]:
+                                        with ui.row().classes("items-start gap-1 no-wrap w-full min-w-0"):
+                                            ui.icon(icon).style(
+                                                "font-size:.9rem;color:var(--c-text-muted);margin-top:1px")
+                                            ui.label(text).classes("text-xs min-w-0").style(
+                                                "color:var(--c-text-2);overflow-wrap:anywhere")
+
+                                compute_box = ui.column().classes("w-full min-w-0 gap-0").style(
+                                    "padding-left:16px;margin-top:-4px;")
+                                with compute_box:
+                                    compute_view()
+                                compute_box.set_visibility(False)
 
                         ui.separator().classes("my-1")
 
@@ -973,6 +1001,14 @@ window.__toggleHideAction = function(key) {{
             else:
                 _log("✅ Sync complete")
                 _notify(_("Sync complete"), type="positive")
+                # Push to the user's devices — only when something changed; a
+                # sync that found nothing is not news.
+                if _ingested or state.deleted_ids:
+                    from proactive.notify import enqueue_event
+
+                    # TODO i18n-plural
+                    enqueue_event(_username, "sync", "/", _("{new} new, {removed} removed").format(
+                        new=len(_ingested), removed=len(state.deleted_ids)))
 
             new_p = await _fetch_paperless_count()
             new_c = await _safe_chroma_count()
@@ -1301,18 +1337,16 @@ window.__toggleHideAction = function(key) {{
         # Waking the wrong subnet costs nothing, so warn and carry on.
         if warn := _ambiguous_power_target():
             ui.notify(warn, type="warning", timeout=10000)
-        broadcast = _wol_broadcast(_username, _token)
+        from services.wol import wake
+
         try:
-            mac_bytes = bytes.fromhex(mac.replace(":", "").replace("-", ""))
-            magic = b"\xff" * 6 + mac_bytes * 16
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                sock.sendto(magic, (broadcast, 9))
+            # Same path as the proactive worker's: records the wake in the
+            # shared power state, so the idle rule applies to it.
+            broadcast = wake(mac, _resolve_ollama_server(_username, _token))
         except Exception as exc:
             ui.notify(_("WoL error: {err}").format(err=exc), type="negative")
             return
 
-        on_wol(_ollama_host_ip(_username, _token))
         ui.notify(_("Magic packet → {target}").format(target=broadcast), type="positive")
         ollama_badge.set_text(_("Waking up…"))
         ollama_dot.style(
@@ -1480,6 +1514,27 @@ window.__toggleHideAction = function(key) {{
         )
         badge_el.set_text(detail)
 
+    # Compute line under Ollama: our own request log (both processes) + /api/ps.
+    _ollama_srv = _resolve_ollama_server(_username, _token)
+
+    async def _refresh_compute() -> None:
+        from app_ui.inference_status import lines
+        from services import inference_activity
+
+        if not _ollama_srv or compute_box.is_deleted:
+            return
+        models = await inference_activity.loaded_models(_ollama_srv)
+        snap = inference_activity.snapshot(inference_activity.host_of(_ollama_srv))
+        rows = lines(_, models, snap, time.time()) if models is not None else []
+        if rows != compute_rows["rows"]:
+            compute_rows["rows"] = rows
+            compute_view.refresh()
+        compute_box.set_visibility(bool(rows))
+
+    if _ollama_srv:
+        await _refresh_compute()
+        ui.timer(5.0, _refresh_compute)
+
     # E-Mail / Calendar config status (no live test — just check if configured)
     _creds = load_credentials(_username, _token) if _username and _token else {}
 
@@ -1521,6 +1576,12 @@ window.__toggleHideAction = function(key) {{
     # is the only thing standing between the user and other people's document
     # content. It fails closed: no token or an API error hides the deadlines.
     actions = _load_actions()
+    # With the proactive system on, an analysed document's deadlines come from
+    # its doc_analysis (actionable only; "overdue" only for an open reminder)
+    # instead of its sidecar actions — one source per document.
+    from proactive.deadlines import dashboard_actions
+
+    actions = dashboard_actions(actions, _username)
     if actions:
         if _token:
             from services.sidecar_service import filter_visible_actions

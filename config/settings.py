@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     # Voice memos. Same warning as above: names a real folder, changing it
     # orphans already-written memos.
     memo_subfolder: str = "PaperlessBrain Memos"
+    # Werkbank research reports (`vault/research.py`) — every finished run, as
+    # a note. Same warning: changing it leaves the old notes where they are.
+    research_subfolder: str = "PaperlessBrain Research"
     vault_sync_cooldown_s: int = 3
 
     # Voice memos — transcription service (OpenAI-compatible /v1/audio/transcriptions).
@@ -88,6 +91,10 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        # The proactive system's keys (PROACTIVE_*, PUSH_*, SMTP_*)
+        # share this .env but are read by config/proactive.py; without this the
+        # app refuses to start as soon as one of them is set.
+        extra = "ignore"
 
 
 settings = Settings()

@@ -43,6 +43,12 @@ def track(run_id: str, task: "asyncio.Task") -> None:
     task.add_done_callback(lambda _t, rid=run_id: _running.pop(rid, None))
 
 
+def is_executing(run_id: str) -> bool:
+    """Is a task of this process working on the run right now?"""
+    task = _running.get(run_id)
+    return task is not None and not task.done()
+
+
 def cancel_run(run_id: str) -> bool:
     """Stop a run that is executing. True if something was actually cancelled."""
     task = _running.pop(run_id, None)
@@ -132,10 +138,14 @@ async def start_run(
     model: str,
     *,
     progress: Callable[[str, SubtaskStatus], None] | None = None,
+    notify: bool = True,
+    note_meta: dict | None = None,
 ) -> RunState:
     """Plan (if needed), execute, check contradictions, write the report.
 
     Resumable: an existing plan is reused and finished subtasks are skipped.
+    `notify` sends the user a push message when the report is written; a
+    proactive deep dive turns it off — its result is a notification of its own.
     """
     state = store.load_state(run_id, user_id)
     if state is None or state.brief is None:
@@ -154,6 +164,9 @@ async def start_run(
         _log.warning("werkbank v2 %s: vault sync failed: %s", run_id, exc)
 
     state.model = model
+    from services import inference_activity
+
+    inference_activity.purpose.set("werkbank")  # the dashboard names who uses the model
     ctx = context_for(user_id, model, run_id)
     prompt_log = PromptLog()
     caps = registry.user_capabilities(user_id, token_for(user_id))
@@ -184,11 +197,25 @@ async def start_run(
     state.finished_at = state.finished_at or datetime.now(timezone.utc).isoformat()
     store.save_state(run_id, user_id, state)
     store.save_report(run_id, user_id, report_md)
+    # The lasting copy: a note in the vault (`PaperlessBrain Research/`),
+    # which outlives the run and is what the chat finds. `note_meta` adds
+    # frontmatter — the deep dive's link back to its finding. Never fatal: the
+    # report is in the store, and opening the run writes the note later.
+    try:
+        from vault import research
+
+        await research.save_run(user_id, run_id, extra=note_meta)
+    except Exception as exc:                                # noqa: BLE001
+        _log.warning("werkbank v2 %s: research note not written: %s", run_id, exc)
+    if notify:
+        from proactive.notify import enqueue_event
+
+        enqueue_event(user_id, "werkbank", "/werkbank", state.brief.goal if state.brief else "")
     return state
 
 
 async def run_from_request(
-    request: str, user_id: str, model: str
+    request: str, user_id: str, model: str, *, notify: bool = True
 ) -> tuple[str, RunState]:
     """Brief → run, without the confirmation dialog.
 
@@ -198,4 +225,4 @@ async def run_from_request(
     """
     brief = await make_brief(request, user_id, model)
     run_id = create_run(brief, user_id, model)
-    return run_id, await start_run(run_id, user_id, model)
+    return run_id, await start_run(run_id, user_id, model, notify=notify)

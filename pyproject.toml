@@ -41,6 +41,8 @@ dependencies = [
     "pydantic>=2.14,<3",
     "pydantic-settings>=2.16,<3",
     "cryptography>=50.0.2,<51",
+    # Web Push for the proactive notifications (VAPID + RFC 8291 encryption).
+    "pywebpush>=2.5,<3",
     "pypdfium2>=5.14,<6",
     "weasyprint>=70,<71",
     "python-docx>=1.2,<2",
@@ -70,6 +72,10 @@ i18n = ["babel>=2.18"]
 # Test suite. babel is used by the catalog-integrity tests, so it is included.
 dev = ["pytest>=8.4", "babel>=2.18"]
 
+[project.scripts]
+# The proactive system's background process (docs/proactive-architecture.md §3).
+paperlessbrain-worker = "proactive.worker:main"
+
 [project.urls]
 Homepage = "https://github.com/Vailsen/paperless-brain"
 
@@ -77,7 +83,7 @@ Homepage = "https://github.com/Vailsen/paperless-brain"
 path = "config/version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["app_ui", "config", "models", "pipelines", "services", "vault", "werkbank"]
+packages = ["app_ui", "config", "models", "pipelines", "proactive", "services", "vault", "werkbank"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

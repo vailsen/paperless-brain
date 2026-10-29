@@ -13,10 +13,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 python main.py
 # App runs at http://0.0.0.0:8080
 
-# Deploy: tag a release, CI publishes the image, the server pulls it
+# Release: tag it; CI publishes latest / lean / the version
 git tag vX.Y.Z && git push origin main --tags   # .github/workflows/release.yml
-ssh <server> "cd /root/paperlessbrain && docker compose pull && docker compose up -d"
 ```
+
+The dev server deploys itself: every merge to `main`, and every manual
+"Run workflow" on any branch, publishes `:dev` (never `:latest`), and a systemd
+timer on the server (`paperlessbrain-autodeploy`, every 2 min) pulls it,
+restarts both containers and prunes old images. It waits up to 3 h for a
+running Werkbank run, which a restart would stop. Watchtower is gone: it
+recreated containers past Compose and raced manual deploys.
 
 ## Dependencies
 
@@ -227,7 +233,16 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 
 ### Ollama watchdog
 
-`services/ollama_watchdog.py`: sends Wake-on-LAN to the Ollama server MAC on first use, shuts it down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity. `touch()` resets the idle timer.
+`services/ollama_watchdog.py`: shuts the Ollama host down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity, but only a host that was woken via WoL. `touch()` resets the idle timer. The state (woken?, last activity, host) lives in `data/power_state.json`, not in module globals: the proactive worker is a second process sending inference requests, and the app's watchdog must see them. Waking goes through `services/wol.wake()` — the dashboard button and the worker's LLM gate (`proactive/gate.py`) both use it. A shutdown counts only when ssh says so (`BatchMode=yes`, exit status checked) and is verified a few minutes later; a failed or ineffective one keeps `wol_active` and is retried (`watchdog_step`), every decision logged as `[watchdog]`. A host the worker woke (`wol_by: worker`) goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (5) instead; any `touch()` from the app hands it back to the normal idle time.
+
+### Compute status
+
+`services/inference_activity.py`, shown by `app_ui/inference_status.py` on the dashboard.
+Ollama's `/api/ps` says what is loaded, never whether it generates — so every model
+request of the app *and* the worker is bracketed with `inference_activity.track(base_url,
+model)` (shared file `data/inference_activity.json`, `flock`, written at start and end
+only). A new call path to a model goes through `track` too, or the dashboard calls the
+host idle while it works. Tracking never fails a request.
 
 ## Deployment target
 
@@ -335,9 +350,11 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   Tool-Überladung degradiert lokale Modelle.
 - **Isolierte Kontexte + Kompaktierung.** Nachgelagerte Sub-Tasks sehen nur die
   kompaktierten Summaries der Abhängigkeiten, nie rohe Tool-Outputs.
-- **Review-vor-Persist.** Ergebnisse landen erst nach manueller Freigabe in
-  Paperless. Niemals Web-/abgeleitete Inhalte automatisch in den `documents`-Index —
-  das würde die Verlässlichkeit des Dokumenten-Gehirns untergraben.
+- **Review-vor-Persist.** Niemals Web-/abgeleitete Inhalte automatisch in den
+  `documents`-Index — das würde die Verlässlichkeit des Dokumenten-Gehirns
+  untergraben. In v2 gehen Berichte gar nicht mehr nach Paperless (kein
+  „Save to Paperless"), sondern als Notiz in den Vault (`vault/research.py`,
+  siehe *Research notes*).
 - **User-Scoping auf JEDER Repository-Query.** `user_id` liegt auf allen drei
   Tabellen (auch denormalisiert auf `agent_subtasks` als Defense-in-Depth).
 
@@ -370,6 +387,57 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   (vorhandene Datei), nie Klartext in SQLite.
 - Bestehende Komponenten anbinden, nicht neu bauen: LLM-Client, Tool-Registry,
   Chroma-Zugriff, Paperless-Client, Embedding-Service, Settings, Auth/User-Kontext.
+
+## Proactive system
+
+Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, diagnostics: `docs/proactive-diagnostics.md`.
+
+### Invariants
+- `PROACTIVE_ENABLED=false` means nothing proactive runs or is registered: worker exits, no UI, no tools, no DB file, no embedding of findings. Every new proactive code path checks the settings object, never `os.environ`.
+- The proactive system is **read-only on Paperless-ngx**. It never writes documents, tags or custom fields.
+- Every user-specific job runs with **that user's Paperless token**. Access is checked against Paperless (`GET /api/documents/{id}/`) before any user-specific analysis. Never use the ingestion superuser token for user-facing work.
+- One finding belongs to one user. Notifications go only to channel addresses linked by that user.
+- The app never delivers a proactive message itself; it enqueues a job and the worker sends it. (Telegram was a channel until 2026-10-27 and was removed in favour of push.)
+- **Web Push (`proactive/notify/webpush.py`) has no buttons** — iOS shows none; a tap opens the link, and the reactions live on the finding page. Devices are registered from the user's own session (`proactive/push_routes.py`, same-origin only), endpoints only on the browser vendors' push hosts. "Sync finished" / "Werkbank run done" go to push only, each behind its own switch, never to email.
+- Findings/dossiers/`_interests.md` in the user's vault are the source of truth for status. `proactive.db` is disposable except channel links and push subscriptions; notification dedupe derives from finding frontmatter.
+- The findings folder (`proactive/paths.py`) is never written to by `vault/sync._embed_file`, and only `proactive/retrieval.index_meta` decides what of it is indexed: surfaced/interested/researched/done findings and dossiers, with `source_type` and `trust: low`; held, snoozed, dismissed, new and `_interests.md` never; nothing while the switch is off. Retrieval marks such hits as not evidence, and `FINDINGS_RULE` tells the model to cite the documents.
+- **The worker never imports `services.clients`** (embedding model + Chroma). Work that needs Chroma or the chat tools (similar documents, deep dives, dossiers) goes through the app's signed internal API (`proactive/internal_api.py`, HMAC from `STORAGE_SECRET`); a request names the user, the app takes the token from their grant.
+- Proactive Werkbank runs set `werkbank.v2.tools.web_query_guard`, so the guard screens every agent's `web_search`; interactive runs leave it unset.
+- Every finding write goes through `proactive/findings.update` (→ `vault.notes.save_note`: cross-process lock, hash check, per-key merge, re-read and re-decide once). Reactions from any channel go through `proactive/reactions.react`; the state machine is `proactive/states.py`.
+- Code computes priority, interest weights, trust levels, caps and the disclaimer. The LLM proposes topic, urgency and content only.
+- Every recommendation needs a verbatim document quote and a web URL fetched in the same run; otherwise the recommendation is dropped by the validator.
+- Every proactive web query passes the code-level query guard. Prompt instructions are not a substitute.
+- Default notification content is title + urgency + link. Full text only with per-channel user opt-in.
+- Waking and shutting down the inference host goes through the existing WoL / idle-shutdown mechanism only. The worker never shuts the host down itself.
+- No admin role. Operator settings live in `.env`; channels, model, offsets, quiet hours, findings language and opt-in are per-user settings.
+- **No weekly message limit** (removed 2026-10-27): every finding over the push threshold is sent; a busy week while the archive is swept is accepted. What stays held: low priority and muted topics (critical ones are never held).
+- **Push and email are send-only.** A message is a title, the urgency and one link to the finding; answers happen on the finding page. Nothing reads a mailbox: the IMAP reply poller moved every unread mail of a personal inbox into its "processed" folder, and was removed (2026-10-27).
+- Model resolution order: `PROACTIVE_MODEL_FIXED` → user choice (must be in `PROACTIVE_MODEL_ALLOWLIST` if set) → `PROACTIVE_MODEL_DEFAULT` → chat model. Resolved in one function only. LLM jobs are grouped by model within a window.
+- No proactive LLM job runs on a cloud backend unless `PROACTIVE_CLOUD_ALLOWED=true`, and then within the per-user daily cap.
+- Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget — or when the user asks for it ("Analyse now", `sweep.start_now`, one document per job on the same cursor).
+- **A chatting user gets the GPU first.** The worker starts no LLM job while the app made an inference request within `ollama_watchdog.APP_YIELD_S` (`app_busy`); a running job finishes first. A deep dive runs in the app, so it yields on its own: `werkbank.llm_lane.yield_to_chat` makes every local-lane call of that run wait while `chat_busy()` (a chat request within `APP_YIELD_S`, process-local).
+- **A deep dive does not hold a request open for the length of a run.** `deep_dive` starts the Werkbank run in the app (listed at once, status "running"), writes `research_run` into the finding, and `deep_dive_poll` (not gated: the run keeps `app_busy` true) asks for the result. A deleted run leaves the finding interested and unresearched; a run nothing works on (app restart) waits for the user to resume it in the Werkbank.
+- **Paperless ignores filters it does not know** (`id__gt` among them) and answers as if unfiltered. Id ranges are filtered in code (`paperless_ro.ids_after`); never trust a document filter that no test pins against a real response.
+- **Every proactive message waits out the user's quiet hours** (`notify.quiet_wait`, per user, default 22:00–07:00); only the test message, which the user just asked for, does not. App events (sync, Werkbank) are not proactive messages.
+- **Triage judges from today, in the findings language.** It gets today's date and a rule that an option whose window has closed is history; the language instruction is repeated last, because a German document otherwise pulls the answer into German. Findings language is its own per-user setting (`content_language`), not the app language.
+- **A background process gets a user's token only from `services/background_access.token_for(user)`** — an explicit, revocable grant the user made in their own session. No grant (None) → skip the user; a 401 → `mark_needs_reauth()`. Never persist a token anywhere else, never create a grant without the user's action.
+- **The vault lock is cross-process** (`vault/locks.py`: `asyncio.Lock` + `flock` on `data/vault_locks/{user}.lock`). Worker and app both take `get_user_lock(user)` for every vault write and sync.
+
+### Do not
+- Do not add APScheduler, Celery, arq, Redis, n8n or LiteLLM. Tick loop + SQLite only.
+- Do not use a Paperless webhook as the primary trigger; poll with the `id__gt` cursor.
+- Do not add adaptive scan-frequency heuristics.
+- Do not let the LLM write `_interests.md` or set priority/trust values.
+- Do not read, mark, move or delete mail in any mailbox. Email is send-only.
+- Do not send to any address other than the user's linked (code-confirmed) one.
+- Do not cite findings or dossiers as evidence in RAG answers.
+- Do not produce reminders for past dates.
+- Do not add SSH/shutdown logic to the worker or an admin settings UI.
+- Do not add per-channel `.env` switches; availability derives from config presence.
+- Do not overwrite a finding file that changed on disk since it was read (hash check as in `vault/notes.save_note`, re-read, retry once).
+- Do not implement Phase 8 before Werkbank phases 1–3 exist.
+
+---
 
 # CLAUDE.md — Vault-Backed Memory section
 
@@ -415,7 +483,11 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
 
 ## Sync triggering
 
-- **On user interaction only. No background scheduler. No time-based sync.**
+- **On user interaction only. No background scheduler. No time-based sync.** One exception:
+  the proactive worker, after its batch, has the app sync a vault whose *findings folder* it
+  changed (`proactive/tasks/vault_sync.py`) — only when no LLM job finished in 10 min and the app is not
+  using the model, so the next chat turn does not start with the worker's backlog. It is
+  triggered by the worker's own writes, never by the clock alone.
 - Run `sync_user(username)` at the start of a turn before any brain/vault retrieval.
 - Guard with a **per-user `asyncio.Lock`** + **at most once per turn** (per-turn flag / short
   cooldown). Also expose a manual "Sync now" dashboard button.
@@ -531,6 +603,28 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
     read from the `brain` index — the file stays in its owner's vault — and is read-only:
     opening one leaves `st["rel"]` empty, so no save, poll or properties path can reach it.
     `common` only means something under `BRAIN_SUBFOLDER`; the panel says so elsewhere.
+
+## Research notes
+
+`vault/research.py`, PDF route `app_ui/research_routes.py`.
+
+- **Every finished Werkbank v2 run is a note in `RESEARCH_SUBFOLDER`**
+  (`PaperlessBrain Research/`), written by `pipeline.start_run` right after the
+  report. That note is the lasting copy: deleting the run removes the board, never
+  the note. Nothing goes back into Paperless.
+- **The note is an ordinary vault note.** It is written, not embedded — the next
+  sync indexes it into `vault` and mints `pbrain_id` (same contract as the editor).
+- **`werkbank_run` in the frontmatter is the note's identity for code** — the file
+  may be renamed or moved inside the folder. A run that finishes again rewrites its
+  note in place.
+- **Links are Obsidian links** (`[[PaperlessBrain Research/26-10-29 …|label]]`): the
+  finding's `research_note`, its body, and the dossier's `research` list. The
+  findings page turns one into the PDF link; the PDF is rendered on demand, only
+  from that folder of the signed-in user's own vault.
+- **A dossier's `research` list is code-written** and survives model rebuilds — the
+  model never sees it.
+- Older runs get their note lazily (`research.backfill` on opening the Werkbank,
+  `note_for_run` on opening a finding) — while the run still exists.
 
 ## Embedding
 

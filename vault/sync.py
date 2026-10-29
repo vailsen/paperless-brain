@@ -338,6 +338,15 @@ async def _update_path_metadata(
         _log.warning("path-metadata update failed for %s: %s", new_str, e)
 
 
+def _is_findings(rel_path: Path) -> bool:
+    try:
+        from proactive.paths import is_findings_path
+
+        return is_findings_path(rel_path)
+    except Exception:
+        return False
+
+
 async def _embed_file(
     username: str, vp: Path, rel_path: Path, brain_chroma, vault_chroma
 ) -> bool:
@@ -353,6 +362,42 @@ async def _embed_file(
     try:
         meta, body = fm_read(abs_path)
         now = datetime.utcnow().isoformat()
+
+        if _is_findings(rel_path):
+            # The proactive system's ledger is not a user note. What of it may
+            # be retrieved is decided by `proactive.retrieval.index_meta`:
+            # held, snoozed, dismissed findings and `_interests.md` never, and
+            # nothing while the switch is off. Never written to here — no
+            # pbrain_id or dont_ingest backfill into a code-maintained file.
+            from proactive.retrieval import index_meta
+
+            try:
+                await vault_chroma.delete(where={"path": {"$eq": str(rel_path)}})
+            except Exception:
+                pass
+            extra = index_meta(rel_path, meta)
+            pbrain_id = fm_get_id(meta)
+            if extra is None or not pbrain_id:
+                return True
+            note_name = rel_path.name[:-3]
+            for chunk in chunk_vault_file(body):
+                await vault_chroma.upsert(
+                    ids=[f"{pbrain_id}:{chunk.chunk_index}"],
+                    documents=[chunk.text],
+                    embed_documents=[embed_text(chunk.text, rel_path, chunk.heading_path)],
+                    metadatas=[{
+                        **path_metadata(rel_path),
+                        **extra,
+                        "pbrain_id": pbrain_id,
+                        "path": str(rel_path),
+                        "note_name": note_name,
+                        "user": username,
+                        "chunk_index": chunk.chunk_index,
+                        "heading_path": chunk.heading_path,
+                        "updated": now,
+                    }],
+                )
+            return True
 
         if is_brain_path(rel_path, settings.brain_subfolder):
             pbrain_id = ensure_pbrain_id(abs_path, meta)

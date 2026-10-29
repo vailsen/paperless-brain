@@ -122,6 +122,12 @@ async def login_page() -> None:
                 if token:
                     set_session_token(token)
                     ng_app.storage.user["paperless_user"] = username
+                    # A user who allowed background access keeps it working
+                    # with the token they just logged in with — e.g. after it
+                    # was regenerated in Paperless. Never creates a grant.
+                    from services.background_access import refresh_on_login
+
+                    refresh_on_login(username, token)
                     ui.navigate.to("/")
                     return
 

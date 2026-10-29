@@ -62,8 +62,14 @@ THEME_CSS = """
   --c-hl-line:       rgba(234,179,8,0.8);
   --c-hl-soft:       rgba(250,204,21,0.14);
   --q-primary:       #4f7cf3;
+  /* Tag chips: hue from Paperless (app_ui/tag_style.py), lightness and chroma
+     per theme. Light text on a dark tint here, dark text on a light tint below. */
+  --tag-fg-l: 0.79; --tag-fg-c: 0.11;
+  --tag-bg-l: 0.55; --tag-bg-c: 0.10; --tag-bg-a: 0.18;
 }
 body.body--light {
+  --tag-fg-l: 0.45; --tag-fg-c: 0.12;
+  --tag-bg-l: 0.72; --tag-bg-c: 0.08; --tag-bg-a: 0.30;
   /* Light: soft paper grey; no surface is pure white, which is what glared. */
   --c-bg:            #ebedf0;
   --c-bg-deep:       #e2e5e9;
@@ -89,6 +95,7 @@ body.body--light {
    colour classes are !important inside a CSS layer, which no override outside
    it can beat, so they would stay violet forever. */
 .pb-accent-text   { color: var(--c-accent-text) !important; }
+.pb-warn-text     { color: var(--c-warn) !important; }
 .pb-accent-border { border-color: var(--c-accent-border) !important; }
 
 /* Inter, shipped with the app (no font CDN). */
