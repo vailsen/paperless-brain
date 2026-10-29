@@ -97,7 +97,17 @@ async def find_by_run(user: str, run_id: str) -> str | None:
     return await asyncio.to_thread(_find_sync, user, run_id)
 
 
-def render(*, run_id: str, goal: str, request: str, model: str, report_md: str,
+def report_title(report_md: str) -> str:
+    """The report's own `# title` — what the note is named after. The brief's
+    goal is a sentence ("For the specific mortgage (document 129) an
+    assessment is …"), cut mid-word in the file name."""
+    for line in report_md.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return ""
+
+
+def render(*, run_id: str, goal: str, model: str, report_md: str,
            created: datetime, extra: dict | None = None) -> str:
     import yaml
 
@@ -115,10 +125,8 @@ def render(*, run_id: str, goal: str, request: str, model: str, report_md: str,
     body = report_md.strip()
     if not body.lstrip().startswith("# "):
         body = f"# {goal}\n\n{body}"
-    if request and request.strip() != goal.strip():
-        # The question asked, kept with the answer — the report alone does not say it.
-        quoted = "\n".join("> " + line for line in request.strip().splitlines())
-        body = body.replace("\n", f"\n\n{quoted}\n", 1) if "\n" in body else f"{body}\n\n{quoted}"
+    # The request is not repeated here: the report opens with the assignment,
+    # and quoting it on top put it in the note twice.
     return f"---\n{head}\n---\n\n{body}\n"
 
 
@@ -144,7 +152,7 @@ def _save_sync(user: str, run_id: str, text: str, goal: str, created: datetime) 
     return path.relative_to(vault_path(user)).as_posix()
 
 
-async def save(user: str, run_id: str, *, goal: str, request: str, model: str, report_md: str,
+async def save(user: str, run_id: str, *, goal: str, model: str, report_md: str,
                created: datetime | None = None, extra: dict | None = None) -> str:
     """Write (or rewrite) the run's note; returns its vault-relative path.
     Under the user's vault lock, like every vault write."""
@@ -152,7 +160,7 @@ async def save(user: str, run_id: str, *, goal: str, request: str, model: str, r
     from vault.locks import get_user_lock
 
     created = created or datetime.now(tz=local_tz())
-    text = render(run_id=run_id, goal=goal, request=request, model=model, report_md=report_md,
+    text = render(run_id=run_id, goal=goal, model=model, report_md=report_md,
                   created=created, extra=extra)
     async with get_user_lock(user):
         return await asyncio.to_thread(_save_sync, user, run_id, text, goal, created)
@@ -169,7 +177,7 @@ async def save_run(user: str, run_id: str, extra: dict | None = None) -> str | N
     if not report or state is None:
         return None
     brief = state.brief
-    goal = (brief.goal if brief else "") or run_id
+    goal = report_title(report) or (brief.goal if brief else "") or run_id
     created = None
     if getattr(state, "finished_at", None):
         try:
@@ -178,8 +186,8 @@ async def save_run(user: str, run_id: str, extra: dict | None = None) -> str | N
             created = datetime.fromisoformat(state.finished_at).astimezone(local_tz())
         except ValueError:
             created = None
-    return await save(user, run_id, goal=goal, request=(brief.original_request if brief else ""),
-                      model=state.model or "", report_md=report, created=created, extra=extra)
+    return await save(user, run_id, goal=goal, model=state.model or "", report_md=report,
+                      created=created, extra=extra)
 
 
 async def note_for_run(user: str, run_id: str) -> str | None:

@@ -164,6 +164,8 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
         pages = []
         try:
             for hit in (await run.search(str(raw["web_query"]), max_results=4))[:4]:
+                if _is_home_page(hit["url"]):
+                    continue
                 page = await run.fetch(hit["url"])
                 if page:
                     pages.append((hit["url"], page))
@@ -224,6 +226,18 @@ def _labels(user: str, topics, lang: str) -> list[str]:
     carries, else the key made readable. Reusing a label keeps the key."""
     seen = {f.topic: f.topic_label for f in findings.list_findings(user) if f.topic_label}
     return [findings.topic_display(t, seen.get(t, ""), lang) for t in topics]
+
+
+def _is_home_page(url: str) -> bool:
+    """A site's front page (`https://www.wikipedia.de/`) is never evidence for
+    anything: it lists whatever is on today. Fetched, it became a finding's
+    "source" — and later the deep dive's."""
+    from urllib.parse import urlsplit
+
+    try:
+        return urlsplit(url).path.strip("/") == ""
+    except ValueError:
+        return True
 
 
 async def _similar(user: str, doc_id: int) -> list[dict]:

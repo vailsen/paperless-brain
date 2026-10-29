@@ -43,11 +43,20 @@ def test_a_finished_run_becomes_a_note_that_outlives_the_run(vault):
     assert meta["werkbank_run"] == "run1" and meta["source"] == "research" and meta["model"] == "qwen"
     assert meta["finding"] == "[[PaperlessBrain Findings/Notices/x|X]]"
     assert "pbrain_id" not in meta  # sync mints it, like for any note
-    assert body.startswith("# Riester-Vertrag prüfen\n\n> Lohnt sich mein Riester-Vertrag noch?")
+    assert body.startswith("# Riester-Vertrag prüfen\n\nDie Kosten")
+    assert "Lohnt sich" not in body  # the report carries the assignment; the note does not repeat it
     assert "2,5 %" in body
     store.delete_run("run1", "alice")
     assert (vault / rel).exists()
     assert asyncio.run(research.note_for_run("alice", "run1")) == rel  # found without the run
+
+
+def test_the_note_is_named_after_the_reports_title_not_the_briefs_goal(vault):
+    from vault import research
+
+    _run(goal="Für den konkreten Riester-Vertrag (Dokument 12) wird eine Einschätzung geliefert, ob")
+    rel = asyncio.run(research.save_run("alice", "run1"))
+    assert rel == "PaperlessBrain Research/26-10-28 Riester-Vertrag prüfen.md"
 
 
 def test_the_same_run_again_rewrites_its_note_even_renamed(vault):
