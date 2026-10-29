@@ -49,6 +49,10 @@ self.addEventListener('push', (event) => {
             // Status-bar icon: alpha only, so a transparent mark (make_icons.py).
             badge: '/static/badge-v3-96.png',
             tag: d.tag || undefined,
+            // Same tag = same finding: without renotify a second message about
+            // it (the research result, a snoozed one waking up) replaced the
+            // first one silently — no sound, no banner.
+            renotify: !!d.tag,
             data: { url: d.url || '/' },
         })
     );

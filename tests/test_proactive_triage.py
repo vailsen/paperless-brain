@@ -420,6 +420,10 @@ def test_deep_dive_result_is_validated_written_and_does_not_count(env, monkeypat
     assert head.startswith("## Research result (") and "/werkbank?run=run1" in head
     assert "### Summary" in head and "Ein Wechsel lohnt sich." in head
     assert len(_tg(env)) == 1 and pushes.last_push("alice") is None  # asked for: not logged
+    # Its own title and tag: with the finding's, the phone replaced the
+    # finding's notification silently.
+    ((_, msg),) = [m for m in env["sent"] if m[0] == "sendMessage"]
+    assert msg["text"].startswith("Research done: ") and msg["tag"] == f"{f.finding_id}-research"
 
 
 def test_deep_dive_run_deleted_leaves_the_finding_unresearched(env, monkeypatch):

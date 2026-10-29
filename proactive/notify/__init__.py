@@ -54,6 +54,10 @@ class Notification:
     #: Counts against the weekly message limit (Phase 7). Requested deep-dive
     #: results and critical deadline reminders do not.
     counts: bool = True
+    #: Push tag: a message with the tag of one still on the phone replaces it.
+    #: Defaults to the finding id; a second kind of message about the same
+    #: finding (the research result) needs its own.
+    tag: str = ""
 
     def to_payload(self) -> dict:
         return asdict(self)
@@ -86,6 +90,7 @@ def compose(
     actions: list[str] | None = None,
     counts: bool = True,
     note: str = "",
+    tag: str = "",
 ) -> Notification:
     """Build a notification in the recipient's language. `note` is one short
     line that belongs in the default content (a reminder's "7 days left" —
@@ -110,6 +115,7 @@ def compose(
         link=link,
         lang=lang,
         counts=counts,
+        tag=tag,
     )
 
 

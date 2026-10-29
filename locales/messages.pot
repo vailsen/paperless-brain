@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-28 21:30+0100\n"
+"POT-Creation-Date: 2026-10-29 10:21+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -394,7 +394,7 @@ msgstr ""
 msgid "Loading…"
 msgstr ""
 
-#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:200
+#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:205
 #, python-brace-format
 msgid "#{id} not found"
 msgstr ""
@@ -413,8 +413,8 @@ msgid "Show in PDF"
 msgstr ""
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
-#: proactive/findings.py:235 proactive/findings.py:618
-#: proactive/findings.py:619
+#: proactive/findings.py:267 proactive/findings.py:650
+#: proactive/findings.py:651
 msgid "Summary"
 msgstr ""
 
@@ -676,7 +676,7 @@ msgstr ""
 msgid "The file exceeds {n} MB."
 msgstr ""
 
-#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:126
+#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:131
 msgid "Topic"
 msgstr ""
 
@@ -978,7 +978,7 @@ msgstr ""
 msgid "Email address confirmed."
 msgstr ""
 
-#: app_ui/pages/findings.py:260 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:265 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr ""
 
@@ -1622,7 +1622,7 @@ msgstr ""
 msgid "Attachments are read-only."
 msgstr ""
 
-#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:111
+#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:115
 msgid "Open"
 msgstr ""
 
@@ -1651,13 +1651,13 @@ msgid "Range"
 msgstr ""
 
 #: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:341
-#: app_ui/pages/findings.py:182
+#: app_ui/pages/findings.py:187
 #, python-brace-format
 msgid "#{id} unpinned"
 msgstr ""
 
 #: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:344
-#: app_ui/pages/findings.py:186
+#: app_ui/pages/findings.py:191
 #, python-brace-format
 msgid "#{id} pinned"
 msgstr ""
@@ -1778,7 +1778,7 @@ msgstr ""
 msgid "p. {n}"
 msgstr ""
 
-#: app_ui/pages/chat.py:211 proactive/findings.py:245 proactive/findings.py:624
+#: app_ui/pages/chat.py:211 proactive/findings.py:277 proactive/findings.py:656
 #: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr ""
@@ -2870,7 +2870,7 @@ msgstr ""
 msgid "Insight"
 msgstr ""
 
-#: app_ui/pages/findings.py:84 proactive/notify/__init__.py:99
+#: app_ui/pages/findings.py:84 proactive/notify/__init__.py:104
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr ""
@@ -2880,56 +2880,56 @@ msgstr ""
 msgid "Due {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:111
+#: app_ui/pages/findings.py:115
 msgid "All"
 msgstr ""
 
-#: app_ui/pages/findings.py:122 werkbank/ui/module_page.py:247
+#: app_ui/pages/findings.py:126 werkbank/ui/module_page.py:247
 msgid "Status"
 msgstr ""
 
-#: app_ui/pages/findings.py:125
+#: app_ui/pages/findings.py:129
 msgid "All topics"
 msgstr ""
 
-#: app_ui/pages/findings.py:141
+#: app_ui/pages/findings.py:146
 msgid "Nothing here yet."
 msgstr ""
 
-#: app_ui/pages/findings.py:209
+#: app_ui/pages/findings.py:214
 msgid "All findings"
 msgstr ""
 
-#: app_ui/pages/findings.py:213
+#: app_ui/pages/findings.py:218
 msgid "Chat about this"
 msgstr ""
 
-#: app_ui/pages/findings.py:222 proactive/reactions.py:55
+#: app_ui/pages/findings.py:227 proactive/reactions.py:55
 msgid "This item no longer exists."
 msgstr ""
 
-#: app_ui/pages/findings.py:237
+#: app_ui/pages/findings.py:242
 msgid "Research running — it gives way while you chat."
 msgstr ""
 
-#: app_ui/pages/findings.py:238
+#: app_ui/pages/findings.py:243
 msgid "Researched — the result is at the top."
 msgstr ""
 
-#: app_ui/pages/findings.py:240
+#: app_ui/pages/findings.py:245
 msgid "Open in deep research"
 msgstr ""
 
-#: app_ui/pages/findings.py:245
+#: app_ui/pages/findings.py:250
 msgid "Research queued — it starts as soon as the model is free."
 msgstr ""
 
-#: app_ui/pages/findings.py:257
+#: app_ui/pages/findings.py:262
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr ""
 
-#: app_ui/pages/findings.py:264 proactive/reactions.py:54
+#: app_ui/pages/findings.py:269 proactive/reactions.py:54
 msgid "Already handled."
 msgstr ""
 
@@ -3795,16 +3795,16 @@ msgstr ""
 msgid "Renewal"
 msgstr ""
 
-#: proactive/deadlines.py:139
+#: proactive/deadlines.py:140
 #, python-brace-format
 msgid "{n} days left."
 msgstr ""
 
-#: proactive/deadlines.py:140
+#: proactive/deadlines.py:141
 msgid "Due tomorrow."
 msgstr ""
 
-#: proactive/deadlines.py:140
+#: proactive/deadlines.py:141
 msgid "Due today."
 msgstr ""
 
@@ -3816,19 +3816,19 @@ msgstr ""
 msgid "Open questions"
 msgstr ""
 
-#: proactive/findings.py:237
+#: proactive/findings.py:269
 msgid "Evidence"
 msgstr ""
 
-#: proactive/findings.py:250 proactive/findings.py:620
+#: proactive/findings.py:282 proactive/findings.py:652
 msgid "Recommendation"
 msgstr ""
 
-#: proactive/findings.py:314
+#: proactive/findings.py:346
 msgid "Not financial or investment advice. Check the recommendation yourself."
 msgstr ""
 
-#: proactive/findings.py:591 proactive/findings.py:616
+#: proactive/findings.py:623 proactive/findings.py:648
 #, python-brace-format
 msgid "Seen in {n} documents: {docs}"
 msgstr ""
@@ -3885,35 +3885,40 @@ msgstr ""
 msgid "Restore"
 msgstr ""
 
-#: proactive/notify/__init__.py:142
+#: proactive/notify/__init__.py:148
 msgid "Sync finished"
 msgstr ""
 
-#: proactive/notify/__init__.py:143
+#: proactive/notify/__init__.py:149
 msgid "Werkbank run done"
 msgstr ""
 
-#: proactive/notify/__init__.py:274
+#: proactive/notify/__init__.py:280
 #, python-brace-format
 msgid "+ {n} more"
 msgstr ""
 
-#: proactive/notify/__init__.py:278
+#: proactive/notify/__init__.py:284
 #, python-brace-format
 msgid "{n} new while you were away"
 msgstr ""
 
-#: proactive/tasks/insights.py:144
+#: proactive/tasks/insights.py:136
+#, python-brace-format
+msgid "Research done: {title}"
+msgstr ""
+
+#: proactive/tasks/insights.py:149
 #, python-brace-format
 msgid "Research result ({date})"
 msgstr ""
 
-#: proactive/tasks/insights.py:145
+#: proactive/tasks/insights.py:150
 #, python-brace-format
 msgid "[Full report in deep research]({url})"
 msgstr ""
 
-#: proactive/tasks/insights.py:186
+#: proactive/tasks/insights.py:191
 msgid "What you may have missed"
 msgstr ""
 

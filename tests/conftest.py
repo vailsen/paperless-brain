@@ -97,7 +97,8 @@ def fake_push(monkeypatch, devices: dict[str, str], sent: list) -> None:
     def send_one(sub, data, urgency="normal"):
         text = "\n".join(x for x in (data.get("title"), data.get("body")) if x)
         sent.append(("sendMessage", {"chat_id": sub["endpoint"].rsplit("/", 1)[-1], "text": text,
-                                     "url": data.get("url", ""), "urgency": urgency}))
+                                     "url": data.get("url", ""), "urgency": urgency,
+                                     "tag": data.get("tag", "")}))
         return 201
 
     monkeypatch.setattr(webpush, "_send_one", send_one)

@@ -22,7 +22,7 @@ async def notify_channel(job: Job) -> None:
         # Reminders and findings are what the user turned push on for: deliver
         # at once, not at the phone's next maintenance window.
         await webpush.send(
-            job.user, webpush.payload(n.title, push_body(n), n.link, tag=n.finding_id), urgency="high"
+            job.user, webpush.payload(n.title, push_body(n), n.link, tag=n.tag or n.finding_id), urgency="high"
         )
         return
     link = linking.links(job.user).get(channel) if channel == "email" else None

@@ -127,10 +127,15 @@ async def deep_dive_poll(job: Job) -> None:
     done = await findings.update(job.user, fid, mutate, body=lambda x: body + "\n---\n\n" + original)
     if done is None or done.status != "researched":
         return
+    from i18n import translator_for
+
+    _ = translator_for(f.lang)
+    # Its own title and push tag: with the finding's, the phone replaced the
+    # finding's message in place — silently — and an email read like a repeat.
     notify.enqueue(notify.compose(
-        job.user, f.lang, finding_id=fid, title=f.title, urgency=f.urgency,
-        full_text=res.get("summary") or "", actions=reactions_for("researched", "insight"),
-        counts=False,
+        job.user, f.lang, finding_id=fid, title=_("Research done: {title}").format(title=f.title),
+        urgency=f.urgency, full_text=res.get("summary") or "",
+        actions=reactions_for("researched", "insight"), counts=False, tag=f"{fid}-research",
     ))
 
 
