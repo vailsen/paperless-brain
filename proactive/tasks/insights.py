@@ -63,7 +63,12 @@ async def deep_dive(job: Job) -> None:
     jobs.enqueue(
         "deep_dive_poll", job.user,
         {"finding_id": fid, "run_id": run_id, "since": clock.now_iso()},
-        delay=timedelta(seconds=DEEP_DIVE_POLL_S), dedupe_key=f"deep_dive_poll:{fid}",
+        delay=timedelta(seconds=DEEP_DIVE_POLL_S),
+        # Per run, not per finding: the poll of a deleted run can still be
+        # waiting when "Interesting" starts the next one. Keyed by the finding
+        # alone, the new poll was dropped as a duplicate, the old one found a
+        # different run and quit, and the finding said "running" for ever.
+        dedupe_key=f"deep_dive_poll:{fid}:{run_id}",
     )
 
 

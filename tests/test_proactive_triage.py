@@ -401,6 +401,24 @@ def test_deep_dive_starts_the_run_and_links_it_in_the_finding(env, monkeypatch):
     assert jobs.pending_count(kind="deep_dive_poll") == 1
 
 
+def test_a_new_run_gets_its_own_poll_while_the_old_one_still_waits(env, monkeypatch):
+    from proactive import findings, internal_client, jobs, models
+
+    fid = _insight(env, 0, status="interested")
+    monkeypatch.setattr(models, "resolve_model", lambda u, t, p=None: _model())
+    # the poll of an earlier, deleted run is still queued
+    jobs.enqueue("deep_dive_poll", "alice", {"finding_id": fid, "run_id": "old"},
+                 dedupe_key=f"deep_dive_poll:{fid}:old", delay=__import__("datetime").timedelta(hours=1))
+
+    async def start(user, finding_id, model):
+        return "new"
+
+    monkeypatch.setattr(internal_client, "deep_dive", start)
+    _run("deep_dive", "alice", {"finding_id": fid})
+    assert findings.get("alice", fid).research_run == "new"
+    assert jobs.is_pending(f"deep_dive_poll:{fid}:new")
+
+
 def _poll(env, monkeypatch, answer):
     from proactive import findings, internal_client, models
 
