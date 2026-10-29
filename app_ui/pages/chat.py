@@ -4034,9 +4034,15 @@ window.__openVaultNote = function(noteId) {{
                                     _run_id = _wb2.create_run(_brief, _wb_username, _kb_model.value)
                                     _wb2_store.set_run_status(_run_id, _wb_username, "running")
                                     # Detached: the run outlives this dialog and this page.
-                                    _task = asyncio.create_task(
-                                        _wb2.start_run(_run_id, _wb_username, _kb_model.value)
-                                    )
+                                    async def _go(rid=_run_id, who=_wb_username, m=_kb_model.value):
+                                        # A failure must reach the run row with its reason;
+                                        # a bare task left it "running" forever.
+                                        try:
+                                            await _wb2.start_run(rid, who, m)
+                                        except Exception as exc:  # noqa: BLE001
+                                            _wb2.fail_run(rid, who, exc)
+
+                                    _task = asyncio.create_task(_go())
                                     _wb2_runs.add(_task)
                                     _task.add_done_callback(_wb2_runs.discard)
                                     _kb_status.set_text(_("Run started — open it under AI deep research."))

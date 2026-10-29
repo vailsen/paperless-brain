@@ -67,6 +67,55 @@ def token_for(user_id: str) -> str:
     return _tokens.get(user_id, "")
 
 
+class HostUnavailable(RuntimeError):
+    """The local model host does not answer and could not be woken."""
+
+
+async def ensure_host(user_id: str, model: str) -> None:
+    """Wake the host of a local-lane model before a run talks to it.
+
+    A research run started while the host slept failed at its first model call
+    — the proactive worker's gate only wakes the host when `OLLAMA_SERVER` names
+    it, and an interactive run never woke it at all. Same path as the chat:
+    `wol.ensure_awake`, which wakes only the host Wake-on-LAN controls.
+    """
+    from werkbank.llm_lane import _get_registry_cfg
+
+    cfg = _get_registry_cfg(model, user_id, token_for(user_id))
+    if not cfg or cfg.get("backend") == "anthropic" or cfg.get("lane") != "local" or not cfg.get("base_url"):
+        return
+    from config.settings import settings
+    from services.wol import ensure_awake
+
+    outcome = await ensure_awake(cfg["base_url"], why="a research run")
+    if outcome == "timeout":
+        raise HostUnavailable(
+            f"{cfg['base_url']} was woken but did not answer within {settings.ollama_wake_timeout_s} s")
+    if outcome == "not_ours":
+        raise HostUnavailable(f"{cfg['base_url']} does not answer, and Wake-on-LAN is not set up for it")
+
+
+def describe_failure(exc: BaseException) -> tuple[str, str]:
+    """(kind, detail) for a run that stopped. "host" when the model host was
+    not there — the one cause a user can fix by switching something on."""
+    import httpx
+
+    host_errors = (HostUnavailable, httpx.ConnectError, httpx.ConnectTimeout, httpx.RemoteProtocolError,
+                   ConnectionError)
+    kind = "host" if isinstance(exc, host_errors) else "other"
+    detail = str(exc).strip() or type(exc).__name__
+    return kind, detail[:300]
+
+
+def fail_run(run_id: str, user_id: str, exc: BaseException) -> None:
+    """Mark the run failed and keep why, for the run list and the finding."""
+    store.set_run_status(run_id, user_id, "failed")
+    state = store.load_state(run_id, user_id)
+    if state is not None:
+        state.error_kind, state.error = describe_failure(exc)
+        store.save_state(run_id, user_id, state)
+
+
 def context_for(user_id: str, model: str, run_id: str = "") -> LLMContext:
     return LLMContext(model=model, user_id=user_id, token=token_for(user_id), run_id=run_id)
 
@@ -109,6 +158,7 @@ async def brief_draft(run_id: str, user_id: str, model: str) -> Brief | None:
         return None
     request = state.brief.original_request
     try:
+        await ensure_host(user_id, model)
         brief = await briefer.build_brief(request, context_for(user_id, model, run_id))
     except Exception:
         # The request is not lost: it is on the row, and the user can retry.
@@ -150,6 +200,8 @@ async def start_run(
     state = store.load_state(run_id, user_id)
     if state is None or state.brief is None:
         raise ValueError(f"run {run_id} not found for this user")
+    await ensure_host(user_id, model)
+    state.error = state.error_kind = ""  # a resumed run starts clean
 
     # Agents reach for vault_search and brain_search, and the note editor writes
     # files without indexing them (the next sync does that). Without this the run

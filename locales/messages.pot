@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-29 15:14+0000\n"
+"POT-Creation-Date: 2026-10-29 15:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -101,12 +101,12 @@ msgstr ""
 #: app_ui/pages/brain.py:278 app_ui/pages/brain.py:292
 #: app_ui/pages/brain.py:773 app_ui/pages/chat.py:1427
 #: app_ui/pages/chat.py:3703 app_ui/pages/chat.py:3967
-#: app_ui/pages/chat.py:4051 app_ui/pages/dashboard.py:1056
+#: app_ui/pages/chat.py:4057 app_ui/pages/dashboard.py:1056
 #: app_ui/pages/dashboard.py:1261 app_ui/pages/dashboard.py:1451
 #: app_ui/pages/settings.py:1239 app_ui/title_rename_settings.py:79
 #: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
 #: werkbank/ui/module_page.py:136 werkbank/v2/ui/brief_dialog.py:158
-#: werkbank/v2/ui/page.py:509
+#: werkbank/v2/ui/page.py:522
 msgid "Cancel"
 msgstr ""
 
@@ -273,7 +273,7 @@ msgstr ""
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
 #: app_ui/ai_models_settings.py:500 app_ui/pages/brain.py:293
 #: app_ui/pages/brain.py:1101 werkbank/ui/task_dialog.py:363
-#: werkbank/ui/task_dialog.py:699 werkbank/v2/ui/page.py:255
+#: werkbank/ui/task_dialog.py:699 werkbank/v2/ui/page.py:264
 msgid "Delete"
 msgstr ""
 
@@ -1005,7 +1005,7 @@ msgstr ""
 
 #: app_ui/pages/chat.py:4015 app_ui/proactive_settings.py:131
 #: app_ui/proactive_settings.py:133 werkbank/ui/module_page.py:117
-#: werkbank/v2/ui/page.py:504 werkbank/v2/ui/page.py:506
+#: werkbank/v2/ui/page.py:517 werkbank/v2/ui/page.py:519
 msgid "Model"
 msgstr ""
 
@@ -1109,7 +1109,7 @@ msgstr ""
 msgid "Email address confirmed."
 msgstr ""
 
-#: app_ui/pages/findings.py:454 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:462 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr ""
 
@@ -1303,7 +1303,7 @@ msgid "last message refused ({status}) {when}"
 msgstr ""
 
 #: app_ui/pages/chat.py:824 app_ui/pages/chat.py:3358 app_ui/pages/chat.py:3699
-#: app_ui/pages/chat.py:3960 app_ui/pages/chat.py:4047
+#: app_ui/pages/chat.py:3960 app_ui/pages/chat.py:4053
 #: app_ui/pages/dashboard.py:1256 app_ui/pages/settings.py:280
 #: app_ui/similar_dialog.py:113
 #, python-brace-format
@@ -1891,7 +1891,7 @@ msgstr ""
 msgid "Pinned — click to unpin"
 msgstr ""
 
-#: app_ui/pages/browser.py:592 app_ui/pages/chat.py:4086
+#: app_ui/pages/browser.py:592 app_ui/pages/chat.py:4092
 #, python-brace-format
 msgid "Download of document #{id} failed: {err}"
 msgstr ""
@@ -2465,20 +2465,20 @@ msgstr ""
 msgid "Formulating the assignment…"
 msgstr ""
 
-#: app_ui/pages/chat.py:4042
+#: app_ui/pages/chat.py:4048
 msgid "Run started — open it under AI deep research."
 msgstr ""
 
-#: app_ui/pages/chat.py:4055
+#: app_ui/pages/chat.py:4061
 msgid "Start task"
 msgstr ""
 
-#: app_ui/pages/chat.py:4101
+#: app_ui/pages/chat.py:4107
 #, python-brace-format
 msgid "Download document #{id}"
 msgstr ""
 
-#: app_ui/pages/chat.py:4123 app_ui/pages/settings.py:63
+#: app_ui/pages/chat.py:4129 app_ui/pages/settings.py:63
 msgid "New conversation"
 msgstr ""
 
@@ -3052,32 +3052,36 @@ msgstr ""
 msgid "Researched — the summary is at the top, the report is in your vault."
 msgstr ""
 
-#: app_ui/pages/findings.py:408 proactive/tasks/insights.py:166
+#: app_ui/pages/findings.py:408 proactive/tasks/insights.py:172
 msgid "Full report"
 msgstr ""
 
-#: app_ui/pages/findings.py:421
+#: app_ui/pages/findings.py:423
 msgid "Research running — it gives way while you chat."
 msgstr ""
 
-#: app_ui/pages/findings.py:424 app_ui/pages/findings.py:439
+#: app_ui/pages/findings.py:426 app_ui/pages/findings.py:447
 msgid "Research queued — it starts as soon as the model is free."
 msgstr ""
 
-#: app_ui/pages/findings.py:429
+#: app_ui/pages/findings.py:430
 msgid "No research is running for this item."
 msgstr ""
 
-#: app_ui/pages/findings.py:431
+#: app_ui/pages/findings.py:435
+msgid "The research failed."
+msgstr ""
+
+#: app_ui/pages/findings.py:439
 msgid "Research again"
 msgstr ""
 
-#: app_ui/pages/findings.py:451
+#: app_ui/pages/findings.py:459
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr ""
 
-#: app_ui/pages/findings.py:458 proactive/reactions.py:54
+#: app_ui/pages/findings.py:466 proactive/reactions.py:54
 msgid "Already handled."
 msgstr ""
 
@@ -3713,7 +3717,7 @@ msgid "Clear"
 msgstr ""
 
 #: app_ui/pages/settings.py:1056 werkbank/ui/module_page.py:227
-#: werkbank/v2/ui/page.py:532
+#: werkbank/v2/ui/page.py:545
 msgid "AI deep research"
 msgstr ""
 
@@ -4047,22 +4051,22 @@ msgstr ""
 msgid "{n} new while you were away"
 msgstr ""
 
-#: proactive/tasks/insights.py:145
+#: proactive/tasks/insights.py:151
 #, python-brace-format
 msgid "Research done: {title}"
 msgstr ""
 
-#: proactive/tasks/insights.py:164
+#: proactive/tasks/insights.py:170
 #, python-brace-format
 msgid "Research result ({date})"
 msgstr ""
 
-#: proactive/tasks/insights.py:168
+#: proactive/tasks/insights.py:174
 #, python-brace-format
 msgid "[Full report in deep research]({url})"
 msgstr ""
 
-#: proactive/tasks/insights.py:209
+#: proactive/tasks/insights.py:215
 msgid "What you may have missed"
 msgstr ""
 
@@ -4303,7 +4307,7 @@ msgstr ""
 msgid "To review"
 msgstr ""
 
-#: werkbank/ui/module_page.py:235 werkbank/v2/ui/page.py:541
+#: werkbank/ui/module_page.py:235 werkbank/v2/ui/page.py:554
 msgid "Agents"
 msgstr ""
 
@@ -4624,7 +4628,7 @@ msgstr ""
 msgid "Could not create the brief: {err}"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:148 werkbank/v2/ui/page.py:278
+#: werkbank/v2/ui/page.py:148 werkbank/v2/ui/page.py:287
 msgid "Run not found."
 msgstr ""
 
@@ -4632,103 +4636,115 @@ msgstr ""
 msgid "Run started."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:196
+#: werkbank/v2/ui/page.py:170
+#, python-brace-format
+msgid ""
+"Failed: the model host did not answer — it is off or not reachable "
+"({detail}). Start it again once the host is up."
+msgstr ""
+
+#: werkbank/v2/ui/page.py:172
+#, python-brace-format
+msgid "Failed: {detail}"
+msgstr ""
+
+#: werkbank/v2/ui/page.py:205
 msgid "Preparing the PDF…"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:201
+#: werkbank/v2/ui/page.py:210
 msgid "Research report"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:211
+#: werkbank/v2/ui/page.py:220
 #, python-brace-format
 msgid "Could not create the PDF: {err}"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:234
+#: werkbank/v2/ui/page.py:243
 msgid "Run deleted."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:240
+#: werkbank/v2/ui/page.py:249
 msgid "Delete this run?"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:245
+#: werkbank/v2/ui/page.py:254
 msgid "It is still running — it will be stopped."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:248
+#: werkbank/v2/ui/page.py:257
 #, python-brace-format
 msgid ""
 "The board and every fact behind it are gone for good. The report stays in"
 " your vault, in {folder}."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:252
+#: werkbank/v2/ui/page.py:261
 msgid "Keep"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:311
+#: werkbank/v2/ui/page.py:320
 msgid "Markdown"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:317
+#: werkbank/v2/ui/page.py:326
 msgid "PDF"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:327
+#: werkbank/v2/ui/page.py:336
 msgid "Assignment"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:339
+#: werkbank/v2/ui/page.py:348
 #, python-brace-format
 msgid "The report is a note in your vault: {folder}"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:346
+#: werkbank/v2/ui/page.py:355
 msgid "The report appears when the run has finished."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:410
+#: werkbank/v2/ui/page.py:419
 msgid "No runs yet."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:450
+#: werkbank/v2/ui/page.py:459
 #, python-brace-format
 msgid "{done}/{total} subtasks"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:457
+#: werkbank/v2/ui/page.py:466
 msgid "Review"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:475
+#: werkbank/v2/ui/page.py:484
 msgid "Start / resume"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:493
+#: werkbank/v2/ui/page.py:506
 msgid "New research assignment"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:496
+#: werkbank/v2/ui/page.py:509
 msgid "What should be researched?"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:497
+#: werkbank/v2/ui/page.py:510
 msgid ""
 "e.g. Which notice periods apply to my contracts, and which of them are "
 "statutory?"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:520
+#: werkbank/v2/ui/page.py:533
 msgid "Formulating the assignment — you can leave this page."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:523
+#: werkbank/v2/ui/page.py:536
 msgid "Continue"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:543
+#: werkbank/v2/ui/page.py:556
 msgid "New run"
 msgstr ""
 

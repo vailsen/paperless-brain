@@ -163,13 +163,22 @@ async def review_draft(run_id: str, user_id: str, model: str, refresh, host=None
     ui.notify(_("Run started."))
 
 
+def failure_text(state) -> str:
+    """Why a run stopped, for the run list and the finding that started it."""
+    _ = get_translator()
+    if state.error_kind == "host":
+        return _("Failed: the model host did not answer — it is off or not reachable ({detail}). "
+                 "Start it again once the host is up.").format(detail=state.error)
+    return _("Failed: {detail}").format(detail=state.error)
+
+
 def _launch(run_id: str, user_id: str, model: str, refresh) -> None:
     async def go() -> None:
         try:
             await pipeline.start_run(run_id, user_id, model)
         except Exception as exc:                       # never lose the run silently
             _log.exception("werkbank v2 run %s failed", run_id)
-            store.set_run_status(run_id, user_id, "failed")
+            pipeline.fail_run(run_id, user_id, exc)
             ui.notify(f"Run {run_id}: {exc}", type="negative")
         finally:
             refresh()
@@ -485,6 +494,10 @@ def werkbank_page(run: str = "") -> None:
                             on_click=lambda rid=run["run_id"]: _delete_run(
                                 rid, user_id, run_list.refresh, dialog_host),
                         ).props("flat dense round").classes("card-action-btn")
+                if status in ("failed", "briefing_failed") and state is not None and state.error:
+                    # Why — a bare "failed" left the user guessing.
+                    ui.label(failure_text(state)).classes("text-xs mt-1 w-full").style(
+                        "color:var(--c-warn); overflow-wrap:anywhere")
 
     def _open_new_dialog() -> None:
         with ui.dialog() as dialog, ui.card().style(

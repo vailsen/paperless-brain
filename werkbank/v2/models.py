@@ -514,6 +514,11 @@ class RunState(BaseModel):
     flagged_paragraphs: list[str] = Field(default_factory=list)
     started_at: str = ""
     finished_at: str = ""
+    # Why the run stopped, when it failed: shown on the run and on the finding
+    # that started it. A bare "failed" left the user guessing. `error_kind`
+    # "host" = the model host did not answer (off, asleep, unreachable).
+    error: str = ""
+    error_kind: str = ""
 
     def status_of(self, subtask_id: str) -> SubtaskStatus:
         result = self.results.get(subtask_id)
