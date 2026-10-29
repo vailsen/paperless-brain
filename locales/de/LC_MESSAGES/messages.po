@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-29 15:14+0000\n"
+"POT-Creation-Date: 2026-10-29 15:37+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -104,12 +104,12 @@ msgstr "Dienst gespeichert."
 #: app_ui/pages/brain.py:278 app_ui/pages/brain.py:292
 #: app_ui/pages/brain.py:773 app_ui/pages/chat.py:1427
 #: app_ui/pages/chat.py:3703 app_ui/pages/chat.py:3967
-#: app_ui/pages/chat.py:4051 app_ui/pages/dashboard.py:1056
+#: app_ui/pages/chat.py:4057 app_ui/pages/dashboard.py:1056
 #: app_ui/pages/dashboard.py:1261 app_ui/pages/dashboard.py:1451
 #: app_ui/pages/settings.py:1239 app_ui/title_rename_settings.py:79
 #: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
 #: werkbank/ui/module_page.py:136 werkbank/v2/ui/brief_dialog.py:158
-#: werkbank/v2/ui/page.py:509
+#: werkbank/v2/ui/page.py:522
 msgid "Cancel"
 msgstr "Abbrechen"
 
@@ -289,7 +289,7 @@ msgstr "Dienst gelöscht."
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
 #: app_ui/ai_models_settings.py:500 app_ui/pages/brain.py:293
 #: app_ui/pages/brain.py:1101 werkbank/ui/task_dialog.py:363
-#: werkbank/ui/task_dialog.py:699 werkbank/v2/ui/page.py:255
+#: werkbank/ui/task_dialog.py:699 werkbank/v2/ui/page.py:264
 msgid "Delete"
 msgstr "Löschen"
 
@@ -1054,7 +1054,7 @@ msgstr "Benötigt Hintergrundzugriff."
 
 #: app_ui/pages/chat.py:4015 app_ui/proactive_settings.py:131
 #: app_ui/proactive_settings.py:133 werkbank/ui/module_page.py:117
-#: werkbank/v2/ui/page.py:504 werkbank/v2/ui/page.py:506
+#: werkbank/v2/ui/page.py:517 werkbank/v2/ui/page.py:519
 msgid "Model"
 msgstr "Modell"
 
@@ -1166,7 +1166,7 @@ msgstr "Dieser Code ist ungültig oder abgelaufen."
 msgid "Email address confirmed."
 msgstr "E-Mail-Adresse bestätigt."
 
-#: app_ui/pages/findings.py:454 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:462 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr "Bestätigen"
 
@@ -1374,7 +1374,7 @@ msgid "last message refused ({status}) {when}"
 msgstr "letzte Nachricht abgelehnt ({status}) {when}"
 
 #: app_ui/pages/chat.py:824 app_ui/pages/chat.py:3358 app_ui/pages/chat.py:3699
-#: app_ui/pages/chat.py:3960 app_ui/pages/chat.py:4047
+#: app_ui/pages/chat.py:3960 app_ui/pages/chat.py:4053
 #: app_ui/pages/dashboard.py:1256 app_ui/pages/settings.py:280
 #: app_ui/similar_dialog.py:113
 #, python-brace-format
@@ -1996,7 +1996,7 @@ msgstr "Querverweis-Cluster anzeigen"
 msgid "Pinned — click to unpin"
 msgstr "Angeheftet — klicken zum Lösen"
 
-#: app_ui/pages/browser.py:592 app_ui/pages/chat.py:4086
+#: app_ui/pages/browser.py:592 app_ui/pages/chat.py:4092
 #, python-brace-format
 msgid "Download of document #{id} failed: {err}"
 msgstr "Download von Dokument #{id} fehlgeschlagen: {err}"
@@ -2580,20 +2580,20 @@ msgstr "Auftrag"
 msgid "Formulating the assignment…"
 msgstr "Auftrag wird formuliert …"
 
-#: app_ui/pages/chat.py:4042
+#: app_ui/pages/chat.py:4048
 msgid "Run started — open it under AI deep research."
 msgstr "Lauf gestartet — unter KI-Tiefenrecherche zu finden."
 
-#: app_ui/pages/chat.py:4055
+#: app_ui/pages/chat.py:4061
 msgid "Start task"
 msgstr "Auftrag starten"
 
-#: app_ui/pages/chat.py:4101
+#: app_ui/pages/chat.py:4107
 #, python-brace-format
 msgid "Download document #{id}"
 msgstr "Dokument #{id} herunterladen"
 
-#: app_ui/pages/chat.py:4123 app_ui/pages/settings.py:63
+#: app_ui/pages/chat.py:4129 app_ui/pages/settings.py:63
 msgid "New conversation"
 msgstr "Neues Gespräch"
 
@@ -3201,32 +3201,36 @@ msgstr ""
 "Recherchiert — die Zusammenfassung steht oben, der Bericht liegt in "
 "deinem Vault."
 
-#: app_ui/pages/findings.py:408 proactive/tasks/insights.py:166
+#: app_ui/pages/findings.py:408 proactive/tasks/insights.py:172
 msgid "Full report"
 msgstr "Vollständiger Bericht"
 
-#: app_ui/pages/findings.py:421
+#: app_ui/pages/findings.py:423
 msgid "Research running — it gives way while you chat."
 msgstr "Recherche läuft — sie pausiert, solange du chattest."
 
-#: app_ui/pages/findings.py:424 app_ui/pages/findings.py:439
+#: app_ui/pages/findings.py:426 app_ui/pages/findings.py:447
 msgid "Research queued — it starts as soon as the model is free."
 msgstr "Recherche wartet — sie startet, sobald das Modell frei ist."
 
-#: app_ui/pages/findings.py:429
+#: app_ui/pages/findings.py:430
 msgid "No research is running for this item."
 msgstr "Für diesen Eintrag läuft keine Recherche."
 
-#: app_ui/pages/findings.py:431
+#: app_ui/pages/findings.py:435
+msgid "The research failed."
+msgstr "Die Recherche ist fehlgeschlagen."
+
+#: app_ui/pages/findings.py:439
 msgid "Research again"
 msgstr "Erneut recherchieren"
 
-#: app_ui/pages/findings.py:451
+#: app_ui/pages/findings.py:459
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr "„{action}“ auf diesen Eintrag anwenden?"
 
-#: app_ui/pages/findings.py:458 proactive/reactions.py:54
+#: app_ui/pages/findings.py:466 proactive/reactions.py:54
 msgid "Already handled."
 msgstr "Bereits erledigt."
 
@@ -3973,7 +3977,7 @@ msgid "Clear"
 msgstr "Leeren"
 
 #: app_ui/pages/settings.py:1056 werkbank/ui/module_page.py:227
-#: werkbank/v2/ui/page.py:532
+#: werkbank/v2/ui/page.py:545
 msgid "AI deep research"
 msgstr "KI-Tiefenrecherche"
 
@@ -4334,22 +4338,22 @@ msgstr "+ {n} weitere"
 msgid "{n} new while you were away"
 msgstr "{n} neue, während du weg warst"
 
-#: proactive/tasks/insights.py:145
+#: proactive/tasks/insights.py:151
 #, python-brace-format
 msgid "Research done: {title}"
 msgstr "Recherche fertig: {title}"
 
-#: proactive/tasks/insights.py:164
+#: proactive/tasks/insights.py:170
 #, python-brace-format
 msgid "Research result ({date})"
 msgstr "Rechercheergebnis ({date})"
 
-#: proactive/tasks/insights.py:168
+#: proactive/tasks/insights.py:174
 #, python-brace-format
 msgid "[Full report in deep research]({url})"
 msgstr "[Vollständiger Bericht in der KI-Tiefenrecherche]({url})"
 
-#: proactive/tasks/insights.py:209
+#: proactive/tasks/insights.py:215
 msgid "What you may have missed"
 msgstr "Was du verpasst haben könntest"
 
@@ -4597,7 +4601,7 @@ msgstr "Pausiert"
 msgid "To review"
 msgstr "Zu prüfen"
 
-#: werkbank/ui/module_page.py:235 werkbank/v2/ui/page.py:541
+#: werkbank/ui/module_page.py:235 werkbank/v2/ui/page.py:554
 msgid "Agents"
 msgstr "Agenten"
 
@@ -4923,7 +4927,7 @@ msgstr "Tiefe"
 msgid "Could not create the brief: {err}"
 msgstr "Auftrag konnte nicht erstellt werden: {err}"
 
-#: werkbank/v2/ui/page.py:148 werkbank/v2/ui/page.py:278
+#: werkbank/v2/ui/page.py:148 werkbank/v2/ui/page.py:287
 msgid "Run not found."
 msgstr "Lauf nicht gefunden."
 
@@ -4931,32 +4935,47 @@ msgstr "Lauf nicht gefunden."
 msgid "Run started."
 msgstr "Lauf gestartet."
 
-#: werkbank/v2/ui/page.py:196
+#: werkbank/v2/ui/page.py:170
+#, python-brace-format
+msgid ""
+"Failed: the model host did not answer — it is off or not reachable "
+"({detail}). Start it again once the host is up."
+msgstr ""
+"Fehlgeschlagen: Der Modell-Rechner hat nicht geantwortet — er ist aus "
+"oder nicht erreichbar ({detail}). Starte sie erneut, sobald der Rechner "
+"läuft."
+
+#: werkbank/v2/ui/page.py:172
+#, python-brace-format
+msgid "Failed: {detail}"
+msgstr "Fehlgeschlagen: {detail}"
+
+#: werkbank/v2/ui/page.py:205
 msgid "Preparing the PDF…"
 msgstr "PDF wird erstellt …"
 
-#: werkbank/v2/ui/page.py:201
+#: werkbank/v2/ui/page.py:210
 msgid "Research report"
 msgstr "Recherchebericht"
 
-#: werkbank/v2/ui/page.py:211
+#: werkbank/v2/ui/page.py:220
 #, python-brace-format
 msgid "Could not create the PDF: {err}"
 msgstr "PDF konnte nicht erstellt werden: {err}"
 
-#: werkbank/v2/ui/page.py:234
+#: werkbank/v2/ui/page.py:243
 msgid "Run deleted."
 msgstr "Lauf gelöscht."
 
-#: werkbank/v2/ui/page.py:240
+#: werkbank/v2/ui/page.py:249
 msgid "Delete this run?"
 msgstr "Diesen Lauf löschen?"
 
-#: werkbank/v2/ui/page.py:245
+#: werkbank/v2/ui/page.py:254
 msgid "It is still running — it will be stopped."
 msgstr "Er läuft noch — er wird gestoppt."
 
-#: werkbank/v2/ui/page.py:248
+#: werkbank/v2/ui/page.py:257
 #, python-brace-format
 msgid ""
 "The board and every fact behind it are gone for good. The report stays in"
@@ -4965,57 +4984,57 @@ msgstr ""
 "Das Board und alle Fakten dahinter sind endgültig weg. Der Bericht bleibt"
 " in deinem Vault, in {folder}."
 
-#: werkbank/v2/ui/page.py:252
+#: werkbank/v2/ui/page.py:261
 msgid "Keep"
 msgstr "Behalten"
 
-#: werkbank/v2/ui/page.py:311
+#: werkbank/v2/ui/page.py:320
 msgid "Markdown"
 msgstr "Markdown"
 
-#: werkbank/v2/ui/page.py:317
+#: werkbank/v2/ui/page.py:326
 msgid "PDF"
 msgstr "PDF"
 
-#: werkbank/v2/ui/page.py:327
+#: werkbank/v2/ui/page.py:336
 msgid "Assignment"
 msgstr "Auftrag"
 
-#: werkbank/v2/ui/page.py:339
+#: werkbank/v2/ui/page.py:348
 #, python-brace-format
 msgid "The report is a note in your vault: {folder}"
 msgstr "Der Bericht ist eine Notiz in deinem Vault: {folder}"
 
-#: werkbank/v2/ui/page.py:346
+#: werkbank/v2/ui/page.py:355
 msgid "The report appears when the run has finished."
 msgstr "Der Bericht erscheint, sobald der Lauf fertig ist."
 
-#: werkbank/v2/ui/page.py:410
+#: werkbank/v2/ui/page.py:419
 msgid "No runs yet."
 msgstr "Noch keine Läufe."
 
-#: werkbank/v2/ui/page.py:450
+#: werkbank/v2/ui/page.py:459
 #, python-brace-format
 msgid "{done}/{total} subtasks"
 msgstr "{done}/{total} Teilaufgaben"
 
-#: werkbank/v2/ui/page.py:457
+#: werkbank/v2/ui/page.py:466
 msgid "Review"
 msgstr "Prüfen"
 
-#: werkbank/v2/ui/page.py:475
+#: werkbank/v2/ui/page.py:484
 msgid "Start / resume"
 msgstr "Starten / fortsetzen"
 
-#: werkbank/v2/ui/page.py:493
+#: werkbank/v2/ui/page.py:506
 msgid "New research assignment"
 msgstr "Neuer Rechercheauftrag"
 
-#: werkbank/v2/ui/page.py:496
+#: werkbank/v2/ui/page.py:509
 msgid "What should be researched?"
 msgstr "Was soll recherchiert werden?"
 
-#: werkbank/v2/ui/page.py:497
+#: werkbank/v2/ui/page.py:510
 msgid ""
 "e.g. Which notice periods apply to my contracts, and which of them are "
 "statutory?"
@@ -5023,15 +5042,15 @@ msgstr ""
 "z. B. Welche Kündigungsfristen gelten für meine Verträge, und welche "
 "davon sind gesetzlich?"
 
-#: werkbank/v2/ui/page.py:520
+#: werkbank/v2/ui/page.py:533
 msgid "Formulating the assignment — you can leave this page."
 msgstr "Auftrag wird formuliert — du kannst die Seite verlassen."
 
-#: werkbank/v2/ui/page.py:523
+#: werkbank/v2/ui/page.py:536
 msgid "Continue"
 msgstr "Weiter"
 
-#: werkbank/v2/ui/page.py:543
+#: werkbank/v2/ui/page.py:556
 msgid "New run"
 msgstr "Neuer Lauf"
 

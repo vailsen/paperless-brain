@@ -578,3 +578,12 @@ def test_a_new_research_result_replaces_the_old_one(env, monkeypatch):
     assert f.body.count("## Research result (") == 1
     assert "New result." in f.body and "Old result." not in f.body
     assert f.body.rstrip().endswith("x")  # the original finding stays below
+
+
+def test_a_failed_deep_dive_run_is_not_polled_for_two_weeks(env, monkeypatch):
+    from proactive import jobs
+
+    f = _poll(env, monkeypatch, {"state": "failed", "error": "host did not answer"})
+    assert f.status == "interested"  # the page offers "Research again"
+    polls = [jobs.get(i) for i in range(1, 6) if jobs.get(i) and jobs.get(i).kind == "deep_dive_poll"]
+    assert all(j.status != "queued" for j in polls)

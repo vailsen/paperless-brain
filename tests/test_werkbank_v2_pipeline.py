@@ -237,3 +237,60 @@ def test_confirming_a_draft_stores_the_edited_brief(db):
 
     assert store.list_runs("alice")[0]["status"] == "planned"
     assert store.load_state(run_id, "alice").brief.goal == "Korrigiertes Ziel"
+
+
+# ── A run wakes its host, and a failed run says why ───────────────────────────
+
+
+@pytest.fixture
+def local_model(monkeypatch):
+    from werkbank import llm_lane
+
+    cfg = {"backend": "openai_compatible", "lane": "local", "base_url": "http://10.0.0.5:11434/v1"}
+    monkeypatch.setattr(llm_lane, "_get_registry_cfg", lambda m, u, t: dict(cfg))
+    return cfg
+
+
+def test_a_run_on_a_local_model_wakes_its_host_first(local_model, monkeypatch):
+    """A research started while the host slept failed at its first model call:
+    the worker's gate wakes only the OLLAMA_SERVER host, an interactive run
+    never woke anything."""
+    from services import wol
+
+    asked = []
+
+    async def ensure_awake(url, **kw):
+        asked.append(url)
+        return "woken"
+
+    monkeypatch.setattr(wol, "ensure_awake", ensure_awake)
+    asyncio.run(pipeline.ensure_host("alice", "qwen"))
+    assert asked == ["http://10.0.0.5:11434/v1"]
+
+    local_model["backend"] = "anthropic"
+    asyncio.run(pipeline.ensure_host("alice", "claude"))
+    assert len(asked) == 1  # a cloud model has no host to wake
+
+
+@pytest.mark.parametrize("outcome", ["timeout", "not_ours"])
+def test_a_host_that_stays_down_stops_the_run_with_a_reason(local_model, monkeypatch, outcome):
+    from services import wol
+
+    async def ensure_awake(url, **kw):
+        return outcome
+
+    monkeypatch.setattr(wol, "ensure_awake", ensure_awake)
+    with pytest.raises(pipeline.HostUnavailable):
+        asyncio.run(pipeline.ensure_host("alice", "qwen"))
+
+
+def test_a_failed_run_keeps_why(db):
+    import httpx
+
+    store.create_run("r1", "alice", _brief(), model="stub")
+    pipeline.fail_run("r1", "alice", httpx.ConnectError("All connection attempts failed"))
+    state = store.load_state("r1", "alice")
+    assert store.run_status("r1", "alice") == "failed"
+    assert state.error_kind == "host" and "connection attempts failed" in state.error
+    pipeline.fail_run("r1", "alice", ValueError("plan had no subtasks"))
+    assert store.load_state("r1", "alice").error_kind == "other"

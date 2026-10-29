@@ -153,10 +153,10 @@ async def start(user: str, token: str, finding, model) -> str:
             log.info("%s: deep dive for %s finished (Werkbank run %s)", user, finding.finding_id, run_id)
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception as exc:
             log.exception("%s: deep dive run %s failed", user, run_id)
             if store.run_status(run_id, user) not in (None, "done"):
-                store.set_run_status(run_id, user, "failed")
+                pipeline.fail_run(run_id, user, exc)
         finally:
             web_query_guard.reset(g)
             yield_to_chat.reset(y)
@@ -178,6 +178,9 @@ async def result(user: str, token: str, run_id: str, finding, model) -> dict:
     status = store.run_status(run_id, user)
     if status is None:
         return {"state": "gone"}
+    if status in ("failed", "briefing_failed") and not pipeline.is_executing(run_id):
+        state = store.load_state(run_id, user)
+        return {"state": "failed", "error": state.error if state else ""}
     if status != "done":
         return {"state": "running" if pipeline.is_executing(run_id) else "stalled"}
     who, tok = (user, token) if model.uses_registry else ("", "")

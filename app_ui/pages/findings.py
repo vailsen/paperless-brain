@@ -412,7 +412,9 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             elif f.status == "interested":
                 from werkbank.v2 import store as _wb_store
 
-                running = bool(f.research_run) and _wb_store.run_status(f.research_run, user) is not None
+                run_status = _wb_store.run_status(f.research_run, user) if f.research_run else None
+                failed = run_status in ("failed", "briefing_failed")
+                running = run_status is not None and not failed
                 queued = _jobs.is_pending(f"deep_dive:{f.finding_id}") or (
                     running and _jobs.is_pending(f"deep_dive_poll:{f.finding_id}"))
                 if running:
@@ -424,10 +426,16 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                     ui.label(_("Research queued — it starts as soon as the model is free.")).classes(
                         "text-xs text-gray-400")
                 else:
-                    # Nothing works on it: its run was deleted, or it never started.
+                    # Nothing works on it: its run failed, was deleted, or never started.
+                    reason = _("No research is running for this item.")
+                    if failed:
+                        from werkbank.v2.ui.page import failure_text
+
+                        run_state = _wb_store.load_state(f.research_run, user)
+                        reason = failure_text(run_state) if run_state and run_state.error else _("The research failed.")
                     with ui.row().classes("w-full items-center gap-2 no-wrap"):
-                        ui.label(_("No research is running for this item.")).classes(
-                            "text-xs text-gray-400 flex-1 min-w-0")
+                        ui.label(reason).classes("text-xs flex-1 min-w-0").style(
+                            "color:var(--c-warn)" if failed else "color:var(--c-text-muted)")
                         ui.button(_("Research again"), icon="travel_explore",
                                   on_click=lambda: _research_again()).props(
                             "flat dense no-caps").classes("text-xs flex-shrink-0")

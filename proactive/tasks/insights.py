@@ -101,6 +101,12 @@ async def deep_dive_poll(job: Job) -> None:
         log.info("%s: deep dive run %s of %s was deleted", job.user, run_id, fid)
         await findings.update(job.user, fid, lambda x: {"research_run": None} if x.research_run == run_id else None)
         return
+    if state == "failed":
+        # Stopped with an error (the host was off, a model call failed). The
+        # finding page says why and offers "Research again"; polling a failed
+        # run for 14 days changes nothing.
+        log.info("%s: deep dive run %s of %s failed: %s", job.user, run_id, fid, res.get("error", ""))
+        return
     if state != "done":
         age = clock.utcnow() - clock.parse(job.payload.get("since") or clock.now_iso())
         if state == "stalled" and age > timedelta(days=DEEP_DIVE_GIVE_UP_DAYS):

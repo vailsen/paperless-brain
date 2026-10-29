@@ -71,7 +71,7 @@ def wakes(base_url: str) -> bool:
     return bool(host) and (not target or target == host)
 
 
-async def ensure_awake(base_url: str, *, on_wait=None, should_stop=None) -> str:
+async def ensure_awake(base_url: str, *, on_wait=None, should_stop=None, why: str = "a chat") -> str:
     """Make sure the local model host at `base_url` answers, waking it if it
     does not. Returns:
 
@@ -83,7 +83,8 @@ async def ensure_awake(base_url: str, *, on_wait=None, should_stop=None) -> str:
 
     `on_wait(seconds)` is called about every two seconds while it boots. The
     wake is recorded as a chat's ("chat"), so the host sleeps again after
-    `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES` without use.
+    `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES` without use — a research run's requests
+    keep it awake while it works. `why` is for the log.
     """
     import asyncio
     import time
@@ -99,7 +100,7 @@ async def ensure_awake(base_url: str, *, on_wait=None, should_stop=None) -> str:
     if not wakes(base_url):
         return "not_ours"
     wake(settings.ollama_host_lan_mac_address_wol, base_url, by="chat")
-    _log(f"waking {host} for a chat")
+    _log(f"waking {host} for {why}")
     started = time.monotonic()
     while (waited := time.monotonic() - started) < settings.ollama_wake_timeout_s:
         if should_stop and should_stop():
