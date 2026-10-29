@@ -369,3 +369,5 @@ def test_the_deep_dive_is_asked_the_findings_question_not_handed_its_sources():
     assert '"Sondertilgungsmöglichkeit: bis zu 17.500,00 EUR (5 %)" (#129)' in request
     assert "wikipedia" not in request and findings.disclaimer("de") not in request
     assert "renegotiate" not in request and "generic terms" in request
+    # the named document is where it was noticed — the binding one is searched for
+    assert "Noticed in: #129" in request and "signed contract" in request

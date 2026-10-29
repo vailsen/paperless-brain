@@ -65,7 +65,13 @@ whether acting on it is worth it.
 What was noticed: {title}
 {summary}
 {quotes}
-Documents: {docs}
+Noticed in: {docs}
+
+These are where it was noticed, not necessarily where the answer is. First \
+search my archive for the documents that belong to it — the signed contract \
+behind an offer, later statements, letters from the same sender — and work \
+from the binding one. Something missing from the documents above is not \
+missing from my archive until that search found nothing.
 
 Answer the question this raises — nothing broader, no catalogue of options \
 that do not apply. Work with the numbers in the documents: where a step has a \
