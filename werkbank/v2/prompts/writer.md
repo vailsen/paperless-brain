@@ -50,6 +50,13 @@ Your `markdown` is the findings, then the reflection block:
 Numbers beat descriptions: where a fact computes something (interest saved,
 a difference in rates, a cost), state the number.
 
+## Facts marked "ohne Quelle"
+
+A fact marked `⚠ ohne Quelle` rests on the model's own knowledge, on a source
+that was never retrieved, or on such a fact. Write it as what it is — "probably",
+"usually, unless the contract says otherwise" — never as settled, and never as
+the reason for a recommendation without saying so.
+
 ## Where facts contradict each other
 
 Present both, name both trust levels, and do not choose. "The contract says six

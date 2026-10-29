@@ -168,6 +168,40 @@ def test_a_claim_without_a_source_is_named(ctx):
     assert "Modellwissen" in block and "st1.f2" in block
 
 
+def test_a_conclusion_resting_on_model_knowledge_is_named_with_its_premise(ctx, replies):
+    """The real case: "an unused annual special repayment does not lapse" came
+    from model knowledge; the synthesizer's "use it now, it does not lapse" was
+    `derived` and read as settled. Both are named, and the writer is told."""
+    state = _state()
+    state.results["st1"].facts.append(Fact(
+        id="st1.f2", claim="Ohne Verfallsklausel verfällt der Anspruch nicht.",
+        evidence=Evidence.MODEL_KNOWLEDGE))
+    state.results["st3"] = SubtaskResult(
+        subtask_id="st3", agent="synthesizer", question="Was tun?", status=SubtaskStatus.OK,
+        facts=[Fact(id="st3.f1", claim="Die Sondertilgung jetzt nutzen, sie verfällt nicht.",
+                    evidence=Evidence.DERIVED, derived_from=["st1.f1", "st1.f2"]),
+               Fact(id="st3.f2", claim="Die Frist beträgt sechs Wochen.",
+                    evidence=Evidence.DERIVED, derived_from=["st1.f1"])])
+    weak = reflection.unsourced(state)
+    assert weak == {"st1.f2": "Modellwissen", "st3.f1": "abgeleitet aus st1.f2"}
+    block = reflection.build(state)
+    assert "[st3.f1]" in block and "abgeleitet aus st1.f2" in block and "st3.f2" not in block
+    assert "⚠ ohne Quelle (abgeleitet aus st1.f2)" in writer.facts_block(state)
+
+
+def test_a_fact_whose_sources_were_never_retrieved_is_named(ctx):
+    """Interest rates from two pages whose fetch failed: trust `model` on every
+    source, listed under "Ohne Quelle" in the sources — and nowhere in the
+    reflection."""
+    state = _state()
+    state.results["st1"].facts.append(Fact(
+        id="st1.f2", claim="Bauzinsen liegen bei 4,4 %.", evidence=Evidence.QUOTE,
+        sources=[Source(id="s9", type="web", trust=SourceTrust.MODEL, ref="https://x.example",
+                        quote="4,4 %")]))
+    assert reflection.unsourced(state) == {"st1.f2": "Quelle nicht abgerufen"}
+    assert "Quelle nicht abgerufen" in reflection.build(state)
+
+
 def test_a_subtask_at_the_revision_cap_is_marked(ctx):
     state = _state(capped_subtasks=["st1"])
     state.results["st1"].status = SubtaskStatus.UNRESOLVABLE

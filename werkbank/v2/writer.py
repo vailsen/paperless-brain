@@ -54,6 +54,7 @@ class Report(BaseModel):
 def facts_block(state: RunState) -> str:
     """Every accepted fact, with what backs it — the writer's only material."""
     lines = []
+    weak = reflection.unsourced(state)
     for result in sorted(state.results.values(), key=lambda r: r.subtask_id):
         if not result.facts:
             continue
@@ -61,8 +62,11 @@ def facts_block(state: RunState) -> str:
         for fact in result.facts:
             trust = ", ".join(sorted({s.trust.value for s in fact.sources})) or "model"
             conflict = f" ⚠ widerspricht {', '.join(fact.contradicts)}" if fact.contradicts else ""
+            # Told, so the prose does not state it as settled: this is what
+            # turned "probably does not lapse" into "does not lapse — act now".
+            unsure = f" ⚠ ohne Quelle ({weak[fact.id]})" if fact.id in weak else ""
             lines.append(
-                f"- [{fact.id}] ({fact.evidence.value}, trust: {trust}){conflict}\n"
+                f"- [{fact.id}] ({fact.evidence.value}, trust: {trust}){conflict}{unsure}\n"
                 f"  {fact.claim}"
             )
         lines.append("")
