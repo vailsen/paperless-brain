@@ -81,12 +81,26 @@ def test_advice_needs_a_verbatim_quote_and_a_fetched_url():
 
     ev = [{"doc_id": 1, "quote": "Die Verwaltungskosten betragen jährlich 1,2 % des Guthabens."},
           {"doc_id": 1, "quote": "Die Kosten sind niedrig."}]
-    rec, e, s = validate_advice("Wechseln.", ev, ["https://a.org", "https://remembered.org"],
-                                doc_texts={1: DOC}, fetched={"https://a.org": "2026-10-26"})
+    rec, e, s = validate_advice("Wechseln.", ev, ["https://a.org/riester", "https://remembered.org/x"],
+                                doc_texts={1: DOC}, fetched={"https://a.org/riester": "2026-10-26"})
     assert rec == "Wechseln." and len(e) == 1
-    assert s == [{"url": "https://a.org", "retrieved": "2026-10-26"}]
-    rec, _e, s = validate_advice("Wechseln.", ev, ["https://remembered.org"], doc_texts={1: DOC}, fetched={})
+    assert s == [{"url": "https://a.org/riester", "retrieved": "2026-10-26"}]
+    rec, _e, s = validate_advice("Wechseln.", ev, ["https://remembered.org/x"], doc_texts={1: DOC}, fetched={})
     assert rec == "" and s == []
+
+
+def test_a_home_page_is_no_source_and_tracking_is_not_stored():
+    from proactive.scoring import validate_advice
+
+    ev = [{"doc_id": 1, "quote": "Die Verwaltungskosten betragen jährlich 1,2 % des Guthabens."}]
+    fetched = {"https://www.wikipedia.de/": "2026-10-27",
+               "https://www.verivox.de/tagesgeld/?msockid=265ec6": "2026-10-29",
+               "https://www.verivox.de/tagesgeld/?msockid=999": "2026-10-29"}
+    rec, _e, s = validate_advice("Anlegen.", ev, list(fetched), doc_texts={1: DOC}, fetched=fetched)
+    assert s == [{"url": "https://www.verivox.de/tagesgeld/", "retrieved": "2026-10-29"}]
+    rec, _e, s = validate_advice("Anlegen.", ev, ["https://www.wikipedia.de/"], doc_texts={1: DOC},
+                                 fetched=fetched)
+    assert rec == "" and s == []  # a home page alone does not carry a recommendation
 
 
 # ── Environment for job tests ────────────────────────────────────────────────
@@ -401,6 +415,24 @@ def test_deep_dive_starts_the_run_and_links_it_in_the_finding(env, monkeypatch):
     assert jobs.pending_count(kind="deep_dive_poll") == 1
 
 
+def test_a_new_run_gets_its_own_poll_while_the_old_one_still_waits(env, monkeypatch):
+    from proactive import findings, internal_client, jobs, models
+
+    fid = _insight(env, 0, status="interested")
+    monkeypatch.setattr(models, "resolve_model", lambda u, t, p=None: _model())
+    # the poll of an earlier, deleted run is still queued
+    jobs.enqueue("deep_dive_poll", "alice", {"finding_id": fid, "run_id": "old"},
+                 dedupe_key=f"deep_dive_poll:{fid}:old", delay=__import__("datetime").timedelta(hours=1))
+
+    async def start(user, finding_id, model):
+        return "new"
+
+    monkeypatch.setattr(internal_client, "deep_dive", start)
+    _run("deep_dive", "alice", {"finding_id": fid})
+    assert findings.get("alice", fid).research_run == "new"
+    assert jobs.is_pending(f"deep_dive_poll:{fid}:new")
+
+
 def _poll(env, monkeypatch, answer):
     from proactive import findings, internal_client, models
 
@@ -435,9 +467,13 @@ def test_deep_dive_result_is_validated_written_and_does_not_count(env, monkeypat
         "evidence": [{"doc_id": 1, "quote": "Die Abschluss- und Vertriebskosten betragen 2,5 % der Beitragssumme."}],
         "sources": ["https://a.example/x", "https://not-fetched.example"],
         "fetched": {"https://a.example/x": "2026-10-26"},
+        "open_points": ["Der Tagesgeldzins ist vor Steuer und variabel."],
     })
     assert f.status == "researched" and f.advice
     assert "https://a.example/x" in f.body and "not-fetched" not in f.body
+    assert "## Open points" in f.body or "### Open points" in f.body
+    assert "- Der Tagesgeldzins ist vor Steuer und variabel." in f.body
+    assert f.body.index("Open points") < f.body.index("Recommendation")
     head = f.body.split("\n---\n")[0]
     assert head.startswith("## Research result (") and "/werkbank?run=run1" in head
     assert "### Summary" in head and "Ein Wechsel lohnt sich." in head
@@ -587,3 +623,34 @@ def test_a_failed_deep_dive_run_is_not_polled_for_two_weeks(env, monkeypatch):
     assert f.status == "interested"  # the page offers "Research again"
     polls = [jobs.get(i) for i in range(1, 6) if jobs.get(i) and jobs.get(i).kind == "deep_dive_poll"]
     assert all(j.status != "queued" for j in polls)
+
+
+def test_deep_dive_may_quote_further_documents_the_user_can_read(env, monkeypatch, tmp_path):
+    """The run found the signed contract (#2) behind the offer (#1): its quote
+    counts, and #2 joins the finding. #3 the user cannot read: dropped."""
+    from proactive import paperless_ro
+
+    contract = "Darlehensvertrag. Sondertilgung: bis zu 5 % der Darlehenssumme jährlich."
+    for d, text in ((2, contract), (3, "Geheim. Sondertilgung: 10 %.")):
+        (tmp_path / "sidecars" / f"{d}.json").write_text(json.dumps({"pages": [{"page_text": text}]}))
+    checked = []
+
+    async def can_read(token, doc_id):
+        checked.append(doc_id)
+        return doc_id == 2
+
+    monkeypatch.setattr(paperless_ro, "can_read", can_read)
+    f = _poll(env, monkeypatch, {
+        "state": "done",
+        "summary": "Der Vertrag erlaubt 5 %.",
+        "recommendation": "Angebote vergleichen.",
+        "evidence": [
+            {"doc_id": 2, "quote": "Sondertilgung: bis zu 5 % der Darlehenssumme jährlich."},
+            {"doc_id": 3, "quote": "Sondertilgung: 10 %."},
+        ],
+        "sources": ["https://a.example/x"],
+        "fetched": {"https://a.example/x": "2026-10-26"},
+    })
+    assert sorted(checked) == [2, 3]
+    assert f.doc_ids == [1, 2] and f.advice
+    assert "bis zu 5 % der Darlehenssumme" in f.body and "10 %" not in f.body

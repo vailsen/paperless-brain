@@ -36,8 +36,11 @@ def validate_advice(
 ) -> tuple[str, list[dict], list[dict]]:
     """Keep what is grounded. Returns `(recommendation, evidence, sources)`:
     evidence = quotes that occur in a referenced document's text; sources =
-    URLs fetched in this run (with their retrieval date). A recommendation
-    without at least one of each is dropped — the finding stays as facts."""
+    URLs fetched in this run (with their retrieval date), never a site's home
+    page, stored without tracking parameters. A recommendation without at
+    least one of each is dropped — the finding stays as facts."""
+    from proactive.findings import clean_source_url, is_home_page
+
     ev = []
     for e in evidence or []:
         try:
@@ -50,8 +53,11 @@ def validate_advice(
     src = []
     for s in sources or []:
         url = (s.get("url") if isinstance(s, dict) else str(s or "")).strip()
-        if url in fetched and url not in [x["url"] for x in src]:
-            src.append({"url": url, "retrieved": fetched[url]})
+        if url not in fetched or is_home_page(url):
+            continue
+        clean = clean_source_url(url)
+        if clean not in [x["url"] for x in src]:
+            src.append({"url": clean, "retrieved": fetched[url]})
     rec = (recommendation or "").strip()
     if not (ev and src):
         rec = ""

@@ -63,7 +63,12 @@ async def deep_dive(job: Job) -> None:
     jobs.enqueue(
         "deep_dive_poll", job.user,
         {"finding_id": fid, "run_id": run_id, "since": clock.now_iso()},
-        delay=timedelta(seconds=DEEP_DIVE_POLL_S), dedupe_key=f"deep_dive_poll:{fid}",
+        delay=timedelta(seconds=DEEP_DIVE_POLL_S),
+        # Per run, not per finding: the poll of a deleted run can still be
+        # waiting when "Interesting" starts the next one. Keyed by the finding
+        # alone, the new poll was dropped as a duplicate, the old one found a
+        # different run and quit, and the finding said "running" for ever.
+        dedupe_key=f"deep_dive_poll:{fid}:{run_id}",
     )
 
 
@@ -115,6 +120,7 @@ async def deep_dive_poll(job: Job) -> None:
         raise Defer(f"run {run_id} {state}", DEEP_DIVE_POLL_S if state == "running" else DEEP_DIVE_STALLED_POLL_S)
 
     texts = {d: analysis.sidecar_text(d) or "" for d in f.doc_ids}
+    texts.update(await _further_documents(tok, f.doc_ids, res.get("evidence") or []))
     rec, ev, src = scoring.validate_advice(
         res.get("recommendation", ""), res.get("evidence") or [], res.get("sources") or [],
         doc_texts=texts, fetched=res.get("fetched") or {},
@@ -125,6 +131,7 @@ async def deep_dive_poll(job: Job) -> None:
     body = research_body(
         f.lang, run_id, findings.render_body(
             f.lang, summary=res.get("summary") or "", evidence=ev, sources=src, recommendation=rec,
+            open_points=res.get("open_points") or [],
         ), note=note,
     )
     original = findings.strip_research(f.body, f.lang)  # a new result replaces the old
@@ -133,7 +140,13 @@ async def deep_dive_poll(job: Job) -> None:
         nxt = transition(x.status, "researched")
         if not nxt:
             return None
-        return {"status": nxt, "advice": bool(rec), **({"research_note": wikilink(note)} if note else {})}
+        changes = {"status": nxt, "advice": bool(rec), **({"research_note": wikilink(note)} if note else {})}
+        # Documents the result quotes join the finding: the signed contract the
+        # run found behind an offer is what the finding is about from now on.
+        quoted = sorted({e["doc_id"] for e in ev} - set(x.doc_ids))
+        if quoted:
+            changes["doc_ids"] = sorted(set(x.doc_ids) | set(quoted))
+        return changes
 
     done = await findings.update(job.user, fid, mutate, body=lambda x: body + "\n---\n\n" + original)
     if done is None or done.status != "researched":
@@ -152,6 +165,42 @@ async def deep_dive_poll(job: Job) -> None:
         urgency=f.urgency, full_text=res.get("summary") or "",
         actions=reactions_for("researched", "insight"), counts=False, tag=f"{fid}-research",
     ))
+
+
+#: At most this many documents outside the finding may back a deep dive's quotes.
+MAX_FURTHER_DOCS = 5
+
+
+async def _further_documents(token: str, known: list[int], evidence: list) -> dict[int, str]:
+    """`{doc_id: text}` of documents the result quotes beyond the finding's own.
+
+    The run searches the archive for the binding document (the signed contract
+    behind an offer) — and then could only quote the offer, because quotes were
+    checked against the finding's documents alone. A quoted document counts if
+    the user can read it in Paperless (checked with their token, never assumed
+    from the run) and its text is on file; the quote itself is then checked
+    against that text like any other."""
+    from proactive import analysis
+    from proactive.paperless_ro import can_read
+
+    wanted = []
+    for e in evidence:
+        try:
+            d = int(e.get("doc_id"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if d not in known and d not in wanted:
+            wanted.append(d)
+    out: dict[int, str] = {}
+    for d in wanted[:MAX_FURTHER_DOCS]:
+        text = analysis.sidecar_text(d) or ""
+        try:
+            readable = bool(text) and await can_read(token, d)
+        except Exception:  # Paperless unreachable: the quote just does not count
+            readable = False
+        if readable:
+            out[d] = text
+    return out
 
 
 def research_body(lang: str, run_id: str, sections: str, note: str = "") -> str:

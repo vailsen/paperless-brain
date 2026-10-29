@@ -292,10 +292,12 @@ def render_body(
     evidence: list[dict] | None = None,
     sources: list[dict] | None = None,
     recommendation: str = "",
+    open_points: list[str] | None = None,
 ) -> str:
     """Body sections in the user's language. `evidence` = `[{doc_id, quote}]`,
-    `sources` = `[{url, retrieved}]`. The disclaimer is added here, by code,
-    whenever there is a recommendation."""
+    `sources` = `[{url, retrieved}]`, `open_points` = what is not known or
+    assumed (deep dive), shown before the recommendation it qualifies. The
+    disclaimer is added here, by code, whenever there is a recommendation."""
     from i18n import translator_for
 
     _ = translator_for(lang)
@@ -313,6 +315,9 @@ def render_body(
         for s in sources:
             out.append(f"- {s['url']} ({s.get('retrieved', '')})")
         out.append("")
+    points = [" ".join(str(p).split()) for p in open_points or [] if str(p).strip()]
+    if points:
+        out += [f"## {_('Open points')}", "", *(f"- {p}" for p in points), ""]
     if recommendation.strip():
         out += [f"## {_('Recommendation')}", "", recommendation.strip(), ""]
         out.append(f"> {disclaimer(lang)}")
@@ -326,6 +331,30 @@ MAX_SOURCES = 10
 # came back with a new `msockid` each time and listed twenty times.
 _TRACKING = re.compile(r"^(utm_.*|msockid|gclid|fbclid|dclid|msclkid|mc_cid|mc_eid|srsltid|_ga|_gl|ref|ref_src)$", re.I)
 _SOURCE_LINE = re.compile(r"^- (\S+) \((.*)\)$")
+
+
+def clean_source_url(url: str) -> str:
+    """`url` without tracking parameters and fragment — what a finding stores."""
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+    try:
+        u = urlsplit(url.strip())
+    except ValueError:
+        return url.strip()
+    query = urlencode([(k, v) for k, v in parse_qsl(u.query, keep_blank_values=True) if not _TRACKING.match(k)])
+    return urlunsplit((u.scheme, u.netloc, u.path, query, ""))
+
+
+def is_home_page(url: str) -> bool:
+    """A site's front page (`https://www.wikipedia.de/`) backs no particular
+    statement — triage cited exactly that as a source."""
+    from urllib.parse import urlsplit
+
+    try:
+        u = urlsplit(url.strip())
+    except ValueError:
+        return True
+    return u.path.strip("/") == "" and not u.query
 
 
 def source_key(url: str) -> str:

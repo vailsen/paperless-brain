@@ -42,19 +42,30 @@ RESULT_SCHEMA = {
             },
         },
         "sources": {"type": "array", "items": {"type": "string"}},
+        "open_points": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["summary", "recommendation", "evidence", "sources"],
+    "required": ["summary", "recommendation", "evidence", "sources", "open_points"],
 }
 
+# `open_points` is where "not known" goes. Without it the condensed result read
+# more certain than the report: a Tagesgeld teaser rate before tax set against
+# a tax-free loan saving, the refinancing risk left out, and "you are not using
+# the special repayment anyway" — something no document said.
 CONDENSE = """\
 Below is a research report about an item from a person's documents. Condense it, \
 in {language}:
-summary: what was found, 3–6 sentences.
+summary: what was found, 3–6 sentences. State only what the report establishes. \
+Never claim what the person did, decided or intends unless a document says so.
 recommendation: one concrete step the person could take, or "" if the report \
-does not support one.
+does not support one. If it depends on something unknown, say on what.
 evidence: sentences from the person's documents that the report quotes and the \
 recommendation rests on — copied exactly, each with its document id.
-sources: the URLs of web pages the report relies on.
+sources: the URLs of the specific web pages the report relies on (not a site's \
+home page).
+open_points: what the report could not establish, its gaps, and the \
+assumptions a comparison rests on — before or after tax, fixed or variable, \
+a teaser rate, the period, a risk it leaves out. One short sentence each; \
+empty only if there is truly nothing.
 
 {report}"""
 
@@ -197,6 +208,7 @@ async def result(user: str, token: str, run_id: str, finding, model) -> dict:
         "recommendation": str(raw.get("recommendation") or ""),
         "evidence": raw.get("evidence") or [],
         "sources": raw.get("sources") or [],
+        "open_points": [str(p).strip() for p in raw.get("open_points") or [] if str(p).strip()],
         "fetched": store.fetched_pages(run_id, user),
         "run_id": run_id,
         # The report's note in the vault — what the finding links to, and
