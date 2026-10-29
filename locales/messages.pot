@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-29 15:37+0000\n"
+"POT-Creation-Date: 2026-10-29 18:47+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -413,8 +413,8 @@ msgid "Show in PDF"
 msgstr ""
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
-#: proactive/deep_dive_app.py:100 proactive/findings.py:302
-#: proactive/findings.py:685 proactive/findings.py:686
+#: proactive/deep_dive_app.py:111 proactive/findings.py:304
+#: proactive/findings.py:714 proactive/findings.py:715
 msgid "Summary"
 msgstr ""
 
@@ -1905,7 +1905,7 @@ msgstr ""
 msgid "p. {n}"
 msgstr ""
 
-#: app_ui/pages/chat.py:211 proactive/findings.py:312 proactive/findings.py:691
+#: app_ui/pages/chat.py:211 proactive/findings.py:314 proactive/findings.py:720
 #: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr ""
@@ -3052,7 +3052,7 @@ msgstr ""
 msgid "Researched — the summary is at the top, the report is in your vault."
 msgstr ""
 
-#: app_ui/pages/findings.py:408 proactive/tasks/insights.py:172
+#: app_ui/pages/findings.py:408 proactive/tasks/insights.py:178
 msgid "Full report"
 msgstr ""
 
@@ -3968,19 +3968,23 @@ msgstr ""
 msgid "Research"
 msgstr ""
 
-#: proactive/findings.py:304
+#: proactive/findings.py:306
 msgid "Evidence"
 msgstr ""
 
-#: proactive/findings.py:317 proactive/findings.py:687
+#: proactive/findings.py:320
+msgid "Open points"
+msgstr ""
+
+#: proactive/findings.py:322 proactive/findings.py:716
 msgid "Recommendation"
 msgstr ""
 
-#: proactive/findings.py:381
+#: proactive/findings.py:410
 msgid "Not financial or investment advice. Check the recommendation yourself."
 msgstr ""
 
-#: proactive/findings.py:658 proactive/findings.py:683
+#: proactive/findings.py:687 proactive/findings.py:712
 #, python-brace-format
 msgid "Seen in {n} documents: {docs}"
 msgstr ""
@@ -4051,22 +4055,22 @@ msgstr ""
 msgid "{n} new while you were away"
 msgstr ""
 
-#: proactive/tasks/insights.py:151
+#: proactive/tasks/insights.py:157
 #, python-brace-format
 msgid "Research done: {title}"
 msgstr ""
 
-#: proactive/tasks/insights.py:170
+#: proactive/tasks/insights.py:176
 #, python-brace-format
 msgid "Research result ({date})"
 msgstr ""
 
-#: proactive/tasks/insights.py:174
+#: proactive/tasks/insights.py:180
 #, python-brace-format
 msgid "[Full report in deep research]({url})"
 msgstr ""
 
-#: proactive/tasks/insights.py:215
+#: proactive/tasks/insights.py:221
 msgid "What you may have missed"
 msgstr ""
 

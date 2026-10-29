@@ -81,12 +81,26 @@ def test_advice_needs_a_verbatim_quote_and_a_fetched_url():
 
     ev = [{"doc_id": 1, "quote": "Die Verwaltungskosten betragen jährlich 1,2 % des Guthabens."},
           {"doc_id": 1, "quote": "Die Kosten sind niedrig."}]
-    rec, e, s = validate_advice("Wechseln.", ev, ["https://a.org", "https://remembered.org"],
-                                doc_texts={1: DOC}, fetched={"https://a.org": "2026-10-26"})
+    rec, e, s = validate_advice("Wechseln.", ev, ["https://a.org/riester", "https://remembered.org/x"],
+                                doc_texts={1: DOC}, fetched={"https://a.org/riester": "2026-10-26"})
     assert rec == "Wechseln." and len(e) == 1
-    assert s == [{"url": "https://a.org", "retrieved": "2026-10-26"}]
-    rec, _e, s = validate_advice("Wechseln.", ev, ["https://remembered.org"], doc_texts={1: DOC}, fetched={})
+    assert s == [{"url": "https://a.org/riester", "retrieved": "2026-10-26"}]
+    rec, _e, s = validate_advice("Wechseln.", ev, ["https://remembered.org/x"], doc_texts={1: DOC}, fetched={})
     assert rec == "" and s == []
+
+
+def test_a_home_page_is_no_source_and_tracking_is_not_stored():
+    from proactive.scoring import validate_advice
+
+    ev = [{"doc_id": 1, "quote": "Die Verwaltungskosten betragen jährlich 1,2 % des Guthabens."}]
+    fetched = {"https://www.wikipedia.de/": "2026-10-27",
+               "https://www.verivox.de/tagesgeld/?msockid=265ec6": "2026-10-29",
+               "https://www.verivox.de/tagesgeld/?msockid=999": "2026-10-29"}
+    rec, _e, s = validate_advice("Anlegen.", ev, list(fetched), doc_texts={1: DOC}, fetched=fetched)
+    assert s == [{"url": "https://www.verivox.de/tagesgeld/", "retrieved": "2026-10-29"}]
+    rec, _e, s = validate_advice("Anlegen.", ev, ["https://www.wikipedia.de/"], doc_texts={1: DOC},
+                                 fetched=fetched)
+    assert rec == "" and s == []  # a home page alone does not carry a recommendation
 
 
 # ── Environment for job tests ────────────────────────────────────────────────
@@ -453,9 +467,13 @@ def test_deep_dive_result_is_validated_written_and_does_not_count(env, monkeypat
         "evidence": [{"doc_id": 1, "quote": "Die Abschluss- und Vertriebskosten betragen 2,5 % der Beitragssumme."}],
         "sources": ["https://a.example/x", "https://not-fetched.example"],
         "fetched": {"https://a.example/x": "2026-10-26"},
+        "open_points": ["Der Tagesgeldzins ist vor Steuer und variabel."],
     })
     assert f.status == "researched" and f.advice
     assert "https://a.example/x" in f.body and "not-fetched" not in f.body
+    assert "## Open points" in f.body or "### Open points" in f.body
+    assert "- Der Tagesgeldzins ist vor Steuer und variabel." in f.body
+    assert f.body.index("Open points") < f.body.index("Recommendation")
     head = f.body.split("\n---\n")[0]
     assert head.startswith("## Research result (") and "/werkbank?run=run1" in head
     assert "### Summary" in head and "Ein Wechsel lohnt sich." in head

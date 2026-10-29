@@ -130,6 +130,7 @@ async def deep_dive_poll(job: Job) -> None:
     body = research_body(
         f.lang, run_id, findings.render_body(
             f.lang, summary=res.get("summary") or "", evidence=ev, sources=src, recommendation=rec,
+            open_points=res.get("open_points") or [],
         ), note=note,
     )
     original = findings.strip_research(f.body, f.lang)  # a new result replaces the old
