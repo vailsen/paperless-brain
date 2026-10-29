@@ -235,6 +235,8 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 
 `services/ollama_watchdog.py`: shuts the Ollama host down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity, but only a host that was woken via WoL. `touch()` resets the idle timer. The state (woken?, last activity, host) lives in `data/power_state.json`, not in module globals: the proactive worker is a second process sending inference requests, and the app's watchdog must see them. Waking goes through `services/wol.wake()` — the dashboard button and the worker's LLM gate (`proactive/gate.py`) both use it. A shutdown counts only when ssh says so (`BatchMode=yes`, exit status checked) and is verified a few minutes later; a failed or ineffective one keeps `wol_active` and is retried (`watchdog_step`), every decision logged as `[watchdog]`. A host the worker woke (`wol_by: worker`) goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (5) instead; any `touch()` from the app hands it back to the normal idle time.
 
+A chat with a local-lane model whose host does not answer wakes it before the turn (`wol.ensure_awake`, called from the chat page): only the host WoL controls (`wol.wakes`: MAC set, and `OLLAMA_SERVER`'s or the recorded host — else the model's own), then waits up to `OLLAMA_WAKE_TIMEOUT_S` with a status line; stop ends the wait. That wake is `wol_by: chat` and sleeps after `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES` (10); the app's `touch()` keeps it a chat's wake, so a dashboard wake still gets the normal idle time.
+
 ### Compute status
 
 `services/inference_activity.py`, shown by `app_ui/inference_status.py` on the dashboard.
@@ -612,8 +614,10 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
   (`PaperlessBrain Research/`), written by `pipeline.start_run` right after the
   report. That note is the lasting copy: deleting the run removes the board, never
   the note. Nothing goes back into Paperless.
-- **The note is an ordinary vault note.** It is written, not embedded — the next
-  sync indexes it into `vault` and mints `pbrain_id` (same contract as the editor).
+- **The note is an ordinary vault note, indexed at once.** `research.index` runs the
+  same `sync_user(force=True)` a chat turn would (embed, mint `pbrain_id`, commit) right
+  after the note is written and before the "done" message — otherwise the next chat
+  question started by embedding a long report. Never fatal: the next sync catches up.
 - **`werkbank_run` in the frontmatter is the note's identity for code** — the file
   may be renamed or moved inside the folder. A run that finishes again rewrites its
   note in place.

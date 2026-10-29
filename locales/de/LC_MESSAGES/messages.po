@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-29 10:42+0000\n"
+"POT-Creation-Date: 2026-10-29 11:37+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -103,8 +103,8 @@ msgstr "Dienst gespeichert."
 #: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:957
 #: app_ui/pages/brain.py:278 app_ui/pages/brain.py:292
 #: app_ui/pages/brain.py:773 app_ui/pages/chat.py:1427
-#: app_ui/pages/chat.py:3672 app_ui/pages/chat.py:3936
-#: app_ui/pages/chat.py:4020 app_ui/pages/dashboard.py:1056
+#: app_ui/pages/chat.py:3703 app_ui/pages/chat.py:3967
+#: app_ui/pages/chat.py:4051 app_ui/pages/dashboard.py:1056
 #: app_ui/pages/dashboard.py:1261 app_ui/pages/dashboard.py:1451
 #: app_ui/pages/settings.py:1239 app_ui/title_rename_settings.py:79
 #: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
@@ -1052,7 +1052,7 @@ msgstr "Proaktive Erinnerungen und Hinweise"
 msgid "Needs background access."
 msgstr "Benötigt Hintergrundzugriff."
 
-#: app_ui/pages/chat.py:3984 app_ui/proactive_settings.py:131
+#: app_ui/pages/chat.py:4015 app_ui/proactive_settings.py:131
 #: app_ui/proactive_settings.py:133 werkbank/ui/module_page.py:117
 #: werkbank/v2/ui/page.py:504 werkbank/v2/ui/page.py:506
 msgid "Model"
@@ -1119,7 +1119,7 @@ msgstr ""
 msgid "Include the full text"
 msgstr "Vollen Text mitschicken"
 
-#: app_ui/pages/chat.py:725 app_ui/pages/chat.py:3515 app_ui/pages/chat.py:3699
+#: app_ui/pages/chat.py:725 app_ui/pages/chat.py:3546 app_ui/pages/chat.py:3730
 #: app_ui/proactive_settings.py:217 app_ui/proactive_settings.py:270
 msgid "Email"
 msgstr "E-Mail"
@@ -1373,8 +1373,8 @@ msgstr "letzte Nachricht angenommen {when}"
 msgid "last message refused ({status}) {when}"
 msgstr "letzte Nachricht abgelehnt ({status}) {when}"
 
-#: app_ui/pages/chat.py:824 app_ui/pages/chat.py:3327 app_ui/pages/chat.py:3668
-#: app_ui/pages/chat.py:3929 app_ui/pages/chat.py:4016
+#: app_ui/pages/chat.py:824 app_ui/pages/chat.py:3358 app_ui/pages/chat.py:3699
+#: app_ui/pages/chat.py:3960 app_ui/pages/chat.py:4047
 #: app_ui/pages/dashboard.py:1256 app_ui/pages/settings.py:280
 #: app_ui/similar_dialog.py:113
 #, python-brace-format
@@ -1527,7 +1527,7 @@ msgstr ""
 msgid "Start dry run"
 msgstr "Probelauf starten"
 
-#: app_ui/pages/chat.py:3789 app_ui/pages/dashboard.py:1125
+#: app_ui/pages/chat.py:3820 app_ui/pages/dashboard.py:1125
 #: app_ui/pages/dashboard.py:1152 app_ui/title_rename_settings.py:231
 #: app_ui/title_rename_settings.py:266 app_ui/title_rename_settings.py:268
 #: werkbank/v2/ui/board.py:140
@@ -1645,8 +1645,8 @@ msgstr "Als neue Notiz speichern"
 
 #: app_ui/pages/brain.py:618 app_ui/pages/brain.py:736
 #: app_ui/pages/brain.py:937 app_ui/pages/brain.py:952
-#: app_ui/pages/brain.py:971 app_ui/pages/chat.py:3484
-#: app_ui/pages/chat.py:3527 werkbank/ui/archetype_dialog.py:118
+#: app_ui/pages/brain.py:971 app_ui/pages/chat.py:3515
+#: app_ui/pages/chat.py:3558 werkbank/ui/archetype_dialog.py:118
 msgid "Name"
 msgstr "Name"
 
@@ -1797,12 +1797,12 @@ msgid "Select a note first."
 msgstr "Zuerst eine Notiz auswählen."
 
 #: app_ui/pages/brain.py:1071 app_ui/pages/brain.py:1163
-#: app_ui/pages/chat.py:3841 app_ui/pages/chat.py:3883
+#: app_ui/pages/chat.py:3872 app_ui/pages/chat.py:3914
 #: werkbank/ui/task_dialog.py:525 werkbank/ui/task_dialog.py:555
 msgid "Edit"
 msgstr "Bearbeiten"
 
-#: app_ui/pages/brain.py:1071 app_ui/pages/chat.py:3873
+#: app_ui/pages/brain.py:1071 app_ui/pages/chat.py:3904
 #: werkbank/ui/task_dialog.py:548
 msgid "Preview"
 msgstr "Vorschau"
@@ -1928,8 +1928,8 @@ msgstr "Erweiterte Filter"
 msgid "Created"
 msgstr "Erstellt"
 
-#: app_ui/pages/browser.py:317 app_ui/pages/chat.py:3826
-#: app_ui/pages/chat.py:3966
+#: app_ui/pages/browser.py:317 app_ui/pages/chat.py:3857
+#: app_ui/pages/chat.py:3997
 msgid "Title"
 msgstr "Titel"
 
@@ -1996,7 +1996,7 @@ msgstr "Querverweis-Cluster anzeigen"
 msgid "Pinned — click to unpin"
 msgstr "Angeheftet — klicken zum Lösen"
 
-#: app_ui/pages/browser.py:592 app_ui/pages/chat.py:4055
+#: app_ui/pages/browser.py:592 app_ui/pages/chat.py:4086
 #, python-brace-format
 msgid "Download of document #{id} failed: {err}"
 msgstr "Download von Dokument #{id} fehlgeschlagen: {err}"
@@ -2394,192 +2394,206 @@ msgstr "{n} Aufrufe"
 msgid "No model configured — please set one up in Settings > AI Models."
 msgstr "Kein Modell konfiguriert — bitte in Einstellungen > KI-Modelle einrichten."
 
-#: app_ui/pages/chat.py:3341
+#: app_ui/pages/chat.py:3218
+#, python-brace-format
+msgid "The model host was off — waking it up… {s} s"
+msgstr "Der Modell-Rechner war aus — er wird geweckt … {s} s"
+
+#: app_ui/pages/chat.py:3227
+#, python-brace-format
+msgid ""
+"The model host was woken but did not answer within {s} s. Please send "
+"your message again in a moment."
+msgstr ""
+"Der Modell-Rechner wurde geweckt, hat aber nicht innerhalb von {s} s "
+"geantwortet. Bitte sende deine Nachricht gleich noch einmal."
+
+#: app_ui/pages/chat.py:3372
 msgid "The model ended without an answer. Please send your message again."
 msgstr ""
 "Das Modell hat ohne Antwort aufgehört. Bitte schick deine Nachricht noch "
 "einmal."
 
-#: app_ui/pages/chat.py:3360
+#: app_ui/pages/chat.py:3391
 msgid "answer.md"
 msgstr "antwort.md"
 
-#: app_ui/pages/chat.py:3372
+#: app_ui/pages/chat.py:3403
 msgid "Tool history"
 msgstr "Tool-Verlauf"
 
-#: app_ui/pages/chat.py:3407
+#: app_ui/pages/chat.py:3438
 msgid "(no parameters)"
 msgstr "(keine Parameter)"
 
-#: app_ui/pages/chat.py:3428
+#: app_ui/pages/chat.py:3459
 msgid "Download answer as Markdown"
 msgstr "Antwort als Markdown herunterladen"
 
-#: app_ui/pages/chat.py:3443
+#: app_ui/pages/chat.py:3474
 #, python-brace-format
 msgid "Table {n} as CSV"
 msgstr "Tabelle {n} als CSV"
 
-#: app_ui/pages/chat.py:3445
+#: app_ui/pages/chat.py:3476
 msgid "Download table as CSV"
 msgstr "Tabelle als CSV herunterladen"
 
-#: app_ui/pages/chat.py:3451
+#: app_ui/pages/chat.py:3482
 msgid "Show tool history"
 msgstr "Tool-Verlauf anzeigen"
 
-#: app_ui/pages/chat.py:3471
+#: app_ui/pages/chat.py:3502
 msgid "Create letter"
 msgstr "Brief erstellen"
 
-#: app_ui/pages/chat.py:3480
+#: app_ui/pages/chat.py:3511
 msgid "Sender"
 msgstr "Absender"
 
-#: app_ui/pages/chat.py:3489
+#: app_ui/pages/chat.py:3520
 msgid "Company"
 msgstr "Firma"
 
-#: app_ui/pages/chat.py:3494 app_ui/pages/chat.py:3533
+#: app_ui/pages/chat.py:3525 app_ui/pages/chat.py:3564
 msgid "Street"
 msgstr "Straße"
 
-#: app_ui/pages/chat.py:3500 app_ui/pages/chat.py:3541
+#: app_ui/pages/chat.py:3531 app_ui/pages/chat.py:3572
 #: app_ui/pages/settings.py:887
 msgid "Postcode"
 msgstr "PLZ"
 
-#: app_ui/pages/chat.py:3505 app_ui/pages/chat.py:3547
+#: app_ui/pages/chat.py:3536 app_ui/pages/chat.py:3578
 #: app_ui/pages/settings.py:889
 msgid "City"
 msgstr "Ort"
 
-#: app_ui/pages/chat.py:3510
+#: app_ui/pages/chat.py:3541
 msgid "Phone"
 msgstr "Telefon"
 
-#: app_ui/pages/chat.py:3523
+#: app_ui/pages/chat.py:3554
 msgid "Recipient"
 msgstr "Empfänger"
 
-#: app_ui/pages/chat.py:3555 app_ui/pages/chat.py:3837
+#: app_ui/pages/chat.py:3586 app_ui/pages/chat.py:3868
 msgid "Content"
 msgstr "Inhalt"
 
-#: app_ui/pages/chat.py:3560
+#: app_ui/pages/chat.py:3591
 msgid "Your reference (invoice no. / file no.)"
 msgstr "Ihr Zeichen (Rechnungsnr. / Aktenzeichen)"
 
-#: app_ui/pages/chat.py:3568
+#: app_ui/pages/chat.py:3599
 msgid "Reference (short title of ref. doc., empty = none)"
 msgstr "Bezug (Kurztitel Referenzdok., leer = kein Bezug)"
 
-#: app_ui/pages/chat.py:3575 app_ui/pages/chat.py:3729
+#: app_ui/pages/chat.py:3606 app_ui/pages/chat.py:3760
 msgid "Subject"
 msgstr "Betreff"
 
-#: app_ui/pages/chat.py:3581
+#: app_ui/pages/chat.py:3612
 msgid "Salutation"
 msgstr "Anrede"
 
-#: app_ui/pages/chat.py:3591
+#: app_ui/pages/chat.py:3622
 msgid "Letter body (separate paragraphs with blank lines)"
 msgstr "Brieftext (Absätze mit Leerzeile trennen)"
 
-#: app_ui/pages/chat.py:3600
+#: app_ui/pages/chat.py:3631
 msgid "Closing"
 msgstr "Grußformel"
 
-#: app_ui/pages/chat.py:3675
+#: app_ui/pages/chat.py:3706
 msgid "Download letter"
 msgstr "Brief herunterladen"
 
-#: app_ui/pages/chat.py:3708
+#: app_ui/pages/chat.py:3739
 msgid "To"
 msgstr "An"
 
-#: app_ui/pages/chat.py:3720 app_ui/pages/chat.py:3741
+#: app_ui/pages/chat.py:3751 app_ui/pages/chat.py:3772
 msgid "Copied!"
 msgstr "Kopiert!"
 
-#: app_ui/pages/chat.py:3726
+#: app_ui/pages/chat.py:3757
 msgid "Copy address"
 msgstr "Adresse kopieren"
 
-#: app_ui/pages/chat.py:3747
+#: app_ui/pages/chat.py:3778
 msgid "Copy subject"
 msgstr "Betreff kopieren"
 
-#: app_ui/pages/chat.py:3750
+#: app_ui/pages/chat.py:3781
 msgid "Message"
 msgstr "Nachricht"
 
-#: app_ui/pages/chat.py:3764
+#: app_ui/pages/chat.py:3795
 msgid "Message copied!"
 msgstr "Nachricht kopiert!"
 
-#: app_ui/pages/chat.py:3767
+#: app_ui/pages/chat.py:3798
 msgid "Copy message"
 msgstr "Nachricht kopieren"
 
-#: app_ui/pages/chat.py:3799
+#: app_ui/pages/chat.py:3830
 msgid "Open in mail app"
 msgstr "In Mail-App öffnen"
 
-#: app_ui/pages/chat.py:3818
+#: app_ui/pages/chat.py:3849
 msgid "Save document to Paperless"
 msgstr "Dokument in Paperless speichern"
 
-#: app_ui/pages/chat.py:3891
+#: app_ui/pages/chat.py:3922
 msgid "Creating PDF…"
 msgstr "Erstelle PDF…"
 
-#: app_ui/pages/chat.py:3908
+#: app_ui/pages/chat.py:3939
 msgid "Uploading…"
 msgstr "Lade hoch…"
 
-#: app_ui/pages/chat.py:3922
+#: app_ui/pages/chat.py:3953
 #, python-brace-format
 msgid "Saved as: {filename}"
 msgstr "Gespeichert als: {filename}"
 
-#: app_ui/pages/chat.py:3940
+#: app_ui/pages/chat.py:3971
 msgid "Save to Paperless"
 msgstr "In Paperless speichern"
 
-#: app_ui/pages/chat.py:3958
+#: app_ui/pages/chat.py:3989
 msgid "Start deep research"
 msgstr "Tiefenrecherche starten"
 
-#: app_ui/pages/chat.py:3962
+#: app_ui/pages/chat.py:3993
 msgid "Review and adjust the task, then choose the model."
 msgstr "Prüfe und passe den Auftrag an, wähle dann das Modell."
 
-#: app_ui/pages/chat.py:3970 werkbank/ui/module_page.py:112
+#: app_ui/pages/chat.py:4001 werkbank/ui/module_page.py:112
 #: werkbank/ui/module_page.py:245 werkbank/ui/task_dialog.py:288
 #: werkbank/ui/task_dialog.py:483
 msgid "Task"
 msgstr "Auftrag"
 
-#: app_ui/pages/chat.py:3993
+#: app_ui/pages/chat.py:4024
 msgid "Formulating the assignment…"
 msgstr "Auftrag wird formuliert …"
 
-#: app_ui/pages/chat.py:4011
+#: app_ui/pages/chat.py:4042
 msgid "Run started — open it under AI deep research."
 msgstr "Lauf gestartet — unter KI-Tiefenrecherche zu finden."
 
-#: app_ui/pages/chat.py:4024
+#: app_ui/pages/chat.py:4055
 msgid "Start task"
 msgstr "Auftrag starten"
 
-#: app_ui/pages/chat.py:4070
+#: app_ui/pages/chat.py:4101
 #, python-brace-format
 msgid "Download document #{id}"
 msgstr "Dokument #{id} herunterladen"
 
-#: app_ui/pages/chat.py:4092 app_ui/pages/settings.py:63
+#: app_ui/pages/chat.py:4123 app_ui/pages/settings.py:63
 msgid "New conversation"
 msgstr "Neues Gespräch"
 

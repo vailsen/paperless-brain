@@ -26,6 +26,15 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Chatting with a local model wakes the GPU host.** If it is off, the chat
+  sends the Wake-on-LAN packet, says so ("waking it up… 40 s") and answers
+  once the host is up — no refused connection, no trip to the dashboard. A
+  host woken this way goes back to sleep after 10 idle minutes
+  (`OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES`); the dashboard button keeps the
+  normal idle time.
+- **A finished deep research is searchable at once.** Its note is embedded
+  right after it is written, so the next chat question does not start by
+  indexing a long report.
 - **What the GPU host is doing, on the dashboard.** Under "Ollama": generating
   or idle (and for what — chat, ingest, deep research, proactive — for how
   long), which model is in memory with its VRAM and when it unloads, and the

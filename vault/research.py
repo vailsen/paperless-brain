@@ -6,9 +6,10 @@ Markdown note. The note is the lasting copy of the report: deleting the run in
 the Werkbank removes its board and facts, never the note. Nothing goes back
 into Paperless.
 
-It is an ordinary vault note. Nothing is embedded here — the next sync indexes
-it into the `vault` collection like a note written in the editor, so the chat
-finds it with `vault_search`, and `pbrain_id` is minted by sync, not here.
+It is an ordinary vault note, indexed by the same `sync_user` a chat turn
+runs — right after it is written (`index`), so the next chat question does
+not start by embedding a long report, and `vault_search` finds it at once.
+`pbrain_id` is minted by that sync, not here.
 
 `werkbank_run` in the frontmatter is how a run, and a finding, find their note
 again — whatever the user renamed or moved it to inside the folder.
@@ -188,10 +189,25 @@ async def note_for_run(user: str, run_id: str) -> str | None:
     if rel:
         return rel
     try:
-        return await save_run(user, run_id)
+        rel = await save_run(user, run_id)
     except Exception:  # noqa: BLE001
         log.warning("%s: could not write the note for run %s", user, run_id, exc_info=True)
         return None
+    if rel:
+        await index(user)
+    return rel
+
+
+async def index(user: str) -> None:
+    """Embed what was just written, now — the sync a chat turn would otherwise
+    run first, with the user waiting. Never fails the caller: the note is on
+    disk, and the next sync indexes it anyway."""
+    try:
+        from vault.sync import sync_user
+
+        await sync_user(user, force=True)
+    except Exception:  # noqa: BLE001
+        log.warning("%s: research note not indexed yet", user, exc_info=True)
 
 
 async def backfill(user: str) -> int:
@@ -212,6 +228,8 @@ async def backfill(user: str) -> int:
                 written += 1
         except Exception:  # noqa: BLE001
             log.warning("%s: could not write the note for run %s", user, run_id, exc_info=True)
+    if written:
+        await index(user)
     return written
 
 

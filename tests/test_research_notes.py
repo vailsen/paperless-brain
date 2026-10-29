@@ -73,7 +73,21 @@ def test_two_runs_with_one_goal_on_one_day_get_two_notes(vault):
     assert a != b and b.endswith("prüfen-1.md")
 
 
-def test_backfill_writes_each_finished_run_once(vault):
+@pytest.fixture
+def indexed(monkeypatch):
+    """Calls of `research.index` — the real one runs a vault sync (Chroma)."""
+    from vault import research
+
+    calls = []
+
+    async def index(user):
+        calls.append(user)
+
+    monkeypatch.setattr(research, "index", index)
+    return calls
+
+
+def test_backfill_writes_each_finished_run_once(vault, indexed):
     from vault import research
 
     _run("run1")
@@ -82,6 +96,33 @@ def test_backfill_writes_each_finished_run_once(vault):
                                             depth_budget=DepthBudget.STANDARD))  # not finished
     assert asyncio.run(research.backfill("alice")) == 2
     assert asyncio.run(research.backfill("alice")) == 0
+    assert indexed == ["alice"]  # one sync for the batch, none when nothing was written
+
+
+def test_a_note_written_for_an_older_run_is_indexed_at_once(vault, indexed):
+    from vault import research
+
+    _run()
+    assert asyncio.run(research.note_for_run("alice", "run1"))
+    assert asyncio.run(research.note_for_run("alice", "run1"))  # found: nothing to index
+    assert indexed == ["alice"]
+
+
+def test_indexing_is_the_chat_turns_sync_and_never_fails_the_caller(monkeypatch):
+    import sys
+    import types
+
+    from vault import research
+
+    seen = []
+
+    async def sync_user(user, force=False):
+        seen.append((user, force))
+        raise RuntimeError("chroma down")
+
+    monkeypatch.setitem(sys.modules, "vault.sync", types.SimpleNamespace(sync_user=sync_user))
+    asyncio.run(research.index("alice"))
+    assert seen == [("alice", True)]
 
 
 def test_the_pipeline_writes_the_note_after_the_report(vault, monkeypatch):
@@ -91,7 +132,9 @@ def test_the_pipeline_writes_the_note_after_the_report(vault, monkeypatch):
     from werkbank.v2 import pipeline
 
     src = inspect.getsource(pipeline.start_run)
-    assert src.index("store.save_report(") < src.index("research.save_run(")
+    # report → note → embedded → "done" message: the chat after it finds the report
+    assert (src.index("store.save_report(") < src.index("research.save_run(")
+            < src.index("research.index(") < src.index("enqueue_event("))
 
 
 def test_only_notes_in_the_research_folder_are_served(vault):
