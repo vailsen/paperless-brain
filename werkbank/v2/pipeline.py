@@ -204,7 +204,10 @@ async def start_run(
     try:
         from vault import research
 
-        await research.save_run(user_id, run_id, extra=note_meta)
+        if await research.save_run(user_id, run_id, extra=note_meta):
+            # Indexed now, before the "done" message: the chat that follows
+            # finds the report and does not start by embedding it.
+            await research.index(user_id)
     except Exception as exc:                                # noqa: BLE001
         _log.warning("werkbank v2 %s: research note not written: %s", run_id, exc)
     if notify:

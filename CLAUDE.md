@@ -612,8 +612,10 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
   (`PaperlessBrain Research/`), written by `pipeline.start_run` right after the
   report. That note is the lasting copy: deleting the run removes the board, never
   the note. Nothing goes back into Paperless.
-- **The note is an ordinary vault note.** It is written, not embedded — the next
-  sync indexes it into `vault` and mints `pbrain_id` (same contract as the editor).
+- **The note is an ordinary vault note, indexed at once.** `research.index` runs the
+  same `sync_user(force=True)` a chat turn would (embed, mint `pbrain_id`, commit) right
+  after the note is written and before the "done" message — otherwise the next chat
+  question started by embedding a long report. Never fatal: the next sync catches up.
 - **`werkbank_run` in the frontmatter is the note's identity for code** — the file
   may be renamed or moved inside the folder. A run that finishes again rewrites its
   note in place.
