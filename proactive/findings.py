@@ -54,6 +54,19 @@ def new_finding_id() -> str:
     return "".join(secrets.choice(_FID_ALPHABET) for _ in range(FID_LEN))
 
 
+_RUN_LINK = r"\[([^\]]+)\]\((?:https?://[^)\s]*)?/werkbank\?run={run}\)"
+
+
+def link_research_note(body: str, run_id: str, note_rel: str) -> str:
+    """The "[Full report in deep research](…/werkbank?run=…)" link of an older
+    finding → an Obsidian link to the report's note, keeping its text."""
+    from vault.research import wikilink
+
+    if not run_id:
+        return body
+    return re.sub(_RUN_LINK.format(run=re.escape(run_id)), lambda m: wikilink(note_rel, m.group(1)), body)
+
+
 def valid_finding_id(fid: str) -> bool:
     return bool(_FID_RE.match(fid or ""))
 
@@ -92,6 +105,9 @@ class Finding:
     correspondent: int | None = None
     #: The Werkbank run of the deep dive ("Interesting"), once it was started.
     research_run: str | None = None
+    #: The deep dive's report in the vault, as an Obsidian link
+    #: (`[[PaperlessBrain Research/26-10-29 …]]`) — it stays when the run is deleted.
+    research_note: str | None = None
     #: The topic as the model wrote it ("Kfz-Versicherung"). `topic` is the key
     #: derived from it (`interests.slugify`) and what everything matches on.
     topic_label: str = ""
@@ -131,6 +147,8 @@ class Finding:
             d["correspondent"] = int(self.correspondent)
         if self.research_run:
             d["research_run"] = self.research_run
+        if self.research_note:
+            d["research_note"] = self.research_note
         if self.topic_label:
             d["topic_label"] = self.topic_label
         return d
@@ -227,6 +245,7 @@ def parse(text: str, *, user: str = "", rel: str = "") -> Finding | None:
         pbrain_id=get_id(m),
         correspondent=_ints([m.get("correspondent")])[0] if _ints([m.get("correspondent")]) else None,
         research_run=_s(m.get("research_run")),
+        research_note=_s(m.get("research_note")),
         topic_label=str(m.get("topic_label") or ""),
         user=user,
         rel=rel,

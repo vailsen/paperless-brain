@@ -341,9 +341,11 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   Tool-Überladung degradiert lokale Modelle.
 - **Isolierte Kontexte + Kompaktierung.** Nachgelagerte Sub-Tasks sehen nur die
   kompaktierten Summaries der Abhängigkeiten, nie rohe Tool-Outputs.
-- **Review-vor-Persist.** Ergebnisse landen erst nach manueller Freigabe in
-  Paperless. Niemals Web-/abgeleitete Inhalte automatisch in den `documents`-Index —
-  das würde die Verlässlichkeit des Dokumenten-Gehirns untergraben.
+- **Review-vor-Persist.** Niemals Web-/abgeleitete Inhalte automatisch in den
+  `documents`-Index — das würde die Verlässlichkeit des Dokumenten-Gehirns
+  untergraben. In v2 gehen Berichte gar nicht mehr nach Paperless (kein
+  „Save to Paperless"), sondern als Notiz in den Vault (`vault/research.py`,
+  siehe *Research notes*).
 - **User-Scoping auf JEDER Repository-Query.** `user_id` liegt auf allen drei
   Tabellen (auch denormalisiert auf `agent_subtasks` als Defense-in-Depth).
 
@@ -592,6 +594,28 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
     read from the `brain` index — the file stays in its owner's vault — and is read-only:
     opening one leaves `st["rel"]` empty, so no save, poll or properties path can reach it.
     `common` only means something under `BRAIN_SUBFOLDER`; the panel says so elsewhere.
+
+## Research notes
+
+`vault/research.py`, PDF route `app_ui/research_routes.py`.
+
+- **Every finished Werkbank v2 run is a note in `RESEARCH_SUBFOLDER`**
+  (`PaperlessBrain Research/`), written by `pipeline.start_run` right after the
+  report. That note is the lasting copy: deleting the run removes the board, never
+  the note. Nothing goes back into Paperless.
+- **The note is an ordinary vault note.** It is written, not embedded — the next
+  sync indexes it into `vault` and mints `pbrain_id` (same contract as the editor).
+- **`werkbank_run` in the frontmatter is the note's identity for code** — the file
+  may be renamed or moved inside the folder. A run that finishes again rewrites its
+  note in place.
+- **Links are Obsidian links** (`[[PaperlessBrain Research/26-10-29 …|label]]`): the
+  finding's `research_note`, its body, and the dossier's `research` list. The
+  findings page turns one into the PDF link; the PDF is rendered on demand, only
+  from that folder of the signed-in user's own vault.
+- **A dossier's `research` list is code-written** and survives model rebuilds — the
+  model never sees it.
+- Older runs get their note lazily (`research.backfill` on opening the Werkbank,
+  `note_for_run` on opening a finding) — while the run still exists.
 
 ## Embedding
 

@@ -12,7 +12,8 @@ user who starts chatting gets the GPU after the call in progress.
 
 `result` is what the worker polls: the run's state, and once the report is
 written, the report condensed into summary / recommendation / evidence /
-sources with the pages the run actually fetched; the worker validates and
+sources with the pages the run actually fetched, and the report's note in
+`PaperlessBrain Research/` (`vault/research.py`); the worker validates and
 writes. Nothing here writes the finding.
 
 Dossier (`dossier`, Phase 8): candidates from the index (semantic search on the
@@ -113,7 +114,11 @@ async def start(user: str, token: str, finding, model) -> str:
                 return
             pipeline.confirm_draft(run_id, user, brief)
             store.set_run_status(run_id, user, "running")
-            await pipeline.start_run(run_id, user, model.name, notify=False)
+            # The note in PaperlessBrain Research links back to the finding.
+            from vault.research import wikilink
+
+            await pipeline.start_run(run_id, user, model.name, notify=False,
+                                     note_meta={"finding": wikilink(finding.rel, finding.title)})
             log.info("%s: deep dive for %s finished (Werkbank run %s)", user, finding.finding_id, run_id)
         except asyncio.CancelledError:
             raise
@@ -135,6 +140,7 @@ async def result(user: str, token: str, run_id: str, finding, model) -> dict:
     restarted, or it failed — the user can resume it in the Werkbank), "done"
     with the condensed result."""
     from i18n import language_name
+    from vault import research
     from werkbank.llm_lane import complete_structured
     from werkbank.v2 import pipeline, store
 
@@ -159,6 +165,9 @@ async def result(user: str, token: str, run_id: str, finding, model) -> dict:
         "sources": raw.get("sources") or [],
         "fetched": store.fetched_pages(run_id, user),
         "run_id": run_id,
+        # The report's note in the vault — what the finding links to, and
+        # what is left once the run is deleted.
+        "note": await research.note_for_run(user, run_id) or "",
     }
 
 

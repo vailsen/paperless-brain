@@ -15,7 +15,11 @@ off by default. Design and invariants: [proactive-architecture.md](proactive-arc
 - **Insights.** A model looks at each new document for you: is there money to
   save, a contract to review, a change to notice? If so you get a short message
   with **Interesting / Later / Never again**. "Interesting" starts a deep-research
-  run (the Werkbank) on it; the result arrives as a second message.
+  run (the Werkbank) on it; the result arrives as a second message ("Research
+  done: …"). Its summary goes on top of the finding; the full report is a note
+  in `PaperlessBrain Research/` in your vault, linked from the finding (and
+  from the topic's dossier), and opens as a PDF from the findings page. It
+  stays when the run is deleted.
   Letters from the same sender about the same matter are **one** finding: the
   twelfth invoice announcing the same price change joins the first finding
   (its document and quote are added) instead of sending a twelfth message. A

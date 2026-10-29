@@ -38,6 +38,9 @@ class Dossier:
     analysis_version: int = 1
     revisit_after: str | None = None
     lang: str = "en"
+    #: Research notes on this matter (Obsidian links into `PaperlessBrain
+    #: Research/`), newest last — written by the deep dive, not by the model.
+    research: list[str] = field(default_factory=list)
     pbrain_id: str = ""
     rel: str = ""
     sha: str = ""
@@ -63,6 +66,9 @@ def render_body(d: Dossier) -> str:
         out.append(f"- {t['date']} — {t['event']} — [#{t['doc_id']}]({paperless_link(t['doc_id'])})")
     out += ["", f"## {_('Open questions')}", ""]
     out += [f"- {q}" for q in d.open_questions] or ["-"]
+    if d.research:
+        out += ["", f"## {_('Research')}", ""]
+        out += [f"- {link}" for link in d.research]
     return "\n".join(out) + "\n"
 
 
@@ -100,6 +106,7 @@ def parse(text: str, *, rel: str = "") -> Dossier | None:
         analysis_version=int(m.get("analysis_version") or 1),
         revisit_after=rev.isoformat() if hasattr(rev, "isoformat") else (str(rev) if rev else None),
         lang=str(m.get("lang") or "en"),
+        research=[str(x) for x in m.get("research") or [] if str(x).strip()],
         pbrain_id=get_id(m),
         rel=rel,
         sha=sha_of(text),
@@ -174,6 +181,8 @@ async def write(user: str, d: Dossier) -> Dossier:
         "revisit_after": d.revisit_after,
         "lang": d.lang,
     }
+    if d.research:
+        meta["research"] = list(d.research)
     body = render_body(d)
     path = _path(user, d.topic)
     rel = path.relative_to(vault_path(user)).as_posix()
@@ -215,5 +224,25 @@ def from_result(user: str, topic: str, result: dict, *, lang: str, version: int,
         analysis_version=version,
         revisit_after=revisit_after(user, topic, clock.local_now().date()),
         lang=lang,
+        research=list(existing.research) if existing else [],  # links the model never sees
         pbrain_id=existing.pbrain_id if existing else "",
     )
+
+
+async def add_research(user: str, topic: str, note_rel: str) -> bool:
+    """Link a research note into the topic's dossier, if there is one. A
+    matter without a dossier keeps the link in its finding only — building a
+    dossier is a model job of its own."""
+    from vault.research import wikilink
+
+    if not topic:
+        return False
+    d = load(user, topic)
+    if d is None:
+        return False
+    link = wikilink(note_rel)
+    if link in d.research:
+        return False
+    d.research.append(link)
+    await write(user, d)
+    return True

@@ -9,6 +9,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Removed
 
+- **"Save to Paperless" for AI deep research reports.** The report is a note
+  in your vault now (see Added); a model's research does not belong in the
+  document archive. Download as Markdown or PDF stays.
 - **Replying to notification emails, and with it everything that read the
   mailbox.** It moved every unread mail of the inbox, not just replies, into
   `PaperlessBrain/Processed`. Email is now send-only, like push: title,
@@ -23,6 +26,20 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Research reports live in your vault**, in `PaperlessBrain Research/`
+  (`RESEARCH_SUBFOLDER`): every finished AI deep research run — started there,
+  from the chat, or by "Interesting" on a finding — is a Markdown note. It
+  stays when the run is deleted, the chat finds it like any note, and a
+  researched finding (and its topic's dossier) links it Obsidian-style. On
+  the findings page "Full report" opens it as a PDF, made on demand — no
+  switch to the deep-research page. Runs finished before this get their note
+  the next time AI deep research is opened, or the finding is.
+- **Findings: sort and group.** Sort by relevance, urgency, deadline or date;
+  group by topic, by status, or by topic and then status — headlines to
+  scroll past, nothing to open or close. Each status has an icon, a coloured
+  edge marks what presses (high urgency, a deadline within a week), and a
+  line on top counts open, waiting, pressing and researched findings. The
+  choice is remembered.
 - **Quiet hours, per user** (Settings > Proactive, default 22:00–07:00).
   Reminders and insights found at night are sent when they end.
 - **"Analyse the archive now"**: choose how many documents to analyse right
@@ -49,6 +66,26 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **The research result now alerts the phone.** It was sent under the
+  finding's own title and tag, so the phone swapped the old notification for
+  it without a sound. It reads "Research done: …" now.
+- **The GPU host no longer wakes up in the evening.** The worker wakes it only
+  inside a sweep window, or for something you asked for in the last 30
+  minutes ("Analyse now", "Interesting"). A new document outside the window
+  waits until the host is on anyway.
+- **A host the worker woke is really shut down.** A failed shutdown (ssh
+  refused, a prompt, a timeout) counted as done, and the PC stayed on until
+  morning. Now it is checked a few minutes later and retried; every decision
+  is logged as `[watchdog]`.
+- **Push for "push and email" users.** Choosing both channels sent email
+  only. Push now goes out with high urgency (delivered at once, not at the
+  phone's next maintenance window), and the settings show per device what the
+  push service answered to the last message.
+- **What was found at night is one message in the morning**, most urgent
+  first, not twenty within two minutes.
+- **One finding per sender and matter.** Twelve invoices announcing the same
+  price change are one finding listing twelve documents, sent once; findings
+  split up before are merged once.
 - **Topics are spelled as words** ("Kfz-Versicherung", "Orthopädie"), not
   as lowercase keys. New findings keep the label the model wrote; older ones
   are capitalised (umlauts written as "ae" stay so).

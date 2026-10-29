@@ -113,20 +113,29 @@ async def deep_dive_poll(job: Job) -> None:
         res.get("recommendation", ""), res.get("evidence") or [], res.get("sources") or [],
         doc_texts=texts, fetched=res.get("fetched") or {},
     )
+    from vault.research import wikilink
+
+    note = str(res.get("note") or "")
     body = research_body(
         f.lang, run_id, findings.render_body(
             f.lang, summary=res.get("summary") or "", evidence=ev, sources=src, recommendation=rec,
-        ),
+        ), note=note,
     )
     original = f.body
 
     def mutate(x):
         nxt = transition(x.status, "researched")
-        return {"status": nxt, "advice": bool(rec)} if nxt else None
+        if not nxt:
+            return None
+        return {"status": nxt, "advice": bool(rec), **({"research_note": wikilink(note)} if note else {})}
 
     done = await findings.update(job.user, fid, mutate, body=lambda x: body + "\n---\n\n" + original)
     if done is None or done.status != "researched":
         return
+    if note:
+        from proactive import dossiers
+
+        await dossiers.add_research(job.user, f.topic, note)
     from i18n import translator_for
 
     _ = translator_for(f.lang)
@@ -139,15 +148,24 @@ async def deep_dive_poll(job: Job) -> None:
     ))
 
 
-def research_body(lang: str, run_id: str, sections: str) -> str:
+def research_body(lang: str, run_id: str, sections: str, note: str = "") -> str:
     """The research result under its own heading, with a link to the full
-    report — above the original finding, which stays below a rule."""
+    report — above the original finding, which stays below a rule.
+
+    The link is an Obsidian link to the report's note in `PaperlessBrain
+    Research/`: it works in Obsidian and opens the PDF on the findings page,
+    and it outlives the Werkbank run. Without a note (it could not be
+    written) the run's board stands in."""
     from i18n import translator_for
     from proactive.notify import app_link
+    from vault.research import wikilink
 
     _ = translator_for(lang)
     head = _("Research result ({date})").format(date=clock.local_now().date().isoformat())
-    link = _("[Full report in deep research]({url})").format(url=app_link(f"/werkbank?run={run_id}"))
+    if note:
+        link = wikilink(note, _("Full report"))
+    else:
+        link = _("[Full report in deep research]({url})").format(url=app_link(f"/werkbank?run={run_id}"))
     # The run's sections one level down, under the research heading.
     demoted = "\n".join("#" + line if line.startswith("## ") else line for line in sections.splitlines())
     return f"## {head}\n\n{link}\n\n{demoted}\n"

@@ -31,15 +31,16 @@ KIND_LABELS = {"deadline": N_("Deadline"), "insight": N_("Insight")}
 
 _DOC_EVENT = "pb_finding_doc"
 # One delegated listener: links in the rendered Markdown are plain anchors.
-# Web sources open in a new tab — in the installed PWA a plain link would
-# replace the app.
+# Web sources and research PDFs open in a new tab — in the installed PWA a
+# plain link would replace the app.
 _DOC_CLICK_JS = (
     "<script>document.addEventListener('click',function(e){"
     "var a=e.target.closest&&e.target.closest('.finding-md a[href]');if(!a)return;"
     "var h=a.getAttribute('href');"
     "if(h.indexOf('#pbdoc-')===0){e.preventDefault();"
     "emitEvent('" + _DOC_EVENT + "',parseInt(h.slice(7),10));}"
-    "else if(/^https?:/.test(h)){e.preventDefault();window.open(h,'_blank','noopener');}"
+    "else if(/^https?:/.test(h)||h.indexOf('/api/research/pdf')===0){"
+    "e.preventDefault();window.open(h,'_blank','noopener');}"
     "});</script>"
 )
 # A bare URL (the "Sources" list) — not one already inside a Markdown link,
@@ -59,8 +60,48 @@ def _in_app_links(body: str) -> str:
     app = proactive_settings().proactive_app_base_url.rstrip("/")
     if app:
         body = re.sub(re.escape(app) + r"(?=/)", "", body)
+    body = _wikilinks(body)
     # markdown2 does not autolink bare URLs; Obsidian does.
     return _BARE_URL.sub(lambda m: f"<{m.group(0)}>", body)
+
+
+_WIKILINK = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
+
+
+def _wikilinks(body: str) -> str:
+    """Obsidian links: one to a research note opens its PDF; any other is
+    shown as its text — the page has nowhere to open a note."""
+    from app_ui.research_routes import pdf_url
+    from vault.research import research_rel, wikilink_target
+
+    root = research_rel().strip("/") + "/"
+
+    def repl(m: re.Match) -> str:
+        target, label = m.group(1), m.group(2) or m.group(1).rsplit("/", 1)[-1]
+        if target.startswith(root):
+            return f"[{label}]({pdf_url(wikilink_target(target))})"
+        return label
+
+    return _WIKILINK.sub(repl, body)
+
+
+async def _adopt_research_note(user: str, f) -> None:
+    """A finding researched before reports went to the vault links its
+    Werkbank run. Write the run's note now (while the run still exists) and
+    point the finding at it, so deleting the run no longer loses the report."""
+    from proactive import findings
+    from vault.research import note_for_run, wikilink
+
+    if f is None or f.research_note or not f.research_run or f.status != "researched":
+        return
+    note = await note_for_run(user, f.research_run)
+    if not note:
+        return
+    link = wikilink(note)
+    await findings.update(
+        user, f.finding_id, lambda x: {"research_note": link} if not x.research_note else None,
+        body=lambda x: findings.link_research_note(x.body, x.research_run or "", note),
+    )
 
 
 def _user() -> str:
@@ -319,19 +360,25 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                     for d in f.doc_ids:
                         ui.link(f"#{d}", f"#pbdoc-{d}").classes("text-xs")
 
-            if f.research_run and f.status in ("interested", "researched"):
-                running = f.status == "interested"
+            if f.status == "researched" and f.research_note:
+                from app_ui.research_routes import pdf_url
+                from vault.research import wikilink_target
+
+                m = _WIKILINK.match(f.research_note.strip())
+                url = pdf_url(wikilink_target(m.group(1))) if m else ""
                 with ui.row().classes("w-full items-center gap-2 no-wrap"):
-                    if running:
-                        ui.spinner(size="sm").props("color=primary")
-                    ui.label(
-                        _("Research running — it gives way while you chat.") if running
-                        else _("Researched — the result is at the top.")
-                    ).classes("text-xs text-gray-400 flex-1 min-w-0")
-                    ui.button(_("Open in deep research"), icon="auto_awesome",
-                              on_click=lambda r=f.research_run: ui.navigate.to(f"/werkbank?run={quote(r)}")).props(
-                        "flat dense no-caps"
-                    ).classes("text-xs flex-shrink-0")
+                    ui.label(_("Researched — the summary is at the top, the report is in your vault.")).classes(
+                        "text-xs text-gray-400 flex-1 min-w-0")
+                    if url:
+                        ui.button(_("Full report"), icon="picture_as_pdf",
+                                  on_click=lambda u=url: ui.navigate.to(u, new_tab=True)).props(
+                            "flat dense no-caps"
+                        ).classes("text-xs flex-shrink-0")
+            elif f.research_run and f.status == "interested":
+                with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    ui.spinner(size="sm").props("color=primary")
+                    ui.label(_("Research running — it gives way while you chat.")).classes(
+                        "text-xs text-gray-400 flex-1 min-w-0")
             elif f.status == "interested" and _jobs.is_pending(f"deep_dive:{f.finding_id}"):
                 ui.label(_("Research queued — it starts as soon as the model is free.")).classes(
                     "text-xs text-gray-400")
@@ -361,16 +408,19 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             ui.separator()
             ui.add_css(
                 ".finding-md h2{font-size:1rem;font-weight:600;margin:1rem 0 .4rem}"
+                # The research result's sections, one level below its heading.
+                ".finding-md h3{font-size:.9rem;font-weight:600;margin:.8rem 0 .3rem}"
                 ".finding-md{overflow-x:auto}"
                 ".finding-md a{overflow-wrap:anywhere}"
             )
             ui.markdown(_in_app_links(findings.tidy_sources(f.body, f.lang))).classes("chat-md finding-md w-full min-w-0")
 
+        await _adopt_research_note(user, findings.get(user, finding_id))
         body(action)
 
         # A deep dive finishes while the page is open: show the result without a reload.
         def _key(f) -> tuple:
-            return (f.status, f.research_run) if f else ()
+            return (f.status, f.research_run, f.research_note) if f else ()
 
         seen = {"key": _key(findings.get(user, finding_id))}
 

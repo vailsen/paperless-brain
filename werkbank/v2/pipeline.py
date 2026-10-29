@@ -139,6 +139,7 @@ async def start_run(
     *,
     progress: Callable[[str, SubtaskStatus], None] | None = None,
     notify: bool = True,
+    note_meta: dict | None = None,
 ) -> RunState:
     """Plan (if needed), execute, check contradictions, write the report.
 
@@ -193,6 +194,16 @@ async def start_run(
     state.finished_at = state.finished_at or datetime.now(timezone.utc).isoformat()
     store.save_state(run_id, user_id, state)
     store.save_report(run_id, user_id, report_md)
+    # The lasting copy: a note in the vault (`PaperlessBrain Research/`),
+    # which outlives the run and is what the chat finds. `note_meta` adds
+    # frontmatter — the deep dive's link back to its finding. Never fatal: the
+    # report is in the store, and opening the run writes the note later.
+    try:
+        from vault import research
+
+        await research.save_run(user_id, run_id, extra=note_meta)
+    except Exception as exc:                                # noqa: BLE001
+        _log.warning("werkbank v2 %s: research note not written: %s", run_id, exc)
     if notify:
         from proactive.notify import enqueue_event
 

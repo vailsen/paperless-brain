@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     # Voice memos. Same warning as above: names a real folder, changing it
     # orphans already-written memos.
     memo_subfolder: str = "PaperlessBrain Memos"
+    # Werkbank research reports (`vault/research.py`) — every finished run, as
+    # a note. Same warning: changing it leaves the old notes where they are.
+    research_subfolder: str = "PaperlessBrain Research"
     vault_sync_cooldown_s: int = 3
 
     # Voice memos — transcription service (OpenAI-compatible /v1/audio/transcriptions).

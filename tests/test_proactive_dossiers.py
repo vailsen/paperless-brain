@@ -255,8 +255,9 @@ def test_deep_dive_runs_werkbank_in_the_background_with_guard_and_yield(monkeypa
     async def brief_draft(run_id, user, model):
         return object()
 
-    async def start_run(run_id, user, model, *, notify=True, progress=None):
+    async def start_run(run_id, user, model, *, notify=True, progress=None, note_meta=None):
         seen["notify"] = notify
+        seen["note_meta"] = note_meta
         screen = web_query_guard.get()
         seen["guarded"] = screen is not None and screen("Alice Riester") is not None
         seen["yields"] = llm_lane.yield_to_chat.get()
@@ -281,6 +282,7 @@ def test_deep_dive_runs_werkbank_in_the_background_with_guard_and_yield(monkeypa
     assert seen["guarded"] and seen["yields"] and "generic terms" in seen["request"]
     assert seen["notify"] is False  # its result message is the notification
     assert seen["status"] == ["running"]  # listed as running, not as "start / resume"
+    assert seen["note_meta"]["finding"].startswith("[[")  # the research note links back
     assert web_query_guard.get() is None and llm_lane.yield_to_chat.get() is False
 
 
@@ -299,6 +301,12 @@ def test_deep_dive_result_reports_the_run_state(monkeypatch):
     monkeypatch.setattr(store, "load_report", lambda r, u: "report")
     monkeypatch.setattr(store, "fetched_pages", lambda r, u: {"https://x": "2026-10-26"})
     monkeypatch.setattr(llm_lane, "complete_structured", condensed)
+    from vault import research
+
+    async def note_for_run(user, run_id):
+        return "PaperlessBrain Research/26-10-29 Riester.md"
+
+    monkeypatch.setattr(research, "note_for_run", note_for_run)
     f = Finding(finding_id="abcdefg", kind="insight", title="Riester", topic="riester", doc_ids=[1], body="b")
     m = ResolvedModel("q", "local", "default", "q")
 
@@ -312,6 +320,7 @@ def test_deep_dive_result_reports_the_run_state(monkeypatch):
     status["run1"] = "done"
     out = res("run1")
     assert out["state"] == "done" and out["fetched"] == {"https://x": "2026-10-26"} and out["run_id"] == "run1"
+    assert out["note"] == "PaperlessBrain Research/26-10-29 Riester.md"
 
 
 def test_a_proactive_run_waits_while_a_user_chats(monkeypatch):

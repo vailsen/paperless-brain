@@ -23,6 +23,7 @@ from nicegui import ui
 from app_ui.layout import page_layout, require_auth
 from i18n import get_translator
 from services.session_auth import get_session_token
+from vault.research import research_rel
 from werkbank.v2 import pipeline, store
 from werkbank.v2.models import SubtaskStatus
 from werkbank.v2.ui import board as board_ui
@@ -188,9 +189,8 @@ def _report_filename(state, run_id: str, suffix: str) -> str:
 async def _download_pdf(state, report: str, run_id: str, user_id: str) -> None:
     """The report as a PDF, straight to the browser.
 
-    Same renderer as the Paperless upload, so the two produce the same document
-    — this one just does not put it in the archive. Rendering blocks, so it runs
-    in a thread; on a long report that is a second or two.
+    Same renderer as the research note's PDF on the findings page. Rendering
+    blocks, so it runs in a thread; on a long report that is a second or two.
     """
     _ = get_translator()
     notice = ui.notification(_("Preparing the PDF…"), spinner=True, timeout=None)
@@ -209,35 +209,6 @@ async def _download_pdf(state, report: str, run_id: str, user_id: str) -> None:
         notice.dismiss()
         _log.exception("werkbank v2: PDF export failed")
         ui.notify(_("Could not create the PDF: {err}").format(err=exc), type="negative")
-
-
-async def _file_report(state, report: str, user_id: str) -> None:
-    """File the finished report into Paperless as a PDF.
-
-    Review-before-persist, unchanged from v1: this runs on a button, never at
-    the end of a run. A research result is the model's reading of the archive
-    and must not enter the archive without the user saying so.
-    """
-    _ = get_translator()
-    title = (state.brief.goal if state.brief else _("Research report"))[:120]
-    notice = ui.notification(_("Uploading…"), spinner=True, timeout=None)
-    try:
-        from services.clients import get_session_paperless
-        from werkbank.export import upload_pdf
-
-        _task_id, filename = await upload_pdf(
-            content_markdown=report,
-            title=title,
-            username=user_id,
-            model_name=state.model,
-            filename_slug=title,
-            paperless_client=get_session_paperless(),
-        )
-        notice.dismiss()
-        ui.notify(_("Saved as {name}").format(name=filename), type="positive")
-    except Exception as exc:                                # noqa: BLE001
-        notice.dismiss()
-        ui.notify(_("Upload failed: {err}").format(err=exc), type="negative")
 
 
 def _delete_run(run_id: str, user_id: str, refresh, host=None) -> None:
@@ -274,7 +245,8 @@ def _delete_run(run_id: str, user_id: str, refresh, host=None) -> None:
             ui.label(_("It is still running — it will be stopped.")).classes(
                 "text-xs mt-2").style("color:var(--c-warn)")
         ui.label(
-            _("The report and every fact behind it are gone for good.")
+            _("The board and every fact behind it are gone for good. The report "
+              "stays in your vault, in {folder}.").format(folder=research_rel())
         ).classes("text-xs mt-2").style("color:var(--c-text-muted)")
         with ui.row().classes("w-full justify-end gap-2 mt-3"):
             ui.button(_("Keep"), color=None, on_click=dialog.close).props(
@@ -346,10 +318,6 @@ def _open_run(run_id: str, user_id: str, model: str, refresh, host) -> None:
                         on_click=lambda r=run, t=report: _download_pdf(
                             r, t, run_id, user_id),
                     ).props("flat dense").style("color:var(--c-text-2)")
-                    ui.button(
-                        _("Save to Paperless"), icon="save", color=None,
-                        on_click=lambda r=run, t=report: _file_report(r, t, user_id),
-                    ).props("flat dense").style("color:var(--c-text-2)")
                 ui.button(icon="close", color=None, on_click=_close).props(
                     "flat dense round"
                 ).classes("card-action-btn")
@@ -366,6 +334,10 @@ def _open_run(run_id: str, user_id: str, model: str, refresh, host) -> None:
                         ui.label(f"• {criterion}").classes("text-xs").style(
                             "color:var(--c-text-muted)")
 
+            if report:
+                ui.label(
+                    _("The report is a note in your vault: {folder}").format(folder=research_rel())
+                ).classes("text-xs").style("color:var(--c-text-muted); overflow-wrap:anywhere")
             board_ui.board(run)
             if report:
                 ui.separator().classes("my-3")
@@ -415,6 +387,19 @@ def werkbank_page(run: str = "") -> None:
 
     seed_defaults_if_needed(user_id)
     models = _models(user_id, token)
+    # Runs finished before reports went to the vault get their note now —
+    # before someone deletes the run and, with it, the only copy.
+    from nicegui import background_tasks
+
+    from vault.research import backfill
+
+    async def _backfill() -> None:
+        try:
+            await backfill(user_id)
+        except Exception:                                   # noqa: BLE001
+            _log.warning("werkbank v2: research note backfill failed", exc_info=True)
+
+    background_tasks.create(_backfill(), name="research-backfill")
 
     @ui.refreshable
     def run_list() -> None:

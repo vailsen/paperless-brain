@@ -494,3 +494,25 @@ def test_not_relevant_closes_one_finding_and_keeps_the_topic(env):
     msg = asyncio.run(reactions.react("alice", fid, "dismiss", channel="app"))
     assert _status(fid) == "dismissed" and msg == "Dismissed."
     assert "bausparkonto" not in interests.load("alice").muted
+
+
+def test_deep_dive_result_links_its_vault_note_in_the_finding_and_the_dossier(env, monkeypatch):
+    """The report lives in PaperlessBrain Research/; the finding and the topic's
+    dossier link it Obsidian-style, so deleting the Werkbank run loses nothing."""
+    from proactive import dossiers
+
+    asyncio.run(dossiers.write("alice", dossiers.Dossier(topic="riester", doc_ids=[1], current_state="läuft")))
+    note = "PaperlessBrain Research/26-10-29 Riester prüfen.md"
+    f = _poll(env, monkeypatch, {
+        "state": "done", "summary": "Ein Wechsel lohnt sich.", "recommendation": "", "evidence": [],
+        "sources": [], "fetched": {}, "note": note,
+    })
+    link = "[[PaperlessBrain Research/26-10-29 Riester prüfen]]"
+    assert f.status == "researched" and f.research_note == link
+    head = f.body.split("\n---\n")[0]
+    assert "[[PaperlessBrain Research/26-10-29 Riester prüfen|Full report]]" in head and "/werkbank" not in head
+    d = dossiers.load("alice", "riester")
+    assert d.research == [link] and "## Research" in (env["root"] / "alice" / d.rel).read_text()
+    # a rebuild from the model keeps the link — the model never sees it
+    again = dossiers.from_result("alice", "riester", {"doc_ids": [1]}, lang="en", version=1, existing=d)
+    assert again.research == [link]
