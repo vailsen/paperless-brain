@@ -121,7 +121,7 @@ async def deep_dive_poll(job: Job) -> None:
             f.lang, summary=res.get("summary") or "", evidence=ev, sources=src, recommendation=rec,
         ), note=note,
     )
-    original = f.body
+    original = findings.strip_research(f.body, f.lang)  # a new result replaces the old
 
     def mutate(x):
         nxt = transition(x.status, "researched")

@@ -403,3 +403,22 @@ def test_topics_keep_their_spelling_for_display():
     assert f.meta()["topic_label"] == "Orthopädie"
     text = "---\n" + "".join(f"{k}: {v!r}\n" for k, v in f.meta().items() if v is not None) + "---\nbody\n"
     assert parse(text).topic_display == "Orthopädie"
+
+
+def test_links_to_a_deleted_research_say_so_instead_of_leading_nowhere(tmp_path, monkeypatch):
+    from app_ui.pages import findings as page
+    from config.settings import settings
+    from werkbank.v2 import store
+
+    monkeypatch.setattr(settings, "vault_root", tmp_path)
+    (tmp_path / "alice" / "PaperlessBrain Research").mkdir(parents=True)
+    (tmp_path / "alice" / "PaperlessBrain Research" / "26-10-29 Da.md").write_text("# Da\n")
+    monkeypatch.setattr(store, "run_status", lambda run, user: "done" if run == "alive" else None)
+    monkeypatch.setattr(page, "get_translator", lambda: (lambda s: s))  # no session here
+    body = ("[Report](/werkbank?run=alive) [Old report](https://brain.lan/werkbank?run=gone)\n\n"
+            "[[PaperlessBrain Research/26-10-29 Da|Full report]] "
+            "[[PaperlessBrain Research/26-10-29 Weg|Full report]]")
+    out = page._in_app_links(body, "alice")
+    assert "[Report](/werkbank?run=alive)" in out and "Old report (deleted)" in out
+    assert "[Full report](/api/research/pdf?path=PaperlessBrain%20Research%2F26-10-29%20Da.md)" in out
+    assert out.count("Full report (deleted)") == 1

@@ -70,6 +70,12 @@ async def react(user: str, finding_id: str, action: str, *, channel: str) -> str
         changes: dict = {"status": nxt}
         if action == "later":
             changes["snoozed_until"] = (clock.local_now().date() + timedelta(days=SNOOZE_DAYS)).isoformat()
+        if action == "interested":
+            # A new "Interesting" is a new research. The previous run may be
+            # deleted; reused, the deep dive polled a run that no longer
+            # existed and never started one.
+            changes["research_run"] = None
+            changes["research_note"] = None
         if action == "restore":
             changes["snoozed_until"] = None
             if not f.surfaced_at:

@@ -48,8 +48,10 @@ _DOC_CLICK_JS = (
 _BARE_URL = re.compile(r"(?<![(<\[\"'=])\bhttps?://[^\s<>()\[\]]+[^\s<>()\[\].,;:!?'\"]")
 
 
-def _in_app_links(body: str) -> str:
-    """`…/documents/241/details` (Paperless) → `#pbdoc-241` (the dialog)."""
+def _in_app_links(body: str, user: str = "") -> str:
+    """`…/documents/241/details` (Paperless) → `#pbdoc-241` (the dialog).
+    With `user`, links to a research the user deleted (its run, its note)
+    are shown as deleted instead of leading to "not found"."""
     from config.settings import settings
 
     from config.proactive import proactive_settings
@@ -60,7 +62,9 @@ def _in_app_links(body: str) -> str:
     app = proactive_settings().proactive_app_base_url.rstrip("/")
     if app:
         body = re.sub(re.escape(app) + r"(?=/)", "", body)
-    body = _wikilinks(body)
+    if user:
+        body = _dead_run_links(body, user)
+    body = _wikilinks(body, user)
     # markdown2 does not autolink bare URLs; Obsidian does.
     return _BARE_URL.sub(lambda m: f"<{m.group(0)}>", body)
 
@@ -68,7 +72,26 @@ def _in_app_links(body: str) -> str:
 _WIKILINK = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 
 
-def _wikilinks(body: str) -> str:
+_RUN_LINK = re.compile(r"\[([^\]]+)\]\((?:https?://[^)\s]*)?/werkbank\?run=([\w-]+)\)")
+
+
+def _deleted(label: str) -> str:
+    _ = get_translator()
+    return _("{label} (deleted)").format(label=label)
+
+
+def _dead_run_links(body: str, user: str) -> str:
+    """An older finding links its Werkbank run; a run the user deleted would
+    open "Run not found"."""
+    from werkbank.v2 import store
+
+    def repl(m: re.Match) -> str:
+        return m.group(0) if store.run_status(m.group(2), user) else _deleted(m.group(1))
+
+    return _RUN_LINK.sub(repl, body)
+
+
+def _wikilinks(body: str, user: str = "") -> str:
     """Obsidian links: one to a research note opens its PDF; any other is
     shown as its text — the page has nowhere to open a note."""
     from app_ui.research_routes import pdf_url
@@ -79,10 +102,21 @@ def _wikilinks(body: str) -> str:
     def repl(m: re.Match) -> str:
         target, label = m.group(1), m.group(2) or m.group(1).rsplit("/", 1)[-1]
         if target.startswith(root):
+            if user and not _note_exists(user, wikilink_target(target)):
+                return _deleted(label)
             return f"[{label}]({pdf_url(wikilink_target(target))})"
         return label
 
     return _WIKILINK.sub(repl, body)
+
+
+def _note_exists(user: str, rel: str) -> bool:
+    from vault.notes import resolve
+
+    try:
+        return resolve(user, rel).is_file()
+    except Exception:  # noqa: BLE001 — outside the vault, unreadable: not there
+        return False
 
 
 async def _adopt_research_note(user: str, f) -> None:
@@ -365,7 +399,8 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 from vault.research import wikilink_target
 
                 m = _WIKILINK.match(f.research_note.strip())
-                url = pdf_url(wikilink_target(m.group(1))) if m else ""
+                url = pdf_url(wikilink_target(m.group(1))) if m and _note_exists(
+                    user, wikilink_target(m.group(1))) else ""
                 with ui.row().classes("w-full items-center gap-2 no-wrap"):
                     ui.label(_("Researched — the summary is at the top, the report is in your vault.")).classes(
                         "text-xs text-gray-400 flex-1 min-w-0")
@@ -374,14 +409,35 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                                   on_click=lambda u=url: ui.navigate.to(u, new_tab=True)).props(
                             "flat dense no-caps"
                         ).classes("text-xs flex-shrink-0")
-            elif f.research_run and f.status == "interested":
-                with ui.row().classes("w-full items-center gap-2 no-wrap"):
-                    ui.spinner(size="sm").props("color=primary")
-                    ui.label(_("Research running — it gives way while you chat.")).classes(
-                        "text-xs text-gray-400 flex-1 min-w-0")
-            elif f.status == "interested" and _jobs.is_pending(f"deep_dive:{f.finding_id}"):
-                ui.label(_("Research queued — it starts as soon as the model is free.")).classes(
-                    "text-xs text-gray-400")
+            elif f.status == "interested":
+                from werkbank.v2 import store as _wb_store
+
+                running = bool(f.research_run) and _wb_store.run_status(f.research_run, user) is not None
+                queued = _jobs.is_pending(f"deep_dive:{f.finding_id}") or (
+                    running and _jobs.is_pending(f"deep_dive_poll:{f.finding_id}"))
+                if running:
+                    with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                        ui.spinner(size="sm").props("color=primary")
+                        ui.label(_("Research running — it gives way while you chat.")).classes(
+                            "text-xs text-gray-400 flex-1 min-w-0")
+                elif queued:
+                    ui.label(_("Research queued — it starts as soon as the model is free.")).classes(
+                        "text-xs text-gray-400")
+                else:
+                    # Nothing works on it: its run was deleted, or it never started.
+                    with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                        ui.label(_("No research is running for this item.")).classes(
+                            "text-xs text-gray-400 flex-1 min-w-0")
+                        ui.button(_("Research again"), icon="travel_explore",
+                                  on_click=lambda: _research_again()).props(
+                            "flat dense no-caps").classes("text-xs flex-shrink-0")
+
+            async def _research_again() -> None:
+                await findings.update(user, finding_id, lambda x: (
+                    {"research_run": None, "research_note": None} if x.status == "interested" else None))
+                _jobs.enqueue("deep_dive", user, {"finding_id": finding_id}, dedupe_key=f"deep_dive:{finding_id}")
+                ui.notify(_("Research queued — it starts as soon as the model is free."), type="positive")
+                body.refresh("")
 
             allowed = reactions_for(f.status, f.kind)
 
@@ -413,7 +469,7 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 ".finding-md{overflow-x:auto}"
                 ".finding-md a{overflow-wrap:anywhere}"
             )
-            ui.markdown(_in_app_links(findings.tidy_sources(f.body, f.lang))).classes("chat-md finding-md w-full min-w-0")
+            ui.markdown(_in_app_links(findings.tidy_sources(f.body, f.lang), user)).classes("chat-md finding-md w-full min-w-0")
 
         await _adopt_research_note(user, findings.get(user, finding_id))
         body(action)

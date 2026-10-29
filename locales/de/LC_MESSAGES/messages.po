@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-29 11:37+0000\n"
+"POT-Creation-Date: 2026-10-29 15:14+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -420,7 +420,7 @@ msgstr "{type}: {value}  ({n} Dok.)"
 msgid "Loading…"
 msgstr "Lade…"
 
-#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:330
+#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:364
 #, python-brace-format
 msgid "#{id} not found"
 msgstr "#{id} nicht gefunden"
@@ -439,8 +439,8 @@ msgid "Show in PDF"
 msgstr "Im PDF zeigen"
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
-#: proactive/findings.py:286 proactive/findings.py:669
-#: proactive/findings.py:670
+#: proactive/deep_dive_app.py:100 proactive/findings.py:302
+#: proactive/findings.py:685 proactive/findings.py:686
 msgid "Summary"
 msgstr "Zusammenfassung"
 
@@ -780,7 +780,7 @@ msgstr "Browser"
 msgid "Note vault"
 msgstr "Notizspeicher"
 
-#: app_ui/layout.py:56 app_ui/pages/findings.py:171
+#: app_ui/layout.py:56 app_ui/pages/findings.py:205
 msgid "Findings"
 msgstr "Hinweise"
 
@@ -843,7 +843,7 @@ msgstr "Audiodatei hochladen"
 msgid "The file exceeds {n} MB."
 msgstr "Die Datei überschreitet {n} MB."
 
-#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:197
+#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:231
 msgid "Topic"
 msgstr "Thema"
 
@@ -1166,7 +1166,7 @@ msgstr "Dieser Code ist ungültig oder abgelaufen."
 msgid "Email address confirmed."
 msgstr "E-Mail-Adresse bestätigt."
 
-#: app_ui/pages/findings.py:398 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:454 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr "Bestätigen"
 
@@ -1858,7 +1858,7 @@ msgstr "Fällig: {date}"
 msgid "Attachments are read-only."
 msgstr "Anhänge sind schreibgeschützt."
 
-#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:191
+#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:225
 msgid "Open"
 msgstr "Öffnen"
 
@@ -1887,13 +1887,13 @@ msgid "Range"
 msgstr "Zeitraum"
 
 #: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:342
-#: app_ui/pages/findings.py:312
+#: app_ui/pages/findings.py:346
 #, python-brace-format
 msgid "#{id} unpinned"
 msgstr "#{id} gelöst"
 
 #: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:345
-#: app_ui/pages/findings.py:316
+#: app_ui/pages/findings.py:350
 #, python-brace-format
 msgid "#{id} pinned"
 msgstr "#{id} angeheftet"
@@ -1943,7 +1943,7 @@ msgstr "Korrespondent"
 msgid "Document type"
 msgstr "Dokumententyp"
 
-#: app_ui/pages/browser.py:323 app_ui/pages/findings.py:207
+#: app_ui/pages/browser.py:323 app_ui/pages/findings.py:241
 msgid "Sort"
 msgstr "Sortierung"
 
@@ -2010,7 +2010,7 @@ msgstr "PDF herunterladen"
 msgid "p. {n}"
 msgstr "S. {n}"
 
-#: app_ui/pages/chat.py:211 proactive/findings.py:296 proactive/findings.py:675
+#: app_ui/pages/chat.py:211 proactive/findings.py:312 proactive/findings.py:691
 #: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr "Quellen"
@@ -3119,101 +3119,114 @@ msgstr "Seite {page} / {total}  ·  {count} Einträge"
 msgid "Insight"
 msgstr "Hinweis"
 
-#: app_ui/pages/findings.py:121
+#: app_ui/pages/findings.py:80
+#, python-brace-format
+msgid "{label} (deleted)"
+msgstr "{label} (gelöscht)"
+
+#: app_ui/pages/findings.py:155
 #, python-brace-format
 msgid "until {date}"
 msgstr "bis {date}"
 
-#: app_ui/pages/findings.py:122 proactive/notify/__init__.py:104
+#: app_ui/pages/findings.py:156 proactive/notify/__init__.py:104
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr "Dringlichkeit: {urgency}"
 
-#: app_ui/pages/findings.py:124
+#: app_ui/pages/findings.py:158
 #, python-brace-format
 msgid "Due {date}"
 msgstr "Fällig {date}"
 
-#: app_ui/pages/findings.py:191
+#: app_ui/pages/findings.py:225
 msgid "All statuses"
 msgstr "Alle Status"
 
-#: app_ui/pages/findings.py:193 werkbank/ui/module_page.py:247
+#: app_ui/pages/findings.py:227 werkbank/ui/module_page.py:247
 msgid "Status"
 msgstr "Status"
 
-#: app_ui/pages/findings.py:196
+#: app_ui/pages/findings.py:230
 msgid "All topics"
 msgstr "Alle Themen"
 
-#: app_ui/pages/findings.py:204
+#: app_ui/pages/findings.py:238
 msgid "Group"
 msgstr "Gruppieren"
 
-#: app_ui/pages/findings.py:215
+#: app_ui/pages/findings.py:249
 #, python-brace-format
 msgid "{n} open"
 msgstr "{n} offen"
 
-#: app_ui/pages/findings.py:217
+#: app_ui/pages/findings.py:251
 #, python-brace-format
 msgid "{n} waiting for you"
 msgstr "{n} warten auf dich"
 
-#: app_ui/pages/findings.py:219
+#: app_ui/pages/findings.py:253
 #, python-brace-format
 msgid "{n} pressing"
 msgstr "{n} dringend"
 
-#: app_ui/pages/findings.py:221
+#: app_ui/pages/findings.py:255
 #, python-brace-format
 msgid "{n} being researched"
 msgstr "{n} in Recherche"
 
-#: app_ui/pages/findings.py:226
+#: app_ui/pages/findings.py:260
 msgid "Nothing here yet."
 msgstr "Hier ist noch nichts."
 
-#: app_ui/pages/findings.py:252
+#: app_ui/pages/findings.py:286
 msgid "No topic"
 msgstr "Ohne Thema"
 
-#: app_ui/pages/findings.py:339
+#: app_ui/pages/findings.py:373
 msgid "All findings"
 msgstr "Alle Hinweise"
 
-#: app_ui/pages/findings.py:343
+#: app_ui/pages/findings.py:377
 msgid "Chat about this"
 msgstr "Darüber chatten"
 
-#: app_ui/pages/findings.py:352 proactive/reactions.py:55
+#: app_ui/pages/findings.py:386 proactive/reactions.py:55
 msgid "This item no longer exists."
 msgstr "Diesen Eintrag gibt es nicht mehr."
 
-#: app_ui/pages/findings.py:370
+#: app_ui/pages/findings.py:405
 msgid "Researched — the summary is at the top, the report is in your vault."
 msgstr ""
 "Recherchiert — die Zusammenfassung steht oben, der Bericht liegt in "
 "deinem Vault."
 
-#: app_ui/pages/findings.py:373 proactive/tasks/insights.py:166
+#: app_ui/pages/findings.py:408 proactive/tasks/insights.py:166
 msgid "Full report"
 msgstr "Vollständiger Bericht"
 
-#: app_ui/pages/findings.py:380
+#: app_ui/pages/findings.py:421
 msgid "Research running — it gives way while you chat."
 msgstr "Recherche läuft — sie pausiert, solange du chattest."
 
-#: app_ui/pages/findings.py:383
+#: app_ui/pages/findings.py:424 app_ui/pages/findings.py:439
 msgid "Research queued — it starts as soon as the model is free."
 msgstr "Recherche wartet — sie startet, sobald das Modell frei ist."
 
-#: app_ui/pages/findings.py:395
+#: app_ui/pages/findings.py:429
+msgid "No research is running for this item."
+msgstr "Für diesen Eintrag läuft keine Recherche."
+
+#: app_ui/pages/findings.py:431
+msgid "Research again"
+msgstr "Erneut recherchieren"
+
+#: app_ui/pages/findings.py:451
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr "„{action}“ auf diesen Eintrag anwenden?"
 
-#: app_ui/pages/findings.py:402 proactive/reactions.py:54
+#: app_ui/pages/findings.py:458 proactive/reactions.py:54
 msgid "Already handled."
 msgstr "Bereits erledigt."
 
@@ -4238,19 +4251,19 @@ msgstr "Offene Fragen"
 msgid "Research"
 msgstr "Recherche"
 
-#: proactive/findings.py:288
+#: proactive/findings.py:304
 msgid "Evidence"
 msgstr "Belege"
 
-#: proactive/findings.py:301 proactive/findings.py:671
+#: proactive/findings.py:317 proactive/findings.py:687
 msgid "Recommendation"
 msgstr "Empfehlung"
 
-#: proactive/findings.py:365
+#: proactive/findings.py:381
 msgid "Not financial or investment advice. Check the recommendation yourself."
 msgstr "Keine Finanz- oder Anlageberatung. Prüfe die Empfehlung selbst."
 
-#: proactive/findings.py:642 proactive/findings.py:667
+#: proactive/findings.py:658 proactive/findings.py:683
 #, python-brace-format
 msgid "Seen in {n} documents: {docs}"
 msgstr "In {n} Dokumenten: {docs}"
