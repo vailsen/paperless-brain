@@ -346,3 +346,26 @@ def test_a_proactive_run_waits_while_a_user_chats(monkeypatch):
 
     asyncio.run(proactive())
     assert len(slept) == 2 and busy == []
+
+
+def test_the_deep_dive_is_asked_the_findings_question_not_handed_its_sources():
+    """The request carries what was noticed and the quotes behind it. Not the
+    sources triage happened to fetch (they ended up as the report's own), not
+    the disclaimer, and no list of generic options to work through."""
+    from proactive import findings
+    from proactive.deep_dive_app import research_request
+    from proactive.findings import Finding
+
+    body = findings.render_body(
+        "de", summary="Die jährliche Sondertilgung von 17.500 € wurde nicht genutzt.",
+        evidence=[{"doc_id": 129, "quote": "Sondertilgungsmöglichkeit: bis zu 17.500,00 EUR (5 %)"}],
+        sources=[{"url": "https://www.wikipedia.de/", "retrieved": "2026-10-27"}],
+        recommendation="Sondertilgung prüfen.",
+    )
+    f = Finding(finding_id="abcdefg", kind="insight", title="Sondertilgung ungenutzt?", lang="de",
+                doc_ids=[129], body=body)
+    request = research_request(f)
+    assert "17.500 € wurde nicht genutzt" in request
+    assert '"Sondertilgungsmöglichkeit: bis zu 17.500,00 EUR (5 %)" (#129)' in request
+    assert "wikipedia" not in request and findings.disclaimer("de") not in request
+    assert "renegotiate" not in request and "generic terms" in request

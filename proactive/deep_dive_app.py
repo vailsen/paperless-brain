@@ -59,17 +59,45 @@ sources: the URLs of web pages the report relies on.
 {report}"""
 
 REQUEST = """\
-Take a closer look at this item from my documents and tell me whether there is \
-something concrete I could do about it — switch, cancel, renegotiate, claim — \
-and what the current market or legal situation says. Use web searches only \
-with generic terms (category, product, year), never my names, numbers or \
-amounts.
+Something was noticed in my documents. Find out what it means for me and \
+whether acting on it is worth it.
 
-Item: {title}
-Topic: {topic}
+What was noticed: {title}
+{summary}
+{quotes}
 Documents: {docs}
 
-{body}"""
+Answer the question this raises — nothing broader, no catalogue of options \
+that do not apply. Work with the numbers in the documents: where a step has a \
+cost or a benefit, calculate it (interest saved per year, fees, the difference \
+to current offers) instead of describing it. Look up the current market and \
+legal situation only as far as it decides that question. End with what to do \
+next and by when — or that nothing needs doing. Web searches only with generic \
+terms (category, product, year), never my names, numbers or amounts."""
+
+
+def research_request(finding) -> str:
+    """The assignment for the finding's deep dive: what was noticed, in the
+    finding's own words, and the quotes behind it.
+
+    Not the whole finding body: its sources are whatever triage happened to
+    fetch (a portal's home page, an unrelated press release) and its
+    disclaimer is boilerplate — handed over, both were taken as the run's own
+    sources and listed in the report. The old wording also named four generic
+    options ("switch, cancel, renegotiate, claim"), and the planner dutifully
+    spent a subtask on the law behind each, whether or not it applied.
+    """
+    from i18n import translator_for
+    from proactive import findings
+
+    _ = translator_for(finding.lang or "en")
+    summary = findings._section(finding.body, _("Summary")) or finding.title
+    quotes = [f'- "{e["quote"]}" (#{e["doc_id"]})' for e in findings.parse_evidence(finding.body)]
+    return REQUEST.format(
+        title=finding.title, summary=summary,
+        quotes=("From the documents, verbatim:\n" + "\n".join(quotes[:8])) if quotes else "",
+        docs=", ".join(f"#{d}" for d in finding.doc_ids),
+    )
 
 
 def _names_guard(names: list[str]):
@@ -98,10 +126,7 @@ async def start(user: str, token: str, finding, model) -> str:
     from werkbank.v2.tools import web_query_guard
 
     pipeline.register_token(user, token)
-    request = REQUEST.format(
-        title=finding.title, topic=finding.topic,
-        docs=", ".join(f"#{d}" for d in finding.doc_ids), body=finding.body[:6000],
-    )
+    request = research_request(finding)
     run_id = pipeline.create_draft(request, user, model.name)  # listed from now on
     guard = _names_guard(await _names(user, token))
 
