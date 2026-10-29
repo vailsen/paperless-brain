@@ -24,18 +24,9 @@ from nicegui import ui
 from app_ui.layout import page_layout, require_auth
 from i18n import N_, get_translator
 
-STATUS_LABELS = {
-    "new": N_("New"),
-    "surfaced": N_("Sent"),
-    "held": N_("Held back"),
-    "interested": N_("Interesting"),
-    "researched": N_("Researched"),
-    "done": N_("Done"),
-    "dismissed": N_("Dismissed"),
-    "snoozed": N_("Snoozed"),
-}
+from app_ui.findings_view import STATUS_ICONS, STATUS_LABELS
+
 KIND_LABELS = {"deadline": N_("Deadline"), "insight": N_("Insight")}
-OPEN_STATUSES = {"new", "surfaced", "held", "interested", "researched", "snoozed"}
 
 
 _DOC_EVENT = "pb_finding_doc"
@@ -76,17 +67,44 @@ def _user() -> str:
     return str(ng_app.storage.user.get("paperless_user") or "")
 
 
-def _meta_line(f) -> str:
+def _meta_line(f, *, topic: bool = True, status: bool = True) -> str:
+    """Kind · status · urgency · due · topic. The list leaves out what its
+    heading already says, and the status, which its icon shows."""
     from proactive.notify import URGENCY_LABELS
 
     _ = get_translator()
-    parts = [_(KIND_LABELS.get(f.kind, f.kind)), _(STATUS_LABELS.get(f.status, f.status))]
+    parts = [_(KIND_LABELS.get(f.kind, f.kind))]
+    if status:
+        parts.append(_(STATUS_LABELS.get(f.status, f.status)))
+    if f.status == "snoozed" and f.snoozed_until:
+        parts.append(_("until {date}").format(date=f.snoozed_until))
     parts.append(_("Urgency: {urgency}").format(urgency=_(URGENCY_LABELS.get(f.urgency, f.urgency))))
     if f.deadline:
         parts.append(_("Due {date}").format(date=f.deadline))
-    if f.topic:
+    if topic and f.topic:
         parts.append(f.topic_display)
     return " · ".join(parts)
+
+
+_LIST_CSS = """
+.pb-finding-card{background:var(--c-surface);border:1px solid var(--c-border);
+  border-left:3px solid var(--c-border);border-radius:8px;cursor:pointer}
+.pb-finding-card:hover{border-color:var(--c-border-strong)}
+.pb-finding-card.is-pressing{border-left-color:var(--c-warn)}
+.pb-finding-card.is-closed{opacity:.6}
+.pb-finding-card .pb-status-icon{color:var(--c-text-2)}
+.pb-finding-head{color:var(--c-text);border-bottom:1px solid var(--c-border)}
+.pb-finding-sub{color:var(--c-text-2)}
+.pb-finding-count{color:var(--c-text-muted);font-weight:400}
+"""
+
+
+def _status_icon(status: str, size: str = "1.25rem"):
+    _ = get_translator()
+    icon = ui.icon(STATUS_ICONS.get(status, "circle")).classes("pb-status-icon flex-shrink-0").style(
+        f"font-size:{size}")
+    icon.tooltip(_(STATUS_LABELS.get(status, status)))
+    return icon
 
 
 @ui.page("/findings")
@@ -97,61 +115,127 @@ async def findings_page() -> None:
     _ = get_translator()
     from proactive import findings
 
+    from datetime import date
+
+    from app_ui import findings_view as fv
+    from services.user_prefs import get_pref, set_pref
+
     user = _user()
-    state = {"status": "open", "topic": ""}
+    # The view is remembered per user: whoever groups by topic once wants it next time.
+    stored = get_pref("findings_view") or {}
+    state = {k: stored.get(k, v) for k, v in fv.DEFAULT_VIEW.items()}
+    ui.add_css(_LIST_CSS)
 
     with ui.column().classes("w-full max-w-3xl mx-auto p-4 gap-3"):
         ui.label(_("Findings")).classes("text-xl font-bold text-gray-100")
 
+        def _set(key: str, value) -> None:
+            state[key] = value or ""
+            set_pref("findings_view", dict(state))
+            body.refresh()
+
         @ui.refreshable
         def body() -> None:
             items = findings.list_findings(user)
+            today = date.today()
             # key → label; a finding with a label wins over one without
             topics: dict[str, str] = {}
             for f in sorted(items, key=lambda f: bool(f.topic_label)):
                 if f.topic:
                     topics[f.topic] = f.topic_display
-            with ui.row().classes("w-full gap-2 flex-nowrap"):
-                status_opts = {"open": _("Open"), "all": _("All")}
-                status_opts.update({k: _(v) for k, v in STATUS_LABELS.items()})
-
-                def _on_status(e) -> None:
-                    state["status"] = e.value
-                    body.refresh()
-
-                def _on_topic(e) -> None:
-                    state["topic"] = e.value or ""
-                    body.refresh()
-
-                ui.select(status_opts, value=state["status"], label=_("Status"), on_change=_on_status).props(
-                    "outlined dark dense"
-                ).classes("flex-1 min-w-0")
+            if state["topic"] and state["topic"] not in topics:
+                state["topic"] = ""  # the topic's last finding is gone
+            # Two selects a row: four in one squeeze each to a word on a phone.
+            with ui.grid(columns=2).classes("w-full gap-2"):
+                status_opts = {"open": _("Open"), "all": _("All statuses")}
+                status_opts.update({k: _(fv.STATUS_LABELS[k]) for k in fv.STATUS_ORDER})
+                ui.select(status_opts, value=state["status"], label=_("Status"),
+                          on_change=lambda e: _set("status", e.value)).props(
+                    "outlined dark dense options-dense").classes("min-w-0")
                 ui.select({"": _("All topics"), **dict(sorted(topics.items(), key=lambda kv: kv[1].lower()))},
-                          value=state["topic"],
-                          label=_("Topic"), on_change=_on_topic).props("outlined dark dense").classes("flex-1 min-w-0")
+                          value=state["topic"], label=_("Topic"),
+                          on_change=lambda e: _set("topic", e.value)).props(
+                    "outlined dark dense options-dense").classes("min-w-0")
+                groups = dict(fv.GROUPS)
+                if state["topic"]:  # one topic: grouping by topic is one heading
+                    groups.pop("topic"), groups.pop("topic_status")
+                group = fv.effective_group(state["group"], state["topic"])
+                ui.select({k: _(v) for k, v in groups.items()}, value=group, label=_("Group"),
+                          on_change=lambda e: _set("group", e.value)).props(
+                    "outlined dark dense options-dense").classes("min-w-0")
+                ui.select({k: _(v) for k, v in fv.SORTS.items()}, value=state["sort"], label=_("Sort"),
+                          on_change=lambda e: _set("sort", e.value)).props(
+                    "outlined dark dense options-dense").classes("min-w-0")
 
-            def _keep(f) -> bool:
-                st = state["status"]
-                if st == "open" and f.status not in OPEN_STATUSES:
-                    return False
-                if st not in ("open", "all") and f.status != st:
-                    return False
-                return not state["topic"] or f.topic == state["topic"]
+            c = fv.counts(items, today)
+            if c["open"]:
+                with ui.row().classes("w-full items-center gap-x-4 gap-y-1 text-xs").style(
+                        "color:var(--c-text-2)"):
+                    _summary_item("inbox", _("{n} open").format(n=c["open"]))  # TODO i18n-plural
+                    if c["waiting"]:
+                        _summary_item("notifications_active", _("{n} waiting for you").format(n=c["waiting"]))
+                    if c["pressing"]:
+                        _summary_item("priority_high", _("{n} pressing").format(n=c["pressing"]), warn=True)
+                    if c["researching"]:
+                        _summary_item("travel_explore", _("{n} being researched").format(n=c["researching"]))
 
-            shown = sorted(
-                (f for f in items if _keep(f)),
-                key=lambda f: (f.deadline or "9999", f.created),
-            )
-            if not shown:
+            arranged = fv.arrange(items, status=state["status"], topic=state["topic"],
+                                  group=state["group"], sort=state["sort"], today=today)
+            if not arranged:
                 ui.label(_("Nothing here yet.")).classes("text-sm text-gray-500 mt-4")
-            for f in shown:
-                with ui.card().classes(
-                    "w-full bg-gray-800 border border-gray-700 p-3 cursor-pointer min-w-0"
-                ).on("click", lambda fid=f.finding_id: ui.navigate.to(f"/findings/{fid}")):
-                    ui.label(f.title).classes("text-sm font-semibold text-gray-100 w-full truncate")
-                    ui.label(_meta_line(f)).classes("text-xs text-gray-400 w-full")
+            single_status = state["status"] not in ("open", "all")
+            for g in arranged:
+                if g.kind != "none":
+                    _heading(g, top=True)
+                for sub in g.subgroups:
+                    _heading(sub, top=False)
+                    for f in sub.items:
+                        _card(f, today, topic=False, status=False)
+                for f in g.items:
+                    _card(f, today, topic=g.kind != "topic" and not state["topic"],
+                          status=g.kind != "status" and not single_status)
 
         body()
+
+
+def _summary_item(icon: str, text: str, warn: bool = False) -> None:
+    with ui.row().classes("items-center gap-1 no-wrap" + (" pb-warn-text" if warn else "")):
+        ui.icon(icon).style("font-size:1rem")
+        ui.label(text)
+
+
+def _heading(g, *, top: bool) -> None:
+    """A headline, nothing to click: the list is for scrolling."""
+    _ = get_translator()
+    label = (_(STATUS_LABELS.get(g.label, g.label)) if g.kind == "status"
+             else (g.label or _("No topic")))
+    if top:
+        with ui.row().classes("pb-finding-head w-full items-center gap-2 no-wrap mt-3 pb-1"):
+            if g.kind == "status":
+                _status_icon(g.key, "1.1rem")
+            ui.label(label).classes("text-base font-semibold min-w-0 truncate")
+            ui.label(str(g.count)).classes("pb-finding-count text-sm flex-shrink-0")
+    else:
+        with ui.row().classes("pb-finding-sub w-full items-center gap-2 no-wrap mt-1 pl-1"):
+            _status_icon(g.key, "1rem")
+            ui.label(label).classes("text-sm font-medium min-w-0 truncate")
+            ui.label(str(g.count)).classes("pb-finding-count text-xs flex-shrink-0")
+
+
+def _card(f, today, *, topic: bool, status: bool) -> None:
+    from app_ui import findings_view as fv
+
+    cls = "pb-finding-card w-full p-3 min-w-0"
+    if fv.is_pressing(f, today):
+        cls += " is-pressing"
+    if f.status in fv.CLOSED_STATUSES:
+        cls += " is-closed"
+    with ui.row().classes(cls + " items-start gap-3 no-wrap").on(
+            "click", lambda fid=f.finding_id: ui.navigate.to(f"/findings/{fid}")):
+        _status_icon(f.status)
+        with ui.column().classes("gap-0 flex-1 min-w-0"):
+            ui.label(f.title).classes("text-sm font-semibold text-gray-100 w-full truncate")
+            ui.label(_meta_line(f, topic=topic, status=status)).classes("text-xs text-gray-400 w-full")
 
 
 @ui.page("/findings/{finding_id}")
@@ -227,7 +311,9 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 ui.label(_("This item no longer exists.")).classes("text-sm text-gray-400")
                 return
             ui.label(f.title).classes("text-xl font-bold text-gray-100 w-full break-words")
-            ui.label(_meta_line(f)).classes("text-xs text-gray-400 w-full")
+            with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                _status_icon(f.status, "1.1rem")
+                ui.label(_meta_line(f)).classes("text-xs text-gray-400 min-w-0 flex-1")
             if f.doc_ids:
                 with ui.row().classes("gap-2 flex-wrap"):
                     for d in f.doc_ids:

@@ -97,3 +97,24 @@ Settings > Proactive:
    always goes first.
 
 Findings are listed under **Findings** in the navigation.
+
+## The findings list
+
+Filter by status and topic, sort by relevance (urgency × how much the topic
+interests you; a deadline within a week counts as critical), urgency,
+deadline or date, and group by topic, by status, or by topic and then status.
+Groups are headlines to scroll past, nothing to open or close — for a shorter
+list pick one topic. A coloured left edge marks what presses: high or critical
+urgency, or a deadline within a week. Done and dismissed findings are greyed.
+
+Each status has an icon:
+
+| Status | Means |
+|---|---|
+| New | just found; within minutes it is sent or held back |
+| Notified | sent to you, waiting for your reaction |
+| Held back | not sent: low priority or a muted topic (the quiet-weeks digest may still bring it) |
+| Later | you pressed "Later": it comes back in 7 days |
+| Interesting | you want a closer look: the research is queued or running |
+| Researched | the research is done; its report is linked at the top |
+| Done / Dismissed | closed; "Restore" takes it back |

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-29 10:21+0000\n"
+"POT-Creation-Date: 2026-10-29 10:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -394,7 +394,7 @@ msgstr ""
 msgid "Loading…"
 msgstr ""
 
-#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:205
+#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:289
 #, python-brace-format
 msgid "#{id} not found"
 msgstr ""
@@ -472,7 +472,8 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
-#: app_ui/document_dialog.py:617 app_ui/pages/findings.py:37
+#: app_ui/document_dialog.py:617 app_ui/findings_view.py:55
+#: app_ui/pages/findings.py:29
 msgid "Deadline"
 msgstr ""
 
@@ -594,6 +595,71 @@ msgstr ""
 msgid "Re-ingest (extraction + embedding)"
 msgstr ""
 
+#: app_ui/findings_view.py:21
+msgid "New"
+msgstr ""
+
+#: app_ui/findings_view.py:22
+msgid "Notified"
+msgstr ""
+
+#: app_ui/findings_view.py:23
+msgid "Held back"
+msgstr ""
+
+#: app_ui/findings_view.py:24 proactive/notify/__init__.py:31
+msgid "Interesting"
+msgstr ""
+
+#: app_ui/findings_view.py:25
+msgid "Researched"
+msgstr ""
+
+#: app_ui/findings_view.py:26 proactive/notify/__init__.py:35
+#: werkbank/ui/module_page.py:180
+msgid "Done"
+msgstr ""
+
+#: app_ui/findings_view.py:27
+msgid "Dismissed"
+msgstr ""
+
+#: app_ui/findings_view.py:28 proactive/notify/__init__.py:32
+msgid "Later"
+msgstr ""
+
+#: app_ui/findings_view.py:47
+msgid "No grouping"
+msgstr ""
+
+#: app_ui/findings_view.py:48
+msgid "By topic"
+msgstr ""
+
+#: app_ui/findings_view.py:49
+msgid "By status"
+msgstr ""
+
+#: app_ui/findings_view.py:50
+msgid "By topic, then status"
+msgstr ""
+
+#: app_ui/findings_view.py:53 app_ui/pages/browser.py:320
+msgid "Relevance"
+msgstr ""
+
+#: app_ui/findings_view.py:54
+msgid "Urgency"
+msgstr ""
+
+#: app_ui/findings_view.py:56
+msgid "Newest first"
+msgstr ""
+
+#: app_ui/findings_view.py:57
+msgid "Oldest first"
+msgstr ""
+
 #: app_ui/layout.py:42 app_ui/pages/dashboard.py:406 tests/test_i18n.py:119
 msgid "Dashboard"
 msgstr ""
@@ -615,7 +681,7 @@ msgstr ""
 msgid "Note vault"
 msgstr ""
 
-#: app_ui/layout.py:56 app_ui/pages/findings.py:104
+#: app_ui/layout.py:56 app_ui/pages/findings.py:130
 msgid "Findings"
 msgstr ""
 
@@ -676,7 +742,7 @@ msgstr ""
 msgid "The file exceeds {n} MB."
 msgstr ""
 
-#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:131
+#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:156
 msgid "Topic"
 msgstr ""
 
@@ -978,7 +1044,7 @@ msgstr ""
 msgid "Email address confirmed."
 msgstr ""
 
-#: app_ui/pages/findings.py:265 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:351 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr ""
 
@@ -1622,7 +1688,7 @@ msgstr ""
 msgid "Attachments are read-only."
 msgstr ""
 
-#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:115
+#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:150
 msgid "Open"
 msgstr ""
 
@@ -1651,13 +1717,13 @@ msgid "Range"
 msgstr ""
 
 #: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:341
-#: app_ui/pages/findings.py:187
+#: app_ui/pages/findings.py:271
 #, python-brace-format
 msgid "#{id} unpinned"
 msgstr ""
 
 #: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:344
-#: app_ui/pages/findings.py:191
+#: app_ui/pages/findings.py:275
 #, python-brace-format
 msgid "#{id} pinned"
 msgstr ""
@@ -1707,11 +1773,7 @@ msgstr ""
 msgid "Document type"
 msgstr ""
 
-#: app_ui/pages/browser.py:320
-msgid "Relevance"
-msgstr ""
-
-#: app_ui/pages/browser.py:323
+#: app_ui/pages/browser.py:323 app_ui/pages/findings.py:166
 msgid "Sort"
 msgstr ""
 
@@ -2833,103 +2895,103 @@ msgstr ""
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr ""
 
-#: app_ui/pages/findings.py:28
-msgid "New"
-msgstr ""
-
 #: app_ui/pages/findings.py:29
-msgid "Sent"
-msgstr ""
-
-#: app_ui/pages/findings.py:30
-msgid "Held back"
-msgstr ""
-
-#: app_ui/pages/findings.py:31 proactive/notify/__init__.py:31
-msgid "Interesting"
-msgstr ""
-
-#: app_ui/pages/findings.py:32
-msgid "Researched"
-msgstr ""
-
-#: app_ui/pages/findings.py:33 proactive/notify/__init__.py:35
-#: werkbank/ui/module_page.py:180
-msgid "Done"
-msgstr ""
-
-#: app_ui/pages/findings.py:34
-msgid "Dismissed"
-msgstr ""
-
-#: app_ui/pages/findings.py:35
-msgid "Snoozed"
-msgstr ""
-
-#: app_ui/pages/findings.py:37
 msgid "Insight"
 msgstr ""
 
-#: app_ui/pages/findings.py:84 proactive/notify/__init__.py:104
+#: app_ui/pages/findings.py:80
+#, python-brace-format
+msgid "until {date}"
+msgstr ""
+
+#: app_ui/pages/findings.py:81 proactive/notify/__init__.py:104
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr ""
 
-#: app_ui/pages/findings.py:86
+#: app_ui/pages/findings.py:83
 #, python-brace-format
 msgid "Due {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:115
-msgid "All"
+#: app_ui/pages/findings.py:150
+msgid "All statuses"
 msgstr ""
 
-#: app_ui/pages/findings.py:126 werkbank/ui/module_page.py:247
+#: app_ui/pages/findings.py:152 werkbank/ui/module_page.py:247
 msgid "Status"
 msgstr ""
 
-#: app_ui/pages/findings.py:129
+#: app_ui/pages/findings.py:155
 msgid "All topics"
 msgstr ""
 
-#: app_ui/pages/findings.py:146
+#: app_ui/pages/findings.py:163
+msgid "Group"
+msgstr ""
+
+#: app_ui/pages/findings.py:174
+#, python-brace-format
+msgid "{n} open"
+msgstr ""
+
+#: app_ui/pages/findings.py:176
+#, python-brace-format
+msgid "{n} waiting for you"
+msgstr ""
+
+#: app_ui/pages/findings.py:178
+#, python-brace-format
+msgid "{n} pressing"
+msgstr ""
+
+#: app_ui/pages/findings.py:180
+#, python-brace-format
+msgid "{n} being researched"
+msgstr ""
+
+#: app_ui/pages/findings.py:185
 msgid "Nothing here yet."
 msgstr ""
 
-#: app_ui/pages/findings.py:214
+#: app_ui/pages/findings.py:211
+msgid "No topic"
+msgstr ""
+
+#: app_ui/pages/findings.py:298
 msgid "All findings"
 msgstr ""
 
-#: app_ui/pages/findings.py:218
+#: app_ui/pages/findings.py:302
 msgid "Chat about this"
 msgstr ""
 
-#: app_ui/pages/findings.py:227 proactive/reactions.py:55
+#: app_ui/pages/findings.py:311 proactive/reactions.py:55
 msgid "This item no longer exists."
 msgstr ""
 
-#: app_ui/pages/findings.py:242
+#: app_ui/pages/findings.py:328
 msgid "Research running — it gives way while you chat."
 msgstr ""
 
-#: app_ui/pages/findings.py:243
+#: app_ui/pages/findings.py:329
 msgid "Researched — the result is at the top."
 msgstr ""
 
-#: app_ui/pages/findings.py:245
+#: app_ui/pages/findings.py:331
 msgid "Open in deep research"
 msgstr ""
 
-#: app_ui/pages/findings.py:250
+#: app_ui/pages/findings.py:336
 msgid "Research queued — it starts as soon as the model is free."
 msgstr ""
 
-#: app_ui/pages/findings.py:262
+#: app_ui/pages/findings.py:348
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr ""
 
-#: app_ui/pages/findings.py:269 proactive/reactions.py:54
+#: app_ui/pages/findings.py:355 proactive/reactions.py:54
 msgid "Already handled."
 msgstr ""
 
@@ -3863,10 +3925,6 @@ msgstr ""
 
 #: proactive/notify/__init__.py:28
 msgid "Critical"
-msgstr ""
-
-#: proactive/notify/__init__.py:32
-msgid "Later"
 msgstr ""
 
 #: proactive/notify/__init__.py:33
