@@ -94,6 +94,14 @@ first use and shut it down over SSH after idle. Set
 `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` and `OLLAMA_SSH_USER` to enable — with Docker
 this needs `network_mode: host` (magic packets don't cross the bridge network).
 
+Waking happens three ways: the dashboard button; a chat with a local model
+while the host is off (the chat says it is waking the host and answers once it
+is up, waiting at most `OLLAMA_WAKE_TIMEOUT_S`); and the proactive worker inside
+its night window. Back to sleep after the idle time of whoever woke it: 30 min
+for the button (`OLLAMA_IDLE_SHUTDOWN_MINUTES`), 10 for a chat
+(`OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES`), 5 for the worker. A host that was on
+already is never shut down.
+
 The shutdown half (dashboard button *and* the idle watchdog) runs
 `ssh <OLLAMA_SSH_USER>@<ollama host> "sudo shutdown -h now"` non-interactively —
 no password prompt is possible, so both steps below are mandatory:

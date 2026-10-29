@@ -3200,15 +3200,46 @@ window.__openVaultNote = function(noteId) {{
             archive_language=get_archive_language(),
         )
 
+        async def _no_events():  # the turn stopped before the model was asked
+            return
+            yield
+
+        async def _wake_local_host() -> str:
+            """A local model whose host is off: wake it (WoL) and wait for it,
+            instead of failing on a refused connection. "" = go ahead."""
+            m = next((m for m in _reg_models if m["name"] == _s["chat_model_name"]), None)
+            if not m or m.get("backend") == "anthropic" or m.get("lane") != "local":
+                return ""
+            from config.settings import settings as _settings
+            from services.wol import ensure_awake
+
+            def _waiting(secs: int) -> None:
+                activity_label.set_text(
+                    _("The model host was off — waking it up… {s} s").format(s=secs))
+                activity_row.set_visibility(True)
+
+            outcome = await ensure_awake(
+                m.get("base_url", ""), on_wait=_waiting, should_stop=lambda: _s["stop_requested"])
+            activity_row.set_visibility(False)
+            if outcome == "stopped":
+                return "stopped"
+            if outcome == "timeout":
+                return _("The model host was woken but did not answer within {s} s. "
+                         "Please send your message again in a moment.").format(s=_settings.ollama_wake_timeout_s)
+            return ""
+
         try:
-            async for event in backend.run_turn(
+            _wake_err = await _wake_local_host()
+            if _wake_err and _wake_err != "stopped":
+                raise RuntimeError(_wake_err)
+            async for event in (_no_events() if _wake_err else backend.run_turn(
                 llm_messages,
                 _system,
                 _s["temperature"],
                 tools=_active_tools(),
                 max_iterations=_s["max_iterations"],
                 answer_language=_lang,
-            ):
+            )):
                 if _s["stop_requested"]:
                     break
                 if isinstance(event, ThinkingEvent):

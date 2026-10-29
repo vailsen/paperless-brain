@@ -111,7 +111,10 @@ def touch() -> None:
     _last_touch_write = now
     changes = {"last_activity": datetime.now().isoformat()}
     if _role == "app":
-        changes["wol_by"] = "app"  # a user is using it: normal idle time again
+        # A user is using it: a host the worker woke gets the normal idle time.
+        # One woken for a chat keeps its own, shorter one.
+        if _read().get("wol_by") != "chat":
+            changes["wol_by"] = "app"
         changes["app_activity"] = changes["last_activity"]
     try:
         _update(**changes)
@@ -146,10 +149,12 @@ def app_busy(now: datetime | None = None) -> bool:
     return last is not None and ((now or datetime.now()) - last).total_seconds() < APP_YIELD_S
 
 
-def on_wol(host: str = "") -> None:
+def on_wol(host: str = "", by: str = "") -> None:
+    """Record a wake. `by`: "chat" for a wake a chat asked for; default the
+    process role ("app" — the dashboard button — or "worker")."""
     global _last_touch_write
     changes = {
-        "wol_active": True, "last_activity": datetime.now().isoformat(), "wol_by": _role,
+        "wol_active": True, "last_activity": datetime.now().isoformat(), "wol_by": by or _role,
         # A fresh wake starts clean: no leftover retry or verification.
         "shutdown_pending_since": None, "shutdown_retry_at": None, "shutdown_error": "",
     }
@@ -245,6 +250,8 @@ def shutdown_due(now: datetime | None = None) -> bool:
         from config.proactive import proactive_settings
 
         minutes = proactive_settings().proactive_idle_shutdown_minutes
+    elif s["wol_by"] == "chat":
+        minutes = settings.ollama_chat_idle_shutdown_minutes
     return now - s["last_activity"] > timedelta(minutes=minutes)
 
 

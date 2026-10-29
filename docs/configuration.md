@@ -59,6 +59,8 @@ the env value is only the initial fallback).
 | `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` | | empty | MAC for Wake-on-LAN (empty = feature hidden) |
 | `OLLAMA_SSH_USER` | | empty | SSH user for remote shutdown of the Ollama host (empty = feature hidden). Needs passwordless sudo for `/usr/bin/shutdown`; in Docker, mount an SSH key into the container |
 | `OLLAMA_IDLE_SHUTDOWN_MINUTES` | | `30` | Idle minutes before the Ollama host is shut down |
+| `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES` | | `10` | The same, for a host a chat woke (local model, host off) |
+| `OLLAMA_WAKE_TIMEOUT_S` | | `180` | How long a chat waits for a host it woke to answer |
 | `AI_GENERATED_TAG_NAME` | | `AI-generated` | *UI* — tag applied to documents the app creates in Paperless |
 | `AI_GENERATED_CORRESPONDENT` | | `PaperlessBrain AI` | *UI* — correspondent for AI-generated documents |
 | `AI_GENERATED_DOC_TYPE` | | `Information` | *UI* — document type for AI-generated documents |
