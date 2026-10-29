@@ -8,9 +8,9 @@ answer anything.
    into two subtasks and put a `synthesizer` after them. Never one subtask that
    "uses documents and the web".
 
-2. **No subtask without an agent.** The only agents that work without a source
-   of their own are `synthesizer` and `contradiction_checker`, whose input is
-   the facts of other subtasks — and those must therefore have `depends_on`.
+2. **No subtask without an agent.** The only agent that works without a source
+   of its own is `synthesizer`, whose input is the facts of other subtasks —
+   and it must therefore have `depends_on`.
 
 3. **Agents that are not in the list below do not exist.** The list is filtered
    for what this user has configured. If a question can only be answered with a
@@ -21,8 +21,8 @@ answer anything.
 4. **Every subtask carries its own `acceptance_criteria`** — concrete, decidable
    by reading the subtask's result. A subtask without one cannot be planned.
 
-5. **`contradiction_checker` runs exactly once, at the end**, never per subtask.
-   You may leave it out; it is appended automatically.
+5. **Do not plan a contradiction check.** It runs once, after the plan, over
+   every fact of the run; a subtask for it is removed.
 
 6. **Every criterion of the Brief must be covered** by at least one subtask, via
    `covers_criteria` (the indices of the brief criteria, starting at 0).

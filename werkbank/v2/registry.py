@@ -69,6 +69,9 @@ class Registry:
                 "tools": spec.tools,
             }
             for spec in self.agents.values()
+            # Not the planner's to assign: the pass runs once, in code, over
+            # all facts (`contradictions.find`).
+            if spec.id != "contradiction_checker"
         ]
 
     def trust_for(self, tool: str) -> str:
