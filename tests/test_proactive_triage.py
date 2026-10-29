@@ -538,3 +538,43 @@ def test_deep_dive_result_links_its_vault_note_in_the_finding_and_the_dossier(en
     # a rebuild from the model keeps the link — the model never sees it
     again = dossiers.from_result("alice", "riester", {"doc_ids": [1]}, lang="en", version=1, existing=d)
     assert again.research == [link]
+
+
+def test_interesting_again_starts_a_new_research_not_the_deleted_one(env, monkeypatch):
+    """The real case: researched, run and note deleted, restored, "Interesting"
+    again. The deep dive reused the old run id, polled a run that no longer
+    existed and never started one; the finding sat at "interested"."""
+    from proactive import findings, internal_client, models, reactions
+
+    fid = _insight(env, 0, status="done")
+    asyncio.run(findings.update("alice", fid, lambda x: {
+        "research_run": "old-run", "research_note": "[[PaperlessBrain Research/26-10-29 Alt]]"}))
+    asyncio.run(reactions.react("alice", fid, "restore", channel="app"))
+    asyncio.run(reactions.react("alice", fid, "interested", channel="app"))
+    f = findings.get("alice", fid)
+    assert f.status == "interested" and f.research_run is None and f.research_note is None
+
+    monkeypatch.setattr(models, "resolve_model", lambda u, t, p=None: _model())
+    started = []
+
+    async def start(user, finding_id, model):
+        started.append(finding_id)
+        return "new-run"
+
+    monkeypatch.setattr(internal_client, "deep_dive", start)
+    _run("deep_dive", "alice", {"finding_id": fid})
+    assert started == [fid] and findings.get("alice", fid).research_run == "new-run"
+
+
+def test_a_new_research_result_replaces_the_old_one(env, monkeypatch):
+    from proactive import findings
+    from proactive.tasks.insights import research_body
+
+    fid = _insight(env, 0, status="interested")
+    old = research_body("en", "old-run", "## Summary\n\nOld result.\n")
+    asyncio.run(findings.update("alice", fid, lambda x: None, body=lambda x: old + "\n---\n\n" + x.body))
+    f = _poll(env, monkeypatch, {"state": "done", "summary": "New result.", "recommendation": "",
+                                 "evidence": [], "sources": [], "fetched": {}})
+    assert f.body.count("## Research result (") == 1
+    assert "New result." in f.body and "Old result." not in f.body
+    assert f.body.rstrip().endswith("x")  # the original finding stays below

@@ -67,6 +67,22 @@ def link_research_note(body: str, run_id: str, note_rel: str) -> str:
     return re.sub(_RUN_LINK.format(run=re.escape(run_id)), lambda m: wikilink(note_rel, m.group(1)), body)
 
 
+def strip_research(body: str, lang: str) -> str:
+    """The body without an earlier research result on top (`research_body` +
+    `---`). A new result replaces the old one; stacked, the finding showed
+    yesterday's result — and its dead link — above today's."""
+    from i18n import translator_for
+
+    heads = {translator_for(code)("Research result ({date})").split("(")[0].strip()
+             for code in ("en", lang or "en")}
+    text = body.lstrip()
+    first = text.split("\n", 1)[0]
+    if not (first.startswith("## ") and any(first[3:].startswith(h) for h in heads if h)):
+        return body
+    _head, sep, rest = text.partition("\n---\n")
+    return rest.lstrip("\n") if sep else body
+
+
 def valid_finding_id(fid: str) -> bool:
     return bool(_FID_RE.match(fid or ""))
 
