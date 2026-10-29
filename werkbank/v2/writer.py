@@ -10,12 +10,18 @@ with about its own output:
   appears in.
 
 The source list is built from the facts rather than asked for: a model
-enumerating its own sources omits the weak ones.
+enumerating its own sources omits the weak ones. The same goes for everything
+around the findings — header, assignment, brief, subtask table (`front_matter`).
+Left to the model, these came back with fact markers pinned on the brief (the
+brief predates every fact), a source table naming two URLs that were only
+mentioned in the request, and header lines that D9 then flagged as unsupported
+paragraphs. The model writes the findings; code writes the frame.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -84,6 +90,47 @@ def sources_section(state: RunState) -> str:
         if entries := grouped.get(trust):
             out += [f"### {TRUST_HEADINGS[trust]}", "", *sorted(set(entries)), ""]
     return "\n".join(out)
+
+
+def front_matter(state: RunState, title: str) -> str:
+    """Title, who/what/when, the assignment and brief, the subtasks — from the
+    run state, verbatim. Nothing here is the model's to phrase."""
+    brief = state.brief
+    meta = [f"Auftraggeber: {state.user_id}", f"Modell: {state.model}"]
+    if state.started_at and state.finished_at:
+        meta.append(f"Lauf: {_local(state.started_at)} → {_local(state.finished_at)}")
+    out = [f"# {title or (brief.goal if brief else '') or state.run_id}", "", "_" + " · ".join(meta) + "_", ""]
+    if brief:
+        out += ["## Auftrag", ""]
+        out += [f"> {line}" if line.strip() else ">" for line in brief.original_request.strip().splitlines()]
+        out.append("")
+        if brief.goal:
+            out += [f"**Ziel:** {brief.goal}", ""]
+        if brief.assumptions:
+            out += ["**Annahmen:**", "", *[f"- {a}" for a in brief.assumptions], ""]
+        if brief.acceptance_criteria:
+            out += ["**Abnahmekriterien:**", "", *[f"- {c}" for c in brief.acceptance_criteria], ""]
+    if state.results:
+        out += ["## Teilaufgaben", "", _subtask_overview(state), ""]
+    return "\n".join(out)
+
+
+def _strip_frame(markdown: str) -> tuple[str, str]:
+    """(title, body): a `# title` the model wrote anyway becomes the title;
+    a source list it wrote anyway goes — the one code builds is the record."""
+    lines = markdown.strip().splitlines()
+    title = ""
+    if lines and lines[0].startswith("# "):
+        title = lines.pop(0)[2:].strip()
+    body = "\n".join(lines).strip()
+    cut = _OWN_SOURCES.search(body)
+    if cut and reflection.END not in body[cut.start():]:
+        body = body[:cut.start()].rstrip()
+    return title, body
+
+
+# A trailing "## Quellen" / "## 10. Sources" section the model wrote itself.
+_OWN_SOURCES = re.compile(r"^##\s+(?:\d+\.\s*)?(?:Quellen|Quellenverzeichnis|Sources)\b.*$", re.M)
 
 
 def _subtask_overview(state: RunState) -> str:
@@ -177,7 +224,10 @@ async def write_report(
         "writer", prompts.system_prompt("writer"), user, Report, ctx,
         prompt_log=prompt_log,
     )
-    markdown, flagged = enforce(report.markdown, block, state)
+    title, body = _strip_frame(report.markdown)
+    # D9 and the reflection check run on what the model wrote — the frame is
+    # code's and carries no markers by design.
+    markdown, flagged = enforce(body, block, state)
 
     if flagged:
         # A paragraph without evidence has to appear in the same document it is
@@ -187,6 +237,7 @@ async def write_report(
         markdown = markdown.replace(block, rebuilt)
         block = rebuilt
 
+    markdown = f"{front_matter(state, report.title or title)}\n{markdown.strip()}\n"
     if sources := sources_section(state):
         markdown = f"{markdown.rstrip()}\n\n{sources}"
     return markdown

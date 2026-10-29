@@ -290,3 +290,29 @@ def test_holes_are_detectable_without_reading_the_prose():
     assert not writer.has_unreported_holes(state)
     state.results["st1"].gaps = [Gap(question="?", reason=GapReason.NOT_FOUND)]
     assert writer.has_unreported_holes(state)
+
+
+# ── The frame is code's ───────────────────────────────────────────────────────
+
+
+def test_the_frame_comes_from_the_run_not_from_the_model(ctx, replies):
+    """Title line, assignment and brief, subtasks and sources: written by code.
+    Left to the model, the brief came back with fact markers pinned on it, the
+    source table named URLs only mentioned in the request, and its header lines
+    were flagged as unsupported paragraphs."""
+    state = _state()
+    state.brief.assumptions = ["Gemeint ist der Mietvertrag."]
+    replies["queue"] = [{"title": "Kündigungsfrist", "markdown": (
+        "# Ein anderer Titel\n\n## Antwort\n\nSechs Wochen [st1.f1].\n\n---\n\n"
+        f"{reflection.build(state)}\n\n## 10. Quellen\n\n- https://www.wikipedia.de/ — st1.f1\n"
+    )}]
+    markdown = _run(writer.write_report(state, ctx))
+    assert markdown.startswith("# Kündigungsfrist\n")
+    assert "Ein anderer Titel" not in markdown
+    front = markdown.split("## Antwort")[0]
+    assert "> Welche Frist gilt?" in front and "**Ziel:** Frist nennen" in front
+    assert "- Gemeint ist der Mietvertrag." in front and "[st" not in front  # no markers on the brief
+    assert "| st1 | doc_researcher | ok |" in front
+    assert "wikipedia" not in markdown and "## Quellenverzeichnis" in markdown  # one source list, from facts
+    assert "Absätze ohne Fact-Beleg" not in markdown  # neither the frame nor the rule is "unsupported"
+    assert markdown.index("## Antwort") < markdown.index(reflection.BEGIN) < markdown.index("## Quellenverzeichnis")
