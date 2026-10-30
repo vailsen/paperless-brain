@@ -93,6 +93,11 @@ next and by when — or that nothing needs doing. Web searches only with generic
 terms (category, product, year), never my names, numbers or amounts."""
 
 
+RESEARCH_LANGUAGE = (
+    "Write everything in {language} — the brief, the subtask questions and the report."
+)
+
+
 def research_request(finding) -> str:
     """The assignment for the finding's deep dive: what was noticed, in the
     finding's own words, and the quotes behind it.
@@ -107,14 +112,27 @@ def research_request(finding) -> str:
     from i18n import translator_for
     from proactive import findings
 
-    _ = translator_for(finding.lang or "en")
-    summary = findings._section(finding.body, _("Summary")) or finding.title
-    quotes = [f'- "{e["quote"]}" (#{e["doc_id"]})' for e in findings.parse_evidence(finding.body)]
-    return REQUEST.format(
+    from i18n import language_name
+
+    lang = finding.lang or "en"
+    _ = translator_for(lang)
+    original = findings.split_timeline(finding.body, lang)[1]
+    summary = findings._section(original, _("Summary")) or finding.title
+    quotes = [f'- "{e["quote"]}" (#{e["doc_id"]})' for e in findings.parse_evidence(original)]
+    request = REQUEST.format(
         title=finding.title, summary=summary,
         quotes=("From the documents, verbatim:\n" + "\n".join(quotes[:8])) if quotes else "",
         docs=", ".join(f"#{d}" for d in finding.doc_ids),
     )
+    notes = findings.notes_text(finding.body, lang)
+    if notes:
+        # What the person added themselves — often exactly what is missing
+        # from the documents ("the operation took place in April").
+        request += "\n\nMy own notes on it:\n" + "\n".join(f"- {n}" for n in notes)
+    # Last, so it is followed: the request is English, and the briefer, the
+    # planner and the writer each answer "in the language of the request" —
+    # a German finding came back as an English report.
+    return request + "\n\n" + RESEARCH_LANGUAGE.format(language=language_name(lang))
 
 
 def _names_guard(names: list[str]):

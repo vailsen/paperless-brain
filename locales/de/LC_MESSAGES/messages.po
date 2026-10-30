@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-29 18:47+0100\n"
+"POT-Creation-Date: 2026-10-30 08:18+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -439,8 +439,8 @@ msgid "Show in PDF"
 msgstr "Im PDF zeigen"
 
 #: app_ui/document_dialog.py:441 app_ui/document_dialog.py:521
-#: proactive/deep_dive_app.py:111 proactive/findings.py:304
-#: proactive/findings.py:714 proactive/findings.py:715
+#: proactive/deep_dive_app.py:120 proactive/findings.py:405
+#: proactive/findings.py:818 proactive/findings.py:819
 msgid "Summary"
 msgstr "Zusammenfassung"
 
@@ -1166,7 +1166,7 @@ msgstr "Dieser Code ist ungültig oder abgelaufen."
 msgid "Email address confirmed."
 msgstr "E-Mail-Adresse bestätigt."
 
-#: app_ui/pages/findings.py:462 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:474 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr "Bestätigen"
 
@@ -1372,6 +1372,16 @@ msgstr "letzte Nachricht angenommen {when}"
 #, python-brace-format
 msgid "last message refused ({status}) {when}"
 msgstr "letzte Nachricht abgelehnt ({status}) {when}"
+
+#: app_ui/pages/findings.py:156 app_ui/research_routes.py:52
+#: proactive/notify/__init__.py:104
+#, python-brace-format
+msgid "Urgency: {urgency}"
+msgstr "Dringlichkeit: {urgency}"
+
+#: app_ui/research_routes.py:62
+msgid "Finding"
+msgstr "Hinweis"
 
 #: app_ui/pages/chat.py:824 app_ui/pages/chat.py:3358 app_ui/pages/chat.py:3699
 #: app_ui/pages/chat.py:3960 app_ui/pages/chat.py:4053
@@ -2010,7 +2020,7 @@ msgstr "PDF herunterladen"
 msgid "p. {n}"
 msgstr "S. {n}"
 
-#: app_ui/pages/chat.py:211 proactive/findings.py:314 proactive/findings.py:720
+#: app_ui/pages/chat.py:211 proactive/findings.py:415 proactive/findings.py:824
 #: werkbank/v2/ui/board.py:106
 msgid "Sources"
 msgstr "Quellen"
@@ -3129,11 +3139,6 @@ msgstr "{label} (gelöscht)"
 msgid "until {date}"
 msgstr "bis {date}"
 
-#: app_ui/pages/findings.py:156 proactive/notify/__init__.py:104
-#, python-brace-format
-msgid "Urgency: {urgency}"
-msgstr "Dringlichkeit: {urgency}"
-
 #: app_ui/pages/findings.py:158
 #, python-brace-format
 msgid "Due {date}"
@@ -3187,50 +3192,66 @@ msgstr "Ohne Thema"
 msgid "All findings"
 msgstr "Alle Hinweise"
 
-#: app_ui/pages/findings.py:377
+#: app_ui/pages/findings.py:383
+msgid "Finding as PDF"
+msgstr "Hinweis als PDF"
+
+#: app_ui/pages/findings.py:385
 msgid "Chat about this"
 msgstr "Darüber chatten"
 
-#: app_ui/pages/findings.py:386 proactive/reactions.py:55
+#: app_ui/pages/findings.py:394 proactive/reactions.py:55
 msgid "This item no longer exists."
 msgstr "Diesen Eintrag gibt es nicht mehr."
 
-#: app_ui/pages/findings.py:405
-msgid "Researched — the summary is at the top, the report is in your vault."
+#: app_ui/pages/findings.py:406
+msgid "Researched — the newest result is at the top, the report is in your vault."
 msgstr ""
-"Recherchiert — die Zusammenfassung steht oben, der Bericht liegt in "
+"Recherchiert — das neueste Ergebnis steht oben, der Bericht liegt in "
 "deinem Vault."
 
-#: app_ui/pages/findings.py:408 proactive/tasks/insights.py:178
-msgid "Full report"
-msgstr "Vollständiger Bericht"
-
-#: app_ui/pages/findings.py:423
+#: app_ui/pages/findings.py:419
 msgid "Research running — it gives way while you chat."
 msgstr "Recherche läuft — sie pausiert, solange du chattest."
 
-#: app_ui/pages/findings.py:426 app_ui/pages/findings.py:447
+#: app_ui/pages/findings.py:422 app_ui/pages/findings.py:443
 msgid "Research queued — it starts as soon as the model is free."
 msgstr "Recherche wartet — sie startet, sobald das Modell frei ist."
 
-#: app_ui/pages/findings.py:430
+#: app_ui/pages/findings.py:426
 msgid "No research is running for this item."
 msgstr "Für diesen Eintrag läuft keine Recherche."
 
-#: app_ui/pages/findings.py:435
+#: app_ui/pages/findings.py:431
 msgid "The research failed."
 msgstr "Die Recherche ist fehlgeschlagen."
 
-#: app_ui/pages/findings.py:439
+#: app_ui/pages/findings.py:435 app_ui/pages/findings.py:483
 msgid "Research again"
 msgstr "Erneut recherchieren"
 
-#: app_ui/pages/findings.py:459
+#: app_ui/pages/findings.py:448
+msgid "Add a note"
+msgstr "Notiz hinzufügen"
+
+#: app_ui/pages/findings.py:449
+msgid "e.g. The operation took place in April 2024."
+msgstr "z. B. Die Operation fand im April 2024 statt."
+
+#: app_ui/pages/findings.py:456
+msgid "Note added."
+msgstr "Notiz hinzugefügt."
+
+#: app_ui/pages/findings.py:460
+msgid "Save note"
+msgstr "Notiz speichern"
+
+#: app_ui/pages/findings.py:471
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr "„{action}“ auf diesen Eintrag anwenden?"
 
-#: app_ui/pages/findings.py:466 proactive/reactions.py:54
+#: app_ui/pages/findings.py:478 proactive/reactions.py:54
 msgid "Already handled."
 msgstr "Bereits erledigt."
 
@@ -4255,23 +4276,33 @@ msgstr "Offene Fragen"
 msgid "Research"
 msgstr "Recherche"
 
-#: proactive/findings.py:306
+#: proactive/findings.py:121
+#, python-brace-format
+msgid "Note ({date})"
+msgstr "Notiz ({date})"
+
+#: proactive/findings.py:145
+#, python-brace-format
+msgid "Original finding ({date})"
+msgstr "Ursprünglicher Hinweis ({date})"
+
+#: proactive/findings.py:407
 msgid "Evidence"
 msgstr "Belege"
 
-#: proactive/findings.py:320
+#: proactive/findings.py:421
 msgid "Open points"
 msgstr "Offene Punkte"
 
-#: proactive/findings.py:322 proactive/findings.py:716
+#: proactive/findings.py:423 proactive/findings.py:820
 msgid "Recommendation"
 msgstr "Empfehlung"
 
-#: proactive/findings.py:410
+#: proactive/findings.py:511
 msgid "Not financial or investment advice. Check the recommendation yourself."
 msgstr "Keine Finanz- oder Anlageberatung. Prüfe die Empfehlung selbst."
 
-#: proactive/findings.py:687 proactive/findings.py:712
+#: proactive/findings.py:788 proactive/findings.py:816
 #, python-brace-format
 msgid "Seen in {n} documents: {docs}"
 msgstr "In {n} Dokumenten: {docs}"
@@ -4342,22 +4373,26 @@ msgstr "+ {n} weitere"
 msgid "{n} new while you were away"
 msgstr "{n} neue, während du weg warst"
 
-#: proactive/tasks/insights.py:157
+#: proactive/tasks/insights.py:166
 #, python-brace-format
 msgid "Research done: {title}"
 msgstr "Recherche fertig: {title}"
 
-#: proactive/tasks/insights.py:176
+#: proactive/tasks/insights.py:221
 #, python-brace-format
 msgid "Research result ({date})"
 msgstr "Rechercheergebnis ({date})"
 
-#: proactive/tasks/insights.py:180
+#: proactive/tasks/insights.py:223
+msgid "Full report"
+msgstr "Vollständiger Bericht"
+
+#: proactive/tasks/insights.py:225
 #, python-brace-format
 msgid "[Full report in deep research]({url})"
 msgstr "[Vollständiger Bericht in der KI-Tiefenrecherche]({url})"
 
-#: proactive/tasks/insights.py:221
+#: proactive/tasks/insights.py:266
 msgid "What you may have missed"
 msgstr "Was du verpasst haben könntest"
 

@@ -371,3 +371,19 @@ def test_the_deep_dive_is_asked_the_findings_question_not_handed_its_sources():
     assert "renegotiate" not in request and "generic terms" in request
     # the named document is where it was noticed — the binding one is searched for
     assert "Noticed in: #129" in request and "signed contract" in request
+
+
+def test_research_request_carries_notes_and_the_findings_language():
+    from proactive import deep_dive_app, findings
+    from proactive.findings import Finding
+
+    body = findings.join_timeline(
+        [findings.note_entry("de", "OP im April 2024 erfolgt.", "2026-10-30")],
+        findings.render_body("de", summary="Wirbelgleiten Grad 4."),
+    )
+    f = Finding(finding_id="abcdefg", kind="insight", title="Wirbelgleiten", topic="ortho", doc_ids=[347],
+                body=body, lang="de")
+    req = deep_dive_app.research_request(f)
+    assert "OP im April 2024 erfolgt." in req and "Wirbelgleiten Grad 4." in req
+    assert req.rstrip().endswith(deep_dive_app.RESEARCH_LANGUAGE.format(language="German")) or \
+        "German" in req.splitlines()[-1] or "Deutsch" in req.splitlines()[-1]

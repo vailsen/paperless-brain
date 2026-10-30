@@ -433,11 +433,12 @@ def test_a_new_run_gets_its_own_poll_while_the_old_one_still_waits(env, monkeypa
     assert jobs.is_pending(f"deep_dive_poll:{fid}:new")
 
 
-def _poll(env, monkeypatch, answer):
+def _poll(env, monkeypatch, answer, body=None):
     from proactive import findings, internal_client, models
 
     fid = _insight(env, 0, status="interested")
-    asyncio.run(findings.update("alice", fid, lambda x: {"research_run": "run1"}))
+    asyncio.run(findings.update("alice", fid, lambda x: {"research_run": "run1"},
+                                body=(lambda x: body(x.body)) if body else None))
     monkeypatch.setattr(models, "resolve_model", lambda u, t, p=None: _model())
 
     async def result(user, finding_id, run_id, model):
@@ -602,18 +603,20 @@ def test_interesting_again_starts_a_new_research_not_the_deleted_one(env, monkey
     assert started == [fid] and findings.get("alice", fid).research_run == "new-run"
 
 
-def test_a_new_research_result_replaces_the_old_one(env, monkeypatch):
+def test_a_second_research_goes_on_top_of_the_first(env, monkeypatch):
     from proactive import findings
     from proactive.tasks.insights import research_body
 
-    fid = _insight(env, 0, status="interested")
     old = research_body("en", "old-run", "## Summary\n\nOld result.\n")
-    asyncio.run(findings.update("alice", fid, lambda x: None, body=lambda x: old + "\n---\n\n" + x.body))
+    note = findings.note_entry("en", "Operated in April.", "2026-10-30")
     f = _poll(env, monkeypatch, {"state": "done", "summary": "New result.", "recommendation": "",
-                                 "evidence": [], "sources": [], "fetched": {}})
-    assert f.body.count("## Research result (") == 1
-    assert "New result." in f.body and "Old result." not in f.body
-    assert f.body.rstrip().endswith("x")  # the original finding stays below
+                                 "evidence": [], "sources": [], "fetched": {}},
+              body=lambda b: findings.join_timeline([note, old], b))
+    entries, original = findings.split_timeline(f.body, "en")
+    assert [e.split("\n", 1)[0][:20] for e in entries] == [
+        "## Research result (", "## Note (2026-10-30)", "## Research result ("]
+    assert "New result." in entries[0] and "Old result." in entries[2]
+    assert original.startswith("## Summary")  # the original finding stays last
 
 
 def test_a_failed_deep_dive_run_is_not_polled_for_two_weeks(env, monkeypatch):

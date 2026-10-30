@@ -134,7 +134,9 @@ async def deep_dive_poll(job: Job) -> None:
             open_points=res.get("open_points") or [],
         ), note=note,
     )
-    original = findings.strip_research(f.body, f.lang)  # a new result replaces the old
+    # Newest first: a second research (months later, with more documents)
+    # goes on top of the first, which stays — dated, in the timeline.
+    original = f.body
 
     def mutate(x):
         nxt = transition(x.status, "researched")
