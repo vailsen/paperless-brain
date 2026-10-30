@@ -148,11 +148,11 @@ def _meta_line(f, *, topic: bool = True, status: bool = True) -> str:
     from proactive.notify import URGENCY_LABELS
 
     _ = get_translator()
+    from proactive.states import display_status
+
     parts = [_(KIND_LABELS.get(f.kind, f.kind))]
     if status:
-        parts.append(_(STATUS_LABELS.get(f.status, f.status)))
-    if f.status == "snoozed" and f.snoozed_until:
-        parts.append(_("until {date}").format(date=f.snoozed_until))
+        parts.append(_(STATUS_LABELS[display_status(f.status)]))
     parts.append(_("Urgency: {urgency}").format(urgency=_(URGENCY_LABELS.get(f.urgency, f.urgency))))
     if f.deadline:
         parts.append(_("Due {date}").format(date=f.deadline))
@@ -166,6 +166,14 @@ _LIST_CSS = """
   border-left:3px solid var(--c-border);border-radius:8px;cursor:pointer}
 .pb-finding-card:hover{border-color:var(--c-border-strong)}
 .pb-finding-card.is-pressing{border-left-color:var(--c-warn)}
+/* The user's topic colour: the whole outline; "pressing" keeps its left edge. */
+.pb-finding-card.has-topic{border-color:var(--card-topic)}
+.pb-finding-card.has-topic:hover{border-color:var(--card-topic)}
+.pb-finding-card.has-topic.is-pressing{border-left-color:var(--c-warn)}
+.pb-hint-icon{color:var(--c-text-muted)}
+.pb-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.pb-swatch.is-on{border-color:var(--c-text);box-shadow:0 0 0 2px var(--c-surface) inset}
+.pb-swatch-none{background:transparent;border:1px dashed var(--c-text-muted)}
 .pb-finding-card.is-closed{opacity:.6}
 .pb-finding-card .pb-status-icon{color:var(--c-text-2)}
 .pb-finding-head{color:var(--c-text);border-bottom:1px solid var(--c-border)}
@@ -175,11 +183,51 @@ _LIST_CSS = """
 
 
 def _status_icon(status: str, size: str = "1.25rem"):
+    """The icon of the inbox status `status` stands for (a stored status like
+    "surfaced" shows as "open")."""
+    from proactive.states import display_status
+
     _ = get_translator()
-    icon = ui.icon(STATUS_ICONS.get(status, "circle")).classes("pb-status-icon flex-shrink-0").style(
-        f"font-size:{size}")
-    icon.tooltip(_(STATUS_LABELS.get(status, status)))
+    key = status if status in STATUS_LABELS else display_status(status)
+    icon = ui.icon(STATUS_ICONS[key]).classes("pb-status-icon flex-shrink-0").style(f"font-size:{size}")
+    icon.tooltip(_(STATUS_LABELS[key]))
     return icon
+
+
+def _hints(f) -> None:
+    """Small icons for what is not a status: the notification, the research."""
+    from app_ui import findings_view as fv
+
+    _ = get_translator()
+    for hint in (fv.notice(f), fv.research(f)):
+        if hint:
+            ui.icon(hint[0]).classes("pb-hint-icon flex-shrink-0").style("font-size:.95rem").tooltip(_(hint[1]))
+
+
+def _status_select(value: str, on_change) -> None:
+    """The status filter, each status with its icon — "All" on top."""
+    import json
+
+    from app_ui import findings_view as fv
+
+    _ = get_translator()
+    opts = [("all", _("All statuses"), "select_all")]
+    opts += [(k, _(fv.STATUS_LABELS[k]), fv.STATUS_ICONS[k]) for k in fv.STATUS_ORDER]
+    if value not in [o[0] for o in opts]:
+        value = "open"  # a stored status from before the inbox
+    sel = ui.select({k: label for k, label, _i in opts}, value=value, label=_("Status"),
+                    on_change=on_change).props("outlined dark dense options-dense").classes("min-w-0")
+    # NiceGUI hands Quasar the options as {value: index, label}: the slot looks
+    # each icon up by that index.
+    icons = json.dumps([i for _k, _l, i in opts])
+    sel.add_slot("option", (
+        '<q-item v-bind="props.itemProps">'
+        f"<q-item-section avatar style=\"min-width:28px\"><q-icon :name='{icons}[props.opt.value]' size=\"18px\" />"
+        "</q-item-section><q-item-section><q-item-label>{{ props.opt.label }}</q-item-label></q-item-section>"
+        "</q-item>"
+    ))
+    with sel.add_slot("prepend"):
+        ui.icon(next(i for k, _l, i in opts if k == value)).style("font-size:18px")
 
 
 @ui.page("/findings")
@@ -222,11 +270,7 @@ async def findings_page() -> None:
                 state["topic"] = ""  # the topic's last finding is gone
             # Two selects a row: four in one squeeze each to a word on a phone.
             with ui.grid(columns=2).classes("w-full gap-2"):
-                status_opts = {"open": _("Open"), "all": _("All statuses")}
-                status_opts.update({k: _(fv.STATUS_LABELS[k]) for k in fv.STATUS_ORDER})
-                ui.select(status_opts, value=state["status"], label=_("Status"),
-                          on_change=lambda e: _set("status", e.value)).props(
-                    "outlined dark dense options-dense").classes("min-w-0")
+                _status_select(state["status"], lambda e: _set("status", e.value))
                 ui.select({"": _("All topics"), **dict(sorted(topics.items(), key=lambda kv: kv[1].lower()))},
                           value=state["topic"], label=_("Topic"),
                           on_change=lambda e: _set("topic", e.value)).props(
@@ -242,17 +286,23 @@ async def findings_page() -> None:
                           on_change=lambda e: _set("sort", e.value)).props(
                     "outlined dark dense options-dense").classes("min-w-0")
 
+            with ui.row().classes("w-full justify-end -mt-1"):
+                ui.button(_("Topic colours"), icon="palette", on_click=lambda: _topic_colors_dialog(
+                    topics, body.refresh)).props("flat dense no-caps").classes("text-xs")
+
             c = fv.counts(items, today)
-            if c["open"]:
+            if c["open"] or c["relevant"]:
                 with ui.row().classes("w-full items-center gap-x-4 gap-y-1 text-xs").style(
                         "color:var(--c-text-2)"):
                     _summary_item("inbox", _("{n} open").format(n=c["open"]))  # TODO i18n-plural
-                    if c["waiting"]:
-                        _summary_item("notifications_active", _("{n} waiting for you").format(n=c["waiting"]))
+                    if c["relevant"]:
+                        _summary_item("bookmark", _("{n} relevant").format(n=c["relevant"]))  # TODO i18n-plural
                     if c["pressing"]:
                         _summary_item("priority_high", _("{n} pressing").format(n=c["pressing"]), warn=True)
                     if c["researching"]:
                         _summary_item("travel_explore", _("{n} being researched").format(n=c["researching"]))
+
+            _overview(items, today, state, _set)
 
             arranged = fv.arrange(items, status=state["status"], topic=state["topic"],
                                   group=state["group"], sort=state["sort"], today=today)
@@ -271,6 +321,65 @@ async def findings_page() -> None:
                           status=g.kind != "status" and not single_status)
 
         body()
+
+
+def _overview(items: list, today, state: dict, set_state) -> None:
+    """Per topic: what waits and what calls for action (`app_ui/findings_chart`).
+    Collapsible, and remembered with the rest of the view."""
+    from app_ui import findings_chart
+    from app_ui.theme import current_theme
+
+    _ = get_translator()
+    data = findings_chart.rows(items, today)
+    if not data:
+        return
+    with ui.expansion(_("Overview"), icon="bar_chart", value=state.get("chart", True),
+                      on_value_change=lambda e: set_state("chart", bool(e.value))).classes(
+            "w-full pb-overview").props("dense"):
+        ui.label(_("Per topic: right of the line, action is recommended — high or critical urgency, "
+                   "or a deadline within a week.")).classes("text-xs w-full").style("color:var(--c-text-muted)")
+        labels = {"calm": _("In view"), "act": _("Action recommended"), "other": _("Other")}
+        ui.echart(findings_chart.options(data, current_theme(), labels)).classes("w-full").style(
+            f"height:{findings_chart.height_px(data)}px")
+
+
+def _topic_colors_dialog(topics: dict[str, str], refresh) -> None:
+    """Pick a colour per topic: the outline of its cards."""
+    from app_ui import topic_colors
+
+    _ = get_translator()
+    with ui.dialog() as dlg, ui.card().classes("w-full").style("max-width:420px;background:var(--c-surface)"):
+        ui.label(_("Topic colours")).classes("text-base font-semibold")
+        ui.label(_("A colour outlines the cards of a topic. No colour is the default.")).classes(
+            "text-xs").style("color:var(--c-text-muted)")
+        if not topics:
+            ui.label(_("No topics yet.")).classes("text-sm")
+
+        @ui.refreshable
+        def rows() -> None:
+            chosen = topic_colors.colors()
+            for key, label in sorted(topics.items(), key=lambda kv: kv[1].lower()):
+                with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    ui.label(label).classes("text-sm flex-1 min-w-0 truncate")
+                    with ui.row().classes("gap-1 no-wrap flex-shrink-0"):
+                        def pick(k=key, s=None):
+                            topic_colors.set_color(k, s)
+                            rows.refresh()
+
+                        ui.element("div").classes("pb-swatch pb-swatch-none" + (
+                            " is-on" if key not in chosen else "")).on("click", lambda k=key: pick(k, None)) \
+                            .tooltip(_("No colour"))
+                        for s in topic_colors.SLOTS:
+                            ui.element("div").classes("pb-swatch" + (" is-on" if chosen.get(key) == s else "")) \
+                                .style(f"background:{topic_colors.css_var(s)}") \
+                                .on("click", lambda k=key, s=s: pick(k, s))
+
+        # A plain scrolling column: a q-scroll-area shrink-fits to its widest row.
+        with ui.column().classes("w-full gap-2 min-w-0").style("max-height:60vh;overflow-y:auto"):
+            rows()
+        with ui.row().classes("w-full justify-end"):
+            ui.button(_("Close"), on_click=lambda: (dlg.close(), refresh())).props("flat dense no-caps")
+    dlg.open()
 
 
 def _summary_item(icon: str, text: str, warn: bool = False) -> None:
@@ -300,17 +409,26 @@ def _heading(g, *, top: bool) -> None:
 def _card(f, today, *, topic: bool, status: bool) -> None:
     from app_ui import findings_view as fv
 
+    from app_ui import topic_colors
+
     cls = "pb-finding-card w-full p-3 min-w-0"
     if fv.is_pressing(f, today):
         cls += " is-pressing"
     if f.status in fv.CLOSED_STATUSES:
         cls += " is-closed"
-    with ui.row().classes(cls + " items-start gap-3 no-wrap").on(
+    slot = topic_colors.colors().get(f.topic or "")
+    style = ""
+    if slot:
+        cls += " has-topic"
+        style = f"--card-topic:{topic_colors.css_var(slot)}"
+    with ui.row().classes(cls + " items-start gap-3 no-wrap").style(style).on(
             "click", lambda fid=f.finding_id: ui.navigate.to(f"/findings/{fid}")):
         _status_icon(f.status)
         with ui.column().classes("gap-0 flex-1 min-w-0"):
             ui.label(f.title).classes("text-sm font-semibold text-gray-100 w-full truncate")
             ui.label(_meta_line(f, topic=topic, status=status)).classes("text-xs text-gray-400 w-full")
+        with ui.row().classes("items-center gap-1 no-wrap flex-shrink-0"):
+            _hints(f)
 
 
 @ui.page("/findings/{finding_id}")
@@ -396,6 +514,7 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             ui.label(f.title).classes("text-xl font-bold text-gray-100 w-full break-words")
             with ui.row().classes("w-full items-center gap-2 no-wrap"):
                 _status_icon(f.status, "1.1rem")
+                _hints(f)
                 ui.label(_meta_line(f)).classes("text-xs text-gray-400 min-w-0 flex-1")
             if f.doc_ids:
                 with ui.row().classes("gap-2 flex-wrap"):
@@ -480,8 +599,12 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             if allowed:
                 with ui.row().classes("gap-2 flex-wrap"):
                     for a in allowed:
-                        label = _("Research again") if (a == "interested" and f.status == "researched") \
-                            else _(ACTION_LABELS[a])
+                        if a == "interested":
+                            # Research is an action, not a status any more.
+                            label = _("Research again") if (f.status == "researched" or f.research_note) \
+                                else _("Start research")
+                        else:
+                            label = _(ACTION_LABELS[a])
                         ui.button(label, on_click=lambda a=a: _do(a)).props("flat dense")
 
             _note_box(f)

@@ -46,6 +46,7 @@ def _message(lang: str, outcome: str) -> str:
     return {
         "interested": _("Noted — a closer look is being prepared."),
         "later": _("Snoozed for a week."),
+        "relevant": _("Kept in view — a reminder will bring it back."),
         "dismiss": _("Dismissed."),
         "never": _("Understood — no more messages on this topic."),
         "done": _("Marked as done."),
@@ -91,7 +92,8 @@ async def react(user: str, finding_id: str, action: str, *, channel: str) -> str
     log.info("%s: %s on finding %s via %s → %s", user, action, finding_id, channel, f.status)
 
     if f.topic:
-        if action == "interested":
+        if action in ("interested", "relevant"):
+            # "It matters to me" — the same signal for the topic's weight.
             await interests.record(user, f.topic, "interested")
         elif action == "never":
             await interests.record(user, f.topic, "never", "dismissed", mute=True)

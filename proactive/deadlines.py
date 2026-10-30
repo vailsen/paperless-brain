@@ -112,7 +112,7 @@ async def remind(user: str, offsets: list[int]) -> int:
     today = clock.local_now().date()
     sent = 0
     for f in findings.list_findings(user):
-        if f.kind != "deadline" or f.status not in ("new", "surfaced", "held", "snoozed"):
+        if f.kind != "deadline" or f.status not in ("new", "surfaced", "held", "snoozed", "relevant"):
             continue
         due = due_offsets(f, offsets, today)
         if not due:
@@ -153,8 +153,10 @@ async def _resend(user: str, f: findings.Finding, text: str, *, counts: bool) ->
     from proactive import notify
     from proactive.notify import DEADLINE_ACTIONS
 
-    if f.status == "snoozed":
-        await findings.update(user, f.finding_id, lambda x: {"status": "surfaced", "snoozed_until": None} if x.status == "snoozed" else None)
+    if f.status in ("snoozed", "relevant"):
+        # A reminder puts a finding the user set aside back in the inbox.
+        await findings.update(user, f.finding_id, lambda x: (
+            {"status": "surfaced", "snoozed_until": None} if x.status in ("snoozed", "relevant") else None))
     notify.enqueue(notify.compose(
         user, f.lang, finding_id=f.finding_id, title=f.title, urgency=f.urgency,
         note=text, actions=DEADLINE_ACTIONS, counts=counts,

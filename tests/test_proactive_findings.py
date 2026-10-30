@@ -113,9 +113,11 @@ def test_unknown_event_is_an_error():
 
 
 def test_buttons_follow_kind_and_status():
-    assert reactions_for("surfaced", "deadline") == ["done", "dismiss", "wrong"]
-    assert reactions_for("surfaced", "insight") == ["interested", "later", "dismiss", "never", "done"]
-    assert reactions_for("new", "insight") == ["interested", "later", "dismiss", "never", "done"]
+    assert reactions_for("surfaced", "deadline") == ["relevant", "done", "dismiss", "wrong"]
+    assert reactions_for("surfaced", "insight") == ["relevant", "interested", "dismiss", "never", "done"]
+    assert reactions_for("new", "insight") == ["relevant", "interested", "dismiss", "never", "done"]
+    assert reactions_for("relevant", "deadline") == ["done", "dismiss", "wrong"]
+    assert reactions_for("relevant", "insight") == ["interested", "dismiss", "never", "done"]
     assert reactions_for("dismissed", "insight") == ["restore"]
     assert reactions_for("done", "deadline") == ["restore"]
 

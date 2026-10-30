@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-INDEXED_STATUSES = frozenset({"surfaced", "interested", "researched", "done"})
+INDEXED_STATUSES = frozenset({"surfaced", "relevant", "interested", "researched", "done"})
 
 
 def index_meta(rel_path, meta: dict) -> dict | None:

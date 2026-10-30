@@ -419,6 +419,7 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget — or when the user asks for it ("Analyse now", `sweep.start_now`, one document per job on the same cursor).
 - **A chatting user gets the GPU first.** The worker starts no LLM job while the app made an inference request within `ollama_watchdog.APP_YIELD_S` (`app_busy`); a running job finishes first. A deep dive runs in the app, so it yields on its own: `werkbank.llm_lane.yield_to_chat` makes every local-lane call of that run wait while `chat_busy()` (a chat request within `APP_YIELD_S`, process-local).
 - **A deep dive does not hold a request open for the length of a run.** `deep_dive` starts the Werkbank run in the app (listed at once, status "running"), writes `research_run` into the finding, and `deep_dive_poll` (not gated: the run keeps `app_busy` true) asks for the result. A deleted run leaves the finding interested and unresearched; a run nothing works on (app restart) waits for the user to resume it in the Werkbank. Every "Interesting" clears `research_run`/`research_note` — a new interest is a new research (reusing a deleted run's id polled nothing forever); the finding page offers "Research again" when nothing runs or is queued. Links to a deleted run or note render as deleted.
+- **The user sees an inbox: open, relevant, done, dismissed** (`states.DISPLAY` / `display_status`). The stored statuses stay — new / surfaced / held / snoozed are the notification bookkeeping behind "open", relevant / interested / researched sit behind "relevant" — but no UI lists them as statuses; the notification and the research are hints on the card (`findings_view.notice` / `research`). "Relevant" takes a finding out of the inbox and counts as interest for its topic; a deadline reminder puts it back (`remind` → surfaced). "Later" is no longer offered (the reaction stays for old message links).
 - **A finding body is a timeline, newest first** (`findings.split_timeline` / `join_timeline`): research results (`## Research result (date)`) and the user's notes (`## Note (date)`, `findings.add_note`), each closed by `---`, above the original finding, which has no heading of its own in the file (the page and the PDF label it `original_heading`). A second research — "Research again" on a researched finding, `researched → interested` — stacks above the first instead of replacing it. Series merges rebuild only the original and keep the entries above it. The research request carries the user's notes and ends with the findings language (`RESEARCH_LANGUAGE`): the request is English, and every Werkbank role answers "in the language of the request".
 - **Paperless ignores filters it does not know** (`id__gt` among them) and answers as if unfiltered. Id ranges are filtered in code (`paperless_ro.ids_after`); never trust a document filter that no test pins against a real response.
 - **Every proactive message waits out the user's quiet hours** (`notify.quiet_wait`, per user, default 22:00–07:00); only the test message, which the user just asked for, does not. App events (sync, Werkbank) are not proactive messages.
@@ -939,10 +940,11 @@ Prove the full loop works before touching the rest of the app.
 Hard invariants for anything rendered to a user. Full rationale and the phased
 work that established them: `docs/ui-polish-tasks.md`.
 
-- **Colour encodes state, not identity — with one exception.** Tag chips inherit hue from
-  Paperless because the user assigned it and it enables cross-document grouping. Everything
-  else in the UI (icons, borders, buttons, badges) is neutral unless it represents a state the
-  user must react to.
+- **Colour encodes state, not identity — with two exceptions, both chosen by the user.** Tag
+  chips inherit hue from Paperless because the user assigned it and it enables cross-document
+  grouping. Finding topics get the colour the user picks (`app_ui/topic_colors.py`, tokens
+  `--topic-1…8`, outline of the card only). Everything else in the UI (icons, borders, buttons,
+  badges) is neutral unless it represents a state the user must react to.
 - **Tag row = Paperless data only.** Anything PaperSage generates (action flags, ingestion
   status, confidence) renders outside the tag row with its own treatment.
 - **One accent meaning.** Steel (`--c-accent`) = the user's own input, the active selection
