@@ -30,13 +30,14 @@ URGENCY_LABELS = {
 ACTION_LABELS = {
     "interested": N_("Interesting"),
     "later": N_("Later"),
+    "relevant": N_("Relevant"),
     "dismiss": N_("Not relevant"),
     "never": N_("Never again"),
     "done": N_("Done"),
     "wrong": N_("Wrongly detected"),
     "restore": N_("Restore"),
 }
-INSIGHT_ACTIONS = ["interested", "later", "never"]
+INSIGHT_ACTIONS = ["relevant", "interested", "never"]
 DEADLINE_ACTIONS = ["done", "dismiss", "wrong"]
 
 

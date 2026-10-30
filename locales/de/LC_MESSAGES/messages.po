@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-30 08:18+0100\n"
+"POT-Creation-Date: 2026-10-30 10:11+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -420,7 +420,7 @@ msgstr "{type}: {value}  ({n} Dok.)"
 msgid "Loading…"
 msgstr "Lade…"
 
-#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:364
+#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:482
 #, python-brace-format
 msgid "#{id} not found"
 msgstr "#{id} nicht gefunden"
@@ -494,16 +494,16 @@ msgstr "Kein extrahierter Text verfügbar."
 msgid "Actions"
 msgstr "Aktionen"
 
-#: app_ui/document_dialog.py:610 app_ui/pages/dashboard.py:1828
+#: app_ui/document_dialog.py:610 app_ui/pages/dashboard.py:1842
 msgid "Description"
 msgstr "Beschreibung"
 
-#: app_ui/document_dialog.py:617 app_ui/findings_view.py:55
+#: app_ui/document_dialog.py:617 app_ui/findings_view.py:72
 #: app_ui/pages/findings.py:29
 msgid "Deadline"
 msgstr "Frist"
 
-#: app_ui/document_dialog.py:624 app_ui/pages/dashboard.py:1784
+#: app_ui/document_dialog.py:624 app_ui/pages/dashboard.py:1798
 msgid "Certain"
 msgstr "Sicher"
 
@@ -629,73 +629,73 @@ msgstr "Fehler beim Neu-Einlesen: {err}"
 msgid "Re-ingest (extraction + embedding)"
 msgstr "Neu einlesen (Extraktion + Embedding)"
 
-#: app_ui/findings_view.py:21
-msgid "New"
-msgstr "Neu"
+#: app_ui/findings_view.py:28
+msgid "Inbox"
+msgstr "Offen"
 
-#: app_ui/findings_view.py:22
-msgid "Notified"
-msgstr "Benachrichtigt"
+#: app_ui/findings_view.py:29 proactive/notify/__init__.py:33
+msgid "Relevant"
+msgstr "Relevant"
 
-#: app_ui/findings_view.py:23
-msgid "Held back"
-msgstr "Zurückgehalten"
-
-#: app_ui/findings_view.py:24 proactive/notify/__init__.py:31
-msgid "Interesting"
-msgstr "Interessant"
-
-#: app_ui/findings_view.py:25
-msgid "Researched"
-msgstr "Recherchiert"
-
-#: app_ui/findings_view.py:26 proactive/notify/__init__.py:35
+#: app_ui/findings_view.py:30 proactive/notify/__init__.py:36
 #: werkbank/ui/module_page.py:180
 msgid "Done"
 msgstr "Fertig"
 
-#: app_ui/findings_view.py:27
+#: app_ui/findings_view.py:31
 msgid "Dismissed"
 msgstr "Verworfen"
 
-#: app_ui/findings_view.py:28 proactive/notify/__init__.py:32
-msgid "Later"
-msgstr "Später"
+#: app_ui/findings_view.py:49
+msgid "Held back — not sent"
+msgstr "Zurückgehalten — nicht gesendet"
 
-#: app_ui/findings_view.py:47
+#: app_ui/findings_view.py:51
+msgid "Notified"
+msgstr "Benachrichtigt"
+
+#: app_ui/findings_view.py:58
+msgid "Research running"
+msgstr "Recherche läuft"
+
+#: app_ui/findings_view.py:60
+msgid "Researched"
+msgstr "Recherchiert"
+
+#: app_ui/findings_view.py:64
 msgid "No grouping"
 msgstr "Keine Gruppierung"
 
-#: app_ui/findings_view.py:48
+#: app_ui/findings_view.py:65
 msgid "By topic"
 msgstr "Nach Thema"
 
-#: app_ui/findings_view.py:49
+#: app_ui/findings_view.py:66
 msgid "By status"
 msgstr "Nach Status"
 
-#: app_ui/findings_view.py:50
+#: app_ui/findings_view.py:67
 msgid "By topic, then status"
 msgstr "Nach Thema, dann Status"
 
-#: app_ui/findings_view.py:53 app_ui/pages/browser.py:320
+#: app_ui/findings_view.py:70 app_ui/pages/browser.py:320
 msgid "Relevance"
 msgstr "Relevanz"
 
-#: app_ui/findings_view.py:54
+#: app_ui/findings_view.py:71
 msgid "Urgency"
 msgstr "Dringlichkeit"
 
-#: app_ui/findings_view.py:56
+#: app_ui/findings_view.py:73
 msgid "Newest first"
 msgstr "Neueste zuerst"
 
-#: app_ui/findings_view.py:57
+#: app_ui/findings_view.py:74
 msgid "Oldest first"
 msgstr "Älteste zuerst"
 
 #: app_ui/inference_status.py:13 app_ui/layout.py:43 app_ui/pages/chat.py:1735
-#: app_ui/pages/dashboard.py:423 app_ui/pages/settings.py:398
+#: app_ui/pages/dashboard.py:411 app_ui/pages/settings.py:398
 msgid "Chat"
 msgstr "Chat"
 
@@ -704,7 +704,7 @@ msgid "Ingest"
 msgstr "Einlesen"
 
 #: app_ui/inference_status.py:15 app_ui/layout.py:44 app_ui/pages/chat.py:732
-#: app_ui/pages/dashboard.py:430
+#: app_ui/pages/dashboard.py:418
 msgid "Deep research"
 msgstr "Tiefenrecherche"
 
@@ -768,19 +768,19 @@ msgstr "vor {n} Std."
 msgid "Last: {rate} tokens/s · {what} · {when}"
 msgstr "Zuletzt: {rate} Tokens/s · {what} · {when}"
 
-#: app_ui/layout.py:42 app_ui/pages/dashboard.py:407 tests/test_i18n.py:119
+#: app_ui/layout.py:42 app_ui/pages/dashboard.py:395 tests/test_i18n.py:119
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: app_ui/layout.py:45 app_ui/pages/dashboard.py:437
+#: app_ui/layout.py:45 app_ui/pages/dashboard.py:425
 msgid "Browser"
 msgstr "Browser"
 
-#: app_ui/layout.py:46 app_ui/pages/dashboard.py:444
+#: app_ui/layout.py:46 app_ui/pages/dashboard.py:432
 msgid "Note vault"
 msgstr "Notizspeicher"
 
-#: app_ui/layout.py:56 app_ui/pages/findings.py:205
+#: app_ui/layout.py:56 app_ui/pages/findings.py:253
 msgid "Findings"
 msgstr "Hinweise"
 
@@ -843,7 +843,7 @@ msgstr "Audiodatei hochladen"
 msgid "The file exceeds {n} MB."
 msgstr "Die Datei überschreitet {n} MB."
 
-#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:231
+#: app_ui/memo_dialog.py:303 app_ui/pages/findings.py:275
 msgid "Topic"
 msgstr "Thema"
 
@@ -1166,7 +1166,7 @@ msgstr "Dieser Code ist ungültig oder abgelaufen."
 msgid "Email address confirmed."
 msgstr "E-Mail-Adresse bestätigt."
 
-#: app_ui/pages/findings.py:474 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:593 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr "Bestätigen"
 
@@ -1373,13 +1373,13 @@ msgstr "letzte Nachricht angenommen {when}"
 msgid "last message refused ({status}) {when}"
 msgstr "letzte Nachricht abgelehnt ({status}) {when}"
 
-#: app_ui/pages/findings.py:156 app_ui/research_routes.py:52
-#: proactive/notify/__init__.py:104
+#: app_ui/pages/findings.py:156 app_ui/research_routes.py:71
+#: proactive/notify/__init__.py:105
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr "Dringlichkeit: {urgency}"
 
-#: app_ui/research_routes.py:62
+#: app_ui/research_routes.py:82
 msgid "Finding"
 msgstr "Hinweis"
 
@@ -1538,9 +1538,9 @@ msgid "Start dry run"
 msgstr "Probelauf starten"
 
 #: app_ui/pages/chat.py:3820 app_ui/pages/dashboard.py:1125
-#: app_ui/pages/dashboard.py:1152 app_ui/title_rename_settings.py:231
-#: app_ui/title_rename_settings.py:266 app_ui/title_rename_settings.py:268
-#: werkbank/v2/ui/board.py:140
+#: app_ui/pages/dashboard.py:1152 app_ui/pages/findings.py:381
+#: app_ui/title_rename_settings.py:231 app_ui/title_rename_settings.py:266
+#: app_ui/title_rename_settings.py:268 werkbank/v2/ui/board.py:140
 msgid "Close"
 msgstr "Schließen"
 
@@ -1868,7 +1868,7 @@ msgstr "Fällig: {date}"
 msgid "Attachments are read-only."
 msgstr "Anhänge sind schreibgeschützt."
 
-#: app_ui/pages/brain.py:1252 app_ui/pages/findings.py:225
+#: app_ui/pages/brain.py:1252
 msgid "Open"
 msgstr "Öffnen"
 
@@ -1896,14 +1896,14 @@ msgstr "Vor"
 msgid "Range"
 msgstr "Zeitraum"
 
-#: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:342
-#: app_ui/pages/findings.py:346
+#: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:330
+#: app_ui/pages/findings.py:464
 #, python-brace-format
 msgid "#{id} unpinned"
 msgstr "#{id} gelöst"
 
-#: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:345
-#: app_ui/pages/findings.py:350
+#: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:333
+#: app_ui/pages/findings.py:468
 #, python-brace-format
 msgid "#{id} pinned"
 msgstr "#{id} angeheftet"
@@ -1953,7 +1953,7 @@ msgstr "Korrespondent"
 msgid "Document type"
 msgstr "Dokumententyp"
 
-#: app_ui/pages/browser.py:323 app_ui/pages/findings.py:241
+#: app_ui/pages/browser.py:323 app_ui/pages/findings.py:285
 msgid "Sort"
 msgstr "Sortierung"
 
@@ -2031,7 +2031,7 @@ msgid ": Doc #{id}"
 msgstr ": Dok. #{id}"
 
 #: app_ui/pages/chat.py:724 app_ui/pages/chat.py:2822
-#: app_ui/pages/dashboard.py:482 app_ui/pages/settings.py:344
+#: app_ui/pages/dashboard.py:470 app_ui/pages/settings.py:344
 msgid "Documents"
 msgstr "Dokumente"
 
@@ -2295,7 +2295,7 @@ msgstr "Hybrid"
 msgid "Crawl4AI (thorough)"
 msgstr "Crawl4AI (gründlich)"
 
-#: app_ui/pages/chat.py:1915
+#: app_ui/pages/chat.py:1915 app_ui/pages/findings.py:341
 msgid "Other"
 msgstr "Sonstige"
 
@@ -2607,59 +2607,59 @@ msgstr "Dokument #{id} herunterladen"
 msgid "New conversation"
 msgstr "Neues Gespräch"
 
-#: app_ui/pages/dashboard.py:312
+#: app_ui/pages/dashboard.py:300
 msgid "January"
 msgstr "Januar"
 
-#: app_ui/pages/dashboard.py:312
+#: app_ui/pages/dashboard.py:300
 msgid "February"
 msgstr "Februar"
 
-#: app_ui/pages/dashboard.py:312
+#: app_ui/pages/dashboard.py:300
 msgid "March"
 msgstr "März"
 
-#: app_ui/pages/dashboard.py:312
+#: app_ui/pages/dashboard.py:300
 msgid "April"
 msgstr "April"
 
-#: app_ui/pages/dashboard.py:313
+#: app_ui/pages/dashboard.py:301
 msgid "May"
 msgstr "Mai"
 
-#: app_ui/pages/dashboard.py:313
+#: app_ui/pages/dashboard.py:301
 msgid "June"
 msgstr "Juni"
 
-#: app_ui/pages/dashboard.py:313
+#: app_ui/pages/dashboard.py:301
 msgid "July"
 msgstr "Juli"
 
-#: app_ui/pages/dashboard.py:313
+#: app_ui/pages/dashboard.py:301
 msgid "August"
 msgstr "August"
 
-#: app_ui/pages/dashboard.py:314
+#: app_ui/pages/dashboard.py:302
 msgid "September"
 msgstr "September"
 
-#: app_ui/pages/dashboard.py:314
+#: app_ui/pages/dashboard.py:302
 msgid "October"
 msgstr "Oktober"
 
-#: app_ui/pages/dashboard.py:314
+#: app_ui/pages/dashboard.py:302
 msgid "November"
 msgstr "November"
 
-#: app_ui/pages/dashboard.py:314
+#: app_ui/pages/dashboard.py:302
 msgid "December"
 msgstr "Dezember"
 
-#: app_ui/pages/dashboard.py:411
+#: app_ui/pages/dashboard.py:399
 msgid "Help — Module overview"
 msgstr "Hilfe — Modulübersicht"
 
-#: app_ui/pages/dashboard.py:425
+#: app_ui/pages/dashboard.py:413
 msgid ""
 "AI assistant with access to your document archive, your memory, the web, "
 "email and calendar. Ask questions, have documents summarized, draft "
@@ -2670,7 +2670,7 @@ msgstr ""
 "Briefe erstellen oder Recherchen durchführen. Wähle oben das gewünschte "
 "KI-Modell."
 
-#: app_ui/pages/dashboard.py:432
+#: app_ui/pages/dashboard.py:420
 msgid ""
 "Autonomous multi-step agent for complex tasks. Enter a request → the AI "
 "plans it, breaks it into sub-tasks and carries them out on its own "
@@ -2687,7 +2687,7 @@ msgstr ""
 "Nebenkostenabrechnungen der letzten 3 Jahre', 'Recherchiere aktuelle "
 "Förderprogramme für mein Projekt'."
 
-#: app_ui/pages/dashboard.py:439
+#: app_ui/pages/dashboard.py:427
 msgid ""
 "Full-screen view of the document archive (Paperless-ngx). Search by full "
 "text or semantic similarity, filter by type, correspondent, tag or date. "
@@ -2702,7 +2702,7 @@ msgstr ""
 "die du im Chat oder in der Tiefenrecherche referenzierst, kommen aus "
 "diesem Archiv."
 
-#: app_ui/pages/dashboard.py:446
+#: app_ui/pages/dashboard.py:434
 msgid ""
 "Your notes and the assistant's long-term memory, in one place — a file "
 "tree with a markdown editor. Write notes here or in Obsidian; edit their "
@@ -2719,46 +2719,62 @@ msgstr ""
 " Auch Sprachmemos landen hier, und „Träumen“ (Dashboard) räumt die "
 "Gedächtniseinträge des Assistenten auf."
 
-#: app_ui/pages/dashboard.py:483
+#: app_ui/pages/dashboard.py:471
 msgid "Loading..."
 msgstr "Lade..."
 
-#: app_ui/pages/dashboard.py:487 app_ui/pages/dashboard.py:1019
+#: app_ui/pages/dashboard.py:475 app_ui/pages/dashboard.py:1019
 #, python-brace-format
 msgid "Last sync: {ts}"
 msgstr "Letzter Sync: {ts}"
 
-#: app_ui/pages/dashboard.py:503
+#: app_ui/pages/dashboard.py:491
 msgid "Synchronize Paperless now"
 msgstr "Paperless jetzt synchronisieren"
 
-#: app_ui/pages/dashboard.py:509
+#: app_ui/pages/dashboard.py:497
 msgid "Stop the sync after the current document"
 msgstr "Sync nach dem aktuellen Dokument stoppen"
 
-#: app_ui/pages/dashboard.py:516 app_ui/pages/dashboard.py:752
+#: app_ui/pages/dashboard.py:504 app_ui/pages/dashboard.py:752
 msgid "Sync log"
 msgstr "Sync-Protokoll"
 
-#: app_ui/pages/dashboard.py:519
+#: app_ui/pages/dashboard.py:507
 msgid "Brain vault"
 msgstr "Brain-Vault"
 
-#: app_ui/pages/dashboard.py:528
+#: app_ui/pages/dashboard.py:516
 msgid "Synchronize vault now"
 msgstr "Vault jetzt synchronisieren"
 
-#: app_ui/pages/dashboard.py:534
+#: app_ui/pages/dashboard.py:522
 msgid "Analyze and clean up memory"
 msgstr "Gedächtnis analysieren und bereinigen"
 
-#: app_ui/pages/dashboard.py:545
+#: app_ui/pages/dashboard.py:533
 msgid "System status"
 msgstr "Systemstatus"
 
-#: app_ui/pages/dashboard.py:554
+#: app_ui/pages/dashboard.py:544
 msgid "Ollama (Local LLM)"
 msgstr "Ollama (Local LLM)"
+
+#: app_ui/pages/dashboard.py:548
+msgid "SearXNG (web search)"
+msgstr "SearXNG (Websuche)"
+
+#: app_ui/pages/dashboard.py:550
+msgid "Whisper (transcription)"
+msgstr "Whisper (Transkription)"
+
+#: app_ui/pages/dashboard.py:552
+msgid "Proactive worker"
+msgstr "Proaktiver Worker"
+
+#: app_ui/pages/dashboard.py:554
+msgid "Email sending (SMTP)"
+msgstr "E-Mail-Versand (SMTP)"
 
 #: app_ui/pages/dashboard.py:573
 msgid "Wake up (WoL)"
@@ -2817,7 +2833,7 @@ msgstr "Sync abgeschlossen"
 msgid "{new} new, {removed} removed"
 msgstr "{new} neu, {removed} entfernt"
 
-#: app_ui/pages/dashboard.py:1024 app_ui/pages/dashboard.py:1493
+#: app_ui/pages/dashboard.py:1024 app_ui/pages/dashboard.py:1498
 #, python-brace-format, python-format
 msgid "{pct} % indexed in ChromaDB"
 msgstr "{pct} % in ChromaDB indexiert"
@@ -3008,7 +3024,7 @@ msgid "ssh exited with {code}"
 msgstr "ssh endete mit Code {code}"
 
 #: app_ui/pages/dashboard.py:1420 app_ui/pages/dashboard.py:1424
-#: app_ui/pages/dashboard.py:1502
+#: app_ui/pages/dashboard.py:1511
 msgid "Online"
 msgstr "Online"
 
@@ -3017,8 +3033,9 @@ msgstr "Online"
 msgid "SSH error: {err}"
 msgstr "SSH Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1434 app_ui/pages/dashboard.py:1502
-#: app_ui/pages/dashboard.py:1507
+#: app_ui/pages/dashboard.py:1434 app_ui/pages/dashboard.py:1508
+#: app_ui/pages/dashboard.py:1510 app_ui/pages/dashboard.py:1511
+#: app_ui/pages/dashboard.py:1519
 msgid "Offline"
 msgstr "Offline"
 
@@ -3043,84 +3060,97 @@ msgstr "Falsches Passwort"
 msgid "Shut down"
 msgstr "Herunterfahren"
 
-#: app_ui/pages/dashboard.py:1496
+#: app_ui/pages/dashboard.py:1501
 msgid "Paperless not reachable"
 msgstr "Paperless nicht erreichbar"
 
-#: app_ui/pages/dashboard.py:1505
+#: app_ui/pages/dashboard.py:1513 werkbank/ui/module_page.py:177
+#: werkbank/ui/task_dialog.py:498
+msgid "Running"
+msgstr "Läuft"
+
+#: app_ui/pages/dashboard.py:1513
+msgid "No sign of life"
+msgstr "Kein Lebenszeichen"
+
+#: app_ui/pages/dashboard.py:1514
+msgid "Configured"
+msgstr "Konfiguriert"
+
+#: app_ui/pages/dashboard.py:1517
 #, python-brace-format
 msgid "{n} docs"
 msgstr "{n} Docs"
 
-#: app_ui/pages/dashboard.py:1505 werkbank/ui/module_page.py:181
+#: app_ui/pages/dashboard.py:1517 werkbank/ui/module_page.py:181
 msgid "Error"
 msgstr "Fehler"
 
-#: app_ui/pages/dashboard.py:1552 app_ui/pages/dashboard.py:1554
-#: app_ui/pages/dashboard.py:1567
+#: app_ui/pages/dashboard.py:1566 app_ui/pages/dashboard.py:1568
+#: app_ui/pages/dashboard.py:1581
 msgid "Not configured"
 msgstr "Nicht konfiguriert"
 
-#: app_ui/pages/dashboard.py:1563
+#: app_ui/pages/dashboard.py:1577
 #, python-brace-format
 msgid "iCal ({n} calendars)"
 msgstr "iCal ({n} Kalender)"
 
-#: app_ui/pages/dashboard.py:1619
+#: app_ui/pages/dashboard.py:1633
 msgid "upcoming"
 msgstr "bevorstehend"
 
-#: app_ui/pages/dashboard.py:1621
+#: app_ui/pages/dashboard.py:1635
 #, python-brace-format
 msgid "{n} overdue"
 msgstr "{n} überfällig"
 
-#: app_ui/pages/dashboard.py:1623
+#: app_ui/pages/dashboard.py:1637
 msgid "Show overdue deadlines only"
 msgstr "Nur überfällige Fristen anzeigen"
 
-#: app_ui/pages/dashboard.py:1722
+#: app_ui/pages/dashboard.py:1736
 msgid "No deadlines found."
 msgstr "Keine Fristen gefunden."
 
-#: app_ui/pages/dashboard.py:1733
+#: app_ui/pages/dashboard.py:1747
 msgid "Overdue only"
 msgstr "Nur überfällige"
 
-#: app_ui/pages/dashboard.py:1736
+#: app_ui/pages/dashboard.py:1750
 msgid "Show all"
 msgstr "Alle anzeigen"
 
-#: app_ui/pages/dashboard.py:1748
+#: app_ui/pages/dashboard.py:1762
 #, python-brace-format
 msgid "{n} hidden"
 msgstr "{n} ausgeblendet"
 
-#: app_ui/pages/dashboard.py:1751
+#: app_ui/pages/dashboard.py:1765
 msgid "Show"
 msgstr "Einblenden"
 
-#: app_ui/pages/dashboard.py:1751 app_ui/pages/dashboard.py:1801
+#: app_ui/pages/dashboard.py:1765 app_ui/pages/dashboard.py:1815
 msgid "Hide"
 msgstr "Ausblenden"
 
-#: app_ui/pages/dashboard.py:1784
+#: app_ui/pages/dashboard.py:1798
 msgid "Uncertain"
 msgstr "Unsicher"
 
-#: app_ui/pages/dashboard.py:1801
+#: app_ui/pages/dashboard.py:1815
 msgid "Show again"
 msgstr "Wieder anzeigen"
 
-#: app_ui/pages/dashboard.py:1826 proactive/deadlines.py:38
+#: app_ui/pages/dashboard.py:1840 proactive/deadlines.py:38
 msgid "Date"
 msgstr "Datum"
 
-#: app_ui/pages/dashboard.py:1829
+#: app_ui/pages/dashboard.py:1843
 msgid "Doc"
 msgstr "Dok"
 
-#: app_ui/pages/dashboard.py:1858
+#: app_ui/pages/dashboard.py:1872
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr "Seite {page} / {total}  ·  {count} Einträge"
@@ -3134,126 +3164,161 @@ msgstr "Hinweis"
 msgid "{label} (deleted)"
 msgstr "{label} (gelöscht)"
 
-#: app_ui/pages/findings.py:155
-#, python-brace-format
-msgid "until {date}"
-msgstr "bis {date}"
-
 #: app_ui/pages/findings.py:158
 #, python-brace-format
 msgid "Due {date}"
 msgstr "Fällig {date}"
 
-#: app_ui/pages/findings.py:225
+#: app_ui/pages/findings.py:214
 msgid "All statuses"
 msgstr "Alle Status"
 
-#: app_ui/pages/findings.py:227 werkbank/ui/module_page.py:247
+#: app_ui/pages/findings.py:218 werkbank/ui/module_page.py:247
 msgid "Status"
 msgstr "Status"
 
-#: app_ui/pages/findings.py:230
+#: app_ui/pages/findings.py:274
 msgid "All topics"
 msgstr "Alle Themen"
 
-#: app_ui/pages/findings.py:238
+#: app_ui/pages/findings.py:282
 msgid "Group"
 msgstr "Gruppieren"
 
-#: app_ui/pages/findings.py:249
+#: app_ui/pages/findings.py:290 app_ui/pages/findings.py:352
+msgid "Topic colours"
+msgstr "Themenfarben"
+
+#: app_ui/pages/findings.py:297
 #, python-brace-format
 msgid "{n} open"
 msgstr "{n} offen"
 
-#: app_ui/pages/findings.py:251
+#: app_ui/pages/findings.py:299
 #, python-brace-format
-msgid "{n} waiting for you"
-msgstr "{n} warten auf dich"
+msgid "{n} relevant"
+msgstr "{n} relevant"
 
-#: app_ui/pages/findings.py:253
+#: app_ui/pages/findings.py:301
 #, python-brace-format
 msgid "{n} pressing"
 msgstr "{n} dringend"
 
-#: app_ui/pages/findings.py:255
+#: app_ui/pages/findings.py:303
 #, python-brace-format
 msgid "{n} being researched"
 msgstr "{n} in Recherche"
 
-#: app_ui/pages/findings.py:260
+#: app_ui/pages/findings.py:310
 msgid "Nothing here yet."
 msgstr "Hier ist noch nichts."
 
-#: app_ui/pages/findings.py:286
+#: app_ui/pages/findings.py:336
+msgid "Overview"
+msgstr "Übersicht"
+
+#: app_ui/pages/findings.py:339
+msgid ""
+"Per topic: right of the line, action is recommended — high or critical "
+"urgency, or a deadline within a week."
+msgstr ""
+"Pro Thema: rechts der Linie ist Handlung empfohlen — hohe oder kritische "
+"Dringlichkeit oder eine Frist innerhalb einer Woche."
+
+#: app_ui/pages/findings.py:341
+msgid "In view"
+msgstr "Im Blick"
+
+#: app_ui/pages/findings.py:341
+msgid "Action recommended"
+msgstr "Handlung empfohlen"
+
+#: app_ui/pages/findings.py:353
+msgid "A colour outlines the cards of a topic. No colour is the default."
+msgstr "Eine Farbe umrandet die Karten eines Themas. Standard ist keine Farbe."
+
+#: app_ui/pages/findings.py:356
+msgid "No topics yet."
+msgstr "Noch keine Themen."
+
+#: app_ui/pages/findings.py:371
+msgid "No colour"
+msgstr "Keine Farbe"
+
+#: app_ui/pages/findings.py:395
 msgid "No topic"
 msgstr "Ohne Thema"
 
-#: app_ui/pages/findings.py:373
+#: app_ui/pages/findings.py:491
 msgid "All findings"
 msgstr "Alle Hinweise"
 
-#: app_ui/pages/findings.py:383
+#: app_ui/pages/findings.py:501
 msgid "Finding as PDF"
 msgstr "Hinweis als PDF"
 
-#: app_ui/pages/findings.py:385
+#: app_ui/pages/findings.py:503
 msgid "Chat about this"
 msgstr "Darüber chatten"
 
-#: app_ui/pages/findings.py:394 proactive/reactions.py:55
+#: app_ui/pages/findings.py:512 proactive/reactions.py:56
 msgid "This item no longer exists."
 msgstr "Diesen Eintrag gibt es nicht mehr."
 
-#: app_ui/pages/findings.py:406
+#: app_ui/pages/findings.py:525
 msgid "Researched — the newest result is at the top, the report is in your vault."
 msgstr ""
 "Recherchiert — das neueste Ergebnis steht oben, der Bericht liegt in "
 "deinem Vault."
 
-#: app_ui/pages/findings.py:419
+#: app_ui/pages/findings.py:538
 msgid "Research running — it gives way while you chat."
 msgstr "Recherche läuft — sie pausiert, solange du chattest."
 
-#: app_ui/pages/findings.py:422 app_ui/pages/findings.py:443
+#: app_ui/pages/findings.py:541 app_ui/pages/findings.py:562
 msgid "Research queued — it starts as soon as the model is free."
 msgstr "Recherche wartet — sie startet, sobald das Modell frei ist."
 
-#: app_ui/pages/findings.py:426
+#: app_ui/pages/findings.py:545
 msgid "No research is running for this item."
 msgstr "Für diesen Eintrag läuft keine Recherche."
 
-#: app_ui/pages/findings.py:431
+#: app_ui/pages/findings.py:550
 msgid "The research failed."
 msgstr "Die Recherche ist fehlgeschlagen."
 
-#: app_ui/pages/findings.py:435 app_ui/pages/findings.py:483
+#: app_ui/pages/findings.py:554 app_ui/pages/findings.py:604
 msgid "Research again"
 msgstr "Erneut recherchieren"
 
-#: app_ui/pages/findings.py:448
+#: app_ui/pages/findings.py:567
 msgid "Add a note"
 msgstr "Notiz hinzufügen"
 
-#: app_ui/pages/findings.py:449
+#: app_ui/pages/findings.py:568
 msgid "e.g. The operation took place in April 2024."
 msgstr "z. B. Die Operation fand im April 2024 statt."
 
-#: app_ui/pages/findings.py:456
+#: app_ui/pages/findings.py:575
 msgid "Note added."
 msgstr "Notiz hinzugefügt."
 
-#: app_ui/pages/findings.py:460
+#: app_ui/pages/findings.py:579
 msgid "Save note"
 msgstr "Notiz speichern"
 
-#: app_ui/pages/findings.py:471
+#: app_ui/pages/findings.py:590
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr "„{action}“ auf diesen Eintrag anwenden?"
 
-#: app_ui/pages/findings.py:478 proactive/reactions.py:54
+#: app_ui/pages/findings.py:597 proactive/reactions.py:55
 msgid "Already handled."
 msgstr "Bereits erledigt."
+
+#: app_ui/pages/findings.py:605
+msgid "Start research"
+msgstr "Recherchieren"
 
 #: app_ui/pages/login.py:61
 msgid "Paperless login"
@@ -4316,22 +4381,26 @@ msgid "Snoozed for a week."
 msgstr "Für eine Woche zurückgestellt."
 
 #: proactive/reactions.py:49
+msgid "Kept in view — a reminder will bring it back."
+msgstr "Im Blick behalten — eine Erinnerung holt es zurück."
+
+#: proactive/reactions.py:50
 msgid "Dismissed."
 msgstr "Verworfen."
 
-#: proactive/reactions.py:50
+#: proactive/reactions.py:51
 msgid "Understood — no more messages on this topic."
 msgstr "Verstanden — keine Nachrichten mehr zu diesem Thema."
 
-#: proactive/reactions.py:51
+#: proactive/reactions.py:52
 msgid "Marked as done."
 msgstr "Als erledigt markiert."
 
-#: proactive/reactions.py:52
+#: proactive/reactions.py:53
 msgid "Thanks — marked as wrongly detected."
 msgstr "Danke — als falsch erkannt markiert."
 
-#: proactive/reactions.py:53
+#: proactive/reactions.py:54
 msgid "Restored — open again."
 msgstr "Wiederhergestellt — wieder offen."
 
@@ -4339,36 +4408,44 @@ msgstr "Wiederhergestellt — wieder offen."
 msgid "Critical"
 msgstr "Kritisch"
 
-#: proactive/notify/__init__.py:33
+#: proactive/notify/__init__.py:31
+msgid "Interesting"
+msgstr "Interessant"
+
+#: proactive/notify/__init__.py:32
+msgid "Later"
+msgstr "Später"
+
+#: proactive/notify/__init__.py:34
 msgid "Not relevant"
 msgstr "Nicht relevant"
 
-#: proactive/notify/__init__.py:34
+#: proactive/notify/__init__.py:35
 msgid "Never again"
 msgstr "Nie wieder"
 
-#: proactive/notify/__init__.py:36
+#: proactive/notify/__init__.py:37
 msgid "Wrongly detected"
 msgstr "Falsch erkannt"
 
-#: proactive/notify/__init__.py:37
+#: proactive/notify/__init__.py:38
 msgid "Restore"
 msgstr "Wiederherstellen"
 
-#: proactive/notify/__init__.py:148
+#: proactive/notify/__init__.py:149
 msgid "Sync finished"
 msgstr "Sync fertig"
 
-#: proactive/notify/__init__.py:149
+#: proactive/notify/__init__.py:150
 msgid "Werkbank run done"
 msgstr "Werkbank-Lauf fertig"
 
-#: proactive/notify/__init__.py:280
+#: proactive/notify/__init__.py:281
 #, python-brace-format
 msgid "+ {n} more"
 msgstr "+ {n} weitere"
 
-#: proactive/notify/__init__.py:284
+#: proactive/notify/__init__.py:285
 #, python-brace-format
 msgid "{n} new while you were away"
 msgstr "{n} neue, während du weg warst"
@@ -4627,10 +4704,6 @@ msgstr "Triage"
 #: werkbank/ui/module_page.py:176
 msgid "Queued"
 msgstr "Wartet"
-
-#: werkbank/ui/module_page.py:177 werkbank/ui/task_dialog.py:498
-msgid "Running"
-msgstr "Läuft"
 
 #: werkbank/ui/module_page.py:178 werkbank/ui/task_dialog.py:439
 msgid "Paused"
@@ -5124,4 +5197,13 @@ msgstr "teilweise erfüllt"
 #: werkbank/v2/ui/style.py:130
 msgid "not met"
 msgstr "nicht erfüllt"
+
+#~ msgid "New"
+#~ msgstr "Neu"
+
+#~ msgid "until {date}"
+#~ msgstr "bis {date}"
+
+#~ msgid "{n} waiting for you"
+#~ msgstr "{n} warten auf dich"
 

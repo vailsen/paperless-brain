@@ -379,3 +379,18 @@ def test_finding_files_carry_the_quote_and_link(env, fake_llm):
     assert "> Bitte überweisen Sie den Betrag von 120,00 EUR bis zum 15.11.2026" in text
     assert re.search(r"documents/100/details", text)
     assert "deadline_kind: payment" in text
+
+
+def test_a_relevant_deadline_comes_back_to_the_inbox_with_its_reminder(env, fake_llm):
+    """"Relevant" takes it out of the inbox; the reminder puts it back."""
+    import asyncio
+
+    from proactive import findings, reactions
+
+    _make_findings(env, fake_llm)
+    pay = lambda: next(f for f in findings.list_findings("alice") if f.deadline == "2026-11-15")  # noqa: E731
+    asyncio.run(reactions.react("alice", pay().finding_id, "relevant", channel="app"))
+    assert pay().status == "relevant"
+    _worker_run("daily_run")                     # 20 days left → offset 30
+    assert len(_texts(env)) == 1 and "20 days left" in _texts(env)[0]
+    assert pay().status == "surfaced" and pay().reminders_sent == [30]

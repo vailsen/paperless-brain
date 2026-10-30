@@ -66,8 +66,17 @@ THEME_CSS = """
      per theme. Light text on a dark tint here, dark text on a light tint below. */
   --tag-fg-l: 0.79; --tag-fg-c: 0.11;
   --tag-bg-l: 0.55; --tag-bg-c: 0.10; --tag-bg-a: 0.18;
+  /* Topic colours the user picks for findings (card outline) — eight hues in a
+     fixed, colour-blind-checked order, stepped per theme. */
+  --topic-1: #3987e5; --topic-2: #d95926; --topic-3: #199e70; --topic-4: #c98500;
+  --topic-5: #d55181; --topic-6: #008300; --topic-7: #9085e9; --topic-8: #e66767;
+  /* Findings overview: what waits vs. what calls for action. */
+  --viz-calm: #3987e5; --viz-act: #e66767;
 }
 body.body--light {
+  --topic-1: #2a78d6; --topic-2: #eb6834; --topic-3: #1baf7a; --topic-4: #eda100;
+  --topic-5: #e87ba4; --topic-6: #008300; --topic-7: #6250d6; --topic-8: #e34948;
+  --viz-calm: #2a78d6; --viz-act: #e34948;
   --tag-fg-l: 0.45; --tag-fg-c: 0.12;
   --tag-bg-l: 0.72; --tag-bg-c: 0.08; --tag-bg-a: 0.30;
   /* Light: soft paper grey; no surface is pure white, which is what glared. */

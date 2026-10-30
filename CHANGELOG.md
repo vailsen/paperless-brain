@@ -9,6 +9,18 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Findings are an inbox**: Open, Relevant, Done, Dismissed — instead of
+  eight statuses that mixed notification, research and your decision.
+  "Relevant" takes a finding out of the inbox; a deadline reminder brings it
+  back. Whether a message went out and whether a research runs or ran are
+  small icons on the card. The status filter shows each status's icon, "All"
+  on top. "Later" is gone.
+- **Topic colours**: give a topic a colour and its cards get that outline.
+- **Overview chart** on the findings page: per topic, what is in view and
+  what calls for action (high or critical urgency, or a deadline within a
+  week).
+- **Dashboard system status** shows the Paperless-ngx version, SearXNG,
+  Whisper, the proactive worker and email sending, where configured.
 - **A finding is a timeline**, newest first: research results, your own
   notes ("Add a note") and the original finding, each dated — two summaries
   that disagree now read as then and now.

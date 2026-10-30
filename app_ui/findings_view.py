@@ -17,31 +17,48 @@ from datetime import date
 
 from i18n import N_
 
+from proactive.states import DISPLAY, display_status
+
+# What the user sees is an inbox: four statuses (`proactive.states.DISPLAY`).
+# Eight stored ones mixed three things — the notification bookkeeping (new,
+# notified, held back), the research (interesting, researched) and the user's
+# decision — into one list nobody could read. The first two are small hints
+# on the card now (`notice`, `research`), not statuses.
 STATUS_LABELS = {
-    "new": N_("New"),
-    "surfaced": N_("Notified"),
-    "held": N_("Held back"),
-    "interested": N_("Interesting"),
-    "researched": N_("Researched"),
+    "open": N_("Inbox"),
+    "relevant": N_("Relevant"),
     "done": N_("Done"),
     "dismissed": N_("Dismissed"),
-    "snoozed": N_("Later"),
 }
 #: Material icons; they inherit the text colour like every icon in the app.
 STATUS_ICONS = {
-    "new": "fiber_new",
-    "surfaced": "notifications_active",
-    "held": "notifications_paused",
-    "interested": "travel_explore",
-    "researched": "fact_check",
+    "open": "inbox",
+    "relevant": "bookmark",
     "done": "task_alt",
     "dismissed": "block",
-    "snoozed": "snooze",
 }
-#: Workflow order: waiting for the user → being worked on → set aside → closed.
-STATUS_ORDER = ("surfaced", "new", "researched", "interested", "snoozed", "held", "done", "dismissed")
-OPEN_STATUSES = frozenset({"new", "surfaced", "held", "interested", "researched", "snoozed"})
-CLOSED_STATUSES = frozenset({"done", "dismissed"})
+#: Workflow order: the inbox → kept in view → closed.
+STATUS_ORDER = ("open", "relevant", "done", "dismissed")
+OPEN_STATUSES = DISPLAY["open"] | DISPLAY["relevant"]
+CLOSED_STATUSES = DISPLAY["done"] | DISPLAY["dismissed"]
+
+
+def notice(f) -> tuple[str, str] | None:
+    """(icon, label) of what happened with the notification, if anything."""
+    if f.status == "held":
+        return "notifications_paused", N_("Held back — not sent")
+    if f.surfaced_at and f.status in DISPLAY["open"]:
+        return "notifications_active", N_("Notified")
+    return None
+
+
+def research(f) -> tuple[str, str] | None:
+    """(icon, label) of the finding's research, if it has one."""
+    if f.status == "interested":
+        return "travel_explore", N_("Research running")
+    if f.status == "researched" or f.research_note:
+        return "fact_check", N_("Researched")
+    return None
 
 GROUPS = {
     "none": N_("No grouping"),
@@ -56,7 +73,7 @@ SORTS = {
     "newest": N_("Newest first"),
     "oldest": N_("Oldest first"),
 }
-DEFAULT_VIEW = {"status": "open", "topic": "", "group": "topic", "sort": "relevance"}
+DEFAULT_VIEW = {"status": "open", "topic": "", "group": "topic", "sort": "relevance", "chart": True}
 
 URGENCY_RANK = {"critical": 3, "high": 2, "medium": 1, "low": 0}
 #: A deadline this close is something to react to — it is marked like high urgency.
@@ -121,9 +138,7 @@ def _neg_created(f):
 
 
 def keep(f, status: str, topic: str) -> bool:
-    if status == "open" and f.status not in OPEN_STATUSES:
-        return False
-    if status not in ("open", "all") and f.status != status:
+    if status not in ("all", "") and display_status(f.status) != (status if status in STATUS_LABELS else "open"):
         return False
     return not topic or f.topic == topic
 
@@ -167,7 +182,7 @@ def arrange(items: list, *, status: str, topic: str, group: str, sort: str, toda
 def _by_status(shown: list) -> list[Group]:
     out = {s: Group(s, s, "status") for s in STATUS_ORDER}
     for f in shown:
-        out.setdefault(f.status, Group(f.status, f.status, "status")).items.append(f)
+        out[display_status(f.status)].items.append(f)
     return [g for g in out.values() if g.items]
 
 
@@ -188,10 +203,10 @@ def _by_topic(shown: list) -> list[Group]:
 
 def counts(items: list, today: date) -> dict:
     """The summary line above the list: how many wait, how many press."""
-    open_ = [f for f in items if f.status in OPEN_STATUSES]
+    live = [f for f in items if f.status in OPEN_STATUSES]
     return {
-        "open": len(open_),
-        "waiting": sum(1 for f in open_ if f.status in ("surfaced", "new", "researched")),
-        "pressing": sum(1 for f in open_ if is_pressing(f, today)),
-        "researching": sum(1 for f in open_ if f.status == "interested"),
+        "open": sum(1 for f in live if display_status(f.status) == "open"),
+        "relevant": sum(1 for f in live if display_status(f.status) == "relevant"),
+        "pressing": sum(1 for f in live if is_pressing(f, today)),
+        "researching": sum(1 for f in live if f.status == "interested"),
     }

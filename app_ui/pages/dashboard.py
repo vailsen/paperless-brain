@@ -268,18 +268,6 @@ async def _check_ollama(username: str = "", token: str = "") -> str | None:
         return None
 
 
-async def _check_paperless() -> bool:
-    try:
-        async with httpx.AsyncClient(
-            headers={"Authorization": f"Token {settings.paperless_superuser_token}"},
-            timeout=3,
-        ) as client:
-            resp = await client.get(f"{settings.paperless_url.rstrip('/')}/api/")
-            return resp.status_code < 400
-    except Exception:
-        return False
-
-
 async def _safe_chroma_count() -> int | None:
     try:
 
@@ -548,11 +536,23 @@ async def dashboard():
                     )
                     with ui.column().style("gap:8px; flex:1; justify-content:center;"):
                         ollama_dot = ollama_badge = wake_btn = stop_btn = None
-                        for label_text, key in [
+                        from services import service_status as _svc
+
+                        _services = [
                             ("Paperless NGX", "paperless"),
                             ("ChromaDB", "chroma"),
                             (_("Ollama (Local LLM)"), "ollama"),
-                        ]:
+                        ]
+                        # Helpers: only the ones this installation uses.
+                        if settings.searxng_host:
+                            _services.append((_("SearXNG (web search)"), "searxng"))
+                        if settings.whisper_url:
+                            _services.append((_("Whisper (transcription)"), "whisper"))
+                        if _svc.worker() is not None:
+                            _services.append((_("Proactive worker"), "worker"))
+                        if _svc.mail():
+                            _services.append((_("Email sending (SMTP)"), "mail"))
+                        for label_text, key in _services:
                             with ui.row().classes("items-center gap-2"):
                                 dot = ui.element("div").style(
                                     "width:8px;height:8px;border-radius:50%;"
@@ -1477,12 +1477,17 @@ window.__toggleHideAction = function(key) {{
         stop_btn.on_click(stop_ollama)
 
     # ── async data load ───────────────────────────────────────────────────────
-    paperless_count, chroma_count, ollama_ver, paperless_ok = await asyncio.gather(
+    from services import service_status as _svc
+
+    paperless_count, chroma_count, ollama_ver, paperless_st, searxng_st, whisper_st = await asyncio.gather(
         _fetch_paperless_count(),
         _safe_chroma_count(),
         _check_ollama(_username, _token),
-        _check_paperless(),
+        _svc.paperless(),
+        _svc.searxng(),
+        _svc.whisper(),
     )
+    paperless_ok = paperless_st[0]
 
     # sync ring
     p = paperless_count or 0
@@ -1498,8 +1503,15 @@ window.__toggleHideAction = function(key) {{
     _refresh_outdated()
 
     # status indicators
+    worker_st = _svc.worker()
     status_data = {
-        "paperless": (paperless_ok, _("Online") if paperless_ok else _("Offline")),
+        "paperless": (paperless_ok, paperless_st[1] if paperless_ok else _("Offline")),
+        "searxng": (bool(searxng_st and searxng_st[0]),
+                    (searxng_st[1] if searxng_st and searxng_st[0] else _("Offline"))),
+        "whisper": (bool(whisper_st and whisper_st[0]), _("Online") if whisper_st and whisper_st[0] else _("Offline")),
+        "worker": (bool(worker_st and worker_st[0]),
+                   (_("Running") if worker_st and worker_st[0] else _("No sign of life"))),
+        "mail": (True, _("Configured")),
         "chroma": (
             chroma_count is not None,
             _("{n} docs").format(n=chroma_count) if chroma_count is not None else _("Error"),
@@ -1507,6 +1519,8 @@ window.__toggleHideAction = function(key) {{
         "ollama": (ollama_ver is not None, ollama_ver or _("Offline")),
     }
     for dot_el, badge_el, key in _status_items:
+        if key not in status_data:
+            continue
         ok, detail = status_data[key]
         dot_el.style(
             f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
