@@ -22,10 +22,45 @@ _TABLE_RE = re.compile(r'<table\b[^>]*>.*?</table>', re.DOTALL | re.IGNORECASE)
 _TH_RE    = re.compile(r'<th\b', re.IGNORECASE)
 
 
+_ROW_RE = re.compile(r'<tr\b[^>]*>(.*?)</tr>', re.DOTALL | re.IGNORECASE)
+_CELL_RE = re.compile(r'<t[hd]\b[^>]*>(.*?)</t[hd]>', re.DOTALL | re.IGNORECASE)
+_TAG_RE = re.compile(r'<[^>]+>')
+
+
+def _column_widths(tbl: str) -> list[float]:
+    """Percent widths from how much text each column holds.
+
+    `table-layout: fixed` (needed so long words wrap at all) gives every column
+    the same width: in the subtask table "st1", the agent and the status got a
+    quarter each and the question — a paragraph — was squeezed into the last
+    quarter, one word per line. A column gets its share of the text, judged by
+    its longest cell and softened with a square root, never less than a short
+    word needs."""
+    lengths: list[list[int]] = []
+    for row in _ROW_RE.findall(tbl):
+        for i, cell in enumerate(_CELL_RE.findall(row)):
+            text = html.unescape(_TAG_RE.sub("", cell)).strip()
+            while len(lengths) <= i:
+                lengths.append([])
+            lengths[i].append(len(text))
+    if not lengths:
+        return []
+    weights = [max(4.0, max(col)) ** 0.5 for col in lengths]
+    total = sum(weights)
+    raw = [max(8.0, 100.0 * w / total) for w in weights]
+    scale = 100.0 / sum(raw)
+    return [round(r * scale, 1) for r in raw]
+
+
 def _process_tables(html_body: str) -> str:
-    """Wrap each table in a page-break-avoiding div and scale font by column count."""
+    """Wrap each table in a page-break-avoiding div, scale font by column count,
+    and size the columns by their content (`_column_widths`)."""
     def _replace_table(m: re.Match) -> str:
         tbl = m.group(0)
+        widths = _column_widths(tbl)
+        if len(widths) > 1:
+            cols = "".join(f'<col style="width:{w}%">' for w in widths)
+            tbl = tbl.replace(tbl[:tbl.index('>') + 1], tbl[:tbl.index('>') + 1] + f"<colgroup>{cols}</colgroup>", 1)
         col_count = len(_TH_RE.findall(tbl))
         # Scale font down for wide tables
         if col_count >= 7:

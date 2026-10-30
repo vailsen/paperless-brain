@@ -7,25 +7,16 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
-### Removed
-
-- **"Save to Paperless" for AI deep research reports.** The report is a note
-  in your vault now (see Added); a model's research does not belong in the
-  document archive. Download as Markdown or PDF stays.
-- **Replying to notification emails, and with it everything that read the
-  mailbox.** It moved every unread mail of the inbox, not just replies, into
-  `PaperlessBrain/Processed`. Email is now send-only, like push: title,
-  urgency and one link to the finding. `IMAP_*` in `.env` is ignored. Mails
-  it moved are still in that label — move them back to the inbox in Gmail.
-- **The weekly message limit.** Every finding worth a message is sent; the
-  first nights of the archive run are busier, then it settles.
-- **Telegram as a notification channel.** Push in the app does the same
-  without a bot to set up and is end-to-end encrypted. Existing Telegram links
-  are deleted on upgrade; a user who had picked Telegram keeps their other
-  channels. `TELEGRAM_BOT_TOKEN` in `.env` is ignored and can be removed.
-
 ### Added
 
+- **A finding is a timeline**, newest first: research results, your own
+  notes ("Add a note") and the original finding, each dated — two summaries
+  that disagree now read as then and now.
+- **"Research again"** on a researched finding runs a second research later
+  on; its result goes on top, the first one stays.
+- **The PDF button on a finding** makes a PDF of the whole finding,
+  including the condensed research; the full report stays a link in its
+  entry.
 - **Chatting with a local model wakes the GPU host.** If it is off, the chat
   sends the Wake-on-LAN packet, says so ("waking it up… 40 s") and answers
   once the host is up — no refused connection, no trip to the dashboard. A
@@ -80,6 +71,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **A research on a German finding is written in German** (brief, subtask
+  questions and report), not English.
+- **PDF tables size their columns by content**: the subtask table's
+  question column is no longer squeezed to a quarter of the page.
+- Your notes on a finding are handed to its next research.
 - **A research result says what it does not know.** "Open points" lists
   the gaps and the assumptions behind a comparison (before or after tax,
   fixed or variable, a teaser rate) above the recommendation, and the result
@@ -168,6 +164,23 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **The proactive worker starts in Docker.** It ran the installed copy of the
   code, which lacks the translations, and crashed on import; it now runs from
   `/app` like the app (`python -m proactive.worker`).
+
+### Removed
+
+- **"Save to Paperless" for AI deep research reports.** The report is a note
+  in your vault now (see Added); a model's research does not belong in the
+  document archive. Download as Markdown or PDF stays.
+- **Replying to notification emails, and with it everything that read the
+  mailbox.** It moved every unread mail of the inbox, not just replies, into
+  `PaperlessBrain/Processed`. Email is now send-only, like push: title,
+  urgency and one link to the finding. `IMAP_*` in `.env` is ignored. Mails
+  it moved are still in that label — move them back to the inbox in Gmail.
+- **The weekly message limit.** Every finding worth a message is sent; the
+  first nights of the archive run are busier, then it settles.
+- **Telegram as a notification channel.** Push in the app does the same
+  without a bot to set up and is end-to-end encrypted. Existing Telegram links
+  are deleted on upgrade; a user who had picked Telegram keeps their other
+  channels. `TELEGRAM_BOT_TOKEN` in `.env` is ignored and can be removed.
 
 ## [0.11.0] — 2026-10-23
 

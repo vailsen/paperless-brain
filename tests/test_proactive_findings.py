@@ -422,3 +422,48 @@ def test_links_to_a_deleted_research_say_so_instead_of_leading_nowhere(tmp_path,
     assert "[Report](/werkbank?run=alive)" in out and "Old report (deleted)" in out
     assert "[Full report](/api/research/pdf?path=PaperlessBrain%20Research%2F26-10-29%20Da.md)" in out
     assert out.count("Full report (deleted)") == 1
+
+
+def test_timeline_split_join_and_notes(vaults):
+    from proactive import findings
+
+    original = "## Summary\n\nFirst seen.\n\n## Evidence\n\n> q\n> — [#1](x)\n"
+    assert findings.split_timeline(original, "de") == ([], original)
+    f, _o = asyncio.run(findings.upsert("alice", findings.Finding(
+        finding_id="", kind="insight", title="t", topic="x", doc_ids=[1], lang="de",
+        finding_key="x:1", body=original)))
+    asyncio.run(findings.add_note("alice", f.finding_id, "OP im April.\n---\nnoch Reha"))
+    asyncio.run(findings.add_note("alice", f.finding_id, "Zweite Notiz"))
+    f = findings.get("alice", f.finding_id)
+    entries, rest = findings.split_timeline(f.body, "de")
+    assert len(entries) == 2 and entries[0].startswith("## Notiz (") and "Zweite Notiz" in entries[0]
+    assert "***" in entries[1]  # a "---" line in a note would have ended it
+    assert rest.strip() == original.strip()
+    assert findings.notes_text(f.body, "de") == ["OP im April.\n***\nnoch Reha", "Zweite Notiz"]
+    md = findings.timeline_markdown(f)
+    assert md.index("Zweite Notiz") < md.index("## Ursprünglicher Hinweis") < md.index("### Summary")
+
+
+def test_series_merge_keeps_the_timeline(vaults):
+    from proactive import findings
+
+    def mk(doc):
+        body = findings.render_body("en", summary=f"Seen in #{doc}.",
+                                    evidence=[{"doc_id": doc, "quote": f"quote {doc}"}])
+        return findings.Finding(finding_id="", kind="insight", title="Price up", topic="strom", doc_ids=[doc],
+                                correspondent=5, finding_key=findings.series_key("strom", 5, doc), body=body)
+
+    f, _o = asyncio.run(findings.upsert_series("alice", mk(1)))
+    asyncio.run(findings.add_note("alice", f.finding_id, "Called them."))
+    merged, outcome = asyncio.run(findings.upsert_series("alice", mk(2)))
+    assert outcome == "merged" and merged.doc_ids == [1, 2]
+    entries, original = findings.split_timeline(merged.body, "en")
+    assert len(entries) == 1 and "Called them." in entries[0]
+    assert "quote 2" in original and "Called them." not in original
+
+
+def test_research_again_from_researched():
+    from proactive.states import reactions_for, transition
+
+    assert transition("researched", "interested") == "interested"
+    assert "interested" in reactions_for("researched", "insight")

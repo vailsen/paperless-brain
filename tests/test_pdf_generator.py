@@ -166,3 +166,16 @@ def test_unknown_archive_language_falls_back_to_english_badge(monkeypatch):
 
     monkeypatch.setattr(settings_mod.settings, "archive_language", "klingon", raising=False)
     assert _pdf().startswith(b"%PDF-")
+
+
+def test_columns_are_sized_by_their_text():
+    """Fixed layout gave every column a quarter; the question column — a
+    paragraph — was squeezed to one word per line next to "st1"."""
+    from services.pdf_generator import _column_widths, _process_tables
+
+    question = "Suche in der gesamten Dokumenten-Ablage alle Dokumente zum Befund. " * 6
+    tbl = ("<table><thead><tr><th>Teilaufgabe</th><th>Agent</th><th>Status</th><th>Frage</th></tr></thead>"
+           f"<tbody><tr><td>st1</td><td>doc_researcher</td><td>partial</td><td>{question}</td></tr></tbody></table>")
+    widths = _column_widths(tbl)
+    assert abs(sum(widths) - 100) < 0.5 and widths[3] > 55 and min(widths) >= 7
+    assert "<colgroup>" in _process_tables(tbl)

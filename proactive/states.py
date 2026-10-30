@@ -9,6 +9,8 @@
     held ──digest──> surfaced
     dismissed ──reopen──> new      (only when the evidence changed)
     dismissed/done ──restore──> surfaced   (the user takes it back; no new push)
+    researched ──interested──> interested  ("Research again": a second result,
+                                           stacked above the first)
 
 Reactions are accepted only from the states where they make sense: the same
 button pressed twice, or in two open tabs, finds a state it does not apply to
@@ -34,7 +36,7 @@ TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
     "researched": (frozenset({"interested"}), "researched"),
     "reopen": (frozenset({"dismissed", "done"}), "new"),
     # reactions
-    "interested": (frozenset(_OPEN), "interested"),
+    "interested": (frozenset(_OPEN | {"researched"}), "interested"),
     "later": (frozenset({"new", "surfaced", "held"}), "snoozed"),
     "dismiss": (frozenset(_OPEN | {"interested", "researched"}), "dismissed"),
     "never": (frozenset(_OPEN | {"interested", "researched"}), "dismissed"),

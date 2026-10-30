@@ -67,6 +67,107 @@ def link_research_note(body: str, run_id: str, note_rel: str) -> str:
     return re.sub(_RUN_LINK.format(run=re.escape(run_id)), lambda m: wikilink(note_rel, m.group(1)), body)
 
 
+# ── Timeline ────────────────────────────────────────────────────────────────
+# A finding body is a timeline, newest first: research results and the user's
+# notes, each under a dated "## …" heading and closed by a rule, above the
+# original finding (no heading of its own — triage and series merges own it).
+# Two summaries that contradict each other are then two dated entries, not
+# one text arguing with itself.
+
+ENTRY_SEP = "\n---\n"
+
+
+def _entry_prefixes(lang: str) -> tuple[str, ...]:
+    from i18n import translator_for
+
+    out = []
+    for code in {"en", lang or "en"}:
+        _ = translator_for(code)
+        for msg in ("Research result ({date})", "Note ({date})"):
+            head = _(msg).split("(")[0].strip()
+            if head:
+                out.append(head)
+    return tuple(out)
+
+
+def split_timeline(body: str, lang: str) -> tuple[list[str], str]:
+    """`(entries, original)`: the dated entries on top, newest first, and the
+    original finding below them."""
+    prefixes = _entry_prefixes(lang)
+    entries, rest = [], body.lstrip("\n")
+    while True:
+        first = rest.split("\n", 1)[0]
+        if not (first.startswith("## ") and first[3:].startswith(prefixes)):
+            break
+        head, sep, tail = rest.partition(ENTRY_SEP)
+        if not sep:
+            break
+        entries.append(head.strip("\n"))
+        rest = tail.lstrip("\n")
+    return entries, rest
+
+
+def join_timeline(entries: list[str], original: str) -> str:
+    return "".join(e.strip("\n") + "\n" + ENTRY_SEP + "\n" for e in entries) + original.lstrip("\n")
+
+
+def note_entry(lang: str, text: str, day: str) -> str:
+    """The user's note as a timeline entry. A line of three dashes would end
+    the entry early, so it becomes a different rule."""
+    from i18n import translator_for
+
+    _ = translator_for(lang)
+    text = re.sub(r"(?m)^\s*-{3,}\s*$", "***", text.strip())
+    return f"## {_('Note ({date})').format(date=day)}\n\n{text}\n"
+
+
+async def add_note(user: str, finding_id: str, text: str) -> "Finding | None":
+    """Put the user's note on top of the finding's timeline."""
+    text = (text or "").strip()
+    if not text:
+        return get(user, finding_id)
+    from proactive import clock
+
+    day = clock.local_now().date().isoformat()
+
+    def body(cur: "Finding") -> str:
+        entries, original = split_timeline(cur.body, cur.lang)
+        return join_timeline([note_entry(cur.lang, text, day), *entries], original)
+
+    return await update(user, finding_id, lambda _cur: None, body=body)
+
+
+def original_heading(f: "Finding") -> str:
+    """The display heading of the original finding — it has none in the file."""
+    from i18n import translator_for
+
+    _ = translator_for(f.lang)
+    return _("Original finding ({date})").format(date=(f.created or "")[:10])
+
+
+def timeline_markdown(f: "Finding") -> str:
+    """The whole finding as one document (the PDF): every entry under its
+    dated heading, the original finding last under its own, its sections one
+    level down like a research result's."""
+    entries, original = split_timeline(f.body, f.lang)
+    demoted = "\n".join("#" + line if line.startswith("## ") else line for line in original.splitlines())
+    parts = [e.strip("\n") for e in entries] + [f"## {original_heading(f)}\n\n{demoted.strip()}"]
+    return "\n\n---\n\n".join(parts) + "\n"
+
+
+def notes_text(body: str, lang: str) -> list[str]:
+    """The user's notes, oldest first, without their headings."""
+    from i18n import translator_for
+
+    heads = {translator_for(c)("Note ({date})").split("(")[0].strip() for c in {"en", lang or "en"}}
+    out = []
+    for e in split_timeline(body, lang)[0]:
+        first, _sep, rest = e.partition("\n")
+        if any(first[3:].startswith(h) for h in heads if h):
+            out.append(rest.strip())
+    return out[::-1]
+
+
 def strip_research(body: str, lang: str) -> str:
     """The body without an earlier research result on top (`research_body` +
     `---`). A new result replaces the old one; stacked, the finding showed
@@ -703,7 +804,10 @@ async def add_to_series(user: str, existing: Finding, new: Finding) -> tuple[Fin
     new_docs = [d for d in new.doc_ids if d not in existing.doc_ids]
     if not new_docs:
         return existing, "unchanged"
-    old_ev = parse_evidence(existing.body)
+    # The original finding only: the timeline above it (research, notes) is
+    # kept as it is, and its quotes are not the series' own.
+    original = split_timeline(existing.body, existing.lang)[1]
+    old_ev = parse_evidence(original)
     ev = old_ev + [e for e in parse_evidence(new.body) if e["doc_id"] in new_docs]
     doc_ids = sorted(set(existing.doc_ids) | set(new_docs))
     escalates = _URGENCY_RANK.get(new.urgency, 1) > _URGENCY_RANK.get(existing.urgency, 1)
@@ -711,12 +815,12 @@ async def add_to_series(user: str, existing: Finding, new: Finding) -> tuple[Fin
     _ = translator_for(existing.lang)
     seen_prefix = _("Seen in {n} documents: {docs}").split("{n}")[0]
     summary = "\n\n".join(
-        p for p in _section(existing.body, _("Summary")).split("\n\n") if not p.startswith(seen_prefix)
+        p for p in _section(original, _("Summary")).split("\n\n") if not p.startswith(seen_prefix)
     ) or _section(new.body, _("Summary"))
-    rec = _section(new.body, _("Recommendation")) or _section(existing.body, _("Recommendation"))
+    rec = _section(new.body, _("Recommendation")) or _section(original, _("Recommendation"))
     rec = rec.split("\n> ")[0].strip()  # the disclaimer is re-added by code
     srcs = []
-    for body in (new.body, existing.body):
+    for body in (new.body, original):
         for line in _section(body, _("Sources")).splitlines():
             m = _SOURCE_LINE.match(line.strip())
             if m:
@@ -735,7 +839,8 @@ async def add_to_series(user: str, existing: Finding, new: Finding) -> tuple[Fin
         fields.update(status="new", surfaced_at=None, snoozed_until=None)
     body = series_body(existing.lang, summary=summary, doc_ids=doc_ids, evidence=ev,
                        sources=srcs, recommendation=rec)
-    done = await update(user, existing.finding_id, lambda _cur: dict(fields), body=lambda _cur: body)
+    done = await update(user, existing.finding_id, lambda _cur: dict(fields),
+                        body=lambda cur: join_timeline(split_timeline(cur.body, cur.lang)[0], body))
     return done or existing, "reopened" if reopen else "merged"
 
 

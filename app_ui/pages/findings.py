@@ -373,11 +373,19 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             ui.button(_("All findings"), icon="arrow_back", on_click=lambda: ui.navigate.to("/findings")).props(
                 "flat dense"
             )
-            # A new conversation with this finding as context and its documents pinned.
-            ui.button(_("Chat about this"), icon="forum",
-                      on_click=lambda: ui.navigate.to(f"/chat?finding={quote(finding_id)}")).props(
-                "unelevated dense no-caps color=primary"
-            )
+            with ui.row().classes("items-center gap-1 no-wrap"):
+                from app_ui.research_routes import finding_pdf_url
+
+                # The whole finding — research results, notes, the original —
+                # as one PDF. The full report stays a link in its entry.
+                ui.button(icon="picture_as_pdf",
+                          on_click=lambda: ui.navigate.to(finding_pdf_url(finding_id), new_tab=True)).props(
+                    "flat dense round").classes("card-action-btn").tooltip(_("Finding as PDF"))
+                # A new conversation with this finding as context and its documents pinned.
+                ui.button(_("Chat about this"), icon="forum",
+                          on_click=lambda: ui.navigate.to(f"/chat?finding={quote(finding_id)}")).props(
+                    "unelevated dense no-caps color=primary"
+                )
 
         @ui.refreshable
         def body(pending_action: str) -> None:
@@ -395,20 +403,8 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                         ui.link(f"#{d}", f"#pbdoc-{d}").classes("text-xs")
 
             if f.status == "researched" and f.research_note:
-                from app_ui.research_routes import pdf_url
-                from vault.research import wikilink_target
-
-                m = _WIKILINK.match(f.research_note.strip())
-                url = pdf_url(wikilink_target(m.group(1))) if m and _note_exists(
-                    user, wikilink_target(m.group(1))) else ""
-                with ui.row().classes("w-full items-center gap-2 no-wrap"):
-                    ui.label(_("Researched — the summary is at the top, the report is in your vault.")).classes(
-                        "text-xs text-gray-400 flex-1 min-w-0")
-                    if url:
-                        ui.button(_("Full report"), icon="picture_as_pdf",
-                                  on_click=lambda u=url: ui.navigate.to(u, new_tab=True)).props(
-                            "flat dense no-caps"
-                        ).classes("text-xs flex-shrink-0")
+                ui.label(_("Researched — the newest result is at the top, the report is in your vault.")).classes(
+                    "text-xs text-gray-400 w-full")
             elif f.status == "interested":
                 from werkbank.v2 import store as _wb_store
 
@@ -447,6 +443,22 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 ui.notify(_("Research queued — it starts as soon as the model is free."), type="positive")
                 body.refresh("")
 
+            def _note_box(f) -> None:
+                """A note of the user's own, dated, on top of the timeline."""
+                with ui.expansion(_("Add a note"), icon="edit_note").classes("w-full").props("dense"):
+                    box = ui.textarea(placeholder=_("e.g. The operation took place in April 2024.")).props(
+                        "outlined dense autogrow").classes("w-full")
+
+                    async def _save() -> None:
+                        if not (box.value or "").strip():
+                            return
+                        await findings.add_note(user, finding_id, box.value)
+                        ui.notify(_("Note added."), type="positive")
+                        body.refresh("")
+
+                    with ui.row().classes("w-full justify-end"):
+                        ui.button(_("Save note"), on_click=_save).props("unelevated dense no-caps color=primary")
+
             allowed = reactions_for(f.status, f.kind)
 
             async def _do(a: str) -> None:
@@ -468,7 +480,11 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             if allowed:
                 with ui.row().classes("gap-2 flex-wrap"):
                     for a in allowed:
-                        ui.button(_(ACTION_LABELS[a]), on_click=lambda a=a: _do(a)).props("flat dense")
+                        label = _("Research again") if (a == "interested" and f.status == "researched") \
+                            else _(ACTION_LABELS[a])
+                        ui.button(label, on_click=lambda a=a: _do(a)).props("flat dense")
+
+            _note_box(f)
             ui.separator()
             ui.add_css(
                 ".finding-md h2{font-size:1rem;font-weight:600;margin:1rem 0 .4rem}"
@@ -476,8 +492,26 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 ".finding-md h3{font-size:.9rem;font-weight:600;margin:.8rem 0 .3rem}"
                 ".finding-md{overflow-x:auto}"
                 ".finding-md a{overflow-wrap:anywhere}"
+                # Timeline: research results, notes and the original finding,
+                # newest first — one dated entry each, so two summaries that
+                # disagree read as then and now.
+                ".pb-tl-item{position:relative;border-left:2px solid var(--c-border);"
+                "padding:0 0 1.1rem 1rem;margin-left:.35rem}"
+                ".pb-tl-item:last-child{padding-bottom:0}"
+                ".pb-tl-item::before{content:'';position:absolute;left:-6px;top:.3rem;width:10px;height:10px;"
+                "border-radius:50%;background:var(--c-surface);border:2px solid var(--c-text-muted)}"
+                ".pb-tl-item:first-child::before{border-color:var(--c-text)}"
+                ".pb-tl-head{font-weight:600;font-size:.95rem;color:var(--c-text);margin-bottom:.2rem}"
+                ".pb-tl-item .finding-md h3:first-child{margin-top:.3rem}"
             )
-            ui.markdown(_in_app_links(findings.tidy_sources(f.body, f.lang), user)).classes("chat-md finding-md w-full min-w-0")
+            entries, original = findings.split_timeline(findings.tidy_sources(f.body, f.lang), f.lang)
+            items = [(e.split("\n", 1)[0][3:].strip(), e.split("\n", 1)[1] if "\n" in e else "") for e in entries]
+            items.append((findings.original_heading(f), original))
+            with ui.element("div").classes("pb-tl w-full min-w-0"):
+                for head, text in items:
+                    with ui.element("div").classes("pb-tl-item w-full min-w-0"):
+                        ui.label(head).classes("pb-tl-head")
+                        ui.markdown(_in_app_links(text.strip(), user)).classes("chat-md finding-md w-full min-w-0")
 
         await _adopt_research_note(user, findings.get(user, finding_id))
         body(action)
