@@ -167,7 +167,8 @@ _LIST_CSS = """
 .pb-finding-card:hover{border-color:var(--c-border-strong)}
 .pb-finding-card.is-pressing{border-left-color:var(--c-warn)}
 /* The user's topic colour: the whole outline; "pressing" keeps its left edge. */
-.pb-finding-card.has-topic{border-color:var(--card-topic)}
+.pb-finding-card.has-topic{border-color:var(--card-topic);
+  background:color-mix(in srgb, var(--card-topic) 9%, var(--c-surface))}
 .pb-finding-card.has-topic:hover{border-color:var(--card-topic)}
 .pb-finding-card.has-topic.is-pressing{border-left-color:var(--c-warn)}
 .pb-hint-icon{color:var(--c-text-muted)}
@@ -266,12 +267,17 @@ async def findings_page() -> None:
             for f in sorted(items, key=lambda f: bool(f.topic_label)):
                 if f.topic:
                     topics[f.topic] = f.topic_display
-            if state["topic"] and state["topic"] not in topics:
+            if any(not f.topic for f in items):
+                topics_opts_extra = {fv.NO_TOPIC: _("No topic")}
+            else:
+                topics_opts_extra = {}
+            if state["topic"] and state["topic"] not in topics and state["topic"] not in topics_opts_extra:
                 state["topic"] = ""  # the topic's last finding is gone
             # Two selects a row: four in one squeeze each to a word on a phone.
             with ui.grid(columns=2).classes("w-full gap-2"):
                 _status_select(state["status"], lambda e: _set("status", e.value))
-                ui.select({"": _("All topics"), **dict(sorted(topics.items(), key=lambda kv: kv[1].lower()))},
+                ui.select({"": _("All topics"), **dict(sorted(topics.items(), key=lambda kv: kv[1].lower())),
+                           **topics_opts_extra},
                           value=state["topic"], label=_("Topic"),
                           on_change=lambda e: _set("topic", e.value)).props(
                     "outlined dark dense options-dense").classes("min-w-0")
@@ -324,23 +330,46 @@ async def findings_page() -> None:
 
 
 def _overview(items: list, today, state: dict, set_state) -> None:
-    """Per topic: what waits and what calls for action (`app_ui/findings_chart`).
-    Collapsible, and remembered with the rest of the view."""
+    """Per topic: what is in view and what calls for action (`app_ui/findings_chart`).
+    A click on a dot filters the list to that topic. Collapsible; remembered."""
     from app_ui import findings_chart
     from app_ui.theme import current_theme
+    from services.user_prefs import get_pref, set_pref
 
     _ = get_translator()
-    data = findings_chart.rows(items, today)
+    data = findings_chart.topics(items, today)
     if not data:
         return
-    with ui.expansion(_("Overview"), icon="bar_chart", value=state.get("chart", True),
-                      on_value_change=lambda e: set_state("chart", bool(e.value))).classes(
-            "w-full pb-overview").props("dense"):
-        ui.label(_("Per topic: right of the line, action is recommended — high or critical urgency, "
-                   "or a deadline within a week.")).classes("text-xs w-full").style("color:var(--c-text-muted)")
-        labels = {"calm": _("In view"), "act": _("Action recommended"), "other": _("Other")}
-        ui.echart(findings_chart.options(data, current_theme(), labels)).classes("w-full").style(
-            f"height:{findings_chart.height_px(data)}px")
+
+    def _toggle(e) -> None:
+        # Stored without re-rendering the list: a re-render rebuilt the
+        # expansion open, so it could not be collapsed.
+        state["chart"] = bool(e.value)
+        view = dict(get_pref("findings_view") or {})
+        view["chart"] = state["chart"]
+        set_pref("findings_view", view)
+
+    def _pick(topic_keys: list[str], names: list[str]) -> None:
+        if len(topic_keys) == 1:
+            set_state("topic", topic_keys[0])
+            return
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface);min-width:240px"):
+            ui.label(_("Which topic?")).classes("text-sm font-semibold")
+            for key, name in zip(topic_keys, names):
+                ui.button(name, on_click=lambda k=key: (dlg.close(), set_state("topic", k))).props(
+                    "flat dense no-caps align=left").classes("w-full")
+        dlg.open()
+
+    with ui.expansion(_("Overview"), icon="scatter_plot", value=bool(state.get("chart", True)),
+                      on_value_change=_toggle).classes("w-full pb-overview").props("dense"):
+        ui.label(_("One dot per topic. In the shaded area, action is recommended — high or critical "
+                   "urgency, or a deadline within a week. Tap a dot to show its findings.")).classes(
+            "text-xs w-full").style("color:var(--c-text-muted)")
+        labels = {"calm": _("In view"), "act": _("Action recommended"), "zone": _("Action recommended"),
+                  "none": _("No topic")}
+        chart = ui.echart(findings_chart.options(data, current_theme(), labels)).classes("w-full").style(
+            f"height:{findings_chart.HEIGHT_PX}px")
+        chart.on_point_click(lambda e: _pick(list(e.data.get("topics") or []), list(e.data.get("names") or [])))
 
 
 def _topic_colors_dialog(topics: dict[str, str], refresh) -> None:

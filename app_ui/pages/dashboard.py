@@ -543,15 +543,15 @@ async def dashboard():
                             ("ChromaDB", "chroma"),
                             (_("Ollama (Local LLM)"), "ollama"),
                         ]
-                        # Helpers: only the ones this installation uses.
+                        # Optional services: only the ones this installation uses,
+                        # folded below the core so the card stays a glance.
+                        _optional = []
                         if settings.searxng_host:
-                            _services.append((_("SearXNG (web search)"), "searxng"))
+                            _optional.append((_("SearXNG (web search)"), "searxng"))
                         if settings.whisper_url:
-                            _services.append((_("Whisper (transcription)"), "whisper"))
+                            _optional.append((_("Whisper (transcription)"), "whisper"))
                         if _svc.worker() is not None:
-                            _services.append((_("Proactive worker"), "worker"))
-                        if _svc.mail():
-                            _services.append((_("Email sending (SMTP)"), "mail"))
+                            _optional.append((_("Proactive worker"), "worker"))
                         for label_text, key in _services:
                             with ui.row().classes("items-center gap-2"):
                                 dot = ui.element("div").style(
@@ -600,25 +600,44 @@ async def dashboard():
                                     compute_view()
                                 compute_box.set_visibility(False)
 
-                        ui.separator().classes("my-1")
-
-                        # E-Mail and Calendar config status (filled after cred load)
-                        with ui.row().classes("items-center gap-2"):
-                            imap_dot = ui.element("div").style(
-                                "width:8px;height:8px;border-radius:50%;"
-                                "background:var(--c-border);flex-shrink:0;"
-                            )
-                            ui.label(_("Email (IMAP)")).classes(
-                                "text-gray-300 text-sm flex-1"
-                            )
-                            imap_badge = ui.label("…").classes("text-gray-500 text-xs")
-                        with ui.row().classes("items-center gap-2"):
-                            cal_dot = ui.element("div").style(
-                                "width:8px;height:8px;border-radius:50%;"
-                                "background:var(--c-border);flex-shrink:0;"
-                            )
-                            ui.label(_("Calendar")).classes("text-gray-300 text-sm flex-1")
-                            cal_badge = ui.label("…").classes("text-gray-500 text-xs")
+                        # Optional services + the user's integrations, folded: one
+                        # line says how many answer, a red dot if one does not.
+                        with ui.expansion().classes("w-full pb-opt-services").props(
+                                "dense dense-toggle header-class=q-px-none") as opt_exp:
+                            with opt_exp.add_slot("header"):
+                                with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                                    opt_dot = ui.element("div").style(
+                                        "width:8px;height:8px;border-radius:50%;"
+                                        "background:var(--c-border);flex-shrink:0;"
+                                    )
+                                    ui.label(_("Optional services")).classes("text-gray-300 text-sm flex-1")
+                                    opt_badge = ui.label("…").classes("text-gray-500 text-xs")
+                            for label_text, key in _optional:
+                                with ui.row().classes("items-center gap-2"):
+                                    dot = ui.element("div").style(
+                                        "width:8px;height:8px;border-radius:50%;"
+                                        "background:var(--c-border);flex-shrink:0;"
+                                    )
+                                    ui.label(label_text).classes("text-gray-300 text-sm flex-1")
+                                    badge = ui.label("…").classes("text-gray-500 text-xs")
+                                _status_items.append((dot, badge, key))
+                            # E-Mail and Calendar config status (filled after cred load)
+                            with ui.row().classes("items-center gap-2"):
+                                imap_dot = ui.element("div").style(
+                                    "width:8px;height:8px;border-radius:50%;"
+                                    "background:var(--c-border);flex-shrink:0;"
+                                )
+                                ui.label(_("Email (IMAP)")).classes(
+                                    "text-gray-300 text-sm flex-1"
+                                )
+                                imap_badge = ui.label("…").classes("text-gray-500 text-xs")
+                            with ui.row().classes("items-center gap-2"):
+                                cal_dot = ui.element("div").style(
+                                    "width:8px;height:8px;border-radius:50%;"
+                                    "background:var(--c-border);flex-shrink:0;"
+                                )
+                                ui.label(_("Calendar")).classes("text-gray-300 text-sm flex-1")
+                                cal_badge = ui.label("…").classes("text-gray-500 text-xs")
 
                 # 3) Fristen overview card
                 with (
@@ -1506,12 +1525,10 @@ window.__toggleHideAction = function(key) {{
     worker_st = _svc.worker()
     status_data = {
         "paperless": (paperless_ok, paperless_st[1] if paperless_ok else _("Offline")),
-        "searxng": (bool(searxng_st and searxng_st[0]),
-                    (searxng_st[1] if searxng_st and searxng_st[0] else _("Offline"))),
+        "searxng": (bool(searxng_st and searxng_st[0]), _("Online") if searxng_st and searxng_st[0] else _("Offline")),
         "whisper": (bool(whisper_st and whisper_st[0]), _("Online") if whisper_st and whisper_st[0] else _("Offline")),
         "worker": (bool(worker_st and worker_st[0]),
                    (_("Running") if worker_st and worker_st[0] else _("No sign of life"))),
-        "mail": (True, _("Configured")),
         "chroma": (
             chroma_count is not None,
             _("{n} docs").format(n=chroma_count) if chroma_count is not None else _("Error"),
@@ -1527,6 +1544,16 @@ window.__toggleHideAction = function(key) {{
             f"background:{'#22c55e' if ok else '#ef4444'};"
         )
         badge_el.set_text(detail)
+    _opt_keys = [k for _l, k in _optional]
+    if _opt_keys:
+        up = sum(1 for k in _opt_keys if status_data[k][0])
+        opt_badge.set_text(_("{up} of {n} online").format(up=up, n=len(_opt_keys)))
+        opt_dot.style(
+            f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
+            f"background:{'#22c55e' if up == len(_opt_keys) else '#ef4444'};"
+        )
+    else:
+        opt_badge.set_text("")
 
     # Compute line under Ollama: our own request log (both processes) + /api/ps.
     _ollama_srv = _resolve_ollama_server(_username, _token)

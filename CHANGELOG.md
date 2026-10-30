@@ -15,12 +15,15 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   back. Whether a message went out and whether a research runs or ran are
   small icons on the card. The status filter shows each status's icon, "All"
   on top. "Later" is gone.
-- **Topic colours**: give a topic a colour and its cards get that outline.
-- **Overview chart** on the findings page: per topic, what is in view and
-  what calls for action (high or critical urgency, or a deadline within a
-  week).
-- **Dashboard system status** shows the Paperless-ngx version, SearXNG,
-  Whisper, the proactive worker and email sending, where configured.
+- **Topic colours**: give a topic a colour and its cards get that outline
+  and a pale tint.
+- **Overview chart** on the findings page: one dot per topic — how much is
+  in view and how much calls for action (high or critical urgency, or a
+  deadline within a week). Tap a dot to filter the list to that topic; a
+  topic far beyond the rest sits at a cut edge with its true count.
+- **Dashboard system status** shows the Paperless-ngx version; SearXNG,
+  Whisper, the proactive worker, email and calendar are folded under
+  "Optional services" with a count of how many answer.
 - **A finding is a timeline**, newest first: research results, your own
   notes ("Add a note") and the original finding, each dated — two summaries
   that disagree now read as then and now.

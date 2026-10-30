@@ -137,9 +137,15 @@ def _neg_created(f):
     return _Desc(f.created or "")
 
 
+#: Topic filter value for findings without a topic.
+NO_TOPIC = "__none__"
+
+
 def keep(f, status: str, topic: str) -> bool:
     if status not in ("all", "") and display_status(f.status) != (status if status in STATUS_LABELS else "open"):
         return False
+    if topic == NO_TOPIC:
+        return not f.topic
     return not topic or f.topic == topic
 
 
