@@ -366,7 +366,10 @@ def _overview(items: list, today, state: dict, set_state) -> None:
                    "recommended — high or critical urgency, or a deadline within a week. Tap a tile to show "
                    "its findings.")).classes("text-xs w-full").style("color:var(--c-text-muted)")
         labels = {"none": _("No topic"), "pressing": _("{n} pressing")}
-        chart = ui.echart(findings_chart.options(data, current_theme(), labels)).classes("w-full").style(
+        from app_ui import topic_colors
+
+        chart = ui.echart(findings_chart.options(data, current_theme(), labels, topic_colors.colors())).classes(
+            "w-full").style(
             f"height:{findings_chart.HEIGHT_PX}px")
         chart.on_point_click(lambda e: _pick(list(e.data.get("topics") or []), list(e.data.get("names") or [])))
 
