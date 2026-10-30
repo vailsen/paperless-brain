@@ -96,37 +96,28 @@ def test_hints_show_notification_and_research_not_as_status():
     assert fv.research(_f("r", "researched"))[0] == "fact_check"
 
 
-def test_overview_one_dot_per_topic_and_no_topic_is_its_own():
+def test_overview_one_tile_per_topic_and_no_topic_is_its_own():
     from app_ui import findings_chart
 
     data = {r["topic"]: r for r in findings_chart.topics(ITEMS, TODAY)}
     assert set(data) == {"kfz", "mobilfunk", "strom", fv.NO_TOPIC}  # "done" is history
     assert (data["kfz"]["calm"], data["kfz"]["act"]) == (1, 1)     # kfz2 medium, kfz1 high
     assert (data["strom"]["calm"], data["strom"]["act"]) == (0, 1)  # due in four days
-    opts = findings_chart.options(list(data.values()), "dark",
-                                  {"calm": "In view", "act": "Action", "zone": "Action", "none": "No topic"})
-    names = {d["name"] for d in opts["series"][0]["data"]}
-    assert "No topic" in names or any(n.startswith("No topic") for n in names)
+    opts = findings_chart.options(list(data.values()), "light", {"none": "No topic", "pressing": "{n} pressing"})
+    tiles = {t["name"]: t for t in opts["series"][0]["data"]}
+    assert tiles["Kfz"]["value"] == 2 and tiles["No topic"]["topics"] == [fv.NO_TOPIC]
+    red = findings_chart.COLORS["light"]["act"]
+    assert tiles["Kfz"]["itemStyle"]["borderColor"] == red and "1 pressing" in tiles["Kfz"]["label"]["formatter"]
+    assert tiles["Mobilfunk"]["itemStyle"]["borderColor"] != red  # nothing pressing there
+    assert len({t["itemStyle"]["color"] for t in tiles.values()}) == 1  # one tile colour
 
 
-def test_an_outlier_is_cut_to_the_edge_with_its_true_count():
+def test_overview_tooltip_escapes_topic_names():
     from app_ui import findings_chart
 
-    data = [{"topic": fv.NO_TOPIC, "label": "", "calm": 42, "act": 2},
-            {"topic": "steuer", "label": "Steuer", "calm": 7, "act": 1},
-            {"topic": "kfz", "label": "Kfz", "calm": 3, "act": 1}]
-    pts, x_max, _y = findings_chart.points(data, "No topic")
-    assert x_max < 42
-    cut = next(p for p in pts if "No topic" in p["labels"])
-    assert cut["cut"] and cut["x"] == x_max and cut["real_x"] == 42
-
-
-def test_topics_on_the_same_spot_share_one_dot():
-    from app_ui import findings_chart
-
-    data = [{"topic": "a", "label": "A", "calm": 1, "act": 0}, {"topic": "b", "label": "B", "calm": 1, "act": 0}]
-    (p,), _x, _y = findings_chart.points(data, "No topic")
-    assert p["topics"] == ["a", "b"]
+    data = [{"topic": "x", "label": "<img src=x onerror=alert(1)>", "calm": 1, "act": 0}]
+    (tile,) = findings_chart.options(data, "dark", {"none": "-", "pressing": "{n}"})["series"][0]["data"]
+    assert "<img" not in tile["tip"]
 
 
 def test_no_topic_filter():
