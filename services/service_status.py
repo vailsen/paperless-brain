@@ -19,12 +19,14 @@ TIMEOUT = 3.0
 
 
 async def paperless() -> tuple[bool, str]:
-    """Paperless-ngx sends its version in the `X-Version` header of every API
-    answer — no extra endpoint, no admin rights."""
+    """Paperless-ngx sends its version in the `X-Version` header of its API
+    answers — not of `/api/` itself, which only redirects (and so showed no
+    version). One document of the list is the cheapest answer that has it."""
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT, headers={
                 "Authorization": f"Token {settings.paperless_superuser_token}"}) as c:
-            r = await c.get(f"{settings.paperless_url.rstrip('/')}/api/")
+            r = await c.get(f"{settings.paperless_url.rstrip('/')}/api/documents/",
+                            params={"page_size": 1, "fields": "id"})
         if r.status_code >= 400:
             return False, f"HTTP {r.status_code}"
         version = r.headers.get("x-version", "")
@@ -34,22 +36,15 @@ async def paperless() -> tuple[bool, str]:
 
 
 async def searxng() -> tuple[bool, str] | None:
-    """SearXNG's `/config` carries its version; `/healthz` is the fallback for
-    an instance that does not expose it."""
+    """SearXNG answers `/healthz` with OK. (Its version is a build string like
+    "2026.5.29+4ea5c57a8" — noise on the dashboard.)"""
     host = (settings.searxng_host or "").rstrip("/")
     if not host:
         return None
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as c:
-            r = await c.get(f"{host}/config")
-            if r.status_code < 400:
-                try:
-                    version = str(r.json().get("version") or "")
-                except ValueError:
-                    version = ""
-                return True, version or "Online"
             r = await c.get(f"{host}/healthz")
-            return r.status_code < 400, ("Online" if r.status_code < 400 else f"HTTP {r.status_code}")
+        return r.status_code < 400, ""
     except Exception:  # noqa: BLE001
         return False, ""
 
@@ -84,13 +79,3 @@ def worker() -> tuple[bool, int] | None:
     except OSError:
         return False, -1
     return age <= 3 * TICK_SECONDS, age
-
-
-def mail() -> bool | None:
-    """Outgoing mail for notifications: configured or not. Not tested live —
-    a dashboard load must not open an SMTP session."""
-    from config.proactive import is_enabled, proactive_settings
-
-    if not is_enabled():
-        return None
-    return True if proactive_settings().email_available else None

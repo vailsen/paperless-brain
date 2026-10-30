@@ -96,24 +96,39 @@ def test_hints_show_notification_and_research_not_as_status():
     assert fv.research(_f("r", "researched"))[0] == "fact_check"
 
 
-def test_overview_rows_split_by_the_action_threshold():
+def test_overview_one_dot_per_topic_and_no_topic_is_its_own():
     from app_ui import findings_chart
 
-    rows = findings_chart.rows(ITEMS, TODAY)
-    by = {r["topic"]: r for r in rows}
-    assert set(by) == {"kfz", "mobilfunk", "strom", ""}       # "done" is history
-    assert (by["kfz"]["act"], by["kfz"]["calm"]) == (1, 1)    # kfz1 high, kfz2 medium
-    assert (by["strom"]["act"], by["strom"]["calm"]) == (1, 0)  # due in four days
-    assert rows[-1]["topic"] == ""                           # findings without a topic last
-    opts = findings_chart.options(rows, "dark", {"calm": "In view", "act": "Action", "other": "Other"})
-    calm, act = opts["series"]
-    assert all(v <= 0 for v in calm["data"]) and all(v >= 0 for v in act["data"])
-    assert opts["yAxis"]["data"][0] == "Other"               # bottom row = last
+    data = {r["topic"]: r for r in findings_chart.topics(ITEMS, TODAY)}
+    assert set(data) == {"kfz", "mobilfunk", "strom", fv.NO_TOPIC}  # "done" is history
+    assert (data["kfz"]["calm"], data["kfz"]["act"]) == (1, 1)     # kfz2 medium, kfz1 high
+    assert (data["strom"]["calm"], data["strom"]["act"]) == (0, 1)  # due in four days
+    opts = findings_chart.options(list(data.values()), "dark",
+                                  {"calm": "In view", "act": "Action", "zone": "Action", "none": "No topic"})
+    names = {d["name"] for d in opts["series"][0]["data"]}
+    assert "No topic" in names or any(n.startswith("No topic") for n in names)
 
 
-def test_overview_folds_many_topics_into_other():
+def test_an_outlier_is_cut_to_the_edge_with_its_true_count():
     from app_ui import findings_chart
 
-    many = [_f(f"t{i}", topic=f"topic{i}", urgency="high") for i in range(12)]
-    rows = findings_chart.rows(many, TODAY)
-    assert len(rows) == findings_chart.MAX_TOPICS + 1 and rows[-1]["act"] == 12 - findings_chart.MAX_TOPICS
+    data = [{"topic": fv.NO_TOPIC, "label": "", "calm": 42, "act": 2},
+            {"topic": "steuer", "label": "Steuer", "calm": 7, "act": 1},
+            {"topic": "kfz", "label": "Kfz", "calm": 3, "act": 1}]
+    pts, x_max, _y = findings_chart.points(data, "No topic")
+    assert x_max < 42
+    cut = next(p for p in pts if "No topic" in p["labels"])
+    assert cut["cut"] and cut["x"] == x_max and cut["real_x"] == 42
+
+
+def test_topics_on_the_same_spot_share_one_dot():
+    from app_ui import findings_chart
+
+    data = [{"topic": "a", "label": "A", "calm": 1, "act": 0}, {"topic": "b", "label": "B", "calm": 1, "act": 0}]
+    (p,), _x, _y = findings_chart.points(data, "No topic")
+    assert p["topics"] == ["a", "b"]
+
+
+def test_no_topic_filter():
+    (g,) = fv.arrange(ITEMS, status="open", topic=fv.NO_TOPIC, group="none", sort="relevance", today=TODAY)
+    assert [f.finding_id for f in g.items] == ["loose"]
