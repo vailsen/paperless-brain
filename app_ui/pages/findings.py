@@ -360,13 +360,12 @@ def _overview(items: list, today, state: dict, set_state) -> None:
                     "flat dense no-caps align=left").classes("w-full")
         dlg.open()
 
-    with ui.expansion(_("Overview"), icon="scatter_plot", value=bool(state.get("chart", True)),
+    with ui.expansion(_("Overview"), icon="grid_view", value=bool(state.get("chart", True)),
                       on_value_change=_toggle).classes("w-full pb-overview").props("dense"):
-        ui.label(_("One dot per topic. In the shaded area, action is recommended — high or critical "
-                   "urgency, or a deadline within a week. Tap a dot to show its findings.")).classes(
-            "text-xs w-full").style("color:var(--c-text-muted)")
-        labels = {"calm": _("In view"), "act": _("Action recommended"), "zone": _("Action recommended"),
-                  "none": _("No topic")}
+        ui.label(_("One tile per topic, its size the number of findings. A red outline means action is "
+                   "recommended — high or critical urgency, or a deadline within a week. Tap a tile to show "
+                   "its findings.")).classes("text-xs w-full").style("color:var(--c-text-muted)")
+        labels = {"none": _("No topic"), "pressing": _("{n} pressing")}
         chart = ui.echart(findings_chart.options(data, current_theme(), labels)).classes("w-full").style(
             f"height:{findings_chart.HEIGHT_PX}px")
         chart.on_point_click(lambda e: _pick(list(e.data.get("topics") or []), list(e.data.get("names") or [])))
