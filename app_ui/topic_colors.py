@@ -39,3 +39,19 @@ def set_color(topic: str, slot: int | None) -> None:
 
 def css_var(slot: int) -> str:
     return f"var(--topic-{int(slot)})"
+
+
+#: The same hues as the `--topic-*` tokens, for drawing on a canvas (ECharts),
+#: which cannot read CSS variables. Keep in step with `app_ui/theme.py`.
+HEX = {
+    "light": ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
+    "dark": ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"],
+}
+
+
+def tint(slot: int, theme: str, surface: str, share: float) -> str:
+    """The slot's hue mixed into `surface` — a fill that text stays readable on."""
+    hue = HEX.get(theme, HEX["light"])[int(slot) - 1]
+    a = [int(hue[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(surface[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x * share + y * (1 - share)):02x}" for x, y in zip(a, b))

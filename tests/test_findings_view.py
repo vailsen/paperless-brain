@@ -123,3 +123,27 @@ def test_overview_tooltip_escapes_topic_names():
 def test_no_topic_filter():
     (g,) = fv.arrange(ITEMS, status="open", topic=fv.NO_TOPIC, group="none", sort="relevance", today=TODAY)
     assert [f.finding_id for f in g.items] == ["loose"]
+
+
+def test_overview_tiles_take_the_users_topic_colour():
+    from app_ui import findings_chart, topic_colors
+
+    data = [{"topic": "kfz", "label": "Kfz", "calm": 2, "act": 1}, {"topic": "gas", "label": "Gas", "calm": 1, "act": 0}]
+    tiles = {t["name"]: t for t in findings_chart.options(
+        data, "light", {"none": "-", "pressing": "{n}"}, {"kfz": 3})["series"][0]["data"]}
+    assert tiles["Kfz"]["itemStyle"]["color"] == topic_colors.tint(3, "light", "#f4f5f7", findings_chart.TINT["light"])
+    assert tiles["Gas"]["itemStyle"]["color"] == findings_chart.COLORS["light"]["tile"]
+    assert tiles["Kfz"]["itemStyle"]["borderColor"] == findings_chart.COLORS["light"]["act"]  # still pressing
+
+
+def test_topic_hex_matches_the_theme_tokens():
+    import re
+
+    from app_ui import theme, topic_colors
+
+    css = open(theme.__file__).read()
+    light = css[css.index("body.body--light {"):]
+    for i in range(1, 9):
+        dark_hex = re.search(rf"--topic-{i}: (#[0-9a-f]{{6}})", css).group(1)
+        light_hex = re.search(rf"--topic-{i}: (#[0-9a-f]{{6}})", light).group(1)
+        assert topic_colors.HEX["dark"][i - 1] == dark_hex and topic_colors.HEX["light"][i - 1] == light_hex
