@@ -185,10 +185,30 @@ def _target_host() -> str:
     return m.group(1) if m else state()["wol_host"]
 
 
+#: Exit status of `SHUTDOWN_CMD` when someone is using the machine at its seat.
+IN_USE = 75
+#: The idle shutdown, run on the host: refuse while a local desktop session is
+#: active and not idle (logind: class user, on a seat, foreground, IdleHint no
+#: — desktops set the hint once the screen idles). The watchdog cannot see a
+#: person at the keyboard; at 01:14 one night it shut the PC down under its
+#: owner, who had switched it back on after the worker's wake. A host without
+#: logind has no sessions to list and shuts down as before.
+SHUTDOWN_CMD = (
+    "for s in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}'); do "
+    'c=$(loginctl show-session "$s" -p Class --value); '
+    'a=$(loginctl show-session "$s" -p Active --value); '
+    'i=$(loginctl show-session "$s" -p IdleHint --value); '
+    'st=$(loginctl show-session "$s" -p Seat --value); '
+    f'[ "$c" = user ] && [ "$a" = yes ] && [ -n "$st" ] && [ "$i" = no ] && exit {IN_USE}; '
+    "done; sudo shutdown -h now"
+)
+
+
 async def _ssh_shutdown() -> tuple[bool, str]:
-    """Run `sudo shutdown -h now` on the host. `(True, "")` when the command
-    was accepted (or the connection dropped because the host went down),
-    `(False, reason)` otherwise.
+    """Run `SHUTDOWN_CMD` on the host. `(True, "")` when the command was
+    accepted (or the connection dropped because the host went down),
+    `(False, "in use")` when someone is at the machine, `(False, reason)`
+    otherwise.
 
     `BatchMode=yes`: without it ssh may sit at a password or passphrase prompt
     until the timeout — which used to count as success, so the host was marked
@@ -205,7 +225,7 @@ async def _ssh_shutdown() -> tuple[bool, str]:
             "-o", "ConnectTimeout=5",
             "-o", "BatchMode=yes",
             f"{user}@{host}",
-            "sudo shutdown -h now",
+            SHUTDOWN_CMD,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -220,6 +240,8 @@ async def _ssh_shutdown() -> tuple[bool, str]:
     last = detail[-1] if detail else ""
     if proc.returncode == 0:
         return True, ""
+    if proc.returncode == IN_USE:
+        return False, "in use"
     # The host closing the connection while it shuts down is success.
     if proc.returncode == 255 and re.search(r"closed by remote host|Connection reset", last, re.I):
         return True, ""
@@ -257,7 +279,7 @@ def shutdown_due(now: datetime | None = None) -> bool:
 
 async def watchdog_step(now: datetime | None = None) -> str:
     """One check. Returns what it did (for tests and the log):
-    `idle` | `shutdown` | `failed` | `verified` | `still_up`."""
+    `idle` | `shutdown` | `failed` | `verified` | `still_up` | `in_use`."""
     now = now or datetime.now()
     d = _read()
     pending = d.get("shutdown_pending_since")
@@ -266,14 +288,14 @@ async def watchdog_step(now: datetime | None = None) -> str:
             return "idle"
         host = _target_host()
         if host and await _host_reachable(host):
-            # The command was accepted but the machine is still there (sudo
-            # rule, inhibitor, a hung shutdown): it is ours again to retry.
-            _log(f"{host} still answers {VERIFY_AFTER_S}s after the shutdown command — trying again")
-            _update(
-                wol_active=True, shutdown_pending_since=None,
-                shutdown_error="host still reachable after shutdown",
-                shutdown_retry_at=(now + timedelta(seconds=RETRY_AFTER_S)).isoformat(),
-            )
+            # Up again after an accepted shutdown: almost always a person who
+            # switched it back on — it is theirs now, never shut down again.
+            # (This used to retry, and shut the PC down under its owner.) A
+            # hung shutdown is reported instead of forced.
+            _log(f"{host} still answers {VERIFY_AFTER_S}s after the shutdown command — "
+                 "someone is using it, leaving it on")
+            _update(wol_active=False, shutdown_pending_since=None, shutdown_retry_at=None,
+                    shutdown_error="host was on again after the shutdown — left on")
             return "still_up"
         _update(shutdown_pending_since=None, shutdown_error="")
         _log(f"{host or 'host'} is off")
@@ -284,6 +306,10 @@ async def watchdog_step(now: datetime | None = None) -> str:
     idle_min = int((now - s["last_activity"]).total_seconds() // 60)
     _log(f"shutting down {_target_host() or 'the host'}: idle {idle_min} min, woken by {s['wol_by']}")
     ok, why = await _ssh_shutdown()
+    if not ok and why == "in use":
+        _log(f"{_target_host() or 'host'} is in use at its seat — not shutting down, leaving it on")
+        _update(wol_active=False, shutdown_pending_since=None, shutdown_retry_at=None, shutdown_error="")
+        return "in_use"
     if ok:
         _update(wol_active=False, shutdown_pending_since=now.isoformat(), shutdown_error="",
                 shutdown_retry_at=None)

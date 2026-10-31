@@ -86,6 +86,10 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **The idle shutdown no longer turns off a PC someone is using.** It checks
+  for an active, non-idle desktop session on the machine first and leaves it
+  on if there is one; and a PC that is on again after a shutdown (switched
+  back on by hand) is left alone instead of being shut down a second time.
 - **A research on a German finding is written in German** (brief, subtask
   questions and report), not English.
 - **PDF tables size their columns by content**: the subtask table's

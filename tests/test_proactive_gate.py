@@ -867,7 +867,8 @@ def test_failed_shutdown_is_retried_not_forgotten(woken, monkeypatch, capsys):
     assert "shutdown failed: Permission denied" in out and "idle 31 min" in out
 
 
-def test_shutdown_is_verified_and_repeated_if_the_host_stays_up(woken, monkeypatch):
+def test_a_host_that_is_on_again_after_the_shutdown_is_left_on(woken, monkeypatch):
+    """Someone switched it back on: never shut it down again (01:14, the owner at it)."""
     wd = woken
     up = [True]
 
@@ -883,11 +884,60 @@ def test_shutdown_is_verified_and_repeated_if_the_host_stays_up(woken, monkeypat
     assert asyncio.run(wd.watchdog_step(t)) == "shutdown"
     assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=1))) == "idle"   # give it time
     assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=4))) == "still_up"
-    assert wd.state()["wol_active"]
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=10))) == "shutdown"
-    up[0] = False
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=14))) == "verified"
     assert not wd.state()["wol_active"]
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=30))) == "idle"  # no second shutdown
+
+
+def test_shutdown_is_verified_when_the_host_goes_down(woken, monkeypatch):
+    wd = woken
+
+    async def ssh():
+        return True, ""
+
+    async def reachable(host, port=11434):
+        return False
+
+    monkeypatch.setattr(wd, "_ssh_shutdown", ssh)
+    monkeypatch.setattr(wd, "_host_reachable", reachable)
+    t = _idle(wd, 31)
+    assert asyncio.run(wd.watchdog_step(t)) == "shutdown"
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=4))) == "verified"
+
+
+def test_a_host_in_use_at_its_seat_is_not_shut_down(woken, monkeypatch):
+    wd = woken
+    calls = []
+
+    async def ssh():
+        calls.append(1)
+        return False, "in use"
+
+    monkeypatch.setattr(wd, "_ssh_shutdown", ssh)
+    t = _idle(wd, 31)
+    assert asyncio.run(wd.watchdog_step(t)) == "in_use"
+    assert not wd.state()["wol_active"]
+    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=30))) == "idle"
+    assert calls == [1]
+
+
+def test_in_use_exit_status_is_reported(monkeypatch, woken):
+    wd = woken
+
+    class P:
+        returncode = wd.IN_USE
+
+        async def communicate(self):
+            return b"", b""
+
+    async def fake_exec(*args, **kw):
+        return P()
+
+    from config.settings import settings
+
+    monkeypatch.setattr(settings, "ollama_ssh_user", "pb")
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+    assert asyncio.run(wd._ssh_shutdown()) == (False, "in use")
+    assert "loginctl" in wd.SHUTDOWN_CMD and "IdleHint" in wd.SHUTDOWN_CMD
 
 
 def test_ssh_runs_in_batch_mode(monkeypatch, woken):
