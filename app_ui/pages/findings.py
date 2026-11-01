@@ -249,6 +249,10 @@ async def findings_page() -> None:
     stored = get_pref("findings_view") or {}
     state = {k: stored.get(k, v) for k, v in fv.DEFAULT_VIEW.items()}
     ui.add_css(_LIST_CSS)
+    from app_ui import findings_chart
+
+    ui.add_css(findings_chart.TREEMAP_CSS)
+    ui.add_body_html(f"<script>{findings_chart.TREEMAP_JS}</script>")
 
     with ui.column().classes("w-full max-w-3xl mx-auto p-4 gap-3"):
         ui.label(_("Findings")).classes("text-xl font-bold text-gray-100")
@@ -353,7 +357,8 @@ def _overview(items: list, today, state: dict, set_state) -> None:
         if len(topic_keys) == 1:
             set_state("topic", topic_keys[0])
             return
-        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface);min-width:240px"):
+        with ui.dialog() as dlg, ui.card().style(
+                "background:var(--c-surface);min-width:240px;max-height:80vh;overflow-y:auto"):
             ui.label(_("Which topic?")).classes("text-sm font-semibold")
             for key, name in zip(topic_keys, names):
                 ui.button(name, on_click=lambda k=key: (dlg.close(), set_state("topic", k))).props(
@@ -365,13 +370,18 @@ def _overview(items: list, today, state: dict, set_state) -> None:
         ui.label(_("One tile per topic, its size the number of findings. A red outline means action is "
                    "recommended — high or critical urgency, or a deadline within a week. Tap a tile to show "
                    "its findings.")).classes("text-xs w-full").style("color:var(--c-text-muted)")
-        labels = {"none": _("No topic"), "pressing": _("{n} pressing")}
+        labels = {"none": _("No topic"), "pressing": _("{n} pressing"),
+                  "more": _("{n} more topics")}  # TODO i18n-plural
         from app_ui import topic_colors
 
-        chart = ui.echart(findings_chart.options(data, current_theme(), labels, topic_colors.colors())).classes(
-            "w-full").style(
-            f"height:{findings_chart.HEIGHT_PX}px")
-        chart.on_point_click(lambda e: _pick(list(e.data.get("topics") or []), list(e.data.get("names") or [])))
+        spec = findings_chart.tiles(data, current_theme(), labels, topic_colors.colors())
+        tm = ui.element("div").classes("pb-treemap").style(f"height:{findings_chart.HEIGHT_PX}px")
+        tm._props["data-tm"] = findings_chart.payload(spec)
+        def _picked(e) -> None:
+            d = (e.args or {}).get("detail") or {}
+            _pick(list(d.get("keys") or []), list(d.get("names") or []))
+
+        tm.on("pb-pick", _picked, args=["detail"])
 
 
 def _topic_colors_dialog(topics: dict[str, str], refresh) -> None:
@@ -614,7 +624,13 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
             async def _do(a: str) -> None:
                 msg = await reactions.react(user, finding_id, a, channel="app")
                 ui.notify(msg, type="positive")
-                body.refresh("")
+                # The item is handled: back to where the user came from (the
+                # list with its filters). Opened from a push, there is no
+                # "before" — the list then.
+                ui.run_javascript(
+                    "setTimeout(() => { if (history.length > 1 && document.referrer"
+                    " && new URL(document.referrer).origin === location.origin) history.back();"
+                    " else location.href = '/findings'; }, 600)")
 
             if pending_action and pending_action in allowed:
                 with ui.card().classes("w-full bg-gray-900 border border-gray-700 p-3"):
