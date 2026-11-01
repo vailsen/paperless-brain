@@ -95,7 +95,17 @@ _STOPWORDS = frozenset(
     """.split()
 )
 
-_TOKEN_RE = re.compile(r"\d+(?:[.,]\d+)*|[^\W\d_]+", re.UNICODE)
+# A code with a digit after a letter ("4F60", "2C91", "ESt2018") is one token:
+# split, the barcode "02 2FF7 4F60" offered a lone "4" that matched "um 4 %".
+# A number followed by a unit ("700C", "176m") still splits.
+_TOKEN_RE = re.compile(r"\d*[^\W\d_]+\d[^\W_]*|\d+(?:[.,]\d+)*|[^\W\d_]+", re.UNICODE)
+# Digit groups of an id ("12 345 678 901", an IBAN): the model writes them
+# grouped or not, so both readings are tokens.
+_DIGIT_GROUPS_RE = re.compile(r"(?<![\d.,])\d{1,4}(?: \d{1,4}){2,}(?![\d.,])")
+_YEAR_RE = re.compile(r"(?:19|20)\d\d")
+# "10.847,52 €" in the answer, "Euro: 10847 Cent: 52" in a form: the euros
+# alone are a token too.
+_AMOUNT_RE = re.compile(r"(?<![\d.,])(\d{1,3}(?:\.\d{3})+|\d{3,}),\d{2}(?![\d.,])")
 
 
 def _norm_number(tok: str) -> str:
@@ -117,8 +127,15 @@ def tokens(text: str) -> list[str]:
     without separators."""
     out = []
     for tok in _TOKEN_RE.findall(text or ""):
-        out.append(_norm_number(tok) if tok[0].isdigit() else _fold(tok))
+        if tok[0].isdigit() and _norm_number(tok).isdigit():
+            out.append(_norm_number(tok))
+        else:
+            out.append(_fold(tok))
     return out
+
+
+def _is_num(tok: str) -> bool:
+    return tok.isdigit()
 
 
 # "Seite 5 von 5", "Page 2", "S. 3": a page number is where the text sits, not
@@ -130,20 +147,31 @@ _PAGE_NO_RE = re.compile(
 
 
 def content_tokens(text: str) -> set[str]:
-    return {
-        t for t in tokens(_PAGE_NO_RE.sub(" ", text or ""))
-        if t[0].isdigit() or (len(t) >= 3 and t not in _STOPWORDS)
+    text = _PAGE_NO_RE.sub(" ", text or "")
+    out = {
+        t for t in tokens(text)
+        if _is_num(t) or (len(t) >= 3 and t not in _STOPWORDS)
     }
+    out |= {m.group(0).replace(" ", "") for m in _DIGIT_GROUPS_RE.finditer(text)}
+    out |= {m.group(1).replace(".", "") for m in _AMOUNT_RE.finditer(text)}
+    return out
 
 
 def _weight(tok: str) -> float:
-    return 3.0 if tok[0].isdigit() else 1.0
+    """A distinctive number (an amount, an id) counts triple. A year, a day or
+    a "4" does not: "2018" stands in every footer of the 2018 tax return, and
+    it outscored the line with the tax id the claim was about."""
+    if not _is_num(tok):
+        return 1.5 if any(c.isdigit() for c in tok) else 1.0  # a code
+    if len(tok) <= 2 or (len(tok) == 4 and _YEAR_RE.fullmatch(tok)):
+        return 1.0
+    return 3.0
 
 
 def _stem(tok: str) -> str:
     # German inflects heavily ("erneuerbaren" / "erneuerbare"); a shared
     # prefix of six letters is close enough for picking a passage.
-    return tok if tok[0].isdigit() or len(tok) < 7 else tok[:6]
+    return tok if _is_num(tok) or len(tok) < 7 else tok[:6]
 
 
 def _same_amount(a: str, b: str) -> bool:
@@ -166,12 +194,12 @@ def _score(seg_tokens: set[str], claim: set[str]) -> float:
     for t in claim:
         if t in seg_tokens:
             score += _weight(t)
-        elif t[0].isdigit():
-            if any(s[0].isdigit() and _same_amount(t, s) for s in seg_tokens):
+        elif _is_num(t):
+            if any(_is_num(s) and _same_amount(t, s) for s in seg_tokens):
                 score += 0.7 * _weight(t)
         elif _stem(t) in seg_stems or (
             # German compounds: "Wärme" is in "Wärmebedarfs".
-            len(t) >= 4 and not t[0].isdigit() and any(s.startswith(t) for s in seg_tokens)
+            len(t) >= 4 and not _is_num(t) and any(s.startswith(t) for s in seg_tokens)
         ):
             score += 0.7 * _weight(t)
     return score
@@ -199,6 +227,13 @@ def _squash(text: str) -> str:
 
 
 MAX_WINDOW = 3
+#: A passage must cover half the claim's weight, or this much: a lone year or
+#: a lone "4" shared with a footer is no support.
+MIN_SUPPORT = 2.0
+
+
+def claim_weight(claim: set[str]) -> float:
+    return sum(_weight(t) for t in claim)
 
 
 def best_passage(
@@ -239,7 +274,7 @@ def best_passage(
             text = " ".join(segs[i : j + 1])
             if score > best[1] or (score == best[1] and score > 0 and len(text) < best[2]):
                 best = (text, score, len(text))
-    if best[1] > 0.5:
+    if best[1] > 0.5 and best[1] >= min(MIN_SUPPORT, 0.5 * claim_weight(claim_toks)):
         return best[0], best[1]
     # No overlap with the claim (e.g. answer in English, document in German):
     # the hint chunk is still where the search found the document.
@@ -437,8 +472,33 @@ def align_words(words: list[Word], passage: str) -> list[Box]:
         s += 1
     while e > s and flat[e][0] not in need:
         e -= 1
+    in_window = {flat[k][0] for k in range(s, e + 1)}
+    nums = [t for t in need if _is_num(t) and _weight(t) >= 3.0]
+    if any(t not in in_window for t in nums):
+        # An amount of the passage is not in the window: a table, whose text layer
+        # holds the label column first and the value column after it ("37,24"
+        # 28 words from "Sockelbeteiligung"). The label words then matched a
+        # sentence below the table instead. Mark the amount's row.
+        rows = _row_boxes(words, wtoks, nums)
+        if rows:
+            return rows
     picked = sorted({flat[k][1] for k in range(s, e + 1)})
     return _line_boxes([words[i].box for i in picked])
+
+
+def _row_boxes(words: list[Word], wtoks: list[list[str]], nums: list[str]) -> list[Box]:
+    """The text lines through each of ``nums`` that occurs exactly once on the
+    page — in a table, the label and the value share the line."""
+    counts = Counter(t for ts in wtoks for t in ts)
+    hits = [i for i, ts in enumerate(wtoks) if any(t in nums and counts[t] == 1 for t in ts)]
+    picked: set[int] = set()
+    for i in hits:
+        _x, y, _w, h = words[i].box
+        for j, w in enumerate(words):
+            cy = w.box[1] + w.box[3] / 2
+            if y <= cy <= y + h:
+                picked.add(j)
+    return _line_boxes([words[i].box for i in sorted(picked)])
 
 
 # A form puts the label where the template has it and the filled-in value at
@@ -458,9 +518,9 @@ def _anchor_boxes(words: list[Word], wtoks: list[list[str]], target: list[str]) 
     counts = Counter(t for ts in wtoks for t in ts)
     anchors = {
         t for t in target
-        if counts.get(t) == 1 and (len(t) >= 2 if t[0].isdigit() else len(t) >= 6)
+        if counts.get(t) == 1 and (len(t) >= 2 if _is_num(t) else len(t) >= 6)
     }
-    if not any(t[0].isdigit() for t in anchors) and len(anchors) < 2:
+    if not any(_is_num(t) for t in anchors) and len(anchors) < 2:
         return []
     picked = [i for i, ts in enumerate(wtoks) if anchors.intersection(ts)]
     return _line_boxes([words[i].box for i in picked])
@@ -650,3 +710,69 @@ async def locate(
     if passage and not target.boxes:
         _log.info("citation #%s p%s: passage not on the text layer: %.80r", doc_id, page, passage)
     return target
+
+
+# ── Wrong page in a marker ───────────────────────────────────────────────────
+
+_BLOCK_END_RE = re.compile(r"\n")
+_CLAIM_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def claim_before(text: str, pos: int) -> str:
+    """The claim of the marker at ``pos`` — the same rule the browser applies
+    (`__citeClaim` in the chat page): the last sentence of its line before the
+    marker, with the one before it when that is short."""
+    start = text.rfind("\n", 0, pos) + 1
+    block = CITE_RE.sub(" ", text[start:pos])
+    sents = [x for x in _CLAIM_SPLIT_RE.split(" ".join(block.split())) if x]
+    claim = sents.pop() if sents else ""
+    if len(claim) < 30 and sents:
+        claim = sents.pop() + " " + claim
+    return claim[-400:]
+
+
+def _supports(page_text: str, claim: str) -> float:
+    passage, score = best_passage(page_text, claim)
+    return score if passage and score > 0 else 0.0
+
+
+def repair_pages(text: str, pages_of=None) -> str:
+    """Point a marker at the page its claim is on, where the model copied the
+    wrong one.
+
+    The model copies ``[^32-p3]`` from a tool result and sometimes puts it
+    behind a fact from another page of the same document ("290,58 €" is on
+    page 4, cited as page 3). The highlight then finds nothing, and the number
+    sends the reader to the wrong page. When the claim has no support on the
+    cited page and one other page supports it clearly — or several equally,
+    then the first — the marker is rewritten, and numbering gives it its own
+    number. A marker whose page does support its claim is never touched.
+    """
+    pages_of = pages_of or _sidecar_pages
+    cache: dict[int, list[tuple[int, str]]] = {}
+    out, last = [], 0
+    for m in CITE_RE.finditer(text or ""):
+        if not m.group(2):
+            continue
+        doc, page = int(m.group(1)), int(m.group(2))
+        if doc not in cache:
+            try:
+                cache[doc] = pages_of(doc)
+            except Exception:
+                cache[doc] = []
+        pages = cache[doc]
+        if len(pages) < 2:
+            continue
+        claim = claim_before(text, m.start())
+        if not claim or _supports(dict(pages).get(page, ""), claim) > 0:
+            continue
+        scored = [(sc, n) for n, t in pages if n != page and (sc := _supports(t, claim)) >= PAGE_FOR_MIN]
+        if not scored:
+            continue
+        top = max(sc for sc, _n in scored)
+        better = min(n for sc, n in scored if sc > top - 1.0)
+        out.append(text[last:m.start()] + cite_ref(doc, better))
+        last = m.end()
+    if not out:
+        return text
+    return "".join(out) + text[last:]

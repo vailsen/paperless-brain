@@ -219,6 +219,18 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   tags each summary sentence, action and cross-reference with `page_for` (one page clearly
   best, else the bare `[^id]`). The model copies what it is shown; given only `[^361]` it cites
   the whole document, and that number opens no particular place.
+- **Weak evidence is no evidence.** Only a distinctive number (an amount, an id) counts triple;
+  a year or a one/two-digit number counts once, and a code like "4F60" is one token — the lone
+  "4" of a barcode matched "um 4 %", "2018" in a footer outscored the tax-id line. A passage
+  must cover half the claim's weight (at most `MIN_SUPPORT`). Ids match grouped or not, an
+  amount's euros match a form's separate euro field.
+- **A table amount marks its row.** A table's text layer holds the label column first, the
+  values after; when an amount of the passage is not in the aligned window, the line through
+  that amount is marked (`_row_boxes`), not a sentence below repeating the label.
+- **A marker on the wrong page is re-pointed before the answer is stored**
+  (`repair_pages`): no support on the cited page, clear support on another page of the same
+  document → the marker names that page and gets its own number. A supported marker is never
+  touched; `claim_before` applies the browser's claim rule.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
   link mid-marker.
 

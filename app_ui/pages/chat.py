@@ -3366,6 +3366,14 @@ window.__openVaultNote = function(noteId) {{
                 _update_thinking()
             if _shown_images:
                 accumulated[0] = with_images(accumulated[0], _shown_images, _)
+            if accumulated[0]:
+                # A marker behind a fact from another page of the same document
+                # is pointed at that page before the answer is stored.
+                try:
+                    accumulated[0] = await asyncio.to_thread(
+                        citations.repair_pages, accumulated[0])
+                except Exception as exc:
+                    _log.warning("citation page repair failed: %s", exc)
             if not accumulated[0] and not _s["stop_requested"]:
                 # Not saved: it is no answer. But an empty bubble looks like a hang.
                 streaming_label[0].set_content(
