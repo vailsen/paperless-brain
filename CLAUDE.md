@@ -487,11 +487,13 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 
 ## Sync triggering
 
-- **On user interaction only. No background scheduler. No time-based sync.** One exception:
-  the proactive worker, after its batch, has the app sync a vault whose *findings folder* it
-  changed (`proactive/tasks/vault_sync.py`) — only when no LLM job finished in 10 min and the app is not
-  using the model, so the next chat turn does not start with the worker's backlog. It is
-  triggered by the worker's own writes, never by the clock alone.
+- **On user interaction, plus one background check.** The proactive worker asks the app every
+  2 min (`proactive/tasks/vault_sync.py`) to sync every vault with uncommitted changes — the
+  worker's findings and the user's own Obsidian edits alike — so a chat turn after a sweep night
+  does not start by embedding the night's backlog (it used to wait until the batch had been quiet
+  for 10 min: on a sweep night, until morning). A clean vault costs one `git status`; the check
+  skips while the app is using the model, since the chatting user's turn syncs anyway. No other
+  scheduler, no other time-based sync.
 - Run `sync_user(username)` at the start of a turn before any brain/vault retrieval.
 - Guard with a **per-user `asyncio.Lock`** + **at most once per turn** (per-turn flag / short
   cooldown). Also expose a manual "Sync now" dashboard button.

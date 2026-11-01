@@ -639,12 +639,10 @@ def test_analyse_now_works_outside_any_window_and_stops_at_the_count(proactive_o
 @pytest.fixture
 def vault_sync_env(proactive_on, monkeypatch):
     from proactive import internal_client, users
-    from proactive.tasks import vault_sync
     from vault import notes
 
-    monkeypatch.setattr(users, "eligible", lambda: [("alice", "t-a"), ("bob", "t-b")])
-    monkeypatch.setattr(vault_sync, "_findings_prefix", lambda user: "PaperlessBrain Findings/")
-    pending = {"alice": {"PaperlessBrain Findings/Notices/x.md"}, "bob": {"Inbox/todo.md"}}
+    monkeypatch.setattr(users, "eligible", lambda: [("alice", "t-a"), ("bob", "t-b"), ("carol", "t-c")])
+    pending = {"alice": {"PaperlessBrain Findings/Notices/x.md"}, "bob": {"Inbox/todo.md"}, "carol": set()}
 
     async def pending_rel_paths(user):
         return pending[user]
@@ -668,36 +666,32 @@ def _check():
                                      needs_llm=False, status="running", attempts=0, run_after="")))
 
 
-def test_vault_sync_after_the_batch_only_for_the_workers_own_changes(vault_sync_env):
+def test_vault_sync_for_every_vault_with_pending_changes(vault_sync_env):
     _check()
-    assert vault_sync_env == ["alice"]  # bob's own note edit waits for his next chat turn
+    # the worker's findings and the user's own Obsidian edit alike; a clean vault is left alone
+    assert vault_sync_env == ["alice", "bob"]
 
 
-def test_a_job_due_on_a_sleeping_host_does_not_block_the_sync(vault_sync_env):
-    from proactive import jobs
-
-    jobs.enqueue("doc_new", "", {"doc_id": 9}, needs_llm=True)   # due, but nothing runs
-    _check()
-    assert vault_sync_env == ["alice"]
-
-
-def test_no_vault_sync_while_the_batch_runs_or_a_user_chats(vault_sync_env, monkeypatch):
+def test_vault_sync_runs_while_the_batch_runs(vault_sync_env):
     from proactive import clock, jobs
     from proactive.db import connect
-    from services import ollama_watchdog
 
     jobs.enqueue("sweep_doc", "alice", {"doc_id": 1}, needs_llm=True)
     with connect() as conn:                       # one just finished: batch running
         conn.execute("UPDATE jobs SET status = 'done', finished_at = ?", (clock.now_iso(),))
     _check()
-    assert vault_sync_env == []
-    clock.advance(timedelta(minutes=11))          # quiet since: batch over
+    assert vault_sync_env == ["alice", "bob"]     # a sweep night no longer delays it until morning
+
+
+def test_no_vault_sync_while_a_user_chats(vault_sync_env, monkeypatch):
+    from services import ollama_watchdog
+
     monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: True)
     _check()
     assert vault_sync_env == []
     monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: False)
     _check()
-    assert vault_sync_env == ["alice"]
+    assert vault_sync_env == ["alice", "bob"]
 
 
 # ── Waking only inside the sweep windows (the evening wake-ups) ──────────────
