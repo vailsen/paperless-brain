@@ -125,7 +125,9 @@ async def per_user(user: str, token: str, a: analysis.Analysis, meta: dict, mode
     from proactive import prefs
 
     lang = prefs.get(user).content_language
-    await deadlines.findings_for(user, a, doc_title=str(meta.get("title") or ""), lang=lang)
+    corr = meta.get("correspondent")
+    await deadlines.findings_for(user, a, doc_title=str(meta.get("title") or ""), lang=lang,
+                                 correspondent=corr if isinstance(corr, int) else None)
     used = False
     for fn in _after_analysis:
         used = bool(await fn(user, token, a, meta, model)) or used

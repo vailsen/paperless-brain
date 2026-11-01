@@ -394,3 +394,82 @@ def test_a_relevant_deadline_comes_back_to_the_inbox_with_its_reminder(env, fake
     _worker_run("daily_run")                     # 20 days left → offset 30
     assert len(_texts(env)) == 1 and "20 days left" in _texts(env)[0]
     assert pay().status == "surfaced" and pay().reminders_sent == [30]
+
+
+# ── One deadline per sender ──────────────────────────────────────────────────
+
+
+def _analyse(env, doc_id, meta):
+    from proactive import analysis
+    from proactive.tasks import documents
+
+    _sidecar(env, doc_id)
+    a, _ = asyncio.run(analysis.ensure(doc_id, _model(), "alice", "t-alice"))
+    asyncio.run(documents.per_user("alice", "t-alice", a, meta, _model()))
+
+
+def test_same_deadline_of_one_sender_is_one_finding(env, fake_llm):
+    """Every yearly pension letter repeats the same date: one finding, all letters."""
+    from proactive import findings
+
+    _analyse(env, 100, {"title": "Renteninfo 2025", "correspondent": 7})
+    _analyse(env, 101, {"title": "Renteninfo 2026", "correspondent": 7})
+    alice = findings.list_findings("alice")
+    assert sorted(f.deadline for f in alice) == ["2026-11-15", "2026-12-31"]
+    assert all(f.doc_ids == [100, 101] for f in alice)
+    pay = next(f for f in alice if f.deadline == "2026-11-15")
+    assert "Seen in 2 documents" in pay.body
+    # analysing one of them again changes nothing — the other document stays
+    _analyse(env, 100, {"title": "Renteninfo 2025", "correspondent": 7})
+    assert all(f.doc_ids == [100, 101] for f in findings.list_findings("alice"))
+
+
+def test_another_sender_keeps_its_own_deadline(env, fake_llm):
+    from proactive import findings
+
+    _analyse(env, 100, {"title": "A", "correspondent": 7})
+    _analyse(env, 101, {"title": "B", "correspondent": 8})
+    assert len(findings.list_findings("alice")) == 4
+
+
+def test_a_merged_deadline_sends_nothing_new_and_keeps_the_status(env, fake_llm):
+    from proactive import findings, reactions
+
+    _analyse(env, 100, {"title": "A", "correspondent": 7})
+    pay = next(f for f in findings.list_findings("alice") if f.deadline == "2026-11-15")
+    asyncio.run(reactions.react("alice", pay.finding_id, "done", channel="app"))
+    _analyse(env, 101, {"title": "B", "correspondent": 7})
+    pay = findings.get("alice", pay.finding_id)
+    assert pay.status == "done" and pay.doc_ids == [100, 101]
+
+
+def test_legacy_deadline_findings_are_merged_once(env, fake_llm, monkeypatch):
+    from proactive import findings, series
+    from proactive.paperless_ro import document as _unused  # noqa: F401
+    import proactive.paperless_ro as pro
+
+    _analyse(env, 100, {"title": "A"})          # written before: no sender, per-document key
+    _analyse(env, 101, {"title": "B"})
+    assert len(findings.list_findings("alice")) == 4
+
+    async def document(tok, doc_id):
+        return {"id": doc_id, "correspondent": 7}
+
+    monkeypatch.setattr(pro, "document", document)
+    assert asyncio.run(series.consolidate_deadlines("alice", "t-alice")) == 2
+    alice = findings.list_findings("alice")
+    assert len(alice) == 2 and all(f.doc_ids == [100, 101] for f in alice)
+    assert all(f.finding_key.startswith("deadline:c7:") for f in alice)
+    assert asyncio.run(series.consolidate_deadlines("alice", "t-alice")) == 0   # once
+    # a later analysis with the sender joins the merged finding, no twin
+    _analyse(env, 100, {"title": "A", "correspondent": 7})
+    assert len(findings.list_findings("alice")) == 2
+
+
+def test_a_legacy_finding_is_adopted_not_duplicated(env, fake_llm):
+    from proactive import findings
+
+    _analyse(env, 100, {"title": "A"})
+    _analyse(env, 100, {"title": "A", "correspondent": 7})   # version bump, sender known now
+    alice = findings.list_findings("alice")
+    assert len(alice) == 2 and all(f.finding_key.startswith("deadline:c7:") for f in alice)
