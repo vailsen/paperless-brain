@@ -324,3 +324,74 @@ def test_prompt_asks_for_references_per_sentence():
     block = _BLOCKS["documents"]
     assert "[^241-p3]" in block and "After EVERY sentence" in block
 
+
+
+# ── Weak evidence, tables, wrong pages (examples of 2026-11-01) ──────────────
+
+
+def test_a_lone_digit_in_a_barcode_is_no_support():
+    page = ("02 2FF7 4F60 35 700C 2C91\nDV 03.23 1,00 Deutsche Post\n"
+            "Sie haben mit uns vereinbart, dass wir Ihren Eigenbeitrag für jedes Kalenderjahr "
+            "um vier Prozent des Vorjahresbeitrags erhöhen.")
+    passage, _ = best_passage(page, "Im Vertrag steht, dass der Eigenbeitrag jährlich um 4 % "
+                                    "des Vorjahresbeitrags steigt")
+    assert passage.startswith("Sie haben mit uns vereinbart")
+    assert "4f60" in citations.tokens("4F60") and "4" not in citations.tokens("2FF7 4F60")
+    assert citations.tokens("700C") == ["700", "c"]   # a number with its unit still splits
+
+
+def test_a_year_alone_is_no_support():
+    page = "Einkommensteuererklärung\nWISO steuer:Web 2019, Buhl, Hannover gedruckt mit ERiC-Print 35.4.2/ESt_2018"
+    assert best_passage(page, "Your tax id is 12 345 678 901, as in your 2018 tax return") == ("", 0.0)
+
+
+def test_an_id_matches_grouped_or_not():
+    page = "Pichlmaier, Valentin\nIdNr.: 12 345 678 901\nEinkommensteuererklärung 2018"
+    for claim in ("Your tax id is 12345678901", "Your tax id is 12 345 678 901"):
+        assert "IdNr" in best_passage(page, claim)[0]
+
+
+def test_an_amount_matches_a_form_with_separate_cent_field():
+    page = ("Summe der insgesamt gutgeschriebenen Zulagen Euro: 1683 Cent: 26\n"
+            "Summe der insgesamt geleisteten Altersvorsorgebeiträge Euro: 10847 Cent: 52")
+    passage, _ = best_passage(page, "Bisher eingezahlt: 10.847,52 € eigene Beiträge")
+    assert "10847" in passage
+
+
+def test_a_table_amount_marks_its_row_not_a_sentence_with_the_label():
+    # The text layer of a table: labels first, values after — then a paragraph
+    # repeating the label.
+    words = [citations.Word(t, (0.1 + 0.05 * i, 0.30, 0.04, 0.01)) for i, t in enumerate(
+        "Schlussüberschuss Sockelbeteili un an den Bewertun sreserven".split())]
+    words += [citations.Word(t, (0.1, 0.27, 0.04, 0.01)) for t in ("0,00", "Euro")]
+    words += [citations.Word("37,24", (0.8, 0.30, 0.04, 0.01)), citations.Word("Euro", (0.85, 0.30, 0.04, 0.01))]
+    words += [citations.Word(t, (0.1 + 0.05 * i, 0.50, 0.04, 0.01)) for i, t in enumerate(
+        "erhalten Sie eine Sockelbeteiligung an den Bewertungsreserven. Sie kann".split())]
+    boxes = align_words(words, "Sockelbeteiligung an den Bewertungsreserven: + 37,24 Euro")
+    assert boxes and all(abs(b[1] - 0.30) < 0.005 for b in boxes)
+
+
+PAGES_32 = [
+    (1, "Ihr Eigenbeitrag steigt jährlich."),
+    (3, "Gebildetes Kapital zum 31.12.2022: = 12.997,23 Euro"),
+    (4, "Garantierte Rente: 290,58 Euro"),
+    (6, "Garantierte Rente 290,58 Euro, mögliche Rente 298,61 Euro"),
+]
+
+
+def test_a_marker_on_the_wrong_page_is_pointed_at_the_right_one():
+    text = ("- **Vermögen:** 12.997,23 € [^32-p3]\n"
+            "- **Erwartete Rente 2055:** 290,58 € garantiert, maximal 298,61 € [^32-p3]")
+    out = citations.repair_pages(text, lambda _d: PAGES_32)
+    assert "12.997,23 € [^32-p3]" in out               # supported where cited: untouched
+    assert "298,61 € [^32-p6]" in out                  # the page with both amounts
+
+
+def test_repair_leaves_unclear_and_unsupported_markers_alone():
+    text = "Das Wetter war schön [^32-p3]. Ganz allgemein [^32]."
+    assert citations.repair_pages(text, lambda _d: PAGES_32) == text
+
+
+def test_claim_before_matches_the_browsers_rule():
+    text = "Erste Aussage hier. Kurz [^1-p1] und weiter"
+    assert citations.claim_before(text, text.index("[^1")) == "Erste Aussage hier. Kurz"

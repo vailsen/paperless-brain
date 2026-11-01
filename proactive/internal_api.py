@@ -114,7 +114,7 @@ async def _dossier(request: Request) -> dict:
 
 @app.post("/api/internal/proactive/vault_sync")
 async def _vault_sync(request: Request) -> dict:
-    """The worker's findings, committed and indexed after its batch
+    """A vault with pending changes, committed and indexed in the background
     (`proactive.tasks.vault_sync`). The same sync a chat turn runs, under the
     same per-user lock — no Paperless token involved, so no grant needed."""
     data = await _authorized(request)

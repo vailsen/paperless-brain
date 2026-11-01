@@ -219,6 +219,18 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   tags each summary sentence, action and cross-reference with `page_for` (one page clearly
   best, else the bare `[^id]`). The model copies what it is shown; given only `[^361]` it cites
   the whole document, and that number opens no particular place.
+- **Weak evidence is no evidence.** Only a distinctive number (an amount, an id) counts triple;
+  a year or a one/two-digit number counts once, and a code like "4F60" is one token — the lone
+  "4" of a barcode matched "um 4 %", "2018" in a footer outscored the tax-id line. A passage
+  must cover half the claim's weight (at most `MIN_SUPPORT`). Ids match grouped or not, an
+  amount's euros match a form's separate euro field.
+- **A table amount marks its row.** A table's text layer holds the label column first, the
+  values after; when an amount of the passage is not in the aligned window, the line through
+  that amount is marked (`_row_boxes`), not a sentence below repeating the label.
+- **A marker on the wrong page is re-pointed before the answer is stored**
+  (`repair_pages`): no support on the cited page, clear support on another page of the same
+  document → the marker names that page and gets its own number. A supported marker is never
+  touched; `claim_before` applies the browser's claim rule.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
   link mid-marker.
 
@@ -487,11 +499,13 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 
 ## Sync triggering
 
-- **On user interaction only. No background scheduler. No time-based sync.** One exception:
-  the proactive worker, after its batch, has the app sync a vault whose *findings folder* it
-  changed (`proactive/tasks/vault_sync.py`) — only when no LLM job finished in 10 min and the app is not
-  using the model, so the next chat turn does not start with the worker's backlog. It is
-  triggered by the worker's own writes, never by the clock alone.
+- **On user interaction, plus one background check.** The proactive worker asks the app every
+  2 min (`proactive/tasks/vault_sync.py`) to sync every vault with uncommitted changes — the
+  worker's findings and the user's own Obsidian edits alike — so a chat turn after a sweep night
+  does not start by embedding the night's backlog (it used to wait until the batch had been quiet
+  for 10 min: on a sweep night, until morning). A clean vault costs one `git status`; the check
+  skips while the app is using the model, since the chatting user's turn syncs anyway. No other
+  scheduler, no other time-based sync.
 - Run `sync_user(username)` at the start of a turn before any brain/vault retrieval.
 - Guard with a **per-user `asyncio.Lock`** + **at most once per turn** (per-turn flag / short
   cooldown). Also expose a manual "Sync now" dashboard button.

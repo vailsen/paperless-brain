@@ -103,21 +103,22 @@ def test_overview_one_tile_per_topic_and_no_topic_is_its_own():
     assert set(data) == {"kfz", "mobilfunk", "strom", fv.NO_TOPIC}  # "done" is history
     assert (data["kfz"]["calm"], data["kfz"]["act"]) == (1, 1)     # kfz2 medium, kfz1 high
     assert (data["strom"]["calm"], data["strom"]["act"]) == (0, 1)  # due in four days
-    opts = findings_chart.options(list(data.values()), "light", {"none": "No topic", "pressing": "{n} pressing"})
-    tiles = {t["name"]: t for t in opts["series"][0]["data"]}
-    assert tiles["Kfz"]["value"] == 2 and tiles["No topic"]["topics"] == [fv.NO_TOPIC]
-    red = findings_chart.COLORS["light"]["act"]
-    assert tiles["Kfz"]["itemStyle"]["borderColor"] == red and "1 pressing" in tiles["Kfz"]["label"]["formatter"]
-    assert tiles["Mobilfunk"]["itemStyle"]["borderColor"] != red  # nothing pressing there
-    assert len({t["itemStyle"]["color"] for t in tiles.values()}) == 1  # one tile colour
+    spec = findings_chart.tiles(list(data.values()), "light",
+                                {"none": "No topic", "pressing": "{n} pressing", "more": "{n} more"})
+    tiles = {t["name"]: t for t in spec["tiles"]}
+    assert tiles["Kfz"]["value"] == 2 and tiles["No topic"]["key"] == fv.NO_TOPIC
+    assert tiles["Kfz"]["act"] == 1 and tiles["Mobilfunk"]["act"] == 0
+    assert len({t["bg"] for t in tiles.values()}) == 1  # one tile colour
+    assert [t["value"] for t in spec["tiles"]] == sorted((t["value"] for t in spec["tiles"]), reverse=True)
+    assert spec["pressing"] == "{n} pressing" and spec["more"] == "{n} more"
 
 
-def test_overview_tooltip_escapes_topic_names():
+def test_overview_names_are_set_as_text_not_html():
     from app_ui import findings_chart
 
-    data = [{"topic": "x", "label": "<img src=x onerror=alert(1)>", "calm": 1, "act": 0}]
-    (tile,) = findings_chart.options(data, "dark", {"none": "-", "pressing": "{n}"})["series"][0]["data"]
-    assert "<img" not in tile["tip"]
+    # model text reaches the DOM only through textContent / title
+    assert "innerHTML" not in findings_chart.TREEMAP_JS
+    assert "textContent = r.name" in findings_chart.TREEMAP_JS
 
 
 def test_no_topic_filter():
@@ -129,11 +130,10 @@ def test_overview_tiles_take_the_users_topic_colour():
     from app_ui import findings_chart, topic_colors
 
     data = [{"topic": "kfz", "label": "Kfz", "calm": 2, "act": 1}, {"topic": "gas", "label": "Gas", "calm": 1, "act": 0}]
-    tiles = {t["name"]: t for t in findings_chart.options(
-        data, "light", {"none": "-", "pressing": "{n}"}, {"kfz": 3})["series"][0]["data"]}
-    assert tiles["Kfz"]["itemStyle"]["color"] == topic_colors.tint(3, "light", "#f4f5f7", findings_chart.TINT["light"])
-    assert tiles["Gas"]["itemStyle"]["color"] == findings_chart.COLORS["light"]["tile"]
-    assert tiles["Kfz"]["itemStyle"]["borderColor"] == findings_chart.COLORS["light"]["act"]  # still pressing
+    tiles = {t["name"]: t for t in findings_chart.tiles(
+        data, "light", {"none": "-", "pressing": "{n}"}, {"kfz": 3})["tiles"]}
+    assert tiles["Kfz"]["bg"] == topic_colors.tint(3, "light", "#f4f5f7", findings_chart.TINT["light"])
+    assert tiles["Gas"]["bg"] == findings_chart.COLORS["light"]["tile"]
 
 
 def test_topic_hex_matches_the_theme_tokens():

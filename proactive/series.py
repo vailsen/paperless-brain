@@ -19,6 +19,7 @@ from proactive import findings
 log = logging.getLogger("proactive.series")
 
 MARKER = "series_v1:{user}"
+DEADLINE_MARKER = "deadline_series_v1:{user}"
 
 _ENGAGEMENT = {
     "researched": 7, "interested": 6, "surfaced": 5, "snoozed": 4,
@@ -95,5 +96,58 @@ async def consolidate(user: str, token: str) -> int:
             findings._index.pop(other.finding_id, None)
             removed += 1
         log.info("%s: merged %d findings into %s (%s)", user, len(group), head.finding_id, head.title)
+    kv_set(marker, "1")
+    return removed
+
+
+async def consolidate_deadlines(user: str, token: str) -> int:
+    """Merge deadline findings of the same (sender, date, kind) — written
+    before deadlines were keyed by sender: each yearly pension letter had made
+    its own finding of the same latest retirement date. Once per user. Returns
+    how many files were merged away."""
+    from proactive import deadlines
+    from proactive.analysis import Deadline
+    from proactive.db import kv_get, kv_set
+    from proactive.paperless_ro import TokenRejected, document
+    from vault.notes import delete
+
+    marker = DEADLINE_MARKER.format(user=user)
+    if kv_get(marker):
+        return 0
+    items = [f for f in findings.list_findings(user) if f.kind == "deadline" and f.doc_ids and f.deadline]
+    for f in items:
+        if f.correspondent is None:
+            try:
+                meta = await document(token, f.doc_ids[0]) or {}
+            except TokenRejected:
+                return 0
+            except Exception as exc:
+                log.info("%s: deadline merge postponed — Paperless: %s", user, type(exc).__name__)
+                return 0
+            c = meta.get("correspondent")
+            f.correspondent = c if isinstance(c, int) else None
+    groups: dict[tuple, list[findings.Finding]] = {}
+    for f in items:
+        if f.correspondent is not None:
+            groups.setdefault((f.correspondent, f.deadline, f.deadline_kind), []).append(f)
+    removed = 0
+    for (corr, day, kind), group in groups.items():
+        group.sort(key=lambda f: (f.created or "", f.finding_id))
+        head = group[0]
+        key = deadlines.finding_key(head.doc_ids[0], Deadline(day, kind or "informational", True, "", ""), corr)
+        best = max(group, key=lambda f: _ENGAGEMENT.get(f.status, 2))
+        sent = sorted({o for f in group for o in f.reminders_sent}, reverse=True)
+        head = await findings.update(user, head.finding_id, lambda _x: {
+            "finding_key": key, "correspondent": corr}) or head
+        for other in group[1:]:
+            head, _outcome = await deadlines._join(user, head, other)
+        await findings.update(user, head.finding_id, lambda x: {
+            "status": best.status, "snoozed_until": best.snoozed_until, "reminders_sent": sent})
+        for other in group[1:]:
+            await delete(user, other.rel)
+            findings._index.pop(other.finding_id, None)
+            removed += 1
+        if len(group) > 1:
+            log.info("%s: merged %d deadline findings into %s (%s)", user, len(group), head.finding_id, day)
     kv_set(marker, "1")
     return removed

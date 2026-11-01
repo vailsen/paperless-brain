@@ -3,8 +3,12 @@ findings, and from those to reminders.
 
 - Only `actionable` deadlines with `date >= today` become findings. Past dates
   never produce a reminder — the class of bug behind "218 overdue".
-- One finding per (document, date, kind) per user, upserted by `finding_key`:
-  re-analysing a document (a lost DB, a version bump) finds the same finding
+- One finding per (sender, date, kind) per user, upserted by `finding_key`
+  (per document when Paperless knows no sender): every yearly pension letter
+  repeats the same latest retirement date, and ten letters were ten findings
+  of one date. A further document with the same deadline joins the finding
+  (`doc_ids`, quotes) and sends nothing — the date is already known.
+  Re-analysing a document (a lost DB, a version bump) finds the same finding
   and writes nothing when the evidence is unchanged.
 - Reminders at the user's offsets (default 30/7/1 days). Which offsets were
   sent lives in the finding's `reminders_sent`, so a restart or a deleted
@@ -56,11 +60,55 @@ def is_critical(f: findings.Finding, today: date) -> bool:
     return (dd - today).days <= 1 or (f.deadline_kind in BINDING_KINDS)
 
 
-def finding_key(doc_id: int, d: Deadline) -> str:
+def finding_key(doc_id: int, d: Deadline, correspondent: int | None = None) -> str:
+    """One deadline per (sender, date, kind); without a sender, per document."""
+    if correspondent:
+        return f"deadline:c{int(correspondent)}:{d.date}:{d.kind}"
     return f"deadline:{int(doc_id)}:{d.date}:{d.kind}"
 
 
-async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str) -> list[str]:
+async def _join(user: str, existing: findings.Finding, new: findings.Finding) -> tuple[findings.Finding, str]:
+    """Add `new`'s document to the finding of the same deadline. Status,
+    reminders and title stay: the date is the same, the matter is known."""
+    doc_ids = sorted(set(existing.doc_ids) | set(new.doc_ids))
+    original = findings.split_timeline(existing.body, existing.lang)[1]
+    ev = findings.parse_evidence(original) + findings.parse_evidence(new.body)
+    from i18n import translator_for
+
+    _ = translator_for(existing.lang)
+    seen_prefix = _("Seen in {n} documents: {docs}").split("{n}")[0]
+    summary = "\n\n".join(
+        p for p in findings._section(original, _("Summary")).split("\n\n") if not p.startswith(seen_prefix)
+    ) or findings._section(new.body, _("Summary"))
+    body = findings.series_body(existing.lang, summary=summary, doc_ids=doc_ids, evidence=ev)
+    fields = {"doc_ids": doc_ids, "evidence_hash": findings.evidence_hash(doc_ids, [existing.finding_key])}
+    done = await findings.update(
+        user, existing.finding_id, lambda _cur: dict(fields),
+        body=lambda cur: findings.join_timeline(findings.split_timeline(cur.body, cur.lang)[0], body))
+    return done or existing, "merged"
+
+
+async def upsert(user: str, f: findings.Finding) -> tuple[findings.Finding, str]:
+    """`findings.upsert` for deadlines: a further document of the same deadline
+    joins it; a document already part of a merged finding changes nothing (its
+    own evidence hash would overwrite the others' documents)."""
+    existing = findings.find_by_key(user, f.finding_key)
+    if existing is None and f.correspondent and f.doc_ids and f.deadline:
+        # written before deadlines were keyed by sender: adopt it, never a twin
+        legacy = findings.find_by_key(user, f"deadline:{int(f.doc_ids[0])}:{f.deadline}:{f.deadline_kind}")
+        if legacy is not None:
+            existing = await findings.update(user, legacy.finding_id, lambda _x: {
+                "finding_key": f.finding_key, "correspondent": f.correspondent}) or legacy
+    if existing is not None:
+        if not set(f.doc_ids) <= set(existing.doc_ids):
+            return await _join(user, existing, f)
+        if len(existing.doc_ids) > 1:
+            return existing, "unchanged"
+    return await findings.upsert(user, f)
+
+
+async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str,
+                       correspondent: int | None = None) -> list[str]:
     """Create/refresh this user's deadline findings for one analysed document.
     The caller has checked the user's access. Returns the outcomes."""
     from proactive.interests import slugify
@@ -83,7 +131,8 @@ async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str) -> 
             analysis_version=a.version,
             deadline=d.date,
             deadline_kind=d.kind,
-            finding_key=finding_key(a.doc_id, d),
+            finding_key=finding_key(a.doc_id, d, correspondent),
+            correspondent=correspondent,
             lang=lang,
             body=findings.render_body(
                 lang,
@@ -91,7 +140,7 @@ async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str) -> 
                 evidence=[{"doc_id": a.doc_id, "quote": d.quote}],
             ),
         )
-        _f, outcome = await findings.upsert(user, f)
+        _f, outcome = await upsert(user, f)
         outcomes.append(outcome)
     return outcomes
 
@@ -188,11 +237,13 @@ def dashboard_actions(actions: list[dict], user: str) -> list[dict]:
     if not analysed:
         return actions
     today = clock.local_now().date()
+    # (doc, date, kind) of the user's open deadline findings — a merged
+    # finding stands for each of its documents.
     open_keys = set()
     try:
         for f in findings.list_findings(user) if user else []:
             if f.kind == "deadline" and f.status in ("new", "surfaced", "held", "snoozed"):
-                open_keys.add(f.finding_key)
+                open_keys |= {(int(d), f.deadline, f.deadline_kind) for d in f.doc_ids}
     except Exception:
         pass
     out = [a for a in actions if not a.get("paperless_id") or a.get("paperless_id") not in analysed]
@@ -200,7 +251,7 @@ def dashboard_actions(actions: list[dict], user: str) -> list[dict]:
         for d in a.deadlines:
             if not d.actionable:
                 continue
-            if d.day < today and finding_key(a.doc_id, d) not in open_keys:
+            if d.day < today and (a.doc_id, d.date, d.kind) not in open_keys:
                 continue
             out.append({
                 "paperless_id": a.doc_id,

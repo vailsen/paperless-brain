@@ -29,6 +29,7 @@ async def ledger_scan(job: Job) -> None:
     for user, tok in users.eligible():
         try:
             await series.consolidate(user, tok)  # once per user; a no-op afterwards
+            await series.consolidate_deadlines(user, tok)
         except Exception:
             # Housekeeping: it must never stop new findings from being sent.
             log.warning("%s: merging split findings failed", user, exc_info=True)
