@@ -1,6 +1,19 @@
 # Findings → Mission Control
 
-Status: **plan**, 2026-11-02. Companion: `docs/experts.md` (the expert picker in the
+Status: **built**, 2026-11-02. Code: `app_ui/pages/findings.py` (mission
+control), `proactive/dossiers.py` (tree, anchors, insights),
+`services/dossier_merge.py` + `app_ui/dossier_save.py` (save to dossier);
+tests `tests/test_mission_control.py`.
+
+**Changed from the plan while building:** the chat dock is the chat page
+itself, embedded (`/chat?embed=1&dossier=<id>` in an iframe), instead of
+splitting `app_ui/pages/chat.py` into components (Phase 3 below is dropped).
+Same tools, citations, experts, Library tab and "Save to dossier" — with no
+second chat implementation and no rewrite of a 4 000-line page. In embed mode
+the chat has no app header and keeps its conversation out of the browser's
+`/chat` state; a saved insight tells the page around it via `postMessage`.
+
+Companion: `docs/experts.md` (the expert picker in the
 chat dock comes from there). Invariants of the proactive system (CLAUDE.md
 "Proactive system") apply unchanged; this plan adds a few of its own (§7).
 
@@ -315,7 +328,7 @@ UI phases). One build/deploy at the end of a phase batch, not per fix.
 - **Accept:** every existing finding action still works; push links open the
   right finding; no sideways scroll at 390 px; i18n complete (de catalog).
 
-### Phase 3 — Chat extraction (the risky one)
+### Phase 3 — Chat extraction (dropped — the dock embeds the chat page)
 - Split `app_ui/pages/chat.py` into `app_ui/chat/`:
   `session.py` (turn runner: backend, tool loop events, persistence, WoL
   pre-check), `bubbles.py` (render, citations, images, actions slot),

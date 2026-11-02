@@ -1,7 +1,32 @@
 # Experts
 
-Status: **plan**, 2026-11-02. Companion: `docs/findings-mission-control.md`
+Status: **built**, 2026-11-02. Companion: `docs/findings-mission-control.md`
 (the chat dock there gets the expert picker from here).
+
+Code: `services/experts.py`, `services/expert_scope.py`, `services/skills.py`,
+`services/briefings.py`, `services/expert_prompt.py`, `services/skill_wizard.py`,
+`services/vault_config.py`; UI `app_ui/pages/experts.py`,
+`app_ui/skill_wizard_dialog.py`, `app_ui/doc_library.py`; tests
+`tests/test_experts.py`.
+
+**Decisions taken after the plan (2026-11-02), they override the text below:**
+
+- Every scope dimension is optional — empty means no restriction there.
+- **Every expert has its memory and vault tools.** `memory` and `vault` can
+  never be switched off for an expert (`experts.ALWAYS_ON_GROUPS`).
+- **Skills and expert files are not embedded.** No `skills` collection:
+  sharing reads the other users' skills folders directly and only honours
+  files that say `common: true` at the moment of reading (§4.2 below is
+  superseded on that point).
+- **Experts do not go to the Werkbank**; `use_skill` is in its
+  `forbidden_tools`. No per-expert memory. Not used by proactive triage.
+- **The chat has a third drawer tab, "Library"**: every document the active
+  expert can see, as a compact tree grouped by correspondent / tag / type
+  (`app_ui/doc_library.py`). The findings dock is the chat itself, so it has
+  it too, and the expert's Access tab shows the same list live while editing.
+- The briefing, once built, is shown in the expert's Briefing tab: archive
+  map (code), orientation (model, checked), and a checks panel listing what
+  code dropped and why.
 
 ## 1. Goal
 
@@ -29,7 +54,7 @@ a short briefing, so it starts its first conversation oriented (§6).
 | Custom instructions | `config/chat_prompts.py` (`CUSTOM_INSTRUCTIONS_HEADER`, `MAX_CUSTOM_INSTRUCTIONS_CHARS = 2000`), Settings > AI, stored in credential store `chat_settings.custom_instructions` | **The only user-editable part of the chat prompt**, appended under a subordinating header. `_CORE` and tool blocks stay in code (decided 2026-08-13). Expert text goes into exactly this slot. |
 | Access boundary | `services/chat_service._user_paperless()` | Every document tool gets a Paperless client with the user's token; Paperless filters. 13 call sites. This is the natural chokepoint for the expert scope. |
 | Tool groups | `app_ui/pages/chat.py:_TOOL_GROUPS` | Tool on/off is per group; prompt blocks follow active groups (`build_system_prompt(active_groups=…)`). |
-| Shared memory | `BrainService.get_shared_by_others` | `common: true` in frontmatter → visible to others **from the index**; the file stays in the owner's vault. Skills reuse this pattern. |
+| Shared memory | `BrainService.get_shared_by_others` | `common: true` in frontmatter → visible to others **from the index**; the file stays in the owner's vault. Skills reuse the `common: true` flag, read from the owner's folder (not embedded). |
 | Vault routing | `vault/router.is_brain_path`, `vault/sync._embed_file` | Route by top-level folder. A skills folder needs its own route. |
 | Model choice | `services/model_registry`, `app_ui/model_picker.model_select` | Models referenced by display name; every dropdown goes through `model_select`. |
 | Sidecars | `services/sidecar_service` | Every ingested document already has `full_summary_summarized` — cheap material for the briefing, no PDF/vision needed. |
@@ -109,7 +134,7 @@ Assignable to any number of experts. Public via `common: true`.
 
 ```markdown
 ---
-pbrain_id: 4c1e…
+expert_id: 4c1e…
 kind: expert
 name: Versicherung
 icon: shield
@@ -143,7 +168,7 @@ Kündigungsfristen und Selbstbeteiligung, vergleiche mit Marktpreisen …
 
 ```markdown
 ---
-pbrain_id: 8a2f…
+skill_id: 8a2f…
 kind: skill
 name: Versicherungspolice lesen
 description: Use when the user asks about coverage, deductibles or notice periods in an insurance policy.
@@ -156,17 +181,17 @@ created_with: qwen3.8   # wizard only, informational
 3. Quote the clause and cite its page …
 ```
 
-- New route in `vault/router`: under `PaperlessBrain Skills/` → collection
-  **`skills`** (1 file = 1 entry, no chunking, like brain). Metadata: `user`,
-  `common`, `name`, `description`, `path`, `pbrain_id`, `version`.
-  Third collection, **not merged** with `brain` or `vault`.
-- **Sharing = the memory mechanism:** `common: true` → other users see it in
-  the library's "Shared by others" section, read from the `skills` index;
-  the file stays in its owner's vault. Read-only for them.
-- **Assigning a shared skill is by reference** (`shared:<owner>/<pbrain_id>`),
-  resolved from the index at chat time. The owner un-sharing it → the expert
-  shows "skill no longer shared" and the skill is skipped. Changes by the owner
-  apply after their next sync (same moment as shared facts).
+- **Not embedded** (built that way): `vault/router.is_config_path` makes
+  `vault.sync._embed_file` skip the skills and experts folders. Identity is
+  `skill_id` / `expert_id` in the frontmatter, written by the code that
+  creates the file — no `pbrain_id` is minted for configuration.
+- **Sharing = the memory mechanism's flag, without an index:** `common: true`
+  → other users see it in the library's "Shared by others" section, read
+  directly from the owner's skills folder (paths resolved under `VAULT_ROOT`,
+  symlinks skipped); the file stays in its owner's vault. Read-only for them.
+- **Assigning a shared skill is by reference** (`shared:<owner>/<skill_id>`),
+  resolved at chat time. The owner un-sharing it → the expert shows "skill no
+  longer shared" and the skill is skipped — immediately, no sync involved.
 - "Duplicate to my skills" is an explicit user action that copies the text into
   the user's own folder (new `pbrain_id`, `forked_from:` in frontmatter). Never
   automatic.
@@ -465,11 +490,11 @@ One phase at a time; tests green, 390 px check for UI phases, one deploy per bat
 - **Accept:** create → chat with it → scope visible in answers; 390 px clean.
 
 ### Phase 3 — Skills
-- `PaperlessBrain Skills/` route + `skills` collection, sync, sharing,
+- `PaperlessBrain Skills/` folder (excluded from embedding), sharing,
   shared-by-others section, assign by reference, duplicate.
 - Skills block + `use_skill` with the inline/on-demand threshold.
 - Library UI (no wizard yet). Findings dock picker (mission-control phase 5).
-- **Accept:** a shared skill appears for another user after the owner's sync,
+- **Accept:** a shared skill appears for another user at once,
   read-only; un-sharing removes it from their experts; `use_skill` cannot load
   an unassigned skill.
 
@@ -497,21 +522,19 @@ One phase at a time; tests green, 390 px check for UI phases, one deploy per bat
 - **The Universal expert cannot be narrowed, renamed or deleted** — not from the
   UI, not from an edited file.
 - **An expert is fixed per conversation.**
-- **Skills are a third collection** (`skills`), never merged with `brain` or
-  `vault`; shared from the index, the file stays with its owner.
+- **Skills and experts are configuration, never embedded**; a shared skill is
+  read from its owner's folder while it says `common: true`, never copied
+  except by the user's explicit "Duplicate".
+- **Every expert keeps memory and vault**; only other groups can be off.
 - **A briefing is a map, not evidence**: code-checked, written with `(#id)` not
   citation markers, not embedded, never cited.
 - **Expert and briefing files are not embedded.**
 - **No agent writes skills or experts.** The wizard drafts, the user saves.
 
-## 11. Open questions
+## 11. Open questions — decided 2026-11-02
 
-1. Should experts be usable in proactive triage / deep dives (e.g. "insurance
-   findings go to the insurance expert")? Attractive, but it changes the
-   proactive model resolution order. Proposal: after Phase 5, as an opt-in per
-   dossier (`expert:` in dossier frontmatter already planned).
-2. Should a Werkbank run started from a scoped expert inherit the scope?
-   Needs the v2 tool layer to take a scoped client. Proposal: yes, later; v1
-   of experts states the full-access run in the brief.
-3. Per-expert memory (facts tagged with an expert)? Not now — one memory per
-   user keeps `remember_fact` unambiguous.
+1. Experts in proactive triage / deep dives: **no.** A dossier may name a
+   default expert for its *chat* dock (`expert:` in its frontmatter), nothing more.
+2. Werkbank runs from a scoped expert: **no** — experts do not go to the
+   Werkbank.
+3. Per-expert memory: **no** — every expert shares the user's memory and vault.
