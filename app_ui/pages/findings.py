@@ -15,6 +15,7 @@ one confirm button.
 
 from __future__ import annotations
 
+import json
 import re
 from urllib.parse import quote
 
@@ -48,6 +49,9 @@ _DOC_CLICK_JS = (
 _BARE_URL = re.compile(r"(?<![(<\[\"'=])\bhttps?://[^\s<>()\[\]]+[^\s<>()\[\].,;:!?'\"]")
 
 
+_BARE_REF = re.compile(r"\[#(\d+)((?: p\d+)?)\](?!\()")
+
+
 def _in_app_links(body: str, user: str = "") -> str:
     """`…/documents/241/details` (Paperless) → `#pbdoc-241` (the dialog).
     With `user`, links to a research the user deleted (its run, its note)
@@ -58,6 +62,8 @@ def _in_app_links(body: str, user: str = "") -> str:
 
     base = re.escape(settings.paperless_url.rstrip("/"))
     body = re.sub(base + r"/documents/(\d+)/details/?", r"#pbdoc-\1", body)
+    # A bare `[#241]` (dossier state, model text) opens the document too.
+    body = _BARE_REF.sub(r"[#\1\2](#pbdoc-\1)", body)
     # Links into the app itself (the deep dive's report) stay in the app.
     app = proactive_settings().proactive_app_base_url.rstrip("/")
     if app:
@@ -231,108 +237,6 @@ def _status_select(value: str, on_change) -> None:
         ui.icon(next(i for k, _l, i in opts if k == value)).style("font-size:18px")
 
 
-@ui.page("/findings")
-async def findings_page() -> None:
-    if not require_auth():
-        return
-    page_layout()
-    _ = get_translator()
-    from proactive import findings
-
-    from datetime import date
-
-    from app_ui import findings_view as fv
-    from services.user_prefs import get_pref, set_pref
-
-    user = _user()
-    # The view is remembered per user: whoever groups by topic once wants it next time.
-    stored = get_pref("findings_view") or {}
-    state = {k: stored.get(k, v) for k, v in fv.DEFAULT_VIEW.items()}
-    ui.add_css(_LIST_CSS)
-    from app_ui import findings_chart
-
-    ui.add_css(findings_chart.TREEMAP_CSS)
-    ui.add_body_html(f"<script>{findings_chart.TREEMAP_JS}</script>")
-
-    with ui.column().classes("w-full max-w-3xl mx-auto p-4 gap-3"):
-        ui.label(_("Findings")).classes("text-xl font-bold text-gray-100")
-
-        def _set(key: str, value) -> None:
-            state[key] = value or ""
-            set_pref("findings_view", dict(state))
-            body.refresh()
-
-        @ui.refreshable
-        def body() -> None:
-            items = findings.list_findings(user)
-            today = date.today()
-            # key → label; a finding with a label wins over one without
-            topics: dict[str, str] = {}
-            for f in sorted(items, key=lambda f: bool(f.topic_label)):
-                if f.topic:
-                    topics[f.topic] = f.topic_display
-            if any(not f.topic for f in items):
-                topics_opts_extra = {fv.NO_TOPIC: _("No topic")}
-            else:
-                topics_opts_extra = {}
-            if state["topic"] and state["topic"] not in topics and state["topic"] not in topics_opts_extra:
-                state["topic"] = ""  # the topic's last finding is gone
-            # Two selects a row: four in one squeeze each to a word on a phone.
-            with ui.grid(columns=2).classes("w-full gap-2"):
-                _status_select(state["status"], lambda e: _set("status", e.value))
-                ui.select({"": _("All topics"), **dict(sorted(topics.items(), key=lambda kv: kv[1].lower())),
-                           **topics_opts_extra},
-                          value=state["topic"], label=_("Topic"),
-                          on_change=lambda e: _set("topic", e.value)).props(
-                    "outlined dark dense options-dense").classes("min-w-0")
-                groups = dict(fv.GROUPS)
-                if state["topic"]:  # one topic: grouping by topic is one heading
-                    groups.pop("topic"), groups.pop("topic_status")
-                group = fv.effective_group(state["group"], state["topic"])
-                ui.select({k: _(v) for k, v in groups.items()}, value=group, label=_("Group"),
-                          on_change=lambda e: _set("group", e.value)).props(
-                    "outlined dark dense options-dense").classes("min-w-0")
-                ui.select({k: _(v) for k, v in fv.SORTS.items()}, value=state["sort"], label=_("Sort"),
-                          on_change=lambda e: _set("sort", e.value)).props(
-                    "outlined dark dense options-dense").classes("min-w-0")
-
-            with ui.row().classes("w-full justify-end -mt-1"):
-                ui.button(_("Topic colours"), icon="palette", on_click=lambda: _topic_colors_dialog(
-                    topics, body.refresh)).props("flat dense no-caps").classes("text-xs")
-
-            c = fv.counts(items, today)
-            if c["open"] or c["relevant"]:
-                with ui.row().classes("w-full items-center gap-x-4 gap-y-1 text-xs").style(
-                        "color:var(--c-text-2)"):
-                    _summary_item("inbox", _("{n} open").format(n=c["open"]))  # TODO i18n-plural
-                    if c["relevant"]:
-                        _summary_item("bookmark", _("{n} relevant").format(n=c["relevant"]))  # TODO i18n-plural
-                    if c["pressing"]:
-                        _summary_item("priority_high", _("{n} pressing").format(n=c["pressing"]), warn=True)
-                    if c["researching"]:
-                        _summary_item("travel_explore", _("{n} being researched").format(n=c["researching"]))
-
-            _overview(items, today, state, _set)
-
-            arranged = fv.arrange(items, status=state["status"], topic=state["topic"],
-                                  group=state["group"], sort=state["sort"], today=today)
-            if not arranged:
-                ui.label(_("Nothing here yet.")).classes("text-sm text-gray-500 mt-4")
-            single_status = state["status"] not in ("open", "all")
-            for g in arranged:
-                if g.kind != "none":
-                    _heading(g, top=True)
-                for sub in g.subgroups:
-                    _heading(sub, top=False)
-                    for f in sub.items:
-                        _card(f, today, topic=False, status=False)
-                for f in g.items:
-                    _card(f, today, topic=g.kind != "topic" and not state["topic"],
-                          status=g.kind != "status" and not single_status)
-
-        body()
-
-
 def _overview(items: list, today, state: dict, set_state) -> None:
     """Per topic: what is in view and what calls for action (`app_ui/findings_chart`).
     A click on a dot filters the list to that topic. Collapsible; remembered."""
@@ -447,7 +351,7 @@ def _heading(g, *, top: bool) -> None:
             ui.label(str(g.count)).classes("pb-finding-count text-xs flex-shrink-0")
 
 
-def _card(f, today, *, topic: bool, status: bool) -> None:
+def _card(f, today, *, topic: bool, status: bool, on_open=None) -> None:
     from app_ui import findings_view as fv
 
     from app_ui import topic_colors
@@ -463,7 +367,7 @@ def _card(f, today, *, topic: bool, status: bool) -> None:
         cls += " has-topic"
         style = f"--card-topic:{topic_colors.css_var(slot)}"
     with ui.row().classes(cls + " items-start gap-3 no-wrap").style(style).on(
-            "click", lambda fid=f.finding_id: ui.navigate.to(f"/findings/{fid}")):
+            "click", lambda fid=f.finding_id: on_open(fid) if on_open else ui.navigate.to(f"/findings/{fid}")):
         _status_icon(f.status)
         with ui.column().classes("gap-0 flex-1 min-w-0"):
             ui.label(f.title).classes("text-sm font-semibold text-gray-100 w-full truncate")
@@ -472,30 +376,260 @@ def _card(f, today, *, topic: bool, status: bool) -> None:
             _hints(f)
 
 
+
+
+# MISSION_CONTROL
+# ── Mission control (docs/findings-mission-control.md) ───────────────────────
+#
+# One page: a navigator (global search, inbox buckets, the dossier tree), a
+# viewer (home, a list, a finding, a dossier binder) and a chat dock below it.
+# The dock is the chat page itself, embedded (`/chat?embed=1&dossier=…`) — the
+# same tools, citations, experts and "Save to dossier" button, no second chat
+# implementation. On a phone the three zones are tabs.
+#
+# Deep links keep working: `/findings/{id}` (push and email links, with
+# `?action=` confirmed by a button, never applied on load) opens the finding
+# in the viewer; `/findings?d=<dossier id>&tab=insights` a binder.
+
+_MC_CSS = """
+.pbm-root{position:fixed;top:var(--q-header-height,52px);left:0;right:0;bottom:0;display:grid;
+  grid-template-columns:290px minmax(0,1fr);background:var(--c-bg)}
+.pbm-nav{border-right:1px solid var(--c-border);display:flex;flex-direction:column;min-width:0;min-height:0}
+.pbm-center{display:flex;flex-direction:column;min-width:0;min-height:0}
+.pbm-viewer{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.pbm-handle{height:7px;flex-shrink:0;cursor:row-resize;background:var(--c-border);opacity:.6}
+.pbm-handle:hover{opacity:1}
+.pbm-dock{height:var(--pbm-dock-h,38vh);flex-shrink:0;display:flex;flex-direction:column;min-height:0;
+  border-top:1px solid var(--c-border);background:var(--c-surface)}
+.pbm-dock.is-closed{height:42px}
+.pbm-dock.is-closed .pbm-dock-frame{display:none}
+.pbm-dock-head{height:42px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 10px;min-width:0}
+.pbm-dock-frame{flex:1;min-height:0;position:relative}
+.pbm-dock-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--c-bg)}
+.pbm-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.pbm-bucket{display:flex;align-items:center;gap:10px;padding:7px 12px;margin:1px 6px;border-radius:8px;cursor:pointer;
+  color:var(--c-text-2);font-size:.85rem;min-width:0}
+.pbm-bucket:hover{background:var(--c-surface-2)}
+.pbm-bucket.is-active{background:var(--c-accent-soft);color:var(--c-text)}
+.pbm-bucket .n{margin-left:auto;color:var(--c-text-muted);font-size:.75rem;font-variant-numeric:tabular-nums}
+.pbm-bucket.warn .n{color:var(--c-warn)}
+.pbm-sec{font-size:.7rem;font-weight:600;color:var(--c-text-muted);padding:12px 14px 4px;display:flex;align-items:center;gap:4px}
+.pbm-tree .q-tree__node-header{padding:3px 6px;border-radius:6px}
+.pbm-tree .q-tree__node--selected .q-tree__node-header{background:var(--c-accent-soft)}
+.pbm-tnode{display:flex;align-items:center;gap:6px;min-width:0;width:100%;font-size:.84rem;color:var(--c-text-2)}
+.pbm-tnode .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbm-tnode .n{color:var(--c-text-muted);font-size:.72rem}
+.pbm-tnode .bar{width:3px;height:14px;border-radius:2px;flex-shrink:0}
+.pbm-panel{padding:16px 18px;max-width:960px;width:100%;box-sizing:border-box}
+.pbm-card{border:1px solid var(--c-border);border-radius:10px;padding:12px 14px;background:var(--c-surface);
+  width:100%;box-sizing:border-box;min-width:0}
+.pbm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;width:100%}
+.pbm-kpi{border:1px solid var(--c-border);border-radius:10px;padding:10px 12px;background:var(--c-surface);cursor:pointer}
+.pbm-kpi .v{font-size:1.5rem;font-weight:700;color:var(--c-text);font-variant-numeric:tabular-nums}
+.pbm-kpi .l{font-size:.75rem;color:var(--c-text-muted)}
+.pbm-kpi.warn .v{color:var(--c-warn)}
+.pbm-tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--c-border);padding:0 10px}
+.pbm-tabs::-webkit-scrollbar{display:none}
+.pbm-tab{flex-shrink:0;padding:10px 12px;font-size:.82rem;color:var(--c-text-muted);cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap}
+.pbm-tab.is-active{color:var(--c-text);border-bottom-color:var(--c-accent)}
+.pbm-label{font-size:.75rem;font-weight:600;color:var(--c-text-2)}
+.pbm-hint{font-size:.75rem;color:var(--c-text-muted)}
+.pbm-ins{border-left:2px solid var(--c-border);padding:2px 0 14px 12px;margin-left:4px;min-width:0}
+.pbm-ins h4{font-size:.92rem;font-weight:600;color:var(--c-text);margin:0;line-height:1.35}
+.pbm-src{font-size:.72rem;color:var(--c-text-muted);overflow-wrap:anywhere}
+.pbm-evid{display:inline-block;font-size:.68rem;padding:1px 7px;border-radius:999px;border:1px solid var(--c-border);
+  color:var(--c-text-2);margin-right:4px}
+.pbm-due{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--c-border);cursor:pointer;min-width:0}
+.pbm-due:last-child{border-bottom:0}
+.pbm-due .d{font-variant-numeric:tabular-nums;color:var(--c-text-2);font-size:.8rem;flex-shrink:0;width:6.5rem}
+.pbm-due .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem;color:var(--c-text)}
+.pbm-due.warn .d{color:var(--c-warn)}
+.pbm-mbar{display:none}
+.pbm-kbd{font-size:.65rem;border:1px solid var(--c-border);border-radius:4px;padding:0 4px;color:var(--c-text-muted)}
+@media (max-width:1023px){
+  .pbm-root{grid-template-columns:minmax(0,1fr);bottom:56px}
+  .pbm-root .pbm-nav,.pbm-root .pbm-viewer,.pbm-root .pbm-dock,.pbm-root .pbm-handle{display:none}
+  .pbm-root.z-nav .pbm-nav{display:flex}
+  .pbm-root.z-viewer .pbm-viewer{display:block}
+  .pbm-root.z-chat .pbm-dock{display:flex;height:100%!important}
+  .pbm-root.z-chat .pbm-dock .pbm-dock-frame{display:block}
+  .pbm-root.z-chat .pbm-dock-head .pbm-dock-toggle{display:none}
+  .pbm-mbar{display:flex;position:fixed;left:0;right:0;bottom:0;height:56px;border-top:1px solid var(--c-border);
+    background:var(--c-surface);padding-bottom:env(safe-area-inset-bottom)}
+  .pbm-mbar button{flex:1}
+  .pbm-panel{padding:12px}
+  .pbm-kbd{display:none}
+}
+"""
+
+_MC_JS = """<script>
+(function(){
+  // Drag the dock's edge; the height is remembered on this device.
+  try{var h=localStorage.getItem('pbm-dock-h');if(h)document.documentElement.style.setProperty('--pbm-dock-h',h);}catch(e){}
+  document.addEventListener('pointerdown',function(e){
+    var hd=e.target.closest&&e.target.closest('.pbm-handle');if(!hd)return;
+    e.preventDefault();var center=hd.parentElement;
+    function mv(ev){var r=center.getBoundingClientRect();var px=Math.max(120,Math.min(r.height-120,r.bottom-ev.clientY));
+      document.documentElement.style.setProperty('--pbm-dock-h',px+'px');}
+    function up(){document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);
+      try{localStorage.setItem('pbm-dock-h',getComputedStyle(document.documentElement).getPropertyValue('--pbm-dock-h'));}catch(e){}}
+    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);
+  });
+  // Ctrl/Cmd K focuses the search.
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){var i=document.querySelector('.pbm-search input');
+      if(i){e.preventDefault();i.focus();i.select();}}
+  });
+  // The embedded chat saved an insight: re-read the dossier.
+  window.addEventListener('message',function(e){
+    if(e.origin!==window.location.origin||!e.data||e.data.type!=='pb-insight-saved')return;
+    emitEvent('pb_insight_saved',e.data.topic||'');
+  });
+})();
+</script>"""
+
+BUCKETS = ("open", "pressing", "relevant", "unfiled", "done", "dismissed")
+
+
+def _bucket_items(items: list, bucket: str, today, dossier_topics: set[str]) -> list:
+    from app_ui import findings_view as fv
+    from proactive.states import display_status
+
+    if bucket == "pressing":
+        return [f for f in items if f.status in fv.OPEN_STATUSES and fv.is_pressing(f, today)]
+    if bucket == "unfiled":
+        return [f for f in items if display_status(f.status) == "open" and f.topic not in dossier_topics]
+    return [f for f in items if display_status(f.status) == bucket]
+
+
+def search_ledger(query: str, items: list, dossiers: list) -> dict:
+    """Lexical search over the ledger (titles, topics, bodies, insights) —
+    the ledger is small, and held or dismissed findings, which the semantic
+    index never holds, must be findable too. Ranked title > topic > insight > body."""
+    import unicodedata
+
+    def fold(s: str) -> str:
+        s = unicodedata.normalize("NFKD", (s or "").casefold())
+        return "".join(c for c in s if not unicodedata.combining(c))
+
+    terms = [t for t in fold(query).split() if t]
+    if not terms:
+        return {"dossiers": [], "findings": [], "insights": []}
+
+    def score(fields: list[tuple[str, int]]) -> int:
+        total = 0
+        for t in terms:
+            best = max((w for text, w in fields if t in text), default=0)
+            if not best:
+                return 0
+            total += best
+        return total
+
+    out_d, out_f, out_i = [], [], []
+    for d in dossiers:
+        s = score([(fold(d.display), 5), (fold(d.topic), 4), (fold(d.current_state), 1),
+                   (fold(" ".join(d.open_questions)), 1)])
+        if s:
+            out_d.append((s, d))
+        for ins in d.insights:
+            si = score([(fold(ins.title), 3), (fold(ins.text), 1)])
+            if si:
+                out_i.append((si, d, ins))
+    for f in items:
+        s = score([(fold(f.title), 5), (fold(f.topic_display), 4), (fold(f.body), 1)])
+        if s:
+            out_f.append((s, f))
+    return {
+        "dossiers": [d for _s, d in sorted(out_d, key=lambda x: -x[0])][:20],
+        "findings": [f for _s, f in sorted(out_f, key=lambda x: (-x[0], x[1].created or ""))][:40],
+        "insights": [(d, i) for _s, d, i in sorted(out_i, key=lambda x: -x[0])][:20],
+    }
+
+
+def dossier_tree(dossiers: list, folders: list[str], open_counts: dict[str, int]) -> list[dict]:
+    """Nodes for the navigator: folders (from disk) → dossiers."""
+    root: list[dict] = []
+    index: dict[str, dict] = {}
+
+    def folder_node(path: str) -> list[dict]:
+        if not path:
+            return root
+        if path in index:
+            return index[path]["children"]
+        parent, _sep, name = path.rpartition("/")
+        node = {"id": f"f:{path}", "label": name, "folder": True, "children": []}
+        index[path] = node
+        folder_node(parent).append(node)
+        return node["children"]
+
+    for p in folders:
+        folder_node(p)
+    for d in sorted(dossiers, key=lambda d: d.display.casefold()):
+        folder_node(d.folder).append({
+            "id": f"d:{d.pbrain_id}", "label": d.display, "topic": d.topic,
+            "count": open_counts.get(d.topic, 0), "insights": len(d.insights),
+        })
+
+    def order(nodes: list[dict]) -> list[dict]:
+        nodes.sort(key=lambda n: (not n.get("folder"), n["label"].casefold()))
+        for n in nodes:
+            if n.get("children"):
+                order(n["children"])
+        return nodes
+
+    return order(root)
+
+
+_TREE_NODE = """
+<div class="pbm-tnode">
+  <q-icon :name="props.node.folder ? 'folder' : 'folder_open'" size="16px" />
+  <span v-if="props.node.color" class="bar" :style="{background: props.node.color}"></span>
+  <span class="t">{{ props.node.label }}</span>
+  <span v-if="props.node.count" class="n">{{ props.node.count }}</span>
+</div>
+"""
+
+
+@ui.page("/findings")
+async def findings_page(d: str = "", f: str = "", tab: str = "", view: str = "") -> None:
+    await _mission_control(dossier=d, finding=f, tab=tab, view=view, action="")
+
+
 @ui.page("/findings/{finding_id}")
 async def finding_detail_page(finding_id: str, action: str = "") -> None:
+    await _mission_control(dossier="", finding=finding_id, tab="", view="", action=action)
+
+
+async def _mission_control(*, dossier: str, finding: str, tab: str, view: str, action: str) -> None:
     if not require_auth():
         return
     page_layout()
     _ = get_translator()
-    from proactive import findings, reactions
-    from proactive import jobs as _jobs
-    from proactive.notify import ACTION_LABELS
-    from proactive.states import reactions_for
+    from datetime import date
 
-    user = _user()
-
+    from app_ui import findings_chart
+    from app_ui import findings_view as fv
+    from app_ui import topic_colors
     from app_ui.document_dialog import create_document_dialog
     from models.result_document import DocumentResult
+    from proactive import dossiers as dmod
+    from proactive import findings
     from services.clients import get_session_paperless
-
     from services.user_prefs import get_pref, set_pref
+
+    user = _user()
+    ui.add_css(_LIST_CSS)
+    ui.add_css(_MC_CSS)
+    ui.add_css(findings_chart.TREEMAP_CSS)
+    ui.add_body_html(f"<script>{findings_chart.TREEMAP_JS}</script>")
+    ui.add_body_html(_DOC_CLICK_JS)
+    ui.add_head_html(_MC_JS)
 
     def _pinned_ids() -> set[int]:
         return set(get_pref("pinned_doc_ids") or [])
 
     def _pin(result: DocumentResult) -> None:
-        # Same prefs as the browser and the chat: a pin here shows up in the chat.
         doc = result.document
         ids = _pinned_ids()
         cache: list[dict] = list(get_pref("pinned_docs_cache") or [])
@@ -514,41 +648,351 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
         pin_fn=_pin, get_pin_state_fn=lambda doc_id: doc_id in _pinned_ids(),
     )
 
-    async def _open_doc(e) -> None:
+    async def _open_doc_id(doc_id: int) -> None:
         try:
             # The user's own token: a finding names only their documents, but
             # the dialog must not become a way round Paperless' permissions.
-            doc = await get_session_paperless().get_document(int(e.args))
+            doc = await get_session_paperless().get_document(int(doc_id))
         except Exception:
-            ui.notify(_("#{id} not found").format(id=e.args), type="warning")
+            ui.notify(_("#{id} not found").format(id=doc_id), type="warning")
             return
         await open_document(DocumentResult(document=doc))
 
-    ui.add_body_html(_DOC_CLICK_JS)
-    ui.on(_DOC_EVENT, _open_doc)
+    ui.on(_DOC_EVENT, lambda e: _open_doc_id(int(e.args)))
 
-    with ui.column().classes("w-full max-w-3xl mx-auto p-4 gap-3"):
-        with ui.row().classes("w-full items-center justify-between gap-2"):
-            ui.button(_("All findings"), icon="arrow_back", on_click=lambda: ui.navigate.to("/findings")).props(
-                "flat dense"
-            )
-            with ui.row().classes("items-center gap-1 no-wrap"):
-                from app_ui.research_routes import finding_pdf_url
+    sel0: tuple = ("home", "")
+    if finding:
+        sel0 = ("finding", finding)
+    elif dossier:
+        sel0 = ("dossier", dossier)
+    elif view in BUCKETS:
+        sel0 = ("list", view)
+    st: dict = {
+        "sel": sel0,
+        "tab": tab or "overview",
+        "q": "",
+        "zone": "viewer" if sel0[0] != "home" else "nav",
+        "back": ("home", ""),
+        "dock_open": bool(get_pref("findings_dock_open", True)),
+        "dock_ctx": None,  # ("dossier", id) | ("finding", id)
+        "action": action,
+    }
 
-                # The whole finding — research results, notes, the original —
-                # as one PDF. The full report stays a link in its entry.
-                ui.button(icon="picture_as_pdf",
-                          on_click=lambda: ui.navigate.to(finding_pdf_url(finding_id), new_tab=True)).props(
-                    "flat dense round").classes("card-action-btn").tooltip(_("Finding as PDF"))
-                # A new conversation with this finding as context and its documents pinned.
-                ui.button(_("Chat about this"), icon="forum",
-                          on_click=lambda: ui.navigate.to(f"/chat?finding={quote(finding_id)}")).props(
-                    "unelevated dense no-caps color=primary"
-                )
+    def _url() -> str:
+        kind, key = st["sel"]
+        if kind == "finding":
+            return f"/findings/{quote(key)}"
+        if kind == "dossier":
+            return f"/findings?d={quote(key)}&tab={quote(st['tab'])}"
+        if kind == "list":
+            return f"/findings?view={quote(key)}"
+        return "/findings"
 
-        @ui.refreshable
-        def body(pending_action: str) -> None:
-            f = findings.get(user, finding_id)
+    def select(kind: str, key: str = "", *, tab_: str | None = None) -> None:
+        if st["sel"][0] in ("list", "home", "search") and kind in ("finding", "dossier"):
+            st["back"] = st["sel"]
+        st["sel"] = (kind, key)
+        if tab_ is not None:
+            st["tab"] = tab_
+        elif kind == "dossier":
+            st["tab"] = "overview"
+        st["action"] = ""
+        _zone("viewer")
+        nav_body.refresh()
+        viewer_body.refresh()
+        _dock_suggest()
+        ui.run_javascript(f"history.replaceState(null,'',{json.dumps(_url())})")
+
+    # ── Shell ────────────────────────────────────────────────────────────────
+    root = ui.element("div").classes("pbm-root z-" + st["zone"])
+    with root:
+        nav = ui.element("div").classes("pbm-nav")
+        with ui.element("div").classes("pbm-center"):
+            viewer = ui.element("div").classes("pbm-viewer")
+            ui.element("div").classes("pbm-handle")
+            dock = ui.element("div").classes("pbm-dock" + ("" if st["dock_open"] else " is-closed"))
+    with ui.element("div").classes("pbm-mbar"):
+        mbtns = {}
+        for z, icon, label in (("nav", "account_tree", _("Navigator")), ("viewer", "article", _("Viewer")),
+                               ("chat", "forum", _("Chat"))):
+            mbtns[z] = ui.button(label, icon=icon, color=None, on_click=lambda z=z: _zone(z)).props(
+                "flat no-caps stack dense").classes("nav-btn" + (" nav-active" if z == st["zone"] else ""))
+
+    def _zone(z: str) -> None:
+        st["zone"] = z
+        root.classes(remove="z-nav z-viewer z-chat", add=f"z-{z}")
+        for k, b in mbtns.items():
+            b.classes(add="nav-active") if k == z else b.classes(remove="nav-active")
+        if z == "chat":
+            _dock_load()
+
+    # ── Navigator ────────────────────────────────────────────────────────────
+    with nav:
+        with ui.row().classes("w-full items-center gap-2 no-wrap").style("padding:10px 10px 4px;"):
+            search = ui.input(placeholder=_("Search findings & dossiers")).props(
+                "dense outlined clearable debounce=250").classes("pbm-search flex-1")
+            with search.add_slot("prepend"):
+                ui.icon("search", size="xs")
+            with search.add_slot("append"):
+                ui.html('<span class="pbm-kbd">Ctrl K</span>', sanitize=False)
+
+        def _on_search(e) -> None:
+            st["q"] = (e.value or "").strip()
+            if st["q"]:
+                st["sel"] = ("search", st["q"])
+                _zone("viewer")
+            elif st["sel"][0] == "search":
+                st["sel"] = ("home", "")
+            viewer_body.refresh()
+
+        search.on_value_change(_on_search)
+        nav_host = ui.element("div").classes("pbm-scroll")
+
+    def _data():
+        items = findings.list_findings(user)
+        ds = dmod.list_dossiers(user)
+        return items, ds
+
+    @ui.refreshable
+    def nav_body() -> None:
+        items, ds = _data()
+        today = date.today()
+        topics = {d.topic for d in ds}
+        c = fv.counts(items, today)
+        cur = st["sel"]
+        rows = [
+            ("home", "space_dashboard", _("Overview"), None, False),
+            ("open", fv.STATUS_ICONS["open"], _("Inbox"), c["open"], False),
+            ("pressing", "priority_high", _("Pressing"), c["pressing"], bool(c["pressing"])),
+            ("relevant", fv.STATUS_ICONS["relevant"], _("Relevant"), c["relevant"], False),
+            ("unfiled", "inventory_2", _("Not in a dossier"),
+             len(_bucket_items(items, "unfiled", today, topics)), False),
+            ("done", fv.STATUS_ICONS["done"], _("Done"), None, False),
+            ("dismissed", fv.STATUS_ICONS["dismissed"], _("Dismissed"), None, False),
+        ]
+        for key, icon, label, n, warn in rows:
+            active = (cur == ("home", "") and key == "home") or cur == ("list", key)
+            el = ui.element("div").classes("pbm-bucket" + (" is-active" if active else "") + (" warn" if warn else ""))
+            el.on("click", lambda _e, k=key: select("home") if k == "home" else select("list", k))
+            with el:
+                ui.icon(icon, size="xs")
+                ui.label(label)
+                if n:
+                    ui.label(str(n)).classes("n")
+        with ui.element("div").classes("pbm-sec"):
+            ui.label(_("Dossiers")).classes("flex-1")
+            ui.button(icon="create_new_folder", on_click=_new_folder).props("flat dense round size=sm").classes(
+                "card-action-btn").tooltip(_("New folder"))
+            ui.button(icon="add", on_click=lambda: _new_dossier("")).props("flat dense round size=sm").classes(
+                "card-action-btn").tooltip(_("New dossier"))
+        open_counts: dict[str, int] = {}
+        for f in items:
+            if f.status in fv.OPEN_STATUSES and f.topic:
+                open_counts[f.topic] = open_counts.get(f.topic, 0) + 1
+        nodes = dossier_tree(ds, dmod.folders(user), open_counts)
+        colors = topic_colors.colors()
+
+        def _paint(ns):
+            for n in ns:
+                if n.get("topic") and colors.get(n["topic"]):
+                    n["color"] = topic_colors.css_var(colors[n["topic"]])
+                _paint(n.get("children") or [])
+
+        _paint(nodes)
+        if not nodes:
+            ui.label(_("No dossiers yet. They appear when the system follows a matter — or make one yourself.")).classes(
+                "pbm-hint").style("padding:4px 14px;")
+            return
+        tree = ui.tree(nodes, label_key="label", node_key="id",
+                       on_select=lambda e: _tree_pick(e.value)).classes("pbm-tree w-full").style("padding:0 6px;")
+        tree.add_slot("default-header", _TREE_NODE)
+        tree.expand()
+        if cur[0] == "dossier":
+            tree._props["selected"] = f"d:{cur[1]}"
+
+    def _tree_pick(node_id) -> None:
+        if node_id and str(node_id).startswith("d:"):
+            select("dossier", str(node_id)[2:])
+
+    # ── Viewer ───────────────────────────────────────────────────────────────
+    @ui.refreshable
+    def viewer_body() -> None:
+        kind, key = st["sel"]
+        if kind == "finding":
+            _finding_view(key)
+        elif kind == "dossier":
+            _dossier_view(key)
+        elif kind == "list":
+            _list_view(key)
+        elif kind == "search":
+            _search_view(key)
+        else:
+            _home_view()
+
+    def _back_btn() -> None:
+        b = st["back"]
+        label = {"home": _("Overview"), "list": _("Back to the list"), "search": _("Back to the results")}.get(b[0], _("Back"))
+        ui.button(label, icon="arrow_back", on_click=lambda: (
+            select(*b) if b[0] != "search" else (search.set_value(b[1])))).props("flat dense no-caps").classes("text-xs")
+
+    def _home_view() -> None:
+        items, ds = _data()
+        today = date.today()
+        c = fv.counts(items, today)
+        with ui.column().classes("pbm-panel gap-4"):
+            ui.label(_("Mission control")).classes("text-xl font-bold").style("color:var(--c-text)")
+            with ui.element("div").classes("pbm-kpis"):
+                for key, label, n, warn in (("open", _("In the inbox"), c["open"], False),
+                                            ("pressing", _("Pressing"), c["pressing"], bool(c["pressing"])),
+                                            ("relevant", _("Relevant"), c["relevant"], False),
+                                            ("dossiers", _("Dossiers"), len(ds), False)):
+                    el = ui.element("div").classes("pbm-kpi" + (" warn" if warn else ""))
+                    el.on("click", lambda _e, k=key: (select("list", k) if k != "dossiers" else _zone("nav")))
+                    with el:
+                        ui.label(str(n)).classes("v")
+                        ui.label(label).classes("l")
+            if c["researching"]:
+                ui.label(_("{n} being researched — it gives way while you chat.").format(n=c["researching"])).classes(
+                    "pbm-hint")
+            # Next 30 days of deadlines.
+            due = sorted((f for f in items if f.status in fv.OPEN_STATUSES and f.deadline
+                          and (fv.days_left(f, today) is not None) and 0 <= fv.days_left(f, today) <= 30),
+                         key=lambda f: f.deadline)
+            with ui.element("div").classes("pbm-card"):
+                ui.label(_("Due in the next 30 days")).classes("pbm-label")
+                if not due:
+                    ui.label(_("Nothing due.")).classes("pbm-hint")
+                for f in due:
+                    el = ui.element("div").classes("pbm-due" + (" warn" if fv.is_pressing(f, today) else ""))
+                    el.on("click", lambda _e, i=f.finding_id: select("finding", i))
+                    with el:
+                        ui.label(f.deadline).classes("d")
+                        ui.label(f.title).classes("t")
+            state = {"chart": bool((get_pref("findings_view") or {}).get("chart", True))}
+            _overview(items, today, state, lambda k, v: _topic_pick(v))
+            recent = sorted(ds, key=lambda d: (d.insights[0].created if d.insights else ""), reverse=True)
+            recent = [d for d in recent if d.insights][:5]
+            if recent:
+                with ui.element("div").classes("pbm-card"):
+                    ui.label(_("Latest insights")).classes("pbm-label")
+                    for d in recent:
+                        ins = d.insights[0]
+                        el = ui.element("div").classes("pbm-due")
+                        el.on("click", lambda _e, i=d.pbrain_id: select("dossier", i, tab_="insights"))
+                        with el:
+                            ui.label(ins.created[:10]).classes("d")
+                            ui.label(f"{d.display} — {ins.title}").classes("t")
+
+    def _topic_pick(topic: str) -> None:
+        d = next((x for x in dmod.list_dossiers(user) if x.topic == topic), None)
+        if d is not None:
+            select("dossier", d.pbrain_id)
+        else:
+            st["list_topic"] = topic
+            select("list", "open")
+
+    def _list_view(bucket: str) -> None:
+        items, ds = _data()
+        today = date.today()
+        topics = {d.topic for d in ds}
+        shown = _bucket_items(items, bucket, today, topics)
+        topic_filter = st.pop("list_topic", "")
+        if topic_filter:
+            shown = [f for f in shown if f.topic == topic_filter]
+        view_pref = get_pref("findings_view") or {}
+        sort = view_pref.get("sort", fv.DEFAULT_VIEW["sort"])
+        group = view_pref.get("group", fv.DEFAULT_VIEW["group"])
+        title = {"open": _("Inbox"), "pressing": _("Pressing"), "relevant": _("Relevant"),
+                 "unfiled": _("Not in a dossier"), "done": _("Done"), "dismissed": _("Dismissed")}.get(bucket, bucket)
+        with ui.column().classes("pbm-panel gap-2"):
+            with ui.row().classes("w-full items-center gap-2"):
+                ui.label(title).classes("text-xl font-bold flex-1").style("color:var(--c-text)")
+                ui.label(str(len(shown))).classes("pbm-hint")
+
+                def _setv(k: str, v: str) -> None:
+                    pref = dict(get_pref("findings_view") or {})
+                    pref[k] = v
+                    set_pref("findings_view", pref)
+                    viewer_body.refresh()
+
+                groups = {k: _(v) for k, v in fv.GROUPS.items() if k not in ("status", "topic_status")}
+                ui.select(groups, value=group if group in groups else "none", label=_("Group"),
+                          on_change=lambda e: _setv("group", e.value)).props("outlined dense options-dense").style(
+                    "min-width:9rem;")
+                ui.select({k: _(v) for k, v in fv.SORTS.items()}, value=sort, label=_("Sort"),
+                          on_change=lambda e: _setv("sort", e.value)).props("outlined dense options-dense").style(
+                    "min-width:9rem;")
+                topics_d = {f.topic: f.topic_display for f in items if f.topic}
+                ui.button(icon="palette", on_click=lambda: _topic_colors_dialog(
+                    topics_d, lambda: (nav_body.refresh(), viewer_body.refresh()))).props(
+                    "flat dense round").classes("card-action-btn").tooltip(_("Topic colours"))
+            if topic_filter:
+                ui.label(_("Topic: {t}").format(t=topic_filter)).classes("pbm-hint")
+            arranged = fv.arrange(shown, status="all", topic="", group=group if group in ("topic", "none") else "none",
+                                  sort=sort, today=today)
+            if not arranged:
+                ui.label(_("Nothing here.")).classes("pbm-hint mt-4")
+            for g in arranged:
+                if g.kind != "none":
+                    _heading(g, top=True)
+                for f in g.items:
+                    _card(f, today, topic=g.kind != "topic", status=bucket in ("pressing", "unfiled"),
+                          on_open=lambda fid: select("finding", fid))
+
+    def _search_view(q: str) -> None:
+        items, ds = _data()
+        res = search_ledger(q, items, ds)
+        today = date.today()
+        with ui.column().classes("pbm-panel gap-2"):
+            ui.label(_("Results for “{q}”").format(q=q)).classes("text-lg font-bold").style("color:var(--c-text)")
+            if not any(res.values()):
+                ui.label(_("Nothing found.")).classes("pbm-hint")
+            if res["dossiers"]:
+                ui.label(_("Dossiers")).classes("pbm-label mt-2")
+                for d in res["dossiers"]:
+                    el = ui.element("div").classes("pbm-due")
+                    el.on("click", lambda _e, i=d.pbrain_id: select("dossier", i))
+                    with el:
+                        ui.icon("folder_open", size="xs").classes("text-gray-400")
+                        ui.label(d.display).classes("t")
+            if res["insights"]:
+                ui.label(_("Insights")).classes("pbm-label mt-2")
+                for d, ins in res["insights"]:
+                    el = ui.element("div").classes("pbm-due")
+                    el.on("click", lambda _e, i=d.pbrain_id: select("dossier", i, tab_="insights"))
+                    with el:
+                        ui.label(ins.created[:10]).classes("d")
+                        ui.label(f"{d.display} — {ins.title}").classes("t")
+            if res["findings"]:
+                ui.label(_("Findings")).classes("pbm-label mt-2")
+                for f in res["findings"]:
+                    _card(f, today, topic=True, status=True, on_open=lambda fid: select("finding", fid))
+
+    # ── Finding ──────────────────────────────────────────────────────────────
+    def _finding_view(fid: str) -> None:
+        from proactive import jobs as _jobs
+        from proactive import reactions
+        from proactive.notify import ACTION_LABELS
+        from proactive.states import reactions_for
+
+        f = findings.get(user, fid)
+        with ui.column().classes("pbm-panel gap-3"):
+            with ui.row().classes("w-full items-center justify-between gap-2"):
+                _back_btn()
+                with ui.row().classes("items-center gap-1 no-wrap"):
+                    from app_ui.research_routes import finding_pdf_url
+
+                    ui.button(icon="picture_as_pdf",
+                              on_click=lambda: ui.navigate.to(finding_pdf_url(fid), new_tab=True)).props(
+                        "flat dense round").classes("card-action-btn").tooltip(_("Finding as PDF"))
+                    if f is not None:
+                        d = next((x for x in dmod.list_dossiers(user) if x.topic == f.topic), None) if f.topic else None
+                        if d is not None:
+                            ui.button(_("Open dossier"), icon="folder_open",
+                                      on_click=lambda i=d.pbrain_id: select("dossier", i)).props(
+                                "flat dense no-caps").classes("text-xs")
+                    ui.button(_("Ask"), icon="forum", on_click=lambda: _dock_ask(("finding", fid))).props(
+                        "unelevated dense no-caps color=primary")
             if f is None:
                 ui.label(_("This item no longer exists.")).classes("text-sm text-gray-400")
                 return
@@ -559,8 +1003,8 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 ui.label(_meta_line(f)).classes("text-xs text-gray-400 min-w-0 flex-1")
             if f.doc_ids:
                 with ui.row().classes("gap-2 flex-wrap"):
-                    for d in f.doc_ids:
-                        ui.link(f"#{d}", f"#pbdoc-{d}").classes("text-xs")
+                    for did in f.doc_ids:
+                        ui.link(f"#{did}", f"#pbdoc-{did}").classes("text-xs")
 
             if f.status == "researched" and f.research_note:
                 ui.label(_("Researched — the newest result is at the top, the report is in your vault.")).classes(
@@ -582,7 +1026,6 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                     ui.label(_("Research queued — it starts as soon as the model is free.")).classes(
                         "text-xs text-gray-400")
                 else:
-                    # Nothing works on it: its run failed, was deleted, or never started.
                     reason = _("No research is running for this item.")
                     if failed:
                         from werkbank.v2.ui.page import failure_text
@@ -597,74 +1040,64 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                             "flat dense no-caps").classes("text-xs flex-shrink-0")
 
             async def _research_again() -> None:
-                await findings.update(user, finding_id, lambda x: (
+                await findings.update(user, fid, lambda x: (
                     {"research_run": None, "research_note": None} if x.status == "interested" else None))
-                _jobs.enqueue("deep_dive", user, {"finding_id": finding_id}, dedupe_key=f"deep_dive:{finding_id}")
+                _jobs.enqueue("deep_dive", user, {"finding_id": fid}, dedupe_key=f"deep_dive:{fid}")
                 ui.notify(_("Research queued — it starts as soon as the model is free."), type="positive")
-                body.refresh("")
-
-            def _note_box(f) -> None:
-                """A note of the user's own, dated, on top of the timeline."""
-                with ui.expansion(_("Add a note"), icon="edit_note").classes("w-full").props("dense"):
-                    box = ui.textarea(placeholder=_("e.g. The operation took place in April 2024.")).props(
-                        "outlined dense autogrow").classes("w-full")
-
-                    async def _save() -> None:
-                        if not (box.value or "").strip():
-                            return
-                        await findings.add_note(user, finding_id, box.value)
-                        ui.notify(_("Note added."), type="positive")
-                        body.refresh("")
-
-                    with ui.row().classes("w-full justify-end"):
-                        ui.button(_("Save note"), on_click=_save).props("unelevated dense no-caps color=primary")
+                viewer_body.refresh()
 
             allowed = reactions_for(f.status, f.kind)
 
             async def _do(a: str) -> None:
-                msg = await reactions.react(user, finding_id, a, channel="app")
+                msg = await reactions.react(user, fid, a, channel="app")
                 ui.notify(msg, type="positive")
-                # The item is handled: back to where the user came from (the
-                # list with its filters). Opened from a push, there is no
-                # "before" — the list then.
-                ui.run_javascript(
-                    "setTimeout(() => { if (history.length > 1 && document.referrer"
-                    " && new URL(document.referrer).origin === location.origin) history.back();"
-                    " else location.href = '/findings'; }, 600)")
+                # Handled: back to where the user came from.
+                b = st["back"]
+                st["sel"] = b if b[0] != "search" else ("home", "")
+                if b[0] == "search":
+                    search.set_value(b[1])
+                nav_body.refresh()
+                viewer_body.refresh()
+                ui.run_javascript(f"history.replaceState(null,'',{json.dumps(_url())})")
 
-            if pending_action and pending_action in allowed:
+            pending = st.get("action") or ""
+            if pending and pending in allowed:
                 with ui.card().classes("w-full bg-gray-900 border border-gray-700 p-3"):
-                    ui.label(_("Apply “{action}” to this item?").format(action=_(ACTION_LABELS[pending_action]))).classes(
-                        "text-sm text-gray-200"
-                    )
-                    ui.button(_("Confirm"), on_click=lambda a=pending_action: _do(a)).props(
-                        "unelevated dense color=primary"
-                    )
-            elif pending_action:
+                    ui.label(_("Apply “{action}” to this item?").format(action=_(ACTION_LABELS[pending]))).classes(
+                        "text-sm text-gray-200")
+                    ui.button(_("Confirm"), on_click=lambda a=pending: _do(a)).props("unelevated dense color=primary")
+            elif pending:
                 ui.label(_("Already handled.")).classes("text-xs text-gray-500")
 
             if allowed:
                 with ui.row().classes("gap-2 flex-wrap"):
                     for a in allowed:
                         if a == "interested":
-                            # Research is an action, not a status any more.
                             label = _("Research again") if (f.status == "researched" or f.research_note) \
                                 else _("Start research")
                         else:
                             label = _(ACTION_LABELS[a])
                         ui.button(label, on_click=lambda a=a: _do(a)).props("flat dense")
 
-            _note_box(f)
+            with ui.expansion(_("Add a note"), icon="edit_note").classes("w-full").props("dense"):
+                box = ui.textarea(placeholder=_("e.g. The operation took place in April 2024.")).props(
+                    "outlined dense autogrow").classes("w-full")
+
+                async def _save_note() -> None:
+                    if not (box.value or "").strip():
+                        return
+                    await findings.add_note(user, fid, box.value)
+                    ui.notify(_("Note added."), type="positive")
+                    viewer_body.refresh()
+
+                with ui.row().classes("w-full justify-end"):
+                    ui.button(_("Save note"), on_click=_save_note).props("unelevated dense no-caps color=primary")
             ui.separator()
             ui.add_css(
                 ".finding-md h2{font-size:1rem;font-weight:600;margin:1rem 0 .4rem}"
-                # The research result's sections, one level below its heading.
                 ".finding-md h3{font-size:.9rem;font-weight:600;margin:.8rem 0 .3rem}"
                 ".finding-md{overflow-x:auto}"
                 ".finding-md a{overflow-wrap:anywhere}"
-                # Timeline: research results, notes and the original finding,
-                # newest first — one dated entry each, so two summaries that
-                # disagree read as then and now.
                 ".pb-tl-item{position:relative;border-left:2px solid var(--c-border);"
                 "padding:0 0 1.1rem 1rem;margin-left:.35rem}"
                 ".pb-tl-item:last-child{padding-bottom:0}"
@@ -675,27 +1108,423 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
                 ".pb-tl-item .finding-md h3:first-child{margin-top:.3rem}"
             )
             entries, original = findings.split_timeline(findings.tidy_sources(f.body, f.lang), f.lang)
-            items = [(e.split("\n", 1)[0][3:].strip(), e.split("\n", 1)[1] if "\n" in e else "") for e in entries]
-            items.append((findings.original_heading(f), original))
+            tl = [(e.split("\n", 1)[0][3:].strip(), e.split("\n", 1)[1] if "\n" in e else "") for e in entries]
+            tl.append((findings.original_heading(f), original))
             with ui.element("div").classes("pb-tl w-full min-w-0"):
-                for head, text in items:
+                for head, text in tl:
                     with ui.element("div").classes("pb-tl-item w-full min-w-0"):
                         ui.label(head).classes("pb-tl-head")
                         ui.markdown(_in_app_links(text.strip(), user)).classes("chat-md finding-md w-full min-w-0")
 
-        await _adopt_research_note(user, findings.get(user, finding_id))
-        body(action)
+    # ── Dossier binder ───────────────────────────────────────────────────────
+    def _dossier_view(pid: str) -> None:
+        d = dmod.by_id(user, pid)
+        with ui.column().classes("w-full gap-0"):
+            if d is None:
+                with ui.column().classes("pbm-panel"):
+                    _back_btn()
+                    ui.label(_("This dossier no longer exists.")).classes("pbm-hint")
+                return
+            items = dmod.findings_of(user, d.topic)
+            with ui.column().classes("pbm-panel gap-1").style("padding-bottom:6px;"):
+                with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    ui.icon("folder_open", size="md").classes("text-gray-300")
+                    with ui.column().classes("gap-0 flex-1").style("min-width:0;"):
+                        ui.label(d.display).classes("text-xl font-bold w-full").style(
+                            "color:var(--c-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;")
+                        sub = [_("{n} documents").format(n=len(d.doc_ids)),  # TODO i18n-plural
+                               _("{n} findings").format(n=len(items)),  # TODO i18n-plural
+                               _("{n} insights").format(n=len(d.insights))]  # TODO i18n-plural
+                        if d.revisit_after:
+                            sub.append(_("revisit {date}").format(date=d.revisit_after))
+                        if d.origin == "user":
+                            sub.append(_("made by you"))
+                        ui.label(" · ".join(sub)).classes("pbm-hint w-full")
+                    ui.button(_("Ask"), icon="forum", on_click=lambda: _dock_ask(("dossier", d.pbrain_id))).props(
+                        "unelevated dense no-caps color=primary")
+                    with ui.button(icon="more_vert").props("flat dense round").classes("card-action-btn"):
+                        with ui.menu():
+                            ui.menu_item(_("Rename"), on_click=lambda: _rename_dossier(d))
+                            ui.menu_item(_("Move to folder"), on_click=lambda: _move_dossier(d))
+                            ui.menu_item(_("Default expert for its chat"), on_click=lambda: _dossier_expert(d))
+            tabs = [("overview", _("Overview")), ("timeline", _("Timeline")),
+                    ("findings", _("Findings") + (f" {len(items)}" if items else "")),
+                    ("insights", _("Insights") + (f" {len(d.insights)}" if d.insights else "")),
+                    ("documents", _("Documents")), ("research", _("Research"))]
+            if st["tab"] not in {k for k, _l in tabs}:
+                st["tab"] = "overview"
+            with ui.element("div").classes("pbm-tabs w-full"):
+                for key, label in tabs:
+                    t = ui.element("div").classes("pbm-tab" + (" is-active" if key == st["tab"] else ""))
+                    t.on("click", lambda _e, k=key: _set_tab(k))
+                    with t:
+                        ui.label(label)
+            with ui.column().classes("pbm-panel gap-3"):
+                {"overview": _tab_overview, "timeline": _tab_timeline, "findings": _tab_findings,
+                 "insights": _tab_insights, "documents": _tab_documents, "research": _tab_research}[st["tab"]](d, items)
 
-        # A deep dive finishes while the page is open: show the result without a reload.
-        def _key(f) -> tuple:
-            return (f.status, f.research_run, f.research_note) if f else ()
+    def _set_tab(k: str) -> None:
+        st["tab"] = k
+        viewer_body.refresh()
+        ui.run_javascript(f"history.replaceState(null,'',{json.dumps(_url())})")
 
-        seen = {"key": _key(findings.get(user, finding_id))}
+    def _tab_overview(d, items) -> None:
+        with ui.element("div").classes("pbm-card"):
+            ui.label(_("Current state")).classes("pbm-label")
+            if d.current_state.strip():
+                ui.markdown(_in_app_links(d.current_state, user)).classes("chat-md finding-md w-full")
+            else:
+                ui.label(_("Not written yet — it is built from the documents of this matter.")
+                         if d.origin != "user" else _("Save insights from the chat to fill this dossier.")).classes("pbm-hint")
+        with ui.element("div").classes("pbm-card"):
+            ui.label(_("Open questions")).classes("pbm-label")
+            if not d.open_questions and not d.resolved:
+                ui.label(_("None.")).classes("pbm-hint")
+            for q in d.open_questions:
+                with ui.row().classes("w-full items-start gap-2 no-wrap"):
+                    ui.icon("radio_button_unchecked", size="xs").classes("text-gray-400 mt-1")
+                    ui.label(q).classes("text-sm flex-1").style("color:var(--c-text-2)")
+            for r in d.resolved:
+                with ui.row().classes("w-full items-start gap-2 no-wrap"):
+                    ui.icon("check_circle", size="xs").classes("text-gray-400 mt-1")
+                    ui.label(r["question"]).classes("text-sm flex-1").style(
+                        "color:var(--c-text-muted); text-decoration:line-through;")
+                    ui.button(_("Answer"), on_click=lambda: _set_tab("insights")).props("flat dense no-caps size=sm")
+        if d.insights:
+            ins = d.insights[0]
+            with ui.element("div").classes("pbm-card"):
+                ui.label(_("Latest insight")).classes("pbm-label")
+                _insight(d, ins, compact=True)
+        live = [f for f in items if f.status in fv.OPEN_STATUSES]
+        if live:
+            with ui.element("div").classes("pbm-card"):
+                ui.label(_("Open findings")).classes("pbm-label")
+                today = date.today()
+                for f in live[:5]:
+                    _card(f, today, topic=False, status=True, on_open=lambda fid: select("finding", fid))
 
-        def _watch() -> None:
-            k = _key(findings.get(user, finding_id))
-            if k and k != seen["key"]:
-                seen["key"] = k
-                body.refresh("")
+    def _tab_timeline(d, items) -> None:
+        from proactive.findings import paperless_link  # noqa: F401 — links rewritten below
 
-        ui.timer(15.0, _watch)
+        if not d.timeline:
+            ui.label(_("No timeline yet.")).classes("pbm-hint")
+            return
+        with ui.element("div").classes("pb-tl w-full min-w-0"):
+            for t in reversed(d.timeline):
+                with ui.element("div").classes("pb-tl-item w-full min-w-0"):
+                    ui.label(t["date"]).classes("pb-tl-head")
+                    ui.markdown(f"{t['event']} — [#{t['doc_id']}](#pbdoc-{t['doc_id']})").classes(
+                        "chat-md finding-md w-full")
+        ui.add_css(
+            ".pb-tl-item{position:relative;border-left:2px solid var(--c-border);padding:0 0 1rem 1rem;margin-left:.35rem}"
+            ".pb-tl-item::before{content:'';position:absolute;left:-6px;top:.3rem;width:10px;height:10px;"
+            "border-radius:50%;background:var(--c-surface);border:2px solid var(--c-text-muted)}"
+            ".pb-tl-head{font-weight:600;font-size:.9rem;color:var(--c-text)}")
+
+    def _tab_findings(d, items) -> None:
+        if not items:
+            ui.label(_("No findings on this matter.")).classes("pbm-hint")
+            return
+        today = date.today()
+        for f in sorted(items, key=fv.sort_key("relevance", today)):
+            _card(f, today, topic=False, status=True, on_open=lambda fid: select("finding", fid))
+
+    def _evidence(kind: str) -> str:
+        return {"documents": _("documents"), "web": _("web"), "documents+web": _("documents + web"),
+                "reasoning": _("reasoning only")}.get(kind, kind)
+
+    def _insight(d, ins, compact: bool = False) -> None:
+        with ui.element("div").classes("pbm-ins w-full"):
+            with ui.row().classes("w-full items-start gap-2 no-wrap"):
+                with ui.column().classes("gap-0 flex-1").style("min-width:0;"):
+                    ui.html(f"<h4>{_esc(ins.title)}</h4>", sanitize=False)
+                    ui.label(ins.created.replace("T", " ")[:16]).classes("pbm-hint")
+                if not compact:
+                    async def _del(i=ins.insight_id) -> None:
+                        await dmod.delete_insight(user, d.topic, i)
+                        viewer_body.refresh()
+                        nav_body.refresh()
+
+                    ui.button(icon="delete_outline", on_click=_del).props("flat dense round size=sm").classes(
+                        "card-action-btn").tooltip(_("Remove insight"))
+            ui.markdown(_in_app_links(ins.text if not compact else ins.text[:600], user)).classes(
+                "chat-md finding-md w-full")
+            parts = [f'<span class="pbm-evid">{_esc(_evidence(ins.evidence))}</span>']
+            if ins.docs:
+                parts.append(" · ".join(
+                    f'<a href="#pbdoc-{int(x["id"])}">#{int(x["id"])}' + (f' p{int(x["page"])}' if x.get("page") else "")
+                    + "</a>" for x in ins.docs))
+            for w in ins.web[:4]:
+                u = _esc(w["url"])
+                parts.append(f'<a href="{u}" target="_blank" rel="noopener">{u}</a>')
+            who = " · ".join(x for x in (ins.model, ins.expert) if x)
+            if who:
+                parts.append(_esc(who))
+            if ins.unsupported:
+                parts.append('<span style="color:var(--c-warn)">' + _esc(
+                    _("unconfirmed numbers: {n}").format(n=", ".join(ins.unsupported))) + "</span>")
+            ui.html('<div class="pbm-src finding-md">' + " · ".join(parts) + "</div>", sanitize=False)
+
+    def _tab_insights(d, items) -> None:
+        ui.label(_("Saved from chat answers with “Save to dossier”. Sources come from the answer's own tool "
+                   "calls — the model cannot add any.")).classes("pbm-hint")
+        if not d.insights:
+            ui.button(_("Ask about this dossier"), icon="forum", on_click=lambda: _dock_ask(("dossier", d.pbrain_id))).props(
+                "flat no-caps")
+            return
+        for ins in d.insights:
+            _insight(d, ins)
+
+    def _tab_documents(d, items) -> None:
+        host = ui.column().classes("w-full gap-0")
+        with host:
+            ui.spinner()
+
+        async def _load() -> None:
+            ids = sorted(set(d.doc_ids) | {i for f in items for i in f.doc_ids})
+            host.clear()
+            if not ids:
+                with host:
+                    ui.label(_("No documents linked yet.")).classes("pbm-hint")
+                return
+            try:
+                docs = await get_session_paperless().list_documents(ids=ids)
+            except Exception:
+                with host:
+                    ui.label(_("Paperless is not reachable.")).classes("pbm-hint")
+                return
+            with host:
+                ui.label(_("{n} documents").format(n=len(docs))).classes("pbm-hint")  # TODO i18n-plural
+                for doc in sorted(docs, key=lambda x: x.created, reverse=True):
+                    el = ui.element("div").classes("pbm-due")
+                    el.on("click", lambda _e, i=doc.id: _open_doc_id(i))
+                    with el:
+                        ui.label(doc.created.date().isoformat()).classes("d")
+                        ui.label(f"{doc.title} (#{doc.id})").classes("t")
+                        ui.label(doc.correspondent or "").classes("pbm-hint").style("flex-shrink:0;")
+
+        ui.timer(0.05, _load, once=True)
+
+    def _tab_research(d, items) -> None:
+        if not d.research:
+            ui.label(_("No research on this matter yet. “Start research” on one of its findings.")).classes("pbm-hint")
+            return
+        for link in reversed(d.research):
+            ui.markdown(_in_app_links(link, user)).classes("chat-md finding-md w-full")
+
+    # ── Dossier actions ──────────────────────────────────────────────────────
+    def _ask_text(title: str, label: str, value: str, on_ok, options: dict | None = None) -> None:
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:min(420px,94vw);"):
+            ui.label(title).classes("text-base font-semibold").style("color:var(--c-text)")
+            if options is not None:
+                inp = ui.select(options, value=value, label=label, with_input=True,
+                                new_value_mode="add-unique").props("outlined dense").classes("w-full")
+            else:
+                inp = ui.input(label, value=value).props("outlined dense autofocus").classes("w-full")
+
+            async def _ok() -> None:
+                try:
+                    await on_ok(inp.value or "")
+                except dmod.DossierError as err:
+                    ui.notify({"exists": _("That name is taken."), "name": _("Enter a name."),
+                               "folder": _("Not a valid folder.")}.get(str(err), _("Could not save.")), type="warning")
+                    return
+                dlg.close()
+                nav_body.refresh()
+                viewer_body.refresh()
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("OK"), on_click=_ok).props("unelevated no-caps").classes("bg-primary text-white")
+        dlg.open()
+
+    def _new_dossier(folder: str) -> None:
+        async def _ok(name: str) -> None:
+            d = await dmod.create_manual(user, name, folder, lang=get_pref("language", "en"))
+            st["sel"] = ("dossier", d.pbrain_id)
+
+        _ask_text(_("New dossier"), _("Name"), "", _ok)
+
+    def _new_folder() -> None:
+        async def _ok(name: str) -> None:
+            if not name.strip():
+                raise dmod.DossierError("name")
+            await dmod.ensure_folder(user, name)
+
+        _ask_text(_("New folder"), _("Folder (use / for subfolders)"), "", _ok)
+
+    def _rename_dossier(d) -> None:
+        async def _ok(name: str) -> None:
+            if not name.strip():
+                raise dmod.DossierError("name")
+            await dmod.rename(user, d.topic, name)
+
+        _ask_text(_("Rename dossier"), _("Name"), d.display, _ok)
+
+    def _move_dossier(d) -> None:
+        async def _ok(folder: str) -> None:
+            await dmod.move(user, d.topic, folder)
+
+        opts = {"": _("(top level)"), **{p: p for p in dmod.folders(user)}}
+        _ask_text(_("Move to folder"), _("Folder"), d.folder, _ok, options=opts)
+
+    def _dossier_expert(d) -> None:
+        from services import experts
+
+        async def _ok(eid: str) -> None:
+            await dmod.set_expert(user, d.topic, "" if eid == experts.UNIVERSAL_ID else eid)
+
+        opts = {e.expert_id: e.name for e in experts.list_experts(user)}
+        _ask_text(_("Default expert for this dossier's chat"), _("Expert"), d.expert or experts.UNIVERSAL_ID, _ok,
+                  options=opts)
+
+    ui.on("pb_insight_saved", lambda _e: (viewer_body.refresh(), nav_body.refresh()))
+
+    # ── Chat dock ────────────────────────────────────────────────────────────
+    with dock:
+        with ui.element("div").classes("pbm-dock-head"):
+            ui.icon("forum", size="xs").classes("text-gray-400")
+            dock_title = ui.label(_("Chat")).classes("text-sm flex-1").style(
+                "color:var(--c-text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;")
+            retarget = ui.button("", icon="swap_horiz").props("flat dense no-caps size=sm").classes("text-xs")
+            retarget.set_visibility(False)
+            ui.button(icon="open_in_new", on_click=lambda: ui.navigate.to("/chat")).props(
+                "flat dense round size=sm").classes("card-action-btn").tooltip(_("Open the full chat"))
+            toggle = ui.button(icon="expand_more" if st["dock_open"] else "expand_less").props(
+                "flat dense round size=sm").classes("card-action-btn pbm-dock-toggle")
+        frame_host = ui.element("div").classes("pbm-dock-frame")
+
+    def _ctx_of_selection():
+        kind, key = st["sel"]
+        if kind == "dossier":
+            return ("dossier", key)
+        if kind == "finding":
+            f = findings.get(user, key)
+            if f and f.topic:
+                d = next((x for x in dmod.list_dossiers(user) if x.topic == f.topic), None)
+                if d is not None:
+                    return ("dossier", d.pbrain_id)
+            return ("finding", key)
+        return None
+
+    def _ctx_label(ctx) -> str:
+        if ctx is None:
+            return _("Chat")
+        if ctx[0] == "dossier":
+            d = dmod.by_id(user, ctx[1])
+            return _("Chat about: {name}").format(name=d.display if d else "?")
+        f = findings.get(user, ctx[1])
+        return _("Chat about: {name}").format(name=f.title if f else "?")
+
+    def _src(ctx) -> str:
+        if ctx is None:
+            return "/chat?embed=1"
+        if ctx[0] == "dossier":
+            d = dmod.by_id(user, ctx[1])
+            q = f"/chat?embed=1&dossier={quote(ctx[1])}"
+            if d is not None and d.expert:
+                q += f"&expert={quote(d.expert)}"
+            return q
+        return f"/chat?embed=1&finding={quote(ctx[1])}"
+
+    def _dock_load(ctx=None, *, force: bool = False) -> None:
+        if ctx is None and st["dock_ctx"] is None:
+            ctx = _ctx_of_selection()
+        if ctx is None and st["dock_ctx"] is not None and not force:
+            return
+        if ctx is not None and ctx == st["dock_ctx"] and not force and frame_host.default_slot.children:
+            return
+        st["dock_ctx"] = ctx
+        frame_host.clear()
+        with frame_host:
+            ui.html(f'<iframe src="{_esc(_src(ctx))}" allow="microphone" title="chat"></iframe>', sanitize=False)
+        dock_title.set_text(_ctx_label(ctx))
+        _dock_suggest()
+
+    def _dock_suggest() -> None:
+        """The dock never re-targets on its own: a running conversation stays
+        where it is. It offers the switch when the selection is elsewhere."""
+        want = _ctx_of_selection()
+        show = st["dock_ctx"] is not None and want is not None and want != st["dock_ctx"]
+        retarget.set_visibility(show)
+        if show:
+            retarget.set_text(_("Talk about the selection"))
+
+    def _dock_open(on: bool) -> None:
+        st["dock_open"] = on
+        set_pref("findings_dock_open", on)
+        dock.classes(remove="is-closed") if on else dock.classes(add="is-closed")
+        toggle.props(f"icon={'expand_more' if on else 'expand_less'}")
+        if on:
+            _dock_load()
+
+    def _dock_ask(ctx) -> None:
+        if ctx[0] == "finding":
+            ctx = _ctx_of_selection() if st["sel"] == ("finding", ctx[1]) else ctx
+        _dock_load(ctx, force=ctx != st["dock_ctx"])
+        if st["zone"] != "chat" and _is_mobile["v"]:
+            _zone("chat")
+        elif not st["dock_open"]:
+            _dock_open(True)
+
+    _is_mobile = {"v": False}
+
+    async def _detect() -> None:
+        try:
+            _is_mobile["v"] = bool(await ui.run_javascript("window.innerWidth < 1024", timeout=3))
+        except Exception:
+            pass
+        if st["dock_open"] and not _is_mobile["v"]:
+            _dock_load()
+
+    toggle.on_click(lambda: _dock_open(not st["dock_open"]))
+    retarget.on_click(lambda: _dock_load(_ctx_of_selection(), force=True))
+
+    # ── Build ────────────────────────────────────────────────────────────────
+    if finding:
+        await _adopt_research_note(user, findings.get(user, finding))
+    with nav_host:
+        nav_body()
+    with viewer:
+        viewer_body()
+    ui.timer(0.2, _detect, once=True)
+
+    # A deep dive finishes, the worker writes a finding: refresh without a reload.
+    def _key() -> tuple:
+        items = findings.list_findings(user)
+        return tuple(sorted((f.finding_id, f.status, f.research_note or "") for f in items)) + tuple(
+            sorted((d.pbrain_id, d.sha) for d in dmod.list_dossiers(user)))
+
+    def _sel_key() -> tuple:
+        kind, key = st["sel"]
+        if kind == "finding":
+            f = findings.get(user, key)
+            return (kind, key, f.status if f else "", f.research_run if f else "", f.research_note if f else "")
+        if kind == "dossier":
+            d = dmod.by_id(user, key)
+            return (kind, key, d.sha if d else "")
+        return (kind, key)
+
+    seen = {"k": _key(), "sel": _sel_key()}
+
+    def _watch() -> None:
+        k = _key()
+        if k == seen["k"]:
+            return
+        seen["k"] = k
+        nav_body.refresh()
+        # The viewer only when what it shows changed: a refresh would wipe a
+        # note the user is typing.
+        sk = _sel_key()
+        moved = tuple(seen["sel"][:2]) != tuple(st["sel"])  # the user picked something else meanwhile
+        if st["sel"][0] in ("home", "list") or (sk != seen["sel"] and not moved):
+            viewer_body.refresh()
+        seen["sel"] = sk
+
+    ui.timer(20.0, _watch)
+
+
+def _esc(s) -> str:
+    import html
+
+    return html.escape(str(s or ""))
