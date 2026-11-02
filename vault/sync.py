@@ -18,7 +18,7 @@ from vault.frontmatter import (
 from vault.git_wrapper import FileChange, _git, commit, diff_name_status, ensure_repo
 from vault.locks import get_user_lock
 from vault.paths import ensure_user_dirs, git_dir_path, vault_path
-from vault.router import is_brain_path
+from vault.router import is_brain_path, is_config_path
 
 _log = logging.getLogger(__name__)
 _last_sync: dict[str, float] = {}
@@ -357,6 +357,12 @@ async def _embed_file(
     if rel_path.name.endswith(".conflict.md"):
         return True
     if rel_path.suffix != ".md":
+        return True
+
+    if is_config_path(rel_path, settings.experts_subfolder, settings.skills_subfolder):
+        # Experts and skills are configuration (services/experts.py,
+        # services/skills.py), read from disk where they are used. Embedding
+        # them would put an expert's instructions into every vault search.
         return True
 
     try:

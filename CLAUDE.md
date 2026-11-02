@@ -102,7 +102,7 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 ### UI
 
 - NiceGUI 3.x, pages in `app_ui/pages/` (each imports `page_layout` + `require_auth` from `app_ui/layout.py`)
-- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `brain` (fact management), `settings`
+- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `findings` (mission control, proactive only)
 - Dialogs: `app_ui/document_dialog.py`, `app_ui/cluster_dialog.py`
 - **NiceGUI pattern**: use `@ui.refreshable` for dynamic content in plain columns. `QTabPanels`/`element.clear()` silently fails.
 - Chat events stream via `AsyncGenerator[ChatEvent, None]` — UI iterates with `async for` and updates reactively.
@@ -257,6 +257,65 @@ request of the app *and* the worker is bracketed with `inference_activity.track(
 model)` (shared file `data/inference_activity.json`, `flock`, written at start and end
 only). A new call path to a model goes through `track` too, or the dashboard calls the
 host idle while it works. Tracking never fails a request.
+
+## Experts
+
+`docs/experts.md`. Code: `services/experts.py`, `services/expert_scope.py`,
+`services/skills.py`, `services/briefings.py`, `services/expert_prompt.py`,
+page `app_ui/pages/experts.py`.
+
+- **The expert scope is enforced in the Paperless client, never in the prompt.**
+  `chat_service._user_paperless()` returns a `ScopedPaperlessClient` for the
+  turn's `_current_scope`; every document tool goes through it, and out of scope
+  answers exactly like "no such document" (`tests/test_experts.py` pins five
+  tools). The chat page's own lookups (citation titles, pins, downloads) use
+  `_scoped_pl()`. A new document path goes through one of them.
+- **Opt-in per dimension**: empty = no restriction; filled dimensions AND,
+  values within one OR. A scope is focus, not security — that stays the token.
+- **The personality is the old custom-instructions slot** (header, 2 000-char
+  cap); scope, briefing and skill blocks come before it and are code-framed.
+  Settings > AI no longer edits instructions; the Universal expert inherited
+  them once (`custom_instructions_migrated`), the old value stays as fallback.
+- **The Universal expert** (`expert_id: universal`) cannot be narrowed,
+  renamed or deleted — not from the UI, not from an edited file; a deleted
+  file is recreated.
+- **An expert is fixed per conversation** (`chat_conversations.expert_id`);
+  switching asks for a new conversation.
+- **Every expert keeps memory and vault** (`experts.ALWAYS_ON_GROUPS`). Experts
+  never run in the Werkbank (`use_skill` is in `forbidden_tools`).
+- **Experts and skills are configuration, never embedded**
+  (`vault.router.is_config_path`); identity is `expert_id` / `skill_id`, no
+  `pbrain_id`. A shared skill (`common: true`) is read from its owner's folder
+  at use time; un-sharing takes it away at once; "Duplicate" is the only copy.
+- **Skills inline below `skills.INLINE_BUDGET_CHARS`, else `use_skill`** loads
+  one on demand. The wizard drafts; only the user saves. Its lint flags tool
+  names that do not exist; its trial runs read-only tools only.
+- **A briefing is a map, not evidence.** Archive map = code; orientation =
+  model, checked by `briefings.validate` (studied ids only, numbers must be in
+  the cited summaries, facts need a source) — dropped items are shown in the
+  Briefing tab. Refs are `(#id)`, never `[^id]`, so they can never become
+  citations. Built from sidecar summaries, in the app, yields to chat; a
+  restart loses a running study, nothing restarts on its own.
+
+## Mission control (findings)
+
+`docs/findings-mission-control.md`. Code: `app_ui/pages/findings.py`,
+`proactive/dossiers.py`, `services/dossier_merge.py`, `app_ui/dossier_save.py`.
+
+- **The dock is the chat page, embedded** (`/chat?embed=1&dossier=…`): one chat
+  implementation. Embedded, the chat has no header and keeps its conversation
+  out of the browser's `/chat` state (`_cstore`). The dock never re-targets a
+  running conversation on its own; it offers "Talk about the selection".
+- **The folder tree under `Dossiers/` is the dossier tree**; a dossier is found
+  by its `topic`, never by its path (`dossiers._path` scans).
+- **Dossier sections carry `<!-- pb:… -->` anchors**; a file without them is
+  read by position once. **Insights are code-owned** like `research`: a rebuild
+  never edits or drops them, the rebuild model sees them read-only.
+- **Provenance comes from the tool log** (`dossier_merge.provenance`, stored per
+  answer in `chat_turn_meta`), never from a model: cited documents a tool
+  returned, web pages a tool returned or read. Nothing is written to a dossier
+  before the user saw the preview; the merge output passes `numbers_missing`.
+- `/findings/{id}?action=` deep links still never apply on load.
 
 ## Deployment target
 

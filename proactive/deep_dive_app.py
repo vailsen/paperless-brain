@@ -336,6 +336,11 @@ async def dossier(user: str, token: str, topic: str, seed: int, existing: dict |
                 f"- {t['date']} — {t['event']} — #{t['doc_id']}" for t in existing.get("timeline", [])
             )
             + "\nOpen questions:\n" + "\n".join(f"- {q}" for q in existing.get("open_questions", []))
+            # The user's saved insights: context for the current state, read
+            # only — they stay in the dossier whatever this returns, and they
+            # are not a source for the timeline (no document behind them here).
+            + ("\nInsights the user saved (context only, not a source):\n"
+               + "\n".join(f"- {i}" for i in existing.get("saved_insights", [])) if existing.get("saved_insights") else "")
             + f"\n\nNew document:\n{_doc_brief(seed, 4000)}\n\n"
             "Return the complete updated dossier."
         )

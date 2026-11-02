@@ -7,7 +7,6 @@ from nicegui import app as ng_app, ui
 
 from app_ui.layout import page_layout, require_auth
 from app_ui.theme import current_theme, set_device_theme_js
-from config.chat_prompts import MAX_CUSTOM_INSTRUCTIONS_CHARS
 from config.settings import settings
 from i18n import DEFAULT_LANG, SUPPORTED_LANGUAGES, get_translator
 from services.credential_store import load_credentials, save_credentials
@@ -962,92 +961,27 @@ async def settings_page() -> None:
                 "unelevated dark dense"
             ).classes("bg-primary text-white")
 
-        # ── Eigene Chat-Anweisungen / custom instructions ─────────────────────
+        # ── Chat instructions → Experts ───────────────────────────────────────
+        # The personality text moved to the Universal expert (services/experts.py,
+        # migrated once from chat_settings.custom_instructions).
         with _card("ai"):
             _section_header(
-                "edit_note",
+                "psychology",
                 _("Chat instructions"),
-                _("Standing instructions added to every chat"),
+                _("Personality and standing instructions now live in Experts"),
             )
-
-            _chat_settings_cfg: dict = creds.get("chat_settings", {})
-            _ci_box = (
-                ui.textarea(
-                    label=_("Your instructions"),
-                    placeholder=_(
-                        "Example: My archive is mostly invoices from tradespeople. "
-                        "Invoice numbers look like RE-2026-0142. Answer briefly and "
-                        "put amounts in a table."
-                    ),
-                    value=_chat_settings_cfg.get("custom_instructions", ""),
-                )
-                .props("outlined dark autogrow")
-                .classes("w-full")
-                .style("min-height:120px;")
-            )
-            _ci_count = ui.label("").classes("text-xs text-gray-500 mt-1 self-end")
-
-            def _update_ci_count() -> None:
-                used = len(_ci_box.value or "")
-                _ci_count.set_text(
-                    _("{used} / {max} characters").format(
-                        used=used, max=MAX_CUSTOM_INSTRUCTIONS_CHARS
-                    )
-                )
-                # Over the cap the tail is dropped at prompt-assembly time, so
-                # the counter has to say so before the user discovers it by
-                # wondering why the last paragraph is being ignored.
-                _ci_count.classes(
-                    remove="text-gray-500 text-red-400",
-                    add="text-red-400" if used > MAX_CUSTOM_INSTRUCTIONS_CHARS
-                    else "text-gray-500",
-                )
-
-            _update_ci_count()
-            _ci_box.on_value_change(lambda _e: _update_ci_count())
-
             _hint(
                 _(
-                    "Added to the end of the chat system prompt, so it applies to every "
-                    "conversation. Good for describing your archive — the kinds of "
-                    "documents in it, your correspondents, how your reference numbers "
-                    "look — and for how you want answers written. It cannot switch tools "
-                    "on or off, and it cannot override the rules that keep the assistant "
-                    "from inventing document IDs, amounts or dates."
+                    "Your standing instructions are the personality of the Universal "
+                    "expert now. Edit them there — and create experts for single topics, "
+                    "with their own instructions, skills and document access."
                 )
             )
-
-            def _save_custom_instructions() -> None:
-                text = (_ci_box.value or "").strip()
-                fresh = load_credentials(username, token)
-                chat_cfg = fresh.setdefault("chat_settings", {})
-                chat_cfg["custom_instructions"] = text
-                save_credentials(username, token, fresh)
-                if len(text) > MAX_CUSTOM_INSTRUCTIONS_CHARS:
-                    ui.notify(
-                        _(
-                            "Saved, but only the first {max} characters are sent to the model."
-                        ).format(max=MAX_CUSTOM_INSTRUCTIONS_CHARS),
-                        type="warning",
-                    )
-                else:
-                    ui.notify(_("Instructions saved."), type="positive")
-
-            def _clear_custom_instructions() -> None:
-                _ci_box.value = ""
-                # Same divergence trap as the memo dialog: assigning a value
-                # equal to Python's copy sends nothing to the browser.
-                _ci_box.update()
-                _update_ci_count()
-                _save_custom_instructions()
-
-            with ui.row().classes("w-full justify-end gap-2 mt-1"):
-                ui.button(_("Clear"), icon="clear", on_click=_clear_custom_instructions).props(
-                    "flat dark dense"
-                ).classes("text-gray-400")
-                ui.button(_("Save"), icon="save", on_click=_save_custom_instructions).props(
-                    "unelevated dark dense"
-                ).classes("bg-primary text-white")
+            with ui.row().classes("w-full justify-end mt-1"):
+                ui.button(
+                    _("Open Experts"), icon="arrow_forward",
+                    on_click=lambda: ui.navigate.to("/experts?e=universal"),
+                ).props("unelevated dark dense no-caps").classes("bg-primary text-white")
 
         # ── KI-Tiefenrecherche ───────────────────────────────────────────────────────
         with _card("ai"):
