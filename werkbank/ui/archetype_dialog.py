@@ -25,7 +25,7 @@ _DIALOG_CSS = """
 </style>
 """
 # Tools that should not appear in worker subsets (UI dialogs, not useful in background)
-_EXCLUDED_TOOLS = {"trigger_docx_generation", "create_email", "generate_chat_pdf"}
+_EXCLUDED_TOOLS = {"trigger_docx_generation", "create_email", "generate_chat_pdf", "use_skill"}
 
 
 def _get_tool_registry() -> list[dict]:

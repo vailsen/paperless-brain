@@ -527,6 +527,9 @@ class PaperlessClient:
         owner_id = raw.get("owner")
         raw.update(
             {
+                "correspondent_id": raw.get("correspondent"),
+                "document_type_id": raw.get("document_type"),
+                "tag_ids": list(raw.get("tags") or []),
                 "tags": [tag_map.get(t, str(t)) for t in raw["tags"]],
                 "correspondent": corr_map.get(raw["correspondent"]),
                 "document_type": dt_map.get(raw["document_type"]),

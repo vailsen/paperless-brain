@@ -64,9 +64,12 @@ from services.chat_service import (
     WebResultsRetrievedEvent,
     _current_owner,
     _current_token,
+    _current_scope,
+    _current_skills,
     _web_fetch_mode,
 )
 from services.clients import get_session_paperless
+from services import dossier_merge as _dossier_merge
 from services.markdown_text import escape_intraword_underscores
 from services.credential_store import load_credentials, save_credentials
 import services.chat_history_service as _chat_hist
@@ -284,6 +287,9 @@ _TOOL_GROUPS: list[tuple[str, str, list[str]]] = [
 ]
 _TOOL_ALWAYS_ON: set[str] = {
     "get_current_date",
+    # Only offered when the active expert has more skills than fit inline
+    # (services/skills.prompt_block) — see _active_tools().
+    "use_skill",
 }
 _TOOL_GROUP_DEFAULTS: dict[str, bool] = {
     name: (name != "visual") for name, _, _ in _TOOL_GROUPS
@@ -487,6 +493,10 @@ html, body { overflow: hidden !important; }
     .chat-model-sel { min-width: 5rem !important; max-width: 7rem !important; }
     .chat-model-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chat-model-sel .q-field__control { padding-left: 6px !important; padding-right: 2px !important; }
+    .chat-expert-sel { min-width: 4.5rem !important; max-width: 6.5rem !important; }
+    .chat-expert-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-expert-sel .q-field__control { padding-left: 4px !important; padding-right: 2px !important; }
+    .chat-expert-sel .q-field__prepend { display: none; }
 }
 /* Quick chips horizontal scroll, no scrollbar */
 .chat-quick-strip { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
@@ -509,6 +519,8 @@ html, body { overflow: hidden !important; }
    pick a setting. Neutral border, so the accent keeps meaning one thing. */
 .chat-model-sel .q-field__control:before,
 .chat-model-sel .q-field__control:after,
+.chat-expert-sel .q-field__control:before,
+.chat-expert-sel .q-field__control:after,
 .chat-backend-sel .q-field__control:before,
 .chat-backend-sel .q-field__control:after {
     border-color: var(--c-border-strong) !important;
@@ -710,13 +722,27 @@ html, body { overflow: hidden !important; }
 </style>"""
 
 
+_EMBED_CSS = """<style>
+.q-header{display:none!important;}
+:root{--q-header-height:0px;}
+.q-page-container{padding-top:0!important;}
+</style>"""
+
+
 @ui.page("/chat")
-async def chat(finding: str = ""):
+async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0):
     if not require_auth():
         return
     page_layout()
     _ = get_translator()
     ui.add_head_html(_CHAT_CSS)
+    _embed = bool(embed)
+    # Embedded (the findings page's chat dock): no app header, and the open
+    # conversation is not this browser's /chat conversation — a dock about a
+    # dossier must not change what /chat reopens.
+    _cstore: dict = {} if _embed else ng_app.storage.user
+    if _embed:
+        ui.add_head_html(_EMBED_CSS)
 
     # Render-time translations for import-time constants. Keys stay German
     # (stable state keys in tool_prefs); only display labels are translated.
@@ -997,29 +1023,54 @@ async def chat(finding: str = ""):
     # ── Persistent chat settings (credential store, cross-device) ────────────
     _chat_cfg: dict = _creds.get("chat_settings", {})
 
-    def _custom_instructions() -> str:
-        """The user's standing instructions, re-read from the credential store.
-
-        Not taken from `_chat_cfg`: that is a snapshot from page load, and this
-        one setting is edited on the Settings page rather than in the chat's own
-        panel. Without the re-read, changing it would only take effect after the
-        chat page was rebuilt — which looks like the setting being ignored.
-        """
-        if not _username or not _token:
-            return ""
-        try:
-            fresh = load_credentials(_username, _token)
-        except Exception:  # a broken credential file must not block the chat
-            _log.warning("could not re-read custom instructions", exc_info=True)
-            return ""
-        return (fresh.get("chat_settings") or {}).get("custom_instructions", "")
-
     def _save_chat_settings() -> None:
         if not _username or not _token:
             return
         fresh = load_credentials(_username, _token)
         fresh["chat_settings"] = _chat_cfg
         save_credentials(_username, _token, fresh)
+
+    # Dossiers (save to dossier, dossier context) belong to the findings
+    # module and exist only with the proactive system on.
+    _dossiers_on = proactive_enabled()
+
+    # ── Experts (services/experts.py) ─────────────────────────────────────────
+    # One expert per conversation: its scope narrows every document tool, its
+    # switched-off groups leave the tool list, its personality is the user-
+    # editable part of the prompt (where the custom instructions used to be).
+    from services import expert_prompt as _expert_prompt
+    from services import experts as _experts_mod
+
+    if _username:
+        try:
+            await _experts_mod.ensure_universal(_username, _token)
+        except Exception:  # a vault problem must not keep the chat from opening
+            _log.warning("could not create the Universal expert", exc_info=True)
+    _experts_list = _experts_mod.list_experts(_username) if _username else []
+    _known_experts = {e.expert_id for e in _experts_list}
+    _initial_expert_id = (
+        expert if expert in _known_experts
+        else (get_pref("chat_expert_id", "") if get_pref("chat_expert_id", "") in _known_experts
+              else _experts_mod.UNIVERSAL_ID)
+    )
+
+    def _scoped_pl():
+        """The user's Paperless client, narrowed to the active expert — for the
+        page's own lookups (citation titles, pins, downloads), so an
+        out-of-scope id reveals nothing here either."""
+        from config.settings import settings as _cfg
+        from services.expert_scope import scoped_client
+
+        tok = get_session_token()
+        if not tok:
+            return get_session_paperless()
+        ex = _expert()
+        return scoped_client(_cfg.paperless_url, tok, None if ex.builtin else ex.scope)
+
+    def _expert():
+        """The active expert, re-read from its file: an edit in /experts (or in
+        Obsidian) applies to the next turn, as the custom instructions did."""
+        return _experts_mod.get_or_universal(_username, _s.get("expert_id"))
 
     # ── Session state ─────────────────────────────────────────────────────────
     _saved_tool_prefs = {
@@ -1093,6 +1144,11 @@ async def chat(finding: str = ""):
         "max_iterations": int(_chat_cfg.get("max_iterations", 16)),
         "web_fetch_mode": _chat_cfg.get("web_fetch_mode", "hybrid"),
         "show_thinking": _chat_cfg.get("show_thinking", True),
+        "expert_id": _initial_expert_id,
+        "dossier_ctx": None,
+        # Per assistant message (index in "messages"): its turn's provenance,
+        # for "Save to dossier" (services/dossier_merge.provenance).
+        "turn_meta": {},
     }
     _rs: dict = {
         "last_results": [], "vault_results": [], "brain_results": [],
@@ -1121,6 +1177,7 @@ async def chat(finding: str = ""):
     # Not QTabPanels: clear() inside those silently fails.
     _drawer: dict = {
         "tab": "results", "buttons": [], "result_panes": [], "preview_hosts": [],
+        "library_panes": [], "libraries": [],
     }
 
     def _drawer_panes(top: str):
@@ -1128,13 +1185,39 @@ async def chat(finding: str = ""):
         results = ui.element("div").style(style)
         preview = ui.element("div").style(style)
         preview.set_visibility(False)
+        library = ui.element("div").style(style + "display:flex; flex-direction:column;")
+        library.set_visibility(False)
         _drawer["result_panes"].append(results)
+        _drawer["library_panes"].append(library)
+        # "Library": what the active expert can see (app_ui/doc_library.py).
+        from app_ui.doc_library import DocLibrary
+
+        # A lambda: open_doc_by_id is defined further down this page function.
+        lib = DocLibrary(_scoped_pl, lambda d: open_doc_by_id(d), subtitle=_library_subtitle)
+        with library:
+            lib.render()
+        _drawer["libraries"].append(lib)
         return results, preview
+
+    def _library_subtitle() -> str:
+        ex = _expert()
+        if ex.builtin or ex.scope.unrestricted:
+            return _("Expert {name}: all documents").format(name=ex.name)
+        return _("Expert {name}: {scope}").format(
+            name=ex.name, scope=" · ".join(", ".join(v) for v in ex.scope_names().values()))
+
+    def _render_library_all() -> None:
+        for lib in _drawer["libraries"]:
+            lib.invalidate()
+        if _drawer["tab"] == "library":
+            for lib in _drawer["libraries"]:
+                asyncio.ensure_future(lib.reload())
 
     def _drawer_tab_buttons() -> None:
         for key, label, icon in (
             ("results", _("Results"), "manage_search"),
             ("preview", _("Source"), "description"),
+            ("library", _("Library"), "folder_open"),
         ):
             btn = (
                 # color=None: Quasar's text-primary sits in a cascade layer
@@ -1158,6 +1241,12 @@ async def chat(finding: str = ""):
             pane.set_visibility(key == "results")
         for pane in _drawer["preview_hosts"]:
             pane.set_visibility(key == "preview")
+        for pane in _drawer["library_panes"]:
+            pane.set_visibility(key == "library")
+        if key == "library":
+            for lib in _drawer["libraries"]:
+                if not lib.loaded:
+                    asyncio.ensure_future(lib.reload())
 
     def _welcome_msg() -> None:
         with ui.row().classes("justify-start w-full"):
@@ -1172,8 +1261,9 @@ async def chat(finding: str = ""):
                 sanitize=False,
             )
 
-    def _render_stored_msg(msg: dict) -> None:
-        """Render a single stored message dict into messages_container."""
+    def _render_stored_msg(msg: dict, idx: int = -1) -> None:
+        """Render a single stored message dict into messages_container.
+        `idx` = its position in the conversation, for "Save to dossier"."""
         if msg["role"] == "user":
             with ui.row().classes("justify-end w-full"):
                 ui.html(
@@ -1187,12 +1277,15 @@ async def chat(finding: str = ""):
                 with ui.element("div").classes("chat-bubble").style(
                     "background:var(--c-surface);border-radius:0 12px 12px 12px;"
                     "padding:10px 14px;max-width:85%;min-width:0;font-size:0.875rem;color:var(--c-text-2);"
-                ):
+                ) as _sb:
                     ui.markdown(
                         _inject_doc_links(msg["content"], None, _rs.get("doc_titles")),
                         sanitize=False,
                         extras=_MD_EXTRAS,
                     ).classes("chat-md")
+                    if idx >= 0 and _dossiers_on and (msg.get("content") or "").strip():
+                        with ui.row().classes("justify-end w-full mt-1 gap-1"):
+                            _save_btn(idx, _sb)
 
     async def _resolve_cite_titles(texts: list[str]) -> dict[int, str]:
         """Titles of the documents cited in ``texts`` — asked of Paperless as
@@ -1201,7 +1294,7 @@ async def chat(finding: str = ""):
         ids = {int(m.group(1)) for t in texts for m in citations.CITE_RE.finditer(t or "")}
         missing = ids - titles.keys()
         if missing:
-            paperless = get_session_paperless()
+            paperless = _scoped_pl()
 
             async def _one(doc_id: int) -> None:
                 try:
@@ -1225,16 +1318,20 @@ async def chat(finding: str = ""):
             ui.timer(0.05, lambda: _fill_cite_titles(texts), once=True)
 
     def _active_groups() -> set[str]:
+        off = _expert().disabled_groups
         return {
             name
             for name, _, _ in _TOOL_GROUPS
-            if _s["tool_prefs"].get(name, _TOOL_GROUP_DEFAULTS.get(name, True))
+            if _s["tool_prefs"].get(name, _TOOL_GROUP_DEFAULTS.get(name, True)) and name not in off
         }
 
-    def _active_tools() -> list[dict]:
-        enabled: set[str] = _TOOL_ALWAYS_ON.copy()
+    def _active_tools(use_skill: bool = False) -> list[dict]:
+        enabled: set[str] = _TOOL_ALWAYS_ON - {"use_skill"}
+        if use_skill:
+            enabled.add("use_skill")
+        groups = _active_groups()
         for name, _, tool_names in _TOOL_GROUPS:
-            if _s["tool_prefs"].get(name, _TOOL_GROUP_DEFAULTS.get(name, True)):
+            if name in groups:
                 enabled.update(tool_names)
         return [t for t in TOOL_DEFINITIONS if t["name"] in enabled]
 
@@ -1383,21 +1480,30 @@ async def chat(finding: str = ""):
         messages = _chat_hist.load_messages(conv_id, _username)
         _s["messages"] = messages
         _s["conv_id"] = conv_id
+        _s["turn_meta"] = _chat_hist.load_turn_meta(conv_id, _username)
+        _conv = _chat_hist.get_conversation(conv_id, _username) or {}
+        # The conversation's own expert — fixed per conversation.
+        _apply_expert(_conv.get("expert_id") or _experts_mod.UNIVERSAL_ID)
+        _ctx = _conv.get("context") or ""
+        if _ctx.startswith("dossier:"):
+            _set_dossier_ctx(_ctx.split(":", 1)[1])
+        elif not _embed:
+            _set_dossier_ctx(None)
         _s["total_tokens"] = 0
         _s["context_window"] = 0
         _s["current_ctx_tokens"] = 0
-        ng_app.storage.user["chat_conv_id"] = conv_id
-        ng_app.storage.user.pop("chat_fresh", None)
-        ng_app.storage.user.pop("chat_history", None)
-        ng_app.storage.user.pop("chat_token_count", None)
-        ng_app.storage.user.pop("chat_context_window", None)
+        _cstore["chat_conv_id"] = conv_id
+        _cstore.pop("chat_fresh", None)
+        _cstore.pop("chat_history", None)
+        _cstore.pop("chat_token_count", None)
+        _cstore.pop("chat_context_window", None)
         messages_container.clear()
         with messages_container:
             if not messages:
                 _welcome_msg()
             else:
-                for _msg in messages:
-                    _render_stored_msg(_msg)
+                for _mi, _msg in enumerate(messages):
+                    _render_stored_msg(_msg, _mi)
                 _fill_titles_later(messages)
         _update_context_progress()
         _set_history_visible(False)
@@ -1410,7 +1516,7 @@ async def chat(finding: str = ""):
             _s["total_tokens"] = 0
             _s["context_window"] = 0
             _s["current_ctx_tokens"] = 0
-            ng_app.storage.user.pop("chat_conv_id", None)
+            _cstore.pop("chat_conv_id", None)
             messages_container.clear()
             with messages_container:
                 _welcome_msg()
@@ -1444,14 +1550,18 @@ async def chat(finding: str = ""):
         # conversation state. Resetting them here desynced _s from the settings
         # widgets, which keep rendering the user's value while the run silently
         # falls back to the defaults.
-        ng_app.storage.user.pop("chat_history", None)
-        ng_app.storage.user.pop("chat_token_count", None)
-        ng_app.storage.user.pop("chat_context_window", None)
-        ng_app.storage.user.pop("chat_conv_id", None)
+        _cstore.pop("chat_history", None)
+        _cstore.pop("chat_token_count", None)
+        _cstore.pop("chat_context_window", None)
+        _cstore.pop("chat_conv_id", None)
         _set_finding_ctx(None)
+        _s["turn_meta"] = {}
+        if not _embed:
+            _s["dossier_ctx"] = None
+            _render_ctx_bar()
         # Deliberately empty: coming back must not reopen the latest
         # conversation from the database (chat_on_open == "last").
-        ng_app.storage.user["chat_fresh"] = True
+        _cstore["chat_fresh"] = True
         messages_container.clear()
         with messages_container:
             _welcome_msg()
@@ -1553,7 +1663,7 @@ async def chat(finding: str = ""):
                                 extras=_MD_EXTRAS,
                             ).classes("chat-md")
                 _update_context_progress()
-                ng_app.storage.user["chat_history"] = list(_s["messages"])
+                _cstore["chat_history"] = list(_s["messages"])
                 if _s.get("conv_id") and _username:
                     _chat_hist.replace_messages(_s["conv_id"], _username, _s["messages"])
             else:
@@ -1699,6 +1809,8 @@ async def chat(finding: str = ""):
     )
 
     # ── Page layout ───────────────────────────────────────────────────────────
+    _expert_sel = None
+    _chat_model_sel = None
     with (
         ui.column()
         .classes("w-full bg-gray-900 chat-main-col")
@@ -1760,6 +1872,22 @@ async def chat(finding: str = ""):
                                 )
                                 ctx_tt = ui.tooltip(_("Context: –"))
 
+                        # Expert: an icon-led select; the scope chip says
+                        # whether it narrows the archive.
+                        _expert_sel = (
+                            ui.select(
+                                {e.expert_id: e.name for e in _experts_list} or {"universal": "Universal"},
+                                value=_s["expert_id"],
+                            )
+                            .props("dense outlined dark options-dense")
+                            .classes("chat-expert-sel")
+                            .style("flex-shrink:0; width:10rem;")
+                            .tooltip(_("Expert"))
+                        )
+                        with _expert_sel.add_slot("prepend"):
+                            ui.icon("psychology", size="xs").classes("text-gray-400")
+                        # A lambda: the handler is defined below the layout.
+                        _expert_sel.on_value_change(lambda e: _on_expert_pick(e))
                         if _reg_models:
                             _chat_model_sel = (
                                 model_select(_reg_models, _initial_model_name)
@@ -2354,7 +2482,7 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
 
     async def open_doc_by_id(doc_id: int) -> None:
         try:
-            doc = await get_session_paperless().get_document(doc_id)
+            doc = await _scoped_pl().get_document(doc_id)
         except Exception:
             ui.notify(_("Document #{id} not found or no access.").format(id=doc_id), type="warning")
             return
@@ -2738,22 +2866,148 @@ window.__openVaultNote = function(noteId) {{
             if f else None
         )
         if f:
-            ng_app.storage.user["chat_finding"] = f.finding_id
+            _cstore["chat_finding"] = f.finding_id
         else:
-            ng_app.storage.user.pop("chat_finding", None)
+            _cstore.pop("chat_finding", None)
+        _render_ctx_bar()
+
+    def _render_ctx_bar() -> None:
+        """One bar above the input: the finding or the dossier this
+        conversation is about (a finding wins — it is the narrower context)."""
         finding_bar.clear()
-        finding_row.set_visibility(f is not None)
-        if f is None:
+        fc, dc = _s.get("finding_ctx"), _s.get("dossier_ctx")
+        finding_row.set_visibility(bool(fc or dc))
+        if fc:
+            with finding_bar:
+                ui.button(
+                    _("Back to finding"), icon="arrow_back",
+                    on_click=lambda i=fc["id"]: _go(f"/findings/{i}"),
+                ).props("flat dense no-caps").classes("pb-accent-text text-xs flex-shrink-0")
+                ui.label(fc["title"]).classes("text-xs text-gray-400 truncate flex-1 min-w-0")
+                ui.button(icon="close", on_click=lambda: _set_finding_ctx(None)).props(
+                    "flat dense dark"
+                ).classes("text-gray-400 flex-shrink-0").tooltip(_("Remove finding from the chat"))
+        elif dc:
+            with finding_bar:
+                ui.icon("folder_open", size="xs").classes("text-gray-400 flex-shrink-0")
+                ui.label(_("About: {name}").format(name=dc["title"])).classes(
+                    "text-xs text-gray-400 truncate flex-1 min-w-0")
+                if not _embed:
+                    ui.button(icon="close", on_click=lambda: _set_dossier_ctx(None)).props(
+                        "flat dense dark"
+                    ).classes("text-gray-400 flex-shrink-0").tooltip(_("Remove dossier from the chat"))
+
+    def _go(path: str) -> None:
+        """Navigate — out of the dock, the whole window goes."""
+        if _embed:
+            ui.run_javascript(f"window.top.location.href={json.dumps(path)}")
+        else:
+            ui.navigate.to(path)
+
+    def _set_dossier_ctx(pbrain_id: str | None) -> None:
+        d = None
+        if pbrain_id and _dossiers_on:
+            from proactive import dossiers as _dossiers
+
+            d = _dossiers.by_id(_username, pbrain_id)
+        _s["dossier_ctx"] = (
+            {"id": d.pbrain_id, "topic": d.topic, "title": d.display, "text": _dossiers.render_body(d)}
+            if d else None
+        )
+        _render_ctx_bar()
+
+    def _conv_context() -> str | None:
+        if _s.get("dossier_ctx"):
+            return f"dossier:{_s['dossier_ctx']['id']}"
+        if _s.get("finding_ctx"):
+            return f"finding:{_s['finding_ctx']['id']}"
+        return None
+
+    # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
+    def _save_btn(idx: int, bubble_el) -> None:
+        async def _click() -> None:
+            msgs = _s["messages"]
+            if not (0 <= idx < len(msgs)) or msgs[idx].get("role") != "assistant":
+                ui.notify(_("This answer is no longer in the conversation."), type="warning")
+                return
+            try:
+                picked = await ui.run_javascript(
+                    "(function(){var s=window.getSelection();var el=document.getElementById("
+                    + json.dumps(f"c{bubble_el.id}")
+                    + ");if(!s||s.isCollapsed||!el||!el.contains(s.anchorNode))return '';"
+                    "return s.toString();})()", timeout=2.0)
+            except Exception:
+                picked = ""
+            from app_ui.dossier_save import open_save_dialog
+
+            prov = _s["turn_meta"].get(idx) or {}
+            await open_save_dialog(
+                user=_username, token=get_session_token() or "",
+                answer=msgs[idx]["content"], selection=(picked or "").strip(),
+                provenance=prov, conv_id=_s.get("conv_id") or "", msg_index=idx,
+                preselect=(_s.get("dossier_ctx") or {}).get("topic") or "",
+                models=_reg_models, default_model=_s.get("chat_model_name", ""),
+                on_saved=_on_insight_saved,
+            )
+
+        # color=None: icons inherit the text colour (no accent on a tool button).
+        ui.button(icon="create_new_folder", on_click=_click, color=None).props("flat dark dense").classes(
+            "text-gray-600").tooltip(_("Save to dossier (select text first to save only that part)"))
+
+    def _on_insight_saved(topic: str) -> None:
+        if _embed:
+            # The findings page around the dock re-reads the dossier.
+            ui.run_javascript(
+                "window.parent.postMessage({type:'pb-insight-saved',topic:" + json.dumps(topic)
+                + "}, window.location.origin)")
+
+    # ── Expert switching ──────────────────────────────────────────────────────
+    def _apply_expert(eid: str) -> None:
+        """Set the active expert without asking (load / new conversation)."""
+        if eid not in {e.expert_id for e in _experts_mod.list_experts(_username)}:
+            eid = _experts_mod.UNIVERSAL_ID
+        _s["expert_id"] = eid
+        if _expert_sel is not None and _expert_sel.value != eid:
+            _expert_sel.set_value(eid)
+        _render_library_all()
+
+    def _on_expert_pick(e) -> None:
+        eid = e.value
+        if not eid or eid == _s.get("expert_id"):
             return
-        with finding_bar:
-            ui.button(
-                _("Back to finding"), icon="arrow_back",
-                on_click=lambda i=f.finding_id: ui.navigate.to(f"/findings/{i}"),
-            ).props("flat dense no-caps").classes("pb-accent-text text-xs flex-shrink-0")
-            ui.label(f.title).classes("text-xs text-gray-400 truncate flex-1 min-w-0")
-            ui.button(icon="close", on_click=lambda: _set_finding_ctx(None)).props(
-                "flat dense dark"
-            ).classes("text-gray-400 flex-shrink-0").tooltip(_("Remove finding from the chat"))
+        prev = _s.get("expert_id")
+        if not _s["messages"]:
+            _switch_expert(eid)
+            return
+        # An expert is fixed per conversation: earlier turns may hold documents
+        # outside the new expert's scope.
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); min-width:280px;"):
+            ui.label(_("Start a new conversation with this expert?")).classes("text-sm text-gray-200")
+            ui.label(_("An expert is fixed per conversation, so earlier answers cannot leak into a narrower scope.")).classes(
+                "text-xs text-gray-400")
+            with ui.row().classes("justify-end gap-2 mt-2 w-full"):
+                def _cancel() -> None:
+                    dlg.close()
+                    _expert_sel.set_value(prev)
+
+                def _ok() -> None:
+                    dlg.close()
+                    _new_conv()
+                    _switch_expert(eid)
+
+                ui.button(_("Cancel"), on_click=_cancel).props("flat dense no-caps").classes("text-gray-400")
+                ui.button(_("New conversation"), on_click=_ok).props("unelevated dense no-caps").classes(
+                    "bg-primary text-white")
+        dlg.open()
+
+    def _switch_expert(eid: str) -> None:
+        _s["expert_id"] = eid
+        if not _embed:
+            set_pref("chat_expert_id", eid)
+        ex = _expert()
+        if ex.default_model and any(m["name"] == ex.default_model for m in _reg_models) and _chat_model_sel is not None:
+            _chat_model_sel.set_value(ex.default_model)
+        _render_library_all()
 
     def _refresh_pinned_chips() -> None:
         pinned_chips_container.clear()
@@ -3054,6 +3308,18 @@ window.__openVaultNote = function(noteId) {{
                     + llm_messages[-1]["content"]
                 ),
             }
+        if _s.get("dossier_ctx"):
+            _dc = _s["dossier_ctx"]
+            llm_messages[-1] = {
+                "role": "user",
+                "content": (
+                    "[The user is looking at this PaperlessBrain dossier. It is the system's own "
+                    "summary — a map, not evidence: use its document ids to decide what to read, "
+                    "cite the documents, never the dossier.]\n<dossier>\n# " + _dc["title"] + "\n\n"
+                    + _dc["text"][:FINDING_CTX_CHARS] + "\n</dossier>\n\n"
+                    + llm_messages[-1]["content"]
+                ),
+            }
         if _s["pinned_docs"]:
             _pin_prefix = (
                 "[Angeheftete Dokumente: "
@@ -3192,12 +3458,25 @@ window.__openVaultNote = function(noteId) {{
         _lang = detect_language(text, default=get_pref("language", DEFAULT_LANG))
         # Build the prompt from only the ACTIVE tool groups — the model is never
         # told to use a tool that was filtered out of its tool list.
+        _exp = _expert()
+        try:
+            _te = await _expert_prompt.for_turn(
+                _username, get_session_token() or "", _exp,
+                ctx_window=int(_s.get("context_window") or _get_model_ctx_win() or 0), _=_,
+            )
+        except Exception:  # skills/briefing are extras; the turn still runs
+            _log.warning("expert prompt blocks failed", exc_info=True)
+            _te = _expert_prompt.TurnExpert(personality=_exp.personality or "")
+        # The scope narrows every document tool of this turn (expert_scope).
+        _current_scope.set(None if _exp.builtin else _exp.scope)
+        _current_skills.set(_te.skills)
         _system = build_system_prompt(
             _active_groups(),
             _username,
             _lang,
-            custom_instructions=_custom_instructions(),
+            custom_instructions=_te.personality,
             archive_language=get_archive_language(),
+            expert_blocks=_te.blocks,
         )
 
         async def _no_events():  # the turn stopped before the model was asked
@@ -3236,7 +3515,7 @@ window.__openVaultNote = function(noteId) {{
                 llm_messages,
                 _system,
                 _s["temperature"],
-                tools=_active_tools(),
+                tools=_active_tools(use_skill=_te.needs_use_skill),
                 max_iterations=_s["max_iterations"],
                 answer_language=_lang,
             )):
@@ -3391,6 +3670,17 @@ window.__openVaultNote = function(noteId) {{
                     )
                 )
                 _s["messages"].append({"role": "assistant", "content": accumulated[0]})
+                # What the answer rests on, from this turn's tool log — kept so
+                # "Save to dossier" names real sources, after a reload too.
+                try:
+                    _prov = _dossier_merge.provenance(
+                        accumulated[0], _tool_trace, model=_s.get("chat_model_name", ""),
+                        expert="" if _exp.builtin else _exp.name,
+                    )
+                    _prov["_unsaved"] = True
+                    _s["turn_meta"][len(_s["messages"]) - 1] = _prov
+                except Exception:
+                    _log.warning("provenance failed", exc_info=True)
                 _update_context_progress()  # re-estimate now that assistant msg is in history
             _md_raw = accumulated[0]
 
@@ -3483,6 +3773,8 @@ window.__openVaultNote = function(noteId) {{
                                 if _multi
                                 else _("Download table as CSV")
                             )
+                        if _md_raw and _dossiers_on:
+                            _save_btn(len(_s["messages"]) - 1, bubble[0])
                         if trace_dlg is not None:
                             ui.button(
                                 icon="info_outline", on_click=trace_dlg.open
@@ -3943,7 +4235,7 @@ window.__openVaultNote = function(noteId) {{
                                     from services.session_auth import get_session_token
                                     from werkbank.export import upload_pdf as _upload_pdf
 
-                                    _pl = get_session_paperless()
+                                    _pl = _scoped_pl()
                                     _pdf_status.set_text(_("Uploading…"))
                                     await asyncio.sleep(0)
                                     _pdf_md = await embed_images(
@@ -4080,7 +4372,7 @@ window.__openVaultNote = function(noteId) {{
                     # after awaits — ui.download/ui.notify need an explicit slot
                     # to resolve the client.
                     try:
-                        _dl_bytes, _dl_name = await get_session_paperless().download_document_named(doc_id)
+                        _dl_bytes, _dl_name = await _scoped_pl().download_document_named(doc_id)
                         print(
                             f"[download] doc={doc_id} file={_dl_name!r} "
                             f"size={len(_dl_bytes)} — pushing to browser",
@@ -4122,10 +4414,10 @@ window.__openVaultNote = function(noteId) {{
             send_btn.props(add="icon=send color=primary")
             _s["running"] = False
             _s["stop_requested"] = False
-            ng_app.storage.user["chat_history"] = list(_s["messages"])
-            ng_app.storage.user.pop("chat_fresh", None)
-            ng_app.storage.user["chat_token_count"] = _s["total_tokens"]
-            ng_app.storage.user["chat_context_window"] = _s["context_window"]
+            _cstore["chat_history"] = list(_s["messages"])
+            _cstore.pop("chat_fresh", None)
+            _cstore["chat_token_count"] = _s["total_tokens"]
+            _cstore["chat_context_window"] = _s["context_window"]
             messages_scroll.scroll_to(percent=1.0)
 
             # Auto-save new messages to DB
@@ -4136,25 +4428,52 @@ window.__openVaultNote = function(noteId) {{
                         (m["content"] for m in _s["messages"] if m["role"] == "user"),
                         _("New conversation"),
                     )
-                    _s["conv_id"] = _chat_hist.create_conversation(_username, first_user[:60])
-                    ng_app.storage.user["chat_conv_id"] = _s["conv_id"]
+                    _s["conv_id"] = _chat_hist.create_conversation(
+                        _username, first_user[:60], expert_id=_s.get("expert_id"),
+                        context=_conv_context(),
+                    )
+                    _cstore["chat_conv_id"] = _s["conv_id"]
                     _refresh_history_list()
                 _chat_hist.append_messages(_s["conv_id"], _username, new_msgs)
+                for _mi, _meta in list(_s["turn_meta"].items()):
+                    if _mi >= _msg_save_start and _meta.get("_unsaved"):
+                        _meta.pop("_unsaved", None)
+                        try:
+                            _chat_hist.set_turn_meta(_s["conv_id"], _username, _mi, _meta)
+                        except Exception:
+                            _log.warning("could not store turn provenance", exc_info=True)
 
     # ── Restore or initialize chat ────────────────────────────────────────────
     # Per-user setting: open the last conversation (default) or a fresh one.
     # "Last" means this browser's open chat, else the user's most recent
     # conversation — so a second device opens where the first one left off.
-    if get_pref("chat_on_open", "last") == "new":
+    if _embed and dossier:
+        # The dock: this dossier's latest conversation, else a fresh one with
+        # the dossier's default expert.
+        _ctx_key = f"dossier:{dossier}"
+        _dconv = next((c for c in _chat_hist.list_conversations(_username)
+                       if c.get("context") == _ctx_key), None) if _username else None
+        if _dconv:
+            _cstore["chat_conv_id"] = _dconv["id"]
+            _load_conv(_dconv["id"])
+        else:
+            _set_dossier_ctx(dossier)
+            _cstore["chat_fresh"] = True
+            if expert in _known_experts:
+                _apply_expert(expert)
+        if _s.get("dossier_ctx") is None:
+            _set_dossier_ctx(dossier)
+    if get_pref("chat_on_open", "last") == "new" and not _embed:
         for _k in ("chat_history", "chat_token_count", "chat_context_window", "chat_conv_id", "chat_fresh"):
-            ng_app.storage.user.pop(_k, None)
-    _saved = ng_app.storage.user.get("chat_history") or []
+            _cstore.pop(_k, None)
+    _saved = _cstore.get("chat_history") or []
     _latest = None
     if (
         not _saved
         and _username
         and get_pref("chat_on_open", "last") == "last"
-        and not ng_app.storage.user.get("chat_fresh")
+        and not _cstore.get("chat_fresh")
+        and not _embed
     ):
         _convs = _chat_hist.list_conversations(_username)
         _latest = _convs[0]["id"] if _convs else None
@@ -4163,24 +4482,33 @@ window.__openVaultNote = function(noteId) {{
         messages_scroll.scroll_to(percent=1.0)
     elif _saved:
         _s["messages"] = list(_saved)
-        _s["total_tokens"] = ng_app.storage.user.get("chat_token_count", 0)
-        _s["context_window"] = ng_app.storage.user.get("chat_context_window", 0)
+        _s["total_tokens"] = _cstore.get("chat_token_count", 0)
+        _s["context_window"] = _cstore.get("chat_context_window", 0)
         _s["current_ctx_tokens"] = _s["total_tokens"]
         # Restore conv_id so messages are linked to existing conversation, not new
-        _stored_conv_id = ng_app.storage.user.get("chat_conv_id")
+        _stored_conv_id = _cstore.get("chat_conv_id")
         if _stored_conv_id and _username:
             _known_ids = {c["id"] for c in _chat_hist.list_conversations(_username)}
             if _stored_conv_id in _known_ids:
                 _s["conv_id"] = _stored_conv_id
+                _s["turn_meta"] = _chat_hist.load_turn_meta(_stored_conv_id, _username)
+                _apply_expert((_chat_hist.get_conversation(_stored_conv_id, _username) or {}).get("expert_id")
+                              or _experts_mod.UNIVERSAL_ID)
         with messages_container:
-            for _msg in _s["messages"]:
-                _render_stored_msg(_msg)
+            for _mi, _msg in enumerate(_s["messages"]):
+                _render_stored_msg(_msg, _mi)
             _fill_titles_later(_s["messages"])
         _update_context_progress()
         messages_scroll.scroll_to(percent=1.0)
-    else:
+    elif not (_embed and _s["messages"]):
         with messages_container:
             _welcome_msg()
+    if expert in _known_experts and not _embed and expert != _s.get("expert_id"):
+        # "Chat with this expert" from /experts: a new conversation with it.
+        _new_conv()
+        _switch_expert(expert)
+    if expert and not _embed:
+        ui.run_javascript("history.replaceState(null, '', '/chat')")
     if finding and proactive_enabled():
         # "Chat about this" on a finding: a new conversation, its documents pinned.
         from proactive import findings as _findings
@@ -4190,7 +4518,7 @@ window.__openVaultNote = function(noteId) {{
             _new_conv()
             async def _title(d: int) -> str:
                 try:
-                    return (await get_session_paperless().get_document(d)).title
+                    return (await _scoped_pl().get_document(d)).title
                 except Exception:
                     return ""  # no access or gone: not pinned
 
@@ -4203,7 +4531,7 @@ window.__openVaultNote = function(noteId) {{
         # A reload must not start yet another conversation.
         ui.run_javascript("history.replaceState(null, '', '/chat')")
     else:
-        _set_finding_ctx(ng_app.storage.user.get("chat_finding"))
+        _set_finding_ctx(_cstore.get("chat_finding"))
     _refresh_pinned_chips()
     _refresh_history_list()
 

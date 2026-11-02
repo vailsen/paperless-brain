@@ -22,6 +22,11 @@ class PaperlessDocument(BaseModel):
     created: datetime
     modified: datetime
     content: Optional[str] = None
+    # Raw ids next to the display names above — what an expert's scope
+    # (`services/expert_scope.py`) matches on, since names can be renamed.
+    correspondent_id: Optional[int] = None
+    document_type_id: Optional[int] = None
+    tag_ids: list[int] = []
     # Server-side download URL, built from PAPERLESS_URL. Usable from the
     # backend only — handing it to a browser breaks behind a reverse proxy
     # (internal address, and no Paperless session on that origin). The UI

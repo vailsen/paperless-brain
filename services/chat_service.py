@@ -41,6 +41,15 @@ _current_token: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 _web_fetch_mode: contextvars.ContextVar[str] = contextvars.ContextVar(
     "web_fetch_mode", default="hybrid"
 )
+# The active expert's document scope (services/expert_scope.Scope) and its
+# assigned skills, set per turn by the chat page. Unset (Werkbank, Universal
+# expert) = the user's whole archive, no skills.
+_current_scope: contextvars.ContextVar[object | None] = contextvars.ContextVar(
+    "expert_scope", default=None
+)
+_current_skills: contextvars.ContextVar[list | None] = contextvars.ContextVar(
+    "expert_skills", default=None
+)
 
 _PDF_CACHE = str(settings.app_path / "data" / "pdf_cache")
 os.makedirs(_PDF_CACHE, exist_ok=True)
@@ -63,7 +72,11 @@ def _user_paperless() -> _PaperlessClient:
     token = _current_token.get()
     if not token:
         raise NoUserContext
-    return _PaperlessClient(settings.paperless_url, token)
+    # An expert's scope narrows the same client: every document tool goes
+    # through here, so out of scope looks exactly like "no such document".
+    from services.expert_scope import scoped_client
+
+    return scoped_client(settings.paperless_url, token, _current_scope.get())
 
 
 MAX_ITERATIONS = 16
@@ -962,6 +975,19 @@ TOOL_DEFINITIONS: list[dict] = [
             "required": ["title", "request"],
         },
     },
+    {
+        "name": "use_skill",
+        "description": (
+            "Loads the full instructions of one of your skills (listed in the system prompt under 'Skills'). Call it before a task the skill's description matches, then follow the returned instructions. Only skills listed there exist."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "The skill's exact name as listed."},
+            },
+            "required": ["name"],
+        },
+    },
 ]
 
 
@@ -1023,6 +1049,7 @@ def _tool_label(name: str) -> str:
         "generate_chat_pdf": _("💾 Creating document..."),
         "download_document": _("⬇️ Preparing download..."),
         "create_kanban_task": _("⚙️ Starting deep research..."),
+        "use_skill": _("Loading skill..."),
     }
     return labels.get(name, name)
 
@@ -1144,7 +1171,22 @@ async def _execute_tool_inner(
         return await _tool_update_brain_fact(inputs)
     if name == "delete_brain_fact":
         return await _tool_delete_brain_fact(inputs)
+    if name == "use_skill":
+        return _tool_use_skill(inputs), []
     return f"Unbekanntes Tool: {name}", []
+
+
+def _tool_use_skill(inputs: dict) -> str:
+    """Body of one of the active expert's skills. Read-only; a skill that is
+    not assigned to this expert does not exist for it."""
+    from services.skills import lookup
+
+    assigned = _current_skills.get() or []
+    skill = lookup(assigned, str(inputs.get("name") or ""))
+    if skill is None:
+        names = ", ".join(s.name for s in assigned) or "none"
+        return f"No skill with that name. Available skills: {names}."
+    return f"Skill '{skill.name}' — follow these instructions:\n\n{skill.body}"
 
 
 _BOOL_OPS = {"OR", "AND", "NOT", "UND", "ODER"}

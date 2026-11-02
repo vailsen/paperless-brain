@@ -170,6 +170,7 @@ def build_system_prompt(
     language: str = DEFAULT_LANG,
     custom_instructions: str = "",
     archive_language: str = "",
+    expert_blocks: list[str] | None = None,
 ) -> str:
     """Assemble the chat system prompt from the core + only the ACTIVE tool groups.
 
@@ -182,6 +183,9 @@ def build_system_prompt(
     loses its tail is better than a chat that refuses to start.
     archive_language: language the documents are in — appended to the document
     search block so queries are written in it. Empty → omitted.
+    expert_blocks: code-written blocks of the active expert (scope, briefing,
+    skills — `services/expert_prompt.py`), placed before the user's own text so
+    the personality stays the last, subordinated, editable part.
     """
     groups = set(_CAPABILITIES) if active_groups is None else set(active_groups)
 
@@ -202,6 +206,8 @@ def build_system_prompt(
 
     if username:
         parts.append(f"The signed-in user is: {username}.")
+
+    parts.extend(b for b in (expert_blocks or []) if b and b.strip())
 
     # After the tool blocks so it can shape how they are used, before the
     # language directive so the two never end up arguing about word order.

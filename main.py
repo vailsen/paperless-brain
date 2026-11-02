@@ -12,6 +12,7 @@ import app_ui.pages.brain  # noqa: F401
 import app_ui.pages.browser  # noqa: F401
 import app_ui.pages.chat  # noqa: F401
 import app_ui.pages.dashboard  # noqa: F401
+import app_ui.pages.experts  # noqa: F401
 import app_ui.pages.login  # noqa: F401
 import app_ui.pages.settings  # noqa: F401
 import app_ui.memo_routes  # noqa: F401  — registers POST /api/memo/transcribe

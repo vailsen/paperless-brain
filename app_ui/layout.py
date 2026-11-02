@@ -41,6 +41,7 @@ _MOBILE_HEADER_CSS = (
 NAV_ITEMS = [
     ("dashboard", N_("Dashboard"), "/"),
     ("chat", N_("Chat"), "/chat"),
+    ("psychology", N_("Experts"), "/experts"),
     ("auto_awesome", N_("Deep research"), "/werkbank"),
     ("grid_view", N_("Browser"), "/browser"),
     ("note_alt", N_("Note vault"), "/brain"),
