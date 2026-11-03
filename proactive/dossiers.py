@@ -104,6 +104,9 @@ class Dossier:
     #: Documents the user added by hand — code-owned: a rebuild reads them and
     #: never drops them.
     added_docs: list[int] = field(default_factory=list)
+    #: Questions the user removed — code-owned, so a rebuild cannot bring
+    #: them back.
+    dropped_questions: list[str] = field(default_factory=list)
     pbrain_id: str = ""
     rel: str = ""
     sha: str = ""
@@ -208,7 +211,8 @@ def render_body(d: Dossier) -> str:
     out += ["", "<!-- pb:questions -->", f"## {_('Open questions')}", ""]
     out += [f"- {q}" for q in d.open_questions] or ["-"]
     for r in d.resolved:
-        out.append(f"- ~~{r['question']}~~ → {r.get('insight', '')}")
+        link = r.get("insight") or ""
+        out.append(f"- ~~{r['question']}~~" + (f" → {link}" if link else ""))
     if d.insights:
         out += ["", "<!-- pb:insights -->", f"## {_('Insights')}", ""]
         out.append("\n\n".join(render_insight(i, _) for i in d.insights))
@@ -308,6 +312,7 @@ def parse(text: str, *, rel: str = "") -> Dossier | None:
     for ln in sec.get("questions", []):
         if ln.startswith("- ") and ln[2:].strip() and ln[2:].strip() != "-" and not _RESOLVED_RE.match(ln[2:].strip()):
             questions.append(ln[2:].strip())
+    questions = heal_questions(questions)
     research = [ln[2:].strip() for ln in sec.get("research", []) if ln.startswith("- ") and ln[2:].strip()]
     rev = m.get("revisit_after")
     resolved = [r for r in m.get("resolved") or [] if isinstance(r, dict) and r.get("question")]
@@ -328,6 +333,7 @@ def parse(text: str, *, rel: str = "") -> Dossier | None:
         label=str(m.get("label") or ""),
         expert=str(m.get("expert") or ""),
         added_docs=[int(x) for x in m.get("added_docs") or [] if str(x).isdigit()],
+        dropped_questions=[str(x) for x in m.get("dropped_questions") or [] if str(x).strip()],
         pbrain_id=get_id(m),
         rel=rel,
         sha=sha_of(text),
@@ -389,11 +395,43 @@ def revisit_after(user: str, topic: str, today: date) -> str | None:
     return (today + timedelta(days=days)).isoformat()
 
 
+def _as_list(value) -> list:
+    """A list field as the model sent it. Local models sometimes send the
+    list as a JSON string (`'["Wer zahlt?", …]'`); iterating that string
+    filed every character as an open question of its own."""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value.strip():
+        text = value.strip()
+        if text[:1] in "[{":
+            from werkbank.v2.models import repair_json
+
+            for candidate in (text, repair_json(text)):
+                try:
+                    parsed = json.loads(candidate)
+                except ValueError:
+                    continue
+                return parsed if isinstance(parsed, list) else [parsed]
+        return [ln.strip().lstrip("-*•").strip() for ln in text.splitlines() if ln.strip().lstrip("-*•").strip()]
+    return []
+
+
+def heal_questions(qs: list[str]) -> list[str]:
+    """Questions already broken into single characters (written before
+    `_as_list`): unrecoverable — the spaces are gone — so they are dropped
+    and the next rescan writes them again."""
+    if len(qs) >= 4 and sum(len(q) <= 1 for q in qs) >= 0.8 * len(qs):
+        return []
+    return qs
+
+
 def validated(result: dict, allowed_ids: set[int]) -> tuple[list[dict], list[str]]:
     """Timeline entries with a real date and a document of this dossier,
     oldest first; non-empty open questions."""
     tl = []
-    for t in result.get("timeline") or []:
+    for t in _as_list(result.get("timeline")):
+        if not isinstance(t, dict):
+            continue
         try:
             day = date.fromisoformat(str(t.get("date", ""))[:10])
             doc = int(t.get("doc_id"))
@@ -403,8 +441,8 @@ def validated(result: dict, allowed_ids: set[int]) -> tuple[list[dict], list[str
         if doc in allowed_ids and event:
             tl.append({"date": day.isoformat(), "event": event[:300], "doc_id": doc})
     tl.sort(key=lambda t: (t["date"], t["doc_id"]))
-    qs = [" ".join(str(q).split()) for q in result.get("open_questions") or [] if str(q).strip()]
-    return tl, qs[:20]
+    qs = [" ".join(str(q).split()) for q in _as_list(result.get("open_questions")) if str(q).strip()]
+    return tl, heal_questions(qs)[:20]
 
 
 def _meta(d: Dossier) -> dict:
@@ -428,6 +466,8 @@ def _meta(d: Dossier) -> dict:
         meta["expert"] = d.expert
     if d.added_docs:
         meta["added_docs"] = sorted(set(d.added_docs))
+    if d.dropped_questions:
+        meta["dropped_questions"] = list(d.dropped_questions)
     return meta
 
 
@@ -459,7 +499,8 @@ async def write(user: str, d: Dossier) -> Dossier:
         snap = await read_note(user, rel)
         note = split_note(snap.text)
         meta.pop("pbrain_id", None)  # keep the file's own identity
-        remove = tuple(k for k in ("research", "resolved", "label", "expert", "added_docs") if k not in meta)
+        remove = tuple(k for k in ("research", "resolved", "label", "expert", "added_docs", "dropped_questions")
+                       if k not in meta)
         text = join_note(type(note)(apply_edits(note.fm_raw, set_=meta, remove=remove), body,
                                     note.open_fence, note.close_fence))
         try:
@@ -476,7 +517,7 @@ def from_result(user: str, topic: str, result: dict, *, lang: str, version: int,
     if existing is not None:
         ids |= set(existing.doc_ids) if existing.origin == "user" else set()
         ids |= set(existing.added_docs)
-        done = {r["question"] for r in existing.resolved}
+        done = {r["question"] for r in existing.resolved} | set(existing.dropped_questions)
         qs = [q for q in qs if q not in done]
     return Dossier(
         topic=topic,
@@ -496,6 +537,7 @@ def from_result(user: str, topic: str, result: dict, *, lang: str, version: int,
         label=existing.label if existing else "",
         expert=existing.expert if existing else "",
         added_docs=list(existing.added_docs) if existing else [],
+        dropped_questions=list(existing.dropped_questions) if existing else [],
         pbrain_id=existing.pbrain_id if existing else "",
     )
 
@@ -670,6 +712,51 @@ async def remove_document(user: str, topic: str, doc_id: int) -> Dossier | None:
     d.added_docs = [i for i in d.added_docs if i != doc_id]
     d.doc_ids = [i for i in d.doc_ids if i != doc_id]
     return await write(user, d)
+
+
+async def _edit_questions(user: str, topic: str, change) -> Dossier | None:
+    d = load(user, topic)
+    if d is None:
+        return None
+    change(d)
+    return await write(user, d)
+
+
+async def resolve_question(user: str, topic: str, question: str) -> Dossier | None:
+    """The user ticks a question off: answered, by them."""
+    def change(d: Dossier) -> None:
+        if question in d.open_questions:
+            d.open_questions.remove(question)
+            d.resolved.append({"question": question, "insight": "", "by": "user",
+                               "at": clock.local_now().date().isoformat()})
+    return await _edit_questions(user, topic, change)
+
+
+async def reopen_question(user: str, topic: str, question: str) -> Dossier | None:
+    def change(d: Dossier) -> None:
+        d.resolved = [r for r in d.resolved if r.get("question") != question]
+        if question not in d.open_questions:
+            d.open_questions.append(question)
+    return await _edit_questions(user, topic, change)
+
+
+async def drop_question(user: str, topic: str, question: str) -> Dossier | None:
+    """Not a question for this matter: gone, and kept out of every rebuild."""
+    def change(d: Dossier) -> None:
+        d.open_questions = [q for q in d.open_questions if q != question]
+        if question not in d.dropped_questions:
+            d.dropped_questions.append(question)
+    return await _edit_questions(user, topic, change)
+
+
+async def add_question(user: str, topic: str, question: str) -> Dossier | None:
+    question = " ".join((question or "").split())[:300]
+
+    def change(d: Dossier) -> None:
+        if question and question not in d.open_questions:
+            d.open_questions.append(question)
+            d.dropped_questions = [q for q in d.dropped_questions if q != question]
+    return await _edit_questions(user, topic, change)
 
 
 def relook_key(user: str, topic: str) -> str:

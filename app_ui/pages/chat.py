@@ -497,9 +497,13 @@ html, body { overflow: hidden !important; }
     .chat-model-sel .q-field__control { padding-left: 6px !important; padding-right: 2px !important; }
     .chat-title { display: none !important; }
 }
-@media (max-width: 420px) {
-    .chat-expert-sel { max-width: 6rem !important; }
-    .chat-model-sel { max-width: 6.25rem !important; }
+/* A phone: the two pickers share the row's free width instead of sitting
+   at a fixed small size behind an empty spacer. */
+@media (max-width: 767px) {
+    .chat-head-spacer { display: none !important; }
+    .chat-expert-sel, .chat-model-sel { flex: 1 1 0 !important; min-width: 0 !important; max-width: none !important;
+        width: auto !important; }
+    .chat-expert-sel { flex-grow: 0.8 !important; }
 }
 @media (max-width: 767px) and (orientation: portrait) {
     .chat-temp-input { display: flex !important; }
@@ -1884,7 +1888,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             "text-gray-200 font-semibold text-sm chat-title"
                         ).style("flex-shrink:0;")
                         # Spacer — pushes spinner + model + buttons to right
-                        ui.element("div").style("flex:1;")
+                        ui.element("div").classes("chat-head-spacer").style("flex:1;")
                         # Context usage progress
                         with ui.element("div").style(
                             "display:inline-flex; align-items:center; gap:4px; cursor:default;"
