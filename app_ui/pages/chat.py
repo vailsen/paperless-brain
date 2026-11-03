@@ -730,7 +730,7 @@ _EMBED_CSS = """<style>
 
 
 @ui.page("/chat")
-async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0):
+async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = ""):
     if not require_auth():
         return
     page_layout()
@@ -743,6 +743,11 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
     _cstore: dict = {} if _embed else ng_app.storage.user
     if _embed:
         ui.add_head_html(_EMBED_CSS)
+        # The findings page asks "continue in the full chat": answer with this
+        # conversation (pb_open_full, handled below).
+        ui.add_head_html(
+            "<script>window.addEventListener('message',function(e){if(e.origin===window.location.origin&&"
+            "e.data&&e.data.type==='pb-open-full')emitEvent('pb_open_full');});</script>")
 
     # Render-time translations for import-time constants. Keys stay German
     # (stable state keys in tool_prefs); only display labels are translated.
@@ -1204,7 +1209,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         if ex.builtin or ex.scope.unrestricted:
             return _("Expert {name}: all documents").format(name=ex.name)
         return _("Expert {name}: {scope}").format(
-            name=ex.name, scope=" · ".join(", ".join(v) for v in ex.scope_names().values()))
+            name=ex.name, scope=" · ".join(
+                ("−" if k.startswith("exclude_") else "") + ", ".join(v) for k, v in ex.scope_names().items()))
 
     def _render_library_all() -> None:
         for lib in _drawer["libraries"]:
@@ -1489,6 +1495,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             _set_dossier_ctx(_ctx.split(":", 1)[1])
         elif not _embed:
             _set_dossier_ctx(None)
+        if _ctx.startswith("finding:"):
+            _set_finding_ctx(_ctx.split(":", 1)[1])
         _s["total_tokens"] = 0
         _s["context_window"] = 0
         _s["current_ctx_tokens"] = 0
@@ -2877,7 +2885,14 @@ window.__openVaultNote = function(noteId) {{
         finding_bar.clear()
         fc, dc = _s.get("finding_ctx"), _s.get("dossier_ctx")
         finding_row.set_visibility(bool(fc or dc))
-        if fc:
+        if fc and _embed:
+            # In the dock the finding is right above: no way "back", just what
+            # this conversation is about.
+            with finding_bar:
+                ui.icon("lightbulb", size="xs").classes("text-gray-400 flex-shrink-0")
+                ui.label(_("About: {name}").format(name=fc["title"])).classes(
+                    "text-xs text-gray-400 truncate flex-1 min-w-0")
+        elif fc:
             with finding_bar:
                 ui.button(
                     _("Back to finding"), icon="arrow_back",
@@ -2911,7 +2926,7 @@ window.__openVaultNote = function(noteId) {{
 
             d = _dossiers.by_id(_username, pbrain_id)
         _s["dossier_ctx"] = (
-            {"id": d.pbrain_id, "topic": d.topic, "title": d.display, "text": _dossiers.render_body(d)}
+            {"id": d.pbrain_id, "topic": d.topic, "title": d.display, "text": _dossiers.context_text(d)}
             if d else None
         )
         _render_ctx_bar()
@@ -2941,13 +2956,18 @@ window.__openVaultNote = function(noteId) {{
             from app_ui.dossier_save import open_save_dialog
 
             prov = _s["turn_meta"].get(idx) or {}
+            from services.dossier_merge import merge_provenance
+
+            conv = msgs[: idx + 1]
+            conv_prov = merge_provenance([_s["turn_meta"].get(i) or {} for i in range(idx + 1)
+                                          if msgs[i].get("role") == "assistant"])
             await open_save_dialog(
                 user=_username, token=get_session_token() or "",
                 answer=msgs[idx]["content"], selection=(picked or "").strip(),
                 provenance=prov, conv_id=_s.get("conv_id") or "", msg_index=idx,
                 preselect=(_s.get("dossier_ctx") or {}).get("topic") or "",
                 models=_reg_models, default_model=_s.get("chat_model_name", ""),
-                on_saved=_on_insight_saved,
+                on_saved=_on_insight_saved, conversation=conv, conv_provenance=conv_prov,
             )
 
         # color=None: icons inherit the text colour (no accent on a tool button).
@@ -4503,6 +4523,17 @@ window.__openVaultNote = function(noteId) {{
     elif not (_embed and _s["messages"]):
         with messages_container:
             _welcome_msg()
+    if conv and not _embed and _username:
+        # "Continue in the full chat" from the findings dock: that conversation.
+        if conv != _s.get("conv_id") and any(c["id"] == conv for c in _chat_hist.list_conversations(_username)):
+            _load_conv(conv)
+            messages_scroll.scroll_to(percent=1.0)
+        ui.run_javascript("history.replaceState(null, '', '/chat')")
+    elif dossier and not _embed:
+        # The dock had no conversation yet: a new one about the dossier.
+        _new_conv()
+        _set_dossier_ctx(dossier)
+        ui.run_javascript("history.replaceState(null, '', '/chat')")
     if expert in _known_experts and not _embed and expert != _s.get("expert_id"):
         # "Chat with this expert" from /experts: a new conversation with it.
         _new_conv()
@@ -4534,6 +4565,21 @@ window.__openVaultNote = function(noteId) {{
         _set_finding_ctx(_cstore.get("chat_finding"))
     _refresh_pinned_chips()
     _refresh_history_list()
+
+    def _open_full(_e=None) -> None:
+        """The dock's "continue in the full chat": the same conversation,
+        with its context; one not started yet opens fresh about the same thing."""
+        if _s.get("conv_id"):
+            _go(f"/chat?conv={_s['conv_id']}")
+        elif _s.get("finding_ctx"):
+            _go(f"/chat?finding={_s['finding_ctx']['id']}")
+        elif _s.get("dossier_ctx"):
+            _go(f"/chat?dossier={_s['dossier_ctx']['id']}")
+        else:
+            _go("/chat")
+
+    if _embed:
+        ui.on("pb_open_full", _open_full)
 
     # ── History drawer drag-resize ────────────────────────────────────────────
     ui.add_head_html("""<script>

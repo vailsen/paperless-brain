@@ -4,6 +4,10 @@ A scope is opt-in per dimension: an empty dimension does not restrict, filled
 dimensions are AND-combined, values within one are OR-combined. A document
 without a correspondent is outside a scope that lists correspondents.
 
+Each dimension can also exclude ("never these"): a document whose
+correspondent or type is excluded, or that carries any excluded tag, is out —
+whatever the opt-in part says. Exclusions alone narrow an otherwise full view.
+
 The scope is a focus, not a security boundary — that stays the user's own
 Paperless token. It is still enforced here, in the client every document tool
 goes through (`services.chat_service._user_paperless`), never in the prompt:
@@ -26,6 +30,9 @@ class Scope:
     correspondents: frozenset[int] = field(default_factory=frozenset)
     tags: frozenset[int] = field(default_factory=frozenset)
     document_types: frozenset[int] = field(default_factory=frozenset)
+    not_correspondents: frozenset[int] = field(default_factory=frozenset)
+    not_tags: frozenset[int] = field(default_factory=frozenset)
+    not_document_types: frozenset[int] = field(default_factory=frozenset)
 
     @classmethod
     def from_meta(cls, meta: dict | None) -> "Scope":
@@ -43,11 +50,13 @@ class Scope:
                     continue
             return frozenset(out)
 
-        return cls(ids("correspondents"), ids("tags"), ids("document_types"))
+        return cls(ids("correspondents"), ids("tags"), ids("document_types"),
+                   ids("exclude_correspondents"), ids("exclude_tags"), ids("exclude_document_types"))
 
     @property
     def unrestricted(self) -> bool:
-        return not (self.correspondents or self.tags or self.document_types)
+        return not (self.correspondents or self.tags or self.document_types
+                    or self.not_correspondents or self.not_tags or self.not_document_types)
 
     def allows(self, doc) -> bool:
         """`doc` is a PaperlessDocument (ids from `_parse_document`)."""
@@ -55,7 +64,14 @@ class Scope:
             return False
         if self.document_types and getattr(doc, "document_type_id", None) not in self.document_types:
             return False
-        if self.tags and not (set(getattr(doc, "tag_ids", None) or []) & self.tags):
+        tag_ids = set(getattr(doc, "tag_ids", None) or [])
+        if self.tags and not (tag_ids & self.tags):
+            return False
+        if self.not_correspondents and getattr(doc, "correspondent_id", None) in self.not_correspondents:
+            return False
+        if self.not_document_types and getattr(doc, "document_type_id", None) in self.not_document_types:
+            return False
+        if self.not_tags and tag_ids & self.not_tags:
             return False
         return True
 

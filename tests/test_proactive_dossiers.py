@@ -63,8 +63,12 @@ def remote(monkeypatch):
 
     calls = []
 
-    async def dossier(user, topic, seed, existing, model):
-        calls.append({"topic": topic, "seed": seed, "existing": existing})
+    async def dossier(user, topic, seed, existing, model, doc_ids=None):
+        calls.append({"topic": topic, "seed": seed, "existing": existing, "doc_ids": doc_ids})
+        if doc_ids:
+            return {"mode": "relook", "doc_ids": doc_ids, "read_doc_ids": doc_ids,
+                    "current_state": "Neu gelesen.", "open_questions": [],
+                    "timeline": [{"date": "2026-10-30", "event": "Brief", "doc_id": max(doc_ids)}]}
         if existing:
             return {
                 "mode": "update", "doc_ids": sorted(set(existing["doc_ids"]) | {seed}), "read_doc_ids": [seed],
@@ -116,6 +120,29 @@ def test_new_letter_updates_incrementally(env, remote, caplog):
     d = dossiers.load("alice", "bausparvertrag")
     assert d.doc_ids == [10, 11, 12] and d.timeline[-1]["doc_id"] == 12
     assert d.current_state == "Zuteilung ab 2027."
+
+
+def test_relook_reads_every_document_and_keeps_what_the_user_added(env, remote):
+    """The two newest letters were in the Documents tab but not in the
+    timeline: "Relook" rebuilds from the dossier's documents, the ones the
+    user added and those of its findings — and keeps the user's insights."""
+    from proactive import dossiers, findings, windows
+
+    assert "dossier_relook" in windows.USER_REQUESTED_KINDS  # may wake the host
+    _run("dossier_update", "alice", {"topic": "bausparvertrag", "doc_id": 10})
+    asyncio.run(dossiers.add_documents("alice", "bausparvertrag", [30]))
+    asyncio.run(findings.upsert("alice", findings.Finding(
+        finding_id="", kind="insight", title="Zuteilung", topic="bausparvertrag", urgency="medium",
+        doc_ids=[31], evidence_hash="h", finding_key="k31", body="x")))
+    d = dossiers.load("alice", "bausparvertrag")
+    assert dossiers.pending_docs("alice", d) == [30, 31]
+    _run("dossier_relook", "alice", {"topic": "bausparvertrag"})
+    assert remote[-1]["doc_ids"] == [10, 11, 30, 31]
+    d = dossiers.load("alice", "bausparvertrag")
+    assert d.current_state == "Neu gelesen." and d.added_docs == [30]
+    assert dossiers.pending_docs("alice", d) == []
+    asyncio.run(dossiers.remove_document("alice", "bausparvertrag", 30))
+    assert 30 not in dossiers.load("alice", "bausparvertrag").doc_ids
 
 
 def test_revisit_interval_follows_interest(env):

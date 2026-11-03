@@ -51,6 +51,27 @@ def test_tags_are_any_of():
     assert s.allows(_doc(1, tags=(3, 8))) and not s.allows(_doc(2, tags=(3,))) and not s.allows(_doc(3))
 
 
+def test_never_these_takes_documents_out():
+    from services.expert_scope import Scope
+
+    s = Scope.from_meta({"exclude_correspondents": [{"id": 1}], "exclude_tags": [9]})
+    assert not s.unrestricted
+    assert s.allows(_doc(1, corr=2, tags=(3,)))
+    assert not s.allows(_doc(2, corr=1))           # excluded correspondent
+    assert not s.allows(_doc(3, corr=2, tags=(3, 9)))  # one excluded tag is enough
+    assert s.allows(_doc(4, corr=None))            # no correspondent: not excluded
+    both = Scope.from_meta({"document_types": [5], "exclude_document_types": [5]})
+    assert not both.allows(_doc(5, dtype=5))       # never wins over only
+
+
+def test_scope_hash_unchanged_without_exclusions():
+    from services import briefings
+
+    old = briefings.scope_hash({"correspondents": [1], "tags": [], "document_types": []})
+    assert briefings.scope_hash({"correspondents": [{"id": 1}]}) == old
+    assert briefings.scope_hash({"correspondents": [1], "exclude_tags": [3]}) != old
+
+
 # ── The scoped client, and every document tool behind it ────────────────────
 
 DOCS = {1: _doc(1, corr=1), 2: _doc(2, corr=2)}

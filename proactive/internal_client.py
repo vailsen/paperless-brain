@@ -59,8 +59,10 @@ async def vault_sync(user: str) -> dict:
     return await call("vault_sync", {"user": user}, timeout=900)
 
 
-async def dossier(user: str, topic: str, seed_doc_id: int, existing: dict | None, model: dict) -> dict:
+async def dossier(user: str, topic: str, seed_doc_id: int, existing: dict | None, model: dict,
+                  doc_ids: list[int] | None = None) -> dict:
+    """`doc_ids` set: a relook — rebuild from exactly these documents."""
     return await call("dossier", {
         "user": user, "topic": topic, "seed_doc_id": int(seed_doc_id or 0),
-        "existing": existing, "model": model,
+        "existing": existing, "model": model, "doc_ids": [int(i) for i in doc_ids or []],
     }, timeout=1800)
