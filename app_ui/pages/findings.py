@@ -448,6 +448,13 @@ _MC_CSS = """
 .pbm-due .d{font-variant-numeric:tabular-nums;color:var(--c-text-2);font-size:.8rem;flex-shrink:0;width:6.5rem}
 .pbm-due .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem;color:var(--c-text)}
 .pbm-due.warn .d{color:var(--c-warn)}
+.pbm-doc{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--c-border);cursor:pointer;
+  min-width:0;box-sizing:border-box}
+.pbm-doc:last-child{border-bottom:0}
+.pbm-doc-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pbm-doc .t{font-size:.86rem;color:var(--c-text);overflow-wrap:anywhere}
+.pbm-doc .m{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.75rem;color:var(--c-text-muted);
+  font-variant-numeric:tabular-nums}
 .pbm-mbar{display:none}
 /* Maximized dock: the chat takes the viewer's place; the navigator (desktop)
    and the bottom switch (phone) stay, so the way back is one tap. */
@@ -478,7 +485,8 @@ _MC_CSS = """
   .pbm-root.z-chat .pbm-dock .pbm-dock-frame{display:block}
   .pbm-root.z-chat .pbm-dock-head .pbm-dock-toggle{display:none}
   .pbm-root.z-chat.dock-max .pbm-dock{height:100%!important}
-  .pbm-root.z-chat .pbm-dock-head{height:30px}
+  .pbm-root.z-chat .pbm-dock-head{display:none}
+  .pbm-root.z-chat .pbm-dock-head.has-retarget{display:flex;height:30px}
   .pbm-mbar{display:flex;position:fixed;left:0;right:0;bottom:0;align-items:center;
     padding:6px 12px calc(6px + env(safe-area-inset-bottom));border-top:1px solid var(--c-border);background:var(--c-surface)}
   .pbm-seg{display:flex;flex:1;gap:2px;padding:3px;border-radius:999px;background:var(--c-surface-2);
@@ -521,6 +529,11 @@ _MC_JS = """<script>
     if(f&&f.contentWindow){f.contentWindow.postMessage({type:'pb-dock-mode',full:full},window.location.origin);}};
   document.addEventListener('load',function(e){
     if(e.target&&e.target.tagName==='IFRAME'&&e.target.closest('.pbm-dock-frame'))window.pbmDockMode();},true);
+  // The embedded chat's maximize / back buttons.
+  window.addEventListener('message',function(e){
+    if(e.origin!==window.location.origin||!e.data||e.data.type!=='pb-dock-max')return;
+    emitEvent('pb_dock_max',!!e.data.on);
+  });
   // The embedded chat saved an insight: re-read the dossier.
   window.addEventListener('message',function(e){
     if(e.origin!==window.location.origin||!e.data||e.data.type!=='pb-insight-saved')return;
@@ -1541,17 +1554,20 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     ui.button(_("Add documents"), icon="add", on_click=lambda: _add_docs(d)).props(
                         "flat dense no-caps").classes("text-xs")
                 for doc in sorted(docs, key=lambda x: x.created, reverse=True):
-                    el = ui.element("div").classes("pbm-due items-center")
+                    # Two lines, full width: the name wraps instead of being cut,
+                    # and the remove button can never sit past the screen edge.
+                    el = ui.element("div").classes("pbm-doc w-full")
                     el.on("click", lambda _e, i=doc.id: _open_doc_id(i))
                     with el:
-                        ui.label(doc.created.date().isoformat()).classes("d")
-                        ui.label(f"{doc.title} (#{doc.id})").classes("t")
-                        tag = _("added by you") if doc.id in added else ("" if doc.id in read else _("not read yet"))
-                        if tag:
-                            ui.label(tag).classes("pbm-evid").style("flex-shrink:0;")
-                        ui.label(doc.correspondent or "").classes("pbm-hint").style(
-                            "flex-shrink:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
-                            "max-width:30%;")
+                        with ui.element("div").classes("pbm-doc-main"):
+                            ui.label(f"{doc.title} (#{doc.id})").classes("t")
+                            meta = [doc.created.date().isoformat()] + ([doc.correspondent] if doc.correspondent else [])
+                            with ui.element("div").classes("m"):
+                                ui.label(" · ".join(meta))
+                                tag = _("added by you") if doc.id in added else (
+                                    "" if doc.id in read else _("not read yet"))
+                                if tag:
+                                    ui.label(tag).classes("pbm-evid")
                         if doc.id in added:
                             async def _rm(doc_id: int) -> None:
                                 await dmod.remove_document(user, d.topic, doc_id)
@@ -1560,8 +1576,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
                             # The id is bound in the lambda: a handler with a
                             # parameter of its own is handed the click event.
-                            ui.button(icon="remove_circle_outline").props("flat dense round size=sm").classes(
-                                "card-action-btn").on("click.stop", lambda _e, i=doc.id: _rm(i)).tooltip(
+                            ui.button(icon="remove_circle_outline").props("flat dense round").classes(
+                                "card-action-btn flex-shrink-0").on("click.stop", lambda _e, i=doc.id: _rm(i)).tooltip(
                                 _("Take out of the dossier"))
 
         ui.timer(0.05, _load, once=True)
@@ -1649,18 +1665,16 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                   options=opts)
 
     ui.on("pb_insight_saved", lambda _e: (viewer_body.refresh(), nav_body.refresh()))
+    ui.on("pb_dock_max", lambda e: _dock_max(bool(e.args)))
 
     # ── Chat dock ────────────────────────────────────────────────────────────
     with dock:
         # No "Chat about …" title: the dock sits right under what it is about.
-        with ui.element("div").classes("pbm-dock-head"):
+        with ui.element("div").classes("pbm-dock-head") as dock_head:
             retarget = ui.button("", icon="swap_horiz").props("flat dense no-caps size=sm").classes("text-xs")
             retarget.set_visibility(False)
             ui.element("div").classes("flex-1")
-            # Maximized in place — the same frame, so a half-typed message and a
-            # running answer survive; the full chat controls appear with it.
-            max_btn = ui.button(icon="open_in_full", on_click=lambda: _dock_max(not st["dock_max"])).props(
-                "flat dense round size=sm").classes("card-action-btn").tooltip(_("Maximize the chat"))
+            # Maximize / back live in the chat's own header row (pb-dock-max).
             toggle = ui.button(icon="expand_more" if st["dock_open"] else "expand_less").props(
                 "flat dense round size=sm").classes("card-action-btn pbm-dock-toggle")
         frame_host = ui.element("div").classes("pbm-dock-frame")
@@ -1708,14 +1722,14 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         want = _ctx_of_selection()
         show = st["dock_ctx"] is not None and want is not None and want != st["dock_ctx"]
         retarget.set_visibility(show)
+        # On a phone the head row exists only for this offer.
+        dock_head.classes(add="has-retarget") if show else dock_head.classes(remove="has-retarget")
         if show:
             retarget.set_text(_("Talk about the selection"))
 
     def _dock_max(on: bool) -> None:
         st["dock_max"] = on
         root.classes(add="dock-max") if on else root.classes(remove="dock-max")
-        max_btn.props(f"icon={'close_fullscreen' if on else 'open_in_full'}")
-        max_btn.tooltip(_("Back to the item") if on else _("Maximize the chat"))
         if on:
             if not st["dock_open"]:
                 _dock_open(True)

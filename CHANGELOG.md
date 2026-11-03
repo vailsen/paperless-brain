@@ -114,6 +114,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- The findings chat dock has no extra row on a phone: maximize and back sit
+  next to the expert and model pickers, which stay on screen however low the
+  dock is dragged.
+- The Documents tab of a dossier shows full names on two lines, and the
+  button to take out a document you added is no longer cut off the screen.
 - **The findings chat dock maximizes in place** instead of jumping to the
   chat module, so a half-typed message and a running answer survive and the
   bottom switch still leads back. Not maximized it is a compact chat — input,

@@ -485,19 +485,27 @@ html, body { overflow: hidden !important; }
 @media (max-width: 767px) {
     .chat-temp-input { display: none !important; }
 }
+/* Narrow by width, never by orientation: the findings dock is wider than
+   tall when dragged low, and the pickers then ran past the screen. */
+@media (max-width: 767px) {
+    .chat-expert-sel { min-width: 4.5rem !important; max-width: 6.5rem !important; }
+    .chat-expert-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-expert-sel .q-field__control { padding-left: 4px !important; padding-right: 2px !important; }
+    .chat-expert-sel .q-field__prepend { padding-right: 2px; }
+    .chat-model-sel { min-width: 5rem !important; max-width: 7rem !important; }
+    .chat-model-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-model-sel .q-field__control { padding-left: 6px !important; padding-right: 2px !important; }
+    .chat-title { display: none !important; }
+}
+@media (max-width: 420px) {
+    .chat-expert-sel { max-width: 6rem !important; }
+    .chat-model-sel { max-width: 6.25rem !important; }
+}
 @media (max-width: 767px) and (orientation: portrait) {
     .chat-temp-input { display: flex !important; }
     .chat-backend-sel { min-width: 5.5rem !important; max-width: 7rem !important; }
     .chat-backend-sel .q-field__native { font-size: 0.7rem !important; }
     .chat-backend-sel .q-field__control { padding-left: 6px !important; padding-right: 2px !important; }
-    .chat-model-sel { min-width: 5rem !important; max-width: 7rem !important; }
-    .chat-model-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chat-model-sel .q-field__control { padding-left: 6px !important; padding-right: 2px !important; }
-    .chat-expert-sel { min-width: 4.5rem !important; max-width: 6.5rem !important; }
-    .chat-expert-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chat-expert-sel .q-field__control { padding-left: 4px !important; padding-right: 2px !important; }
-    .chat-expert-sel .q-field__prepend { padding-right: 2px; }
-    .chat-title { display: none !important; }
 }
 /* Quick chips horizontal scroll, no scrollbar */
 .chat-quick-strip { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
@@ -739,6 +747,8 @@ body.pb-compact .chat-splitter > .q-splitter__separator,
 body.pb-compact .chat-splitter > .q-splitter__after{display:none!important;}
 body.pb-compact .chat-splitter > .q-splitter__before{width:100%!important;}
 body.pb-compact .chat-input-row{padding:6px 10px!important;}
+.chat-head{padding:0 8px!important;gap:6px!important;}
+body.pb-compact .chat-dock-min, body:not(.pb-compact) .chat-dock-max{display:none!important;}
 </style>
 <script>
 // The findings page says whether its dock is maximized (pb-dock-mode).
@@ -1957,6 +1967,17 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         ).props("flat dark dense").classes("text-gray-400").tooltip(
                             _("Delete conversation")
                         )
+                        if _embed:
+                            # The findings dock: maximize / back, in this row. A
+                            # message to the page around it — no server round trip,
+                            # no navigation, so the input and a running answer stay.
+                            for _cls, _icon, _on, _tip in (
+                                    ("chat-dock-max", "open_in_full", "true", _("Maximize the chat")),
+                                    ("chat-dock-min", "close_fullscreen", "false", _("Back to the item"))):
+                                ui.button(icon=_icon).props("flat dark dense").classes(
+                                    f"text-gray-400 {_cls}").tooltip(_tip).on(
+                                    "click", js_handler="() => window.parent.postMessage({type:'pb-dock-max',on:"
+                                    + _on + "}, window.location.origin)")
 
                     # Messages scroll area
                     messages_scroll = (
