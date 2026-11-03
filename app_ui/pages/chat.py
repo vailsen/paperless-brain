@@ -1083,8 +1083,14 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             _log.warning("could not create the Universal expert", exc_info=True)
     _experts_list = _experts_mod.list_experts(_username) if _username else []
     _known_experts = {e.expert_id for e in _experts_list}
+    # "Use experts" off: every chat is the Universal expert. The dock never
+    # takes the expert last picked in /chat — that put one particular expert
+    # on every dossier: the dossier's own default (?expert=) or Universal.
+    _experts_on = _experts_mod.enabled()
     _initial_expert_id = (
-        expert if expert in _known_experts
+        _experts_mod.UNIVERSAL_ID if not _experts_on
+        else expert if expert in _known_experts
+        else _experts_mod.UNIVERSAL_ID if _embed
         else (get_pref("chat_expert_id", "") if get_pref("chat_expert_id", "") in _known_experts
               else _experts_mod.UNIVERSAL_ID)
     )
@@ -1941,6 +1947,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             lambda e: _ex_icon.props(f"name={_ex_icon_of.get(e.value, 'psychology')}"))
                         # A lambda: the handler is defined below the layout.
                         _expert_sel.on_value_change(lambda e: _on_expert_pick(e))
+                        _expert_sel.set_visibility(_experts_on)
                         if _reg_models:
                             _chat_model_sel = (
                                 model_select(_reg_models, _initial_model_name)
@@ -3040,7 +3047,7 @@ window.__openVaultNote = function(noteId) {{
     # ── Expert switching ──────────────────────────────────────────────────────
     def _apply_expert(eid: str) -> None:
         """Set the active expert without asking (load / new conversation)."""
-        if eid not in {e.expert_id for e in _experts_mod.list_experts(_username)}:
+        if not _experts_on or eid not in {e.expert_id for e in _experts_mod.list_experts(_username)}:
             eid = _experts_mod.UNIVERSAL_ID
         _s["expert_id"] = eid
         if _expert_sel is not None and _expert_sel.value != eid:
@@ -3080,6 +3087,12 @@ window.__openVaultNote = function(noteId) {{
         _s["expert_id"] = eid
         if not _embed:
             set_pref("chat_expert_id", eid)
+        elif _s.get("dossier_ctx") and _dossiers_on:
+            # Picked in a dossier's dock: that dossier's chat starts with it.
+            from proactive import dossiers as _dossiers
+
+            asyncio.ensure_future(_dossiers.set_expert(
+                _username, _s["dossier_ctx"]["topic"], "" if eid == _experts_mod.UNIVERSAL_ID else eid))
         ex = _expert()
         if ex.default_model and any(m["name"] == ex.default_model for m in _reg_models) and _chat_model_sel is not None:
             _chat_model_sel.set_value(ex.default_model)

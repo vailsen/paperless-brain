@@ -428,7 +428,9 @@ _MC_CSS = """
 .pbm-tnode .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pbm-tnode .n{color:var(--c-text-muted);font-size:.72rem}
 .pbm-tnode .bar{width:3px;height:14px;border-radius:2px;flex-shrink:0}
-.pbm-panel{padding:16px 18px;max-width:960px;width:100%;box-sizing:border-box}
+/* Centred between the navigator and the chat column, wherever the handle is. */
+.pbm-panel{padding:16px 18px;max-width:960px;width:100%;box-sizing:border-box;margin-left:auto;margin-right:auto}
+.pbm-viewer > *{max-width:960px;margin-left:auto;margin-right:auto}
 .pbm-card{border:1px solid var(--c-border);border-radius:10px;padding:12px 14px;background:var(--c-surface);
   width:100%;box-sizing:border-box;min-width:0}
 .pbm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;width:100%}
@@ -1284,7 +1286,10 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                             ui.separator()
                             ui.menu_item(_("Rename"), on_click=lambda: _rename_dossier(d))
                             ui.menu_item(_("Move to folder"), on_click=lambda: _move_dossier(d))
-                            ui.menu_item(_("Default expert for its chat"), on_click=lambda: _dossier_expert(d))
+                            from services import experts as _ex
+
+                            if _ex.enabled():
+                                ui.menu_item(_("Default expert for its chat"), on_click=lambda: _dossier_expert(d))
                 _relook_banner(d)
             all_docs = dmod.all_doc_ids(user, d)
             tabs = [("overview", _("Overview"), None), ("timeline", _("Timeline"), len(d.timeline)),

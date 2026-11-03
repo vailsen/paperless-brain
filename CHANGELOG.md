@@ -9,6 +9,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **"Use experts" switch** (Settings > AI): off, every chat is the Universal
+  expert, and the expert picker and the Experts menu item are gone. Your
+  experts stay saved.
 - **Open questions in a dossier can be worked on**: tick one off as answered
   (and open it again), remove one that does not belong, add your own, or
   "Ask the chat" — the question lands in the chat input. A rescan never
@@ -105,6 +108,15 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Changed
 
+- The findings chat starts with the dossier's own default expert, else the
+  Universal one — not the expert last picked in the chat module. Picking an
+  expert in a dossier's chat makes it that dossier's default.
+- The middle of the findings page stays centred between the navigator and the
+  chat column, however wide the chat is dragged.
+- **Anthropic SDK 2.x** (API version 2026-10-21) and NiceGUI 3.19 (upload
+  path-escape fix, select chips no longer swallow the first click). An
+  Anthropic service with its own base URL still gets the key as `X-Api-Key`.
+  A dev venv needs `pip install -U -e .`.
 - **Findings on a computer: the chat is a column on the right**, always
   there and as wide as you drag it; maximize gives it the whole page next to
   the navigator. The empty bar above it is gone. On a phone it stays below.

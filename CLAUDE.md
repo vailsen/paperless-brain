@@ -60,6 +60,10 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
   never read them — those use per-user models with their own `base_url`.
   `OLLAMA_SERVER` additionally names the host the WoL/shutdown buttons control;
   without it that is inferred from the first local-lane model in the registry.
+- **Every Anthropic SDK client comes from `services/anthropic_client.async_client`.**
+  SDK 2.x sends the key as `Authorization: Bearer`; for a custom base URL the
+  factory moves it back to `X-Api-Key` (gateways read that). Sampling parameters
+  are never sent on the Anthropic path (2026-10-21 rejects them with a 400).
 - No provider API key belongs in `.env`. Every chat/research/vision model is managed
   per user in the UI (Settings > AI Models, `services/model_registry.py`): one entry per
   **service** (backend `anthropic` / `openai_compatible`, base URL, key, lane) with any
@@ -294,6 +298,11 @@ page `app_ui/pages/experts.py`.
   file is recreated.
 - **An expert is fixed per conversation** (`chat_conversations.expert_id`);
   switching asks for a new conversation.
+- **"Use experts" is a per-user switch** (`experts.enabled()`, pref
+  `experts_enabled`): off, `_apply_expert` coerces every conversation to
+  Universal and the picker and menu item are hidden. The findings dock never
+  inherits `/chat`'s last expert — dossier default (`expert`) or Universal;
+  picking one in a dossier's dock sets that default.
 - **Every expert keeps memory and vault** (`experts.ALWAYS_ON_GROUPS`). Experts
   never run in the Werkbank (`use_skill` is in `forbidden_tools`).
 - **Experts and skills are configuration, never embedded**

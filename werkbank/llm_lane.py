@@ -268,12 +268,9 @@ async def _call_claude(
     base_url: str = "",
 ) -> tuple[str, list[dict], str]:
     """One Claude call. Returns (text, tool_calls, stop_reason)."""
-    import anthropic
+    from services.anthropic_client import async_client
 
-    client_kwargs: dict[str, Any] = {"api_key": api_key}
-    if base_url:
-        client_kwargs["base_url"] = base_url
-    client = anthropic.AsyncAnthropic(**client_kwargs)
+    client = async_client(api_key, base_url)
 
     # `temperature` is deliberately not sent — see _call_claude_structured.
     kwargs: dict[str, Any] = dict(
@@ -576,12 +573,9 @@ async def _call_claude_structured(
     temperature: float,
     base_url: str = "",
 ) -> dict:
-    import anthropic
+    from services.anthropic_client import async_client
 
-    client_kwargs: dict[str, Any] = {"api_key": api_key}
-    if base_url:
-        client_kwargs["base_url"] = base_url
-    client = anthropic.AsyncAnthropic(**client_kwargs)
+    client = async_client(api_key, base_url)
     tool = {
         "name": tool_name,
         "description": "Output the structured result according to the schema.",
