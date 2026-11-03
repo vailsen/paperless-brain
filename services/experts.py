@@ -89,6 +89,14 @@ class Expert:
         return out
 
 
+def enabled() -> bool:
+    """The user's "Use experts" switch (Settings > AI). Off, every chat is the
+    Universal expert and no picker is offered. Needs a page context."""
+    from services.user_prefs import get_pref
+
+    return bool(get_pref("experts_enabled", True))
+
+
 def _subfolder() -> str:
     return settings.experts_subfolder
 

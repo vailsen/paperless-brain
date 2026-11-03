@@ -54,9 +54,17 @@ def nav_items() -> list[tuple[str, str, str]]:
     PROACTIVE_ENABLED=true."""
     from config.proactive import is_enabled
 
+    items = list(NAV_ITEMS)
+    try:  # "Use experts" off (Settings > AI): no Experts item
+        from services.experts import enabled as _experts_on
+
+        if not _experts_on():
+            items = [it for it in items if it[2] != "/experts"]
+    except Exception:  # noqa: BLE001, S110 — outside a page (tests): the full menu
+        pass
     if not is_enabled():
-        return NAV_ITEMS
-    return NAV_ITEMS[:2] + [FINDINGS_ITEM] + NAV_ITEMS[2:]
+        return items
+    return items[:2] + [FINDINGS_ITEM] + items[2:]
 
 
 def user_icon(username: str) -> str:

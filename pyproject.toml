@@ -24,7 +24,8 @@ classifiers = [
 # Direct imports only; everything else is transitive.
 # Floors = versions the app was last smoke-tested with (2026-07-19).
 dependencies = [
-    "nicegui>=3.18,<4",
+    # 3.19: ui.upload path-escape and ui.select chip-click fixes.
+    "nicegui>=3.19,<4",
     "fastapi>=0.143,<1",
     "aiohttp>=3.14.5,<4",
     "httpx>=0.28,<1",
@@ -35,7 +36,10 @@ dependencies = [
     # every Anthropic call in the container died on a parameter 1.x had removed
     # while the tests passed locally. An unbounded floor means dev and image are
     # different builds of the same commit.
-    "anthropic>=1.15,<2",
+    # 2.x = API version 2026-10-21: the key goes out as `Authorization: Bearer`;
+    # services/anthropic_client.py keeps `X-Api-Key` for gateways. Sampling
+    # parameters are rejected — the Anthropic path sends none since 1.x.
+    "anthropic>=2.4,<3",
     "chromadb>=1.5.9,<2",
     "sentence-transformers>=6.1,<7",
     "pydantic>=2.14,<3",
