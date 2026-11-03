@@ -102,7 +102,7 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 ### UI
 
 - NiceGUI 3.x, pages in `app_ui/pages/` (each imports `page_layout` + `require_auth` from `app_ui/layout.py`)
-- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `findings` (mission control, proactive only)
+- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `findings` (workspace, proactive only)
 - Dialogs: `app_ui/document_dialog.py`, `app_ui/cluster_dialog.py`
 - **NiceGUI pattern**: use `@ui.refreshable` for dynamic content in plain columns. `QTabPanels`/`element.clear()` silently fails.
 - Chat events stream via `AsyncGenerator[ChatEvent, None]` — UI iterates with `async for` and updates reactively.
@@ -271,7 +271,10 @@ page `app_ui/pages/experts.py`.
   tools). The chat page's own lookups (citation titles, pins, downloads) use
   `_scoped_pl()`. A new document path goes through one of them.
 - **Opt-in per dimension**: empty = no restriction; filled dimensions AND,
-  values within one OR. A scope is focus, not security — that stays the token.
+  values within one OR. **Opt-out** (`exclude_*`) takes documents out whatever
+  else matches. A scope is focus, not security — that stays the token.
+- **Long pickers on a phone go through `app_ui/multi_pick.MultiPick`** (a
+  dialog with Done that the back gesture closes), not a `q-select` menu.
 - **The personality is the old custom-instructions slot** (header, 2 000-char
   cap); scope, briefing and skill blocks come before it and are code-framed.
   Settings > AI no longer edits instructions; the Universal expert inherited
@@ -297,9 +300,9 @@ page `app_ui/pages/experts.py`.
   citations. Built from sidecar summaries, in the app, yields to chat; a
   restart loses a running study, nothing restarts on its own.
 
-## Mission control (findings)
+## Findings workspace
 
-`docs/findings-mission-control.md`. Code: `app_ui/pages/findings.py`,
+`docs/findings-workspace.md`. Code: `app_ui/pages/findings.py`,
 `proactive/dossiers.py`, `services/dossier_merge.py`, `app_ui/dossier_save.py`.
 
 - **The dock is the chat page, embedded** (`/chat?embed=1&dossier=…`): one chat
@@ -316,6 +319,13 @@ page `app_ui/pages/experts.py`.
   returned, web pages a tool returned or read. Nothing is written to a dossier
   before the user saw the preview; the merge output passes `numbers_missing`.
 - `/findings/{id}?action=` deep links still never apply on load.
+- **Hand-added documents (`added_docs`) are code-owned** like insights: a
+  rebuild reads them and never drops them. "Relook" (`dossier_relook`) is
+  user-requested, so it may run outside the sweep windows and wake the host.
+- **Filing a finding into a dossier moves its topic**; membership stays the
+  topic key, there is no second link. Renaming a dossier changes only `label`.
+- **A dossier that exists gets every new document of its topic** (triage, in
+  code) — the model's `dossier_update` flag only starts one.
 
 ## Deployment target
 

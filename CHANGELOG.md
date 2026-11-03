@@ -9,6 +9,21 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Experts: "Never these"** — every access dimension (correspondents, types,
+  tags) can exclude as well as narrow. The pickers are dialogs with search and
+  "Done", and the back gesture closes them on a phone.
+- **Dossiers: Relook** rebuilds a dossier from all its documents — its own,
+  the ones you added, and those of its findings — keeping your insights and
+  research. A notice says when documents are waiting for it.
+- **Dossiers: add documents by hand**, and **file a finding into a dossier**
+  (also from the "Not in a dossier" list).
+- **Save to dossier: the whole conversation**, condensed, with the sources of
+  every answer.
+- **Findings search** also finds findings and dossiers by the names of their
+  documents, and lists those documents.
+- **"Continue in the full chat"** in the findings chat dock opens the same
+  conversation in the chat.
+
 - **Findings are an inbox**: Open, Relevant, Done, Dismissed — instead of
   eight statuses that mixed notification, research and your decision.
   "Relevant" takes a finding out of the inbox; a deadline reminder brings it
@@ -84,7 +99,24 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   switch: a sync that imported or removed documents, and a finished Werkbank
   run. Operator: generate keys once with `python -m proactive.notify.webpush`.
 
+### Changed
+
+- Findings on a phone: a slim segmented switch; the chat opens under the item
+  instead of replacing it. Search results appear under the search field, so
+  typing no longer jumps to another view. Every binder tab and every inbox
+  bucket has a counter. "Mission control" is just "Findings" again.
+- A dossier gets every new document of its topic, not only those the model
+  flagged as continuing the matter.
+- An expert's briefing studies every document up to 1 500 (it sampled above
+  400, so a 515-document expert said "300 documents"), and the Briefing tab
+  says how many it sees and studies.
+- The chat about a dossier sees its saved insights first.
+
 ### Fixed
+
+- "Fit into dossier" failed with a bare "ValueError" when a local model
+  answered as text instead of calling the tool: it retries, then takes the
+  text answer (checked the same way), and a real failure says why.
 
 - **The idle shutdown no longer turns off a PC someone is using.** It checks
   for an active, non-idle desktop session on the machine first and leaves it
