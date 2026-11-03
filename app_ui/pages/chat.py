@@ -496,7 +496,8 @@ html, body { overflow: hidden !important; }
     .chat-expert-sel { min-width: 4.5rem !important; max-width: 6.5rem !important; }
     .chat-expert-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chat-expert-sel .q-field__control { padding-left: 4px !important; padding-right: 2px !important; }
-    .chat-expert-sel .q-field__prepend { display: none; }
+    .chat-expert-sel .q-field__prepend { padding-right: 2px; }
+    .chat-title { display: none !important; }
 }
 /* Quick chips horizontal scroll, no scrollbar */
 .chat-quick-strip { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
@@ -726,7 +727,27 @@ _EMBED_CSS = """<style>
 .q-header{display:none!important;}
 :root{--q-header-height:0px;}
 .q-page-container{padding-top:0!important;}
-</style>"""
+/* The dock, not maximized: a quick chat under the item it is about. No
+   history drawer, no title, no context bar (the item is right above), no
+   quick actions, tool switches or compaction, no document drawer — the
+   maximized dock has all of that. */
+body.pb-compact .chat-hist-btn, body.pb-compact .chat-title, body.pb-compact .chat-ctx-row,
+body.pb-compact .chat-quick-strip, body.pb-compact .chat-input-tool, body.pb-compact .chat-tool-panel,
+body.pb-compact .chat-edge-handle, body.pb-compact .chat-docs-mobile, body.pb-compact .chat-docs-scrim,
+body.pb-compact .chat-history-drawer, body.pb-compact .chat-history-scrim,
+body.pb-compact .chat-splitter > .q-splitter__separator,
+body.pb-compact .chat-splitter > .q-splitter__after{display:none!important;}
+body.pb-compact .chat-splitter > .q-splitter__before{width:100%!important;}
+body.pb-compact .chat-input-row{padding:6px 10px!important;}
+</style>
+<script>
+// The findings page says whether its dock is maximized (pb-dock-mode).
+document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('pb-compact');});
+window.addEventListener('message',function(e){
+  if(e.origin!==window.location.origin||!e.data||e.data.type!=='pb-dock-mode')return;
+  document.body.classList.toggle('pb-compact',!e.data.full);
+});
+</script>"""
 
 
 @ui.page("/chat")
@@ -743,11 +764,6 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
     _cstore: dict = {} if _embed else ng_app.storage.user
     if _embed:
         ui.add_head_html(_EMBED_CSS)
-        # The findings page asks "continue in the full chat": answer with this
-        # conversation (pb_open_full, handled below).
-        ui.add_head_html(
-            "<script>window.addEventListener('message',function(e){if(e.origin===window.location.origin&&"
-            "e.data&&e.data.type==='pb-open-full')emitEvent('pb_open_full');});</script>")
 
     # Render-time translations for import-time constants. Keys stay German
     # (stable state keys in tool_prefs); only display labels are translated.
@@ -1836,7 +1852,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     "display:flex; flex-direction:column; overflow:hidden;"
                 ):
                     # Header row
-                    with ui.row().style(
+                    with ui.row().classes("chat-head").style(
                         f"flex-shrink:0; height:{_TABS_H};"
                         "background:var(--c-surface); border-bottom:1px solid var(--c-border);"
                         "align-items:center; padding:0 12px; gap:8px;"
@@ -1845,15 +1861,17 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         history_toggle_btn = (
                             ui.button(icon="menu")
                             .props("flat dark dense")
-                            .classes("text-gray-400")
+                            .classes("text-gray-400 chat-hist-btn")
                             .tooltip(_("Conversation history"))
                         )
                         history_toggle_btn.on_click(
                             lambda: _set_history_visible(not _s["history_visible"])
                         )
-                        ui.icon("chat", size="xs").classes("text-gray-400")
+                        # The title is the first thing to go on a phone: the
+                        # pickers and the delete button need the width.
+                        ui.icon("chat", size="xs").classes("text-gray-400 chat-title")
                         ui.label(_("Chat")).classes(
-                            "text-gray-200 font-semibold text-sm"
+                            "text-gray-200 font-semibold text-sm chat-title"
                         ).style("flex-shrink:0;")
                         # Spacer — pushes spinner + model + buttons to right
                         ui.element("div").style("flex:1;")
@@ -1882,18 +1900,31 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
 
                         # Expert: an icon-led select; the scope chip says
                         # whether it narrows the archive.
+                        _ex_opts = [(e.expert_id, e.name, e.icon or "psychology") for e in _experts_list] or [
+                            ("universal", "Universal", "psychology")]
                         _expert_sel = (
-                            ui.select(
-                                {e.expert_id: e.name for e in _experts_list} or {"universal": "Universal"},
-                                value=_s["expert_id"],
-                            )
+                            ui.select({k: n for k, n, _i in _ex_opts}, value=_s["expert_id"])
                             .props("dense outlined dark options-dense")
                             .classes("chat-expert-sel")
                             .style("flex-shrink:0; width:10rem;")
                             .tooltip(_("Expert"))
                         )
+                        # Each expert with its own icon — in the list and on the
+                        # field. NiceGUI hands Quasar the options as
+                        # {value: index, label}, so the slots look the icon up by index.
+                        _ex_icons = json.dumps([i for _k, _n, i in _ex_opts])
+                        _expert_sel.add_slot("option", (
+                            '<q-item v-bind="props.itemProps">'
+                            f"<q-item-section avatar style=\"min-width:28px\"><q-icon :name='{_ex_icons}[props.opt.value]' "
+                            'size="18px" /></q-item-section><q-item-section><q-item-label>{{ props.opt.label }}'
+                            "</q-item-label></q-item-section></q-item>"
+                        ))
+                        _ex_icon_of = {k: i for k, _n, i in _ex_opts}
                         with _expert_sel.add_slot("prepend"):
-                            ui.icon("psychology", size="xs").classes("text-gray-400")
+                            _ex_icon = ui.icon(_ex_icon_of.get(_s["expert_id"], "psychology"), size="18px").classes(
+                                "text-gray-400")
+                        _expert_sel.on_value_change(
+                            lambda e: _ex_icon.props(f"name={_ex_icon_of.get(e.value, 'psychology')}"))
                         # A lambda: the handler is defined below the layout.
                         _expert_sel.on_value_change(lambda e: _on_expert_pick(e))
                         if _reg_models:
@@ -2081,7 +2112,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                     _think_cb.on_value_change(_on_think_toggle)
 
                     # Finding context ("Chat about this" on a finding page; auto-hide)
-                    finding_row = ui.row().style(
+                    finding_row = ui.row().classes("chat-ctx-row").style(
                         "flex-shrink:0; min-height:30px; background:var(--c-surface-2);"
                         "border-top:1px solid var(--c-surface);"
                     )
@@ -4566,20 +4597,6 @@ window.__openVaultNote = function(noteId) {{
     _refresh_pinned_chips()
     _refresh_history_list()
 
-    def _open_full(_e=None) -> None:
-        """The dock's "continue in the full chat": the same conversation,
-        with its context; one not started yet opens fresh about the same thing."""
-        if _s.get("conv_id"):
-            _go(f"/chat?conv={_s['conv_id']}")
-        elif _s.get("finding_ctx"):
-            _go(f"/chat?finding={_s['finding_ctx']['id']}")
-        elif _s.get("dossier_ctx"):
-            _go(f"/chat?dossier={_s['dossier_ctx']['id']}")
-        else:
-            _go("/chat")
-
-    if _embed:
-        ui.on("pb_open_full", _open_full)
 
     # ── History drawer drag-resize ────────────────────────────────────────────
     ui.add_head_html("""<script>

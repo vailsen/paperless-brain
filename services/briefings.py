@@ -480,13 +480,47 @@ def start(user: str, token: str, expert, model: str, lang: str, *, incremental: 
     return j
 
 
-async def _call(model: str, user: str, token: str, system: str, content: str, schema: dict) -> dict:
+#: Room for the answer. A thinking model (Qwen 3.x) spends much of it before
+#: the first character of the answer: at 4 000 a 25-summary batch of medical
+#: letters ran into the cap ("finish_reason=length") and failed the study.
+MAP_MAX_TOKENS = 12_000
+REDUCE_MAX_TOKENS = 16_000
+#: A batch that still runs into the cap is split in halves down to this size.
+MIN_SPLIT = 3
+
+
+def cut_off(exc: BaseException) -> bool:
+    """The model answered past its token limit (llm_lane names the reason)."""
+    return isinstance(exc, ValueError) and "finish_reason=length" in str(exc)
+
+
+async def _call(model: str, user: str, token: str, system: str, content: str, schema: dict,
+                max_tokens: int = MAP_MAX_TOKENS) -> dict:
     from werkbank import llm_lane
 
     return await llm_lane.complete_structured(
         system, [{"role": "user", "content": content}], model=model, user_id=user, token=token,
-        json_schema=schema, tool_name="output", max_tokens=4000, temperature=0.1,
+        json_schema=schema, tool_name="output", max_tokens=max_tokens, temperature=0.1,
     )
+
+
+async def map_batch(call, system: str, batch: list[tuple[int, str]]) -> list[dict]:
+    """Notes for one batch of summaries. Cut off at the token limit, the batch
+    is read again in halves — a shorter input asks for a shorter answer —
+    instead of losing the whole study to one long batch."""
+    try:
+        res = await call(system, "\n".join(text for _id, text in batch))
+    except ValueError as exc:
+        if not cut_off(exc) or len(batch) < 2 * MIN_SPLIT:
+            raise
+        mid = len(batch) // 2
+        log.info("briefing: batch of %d cut off at the token limit — reading it in halves", len(batch))
+        return await map_batch(call, system, batch[:mid]) + await map_batch(call, system, batch[mid:])
+    out = []
+    for n in res.get("notes") or []:
+        if isinstance(n, dict) and n.get("text"):
+            out.append({"text": str(n["text"])[:300], "doc_ids": n.get("doc_ids") or []})
+    return out
 
 
 async def _ensure_host(model: str, user: str, token: str, j: Job) -> None:
@@ -539,15 +573,14 @@ async def _run(j: Job, token: str, expert, model: str, lang: str, incremental: b
                 for it in old.orientation.get(key) or []:
                     notes.append({"text": (f"{it['date']}: " if it.get("date") else "") + it["text"],
                                   "doc_ids": it.get("doc_ids") or []})
+        async def _map(system: str, content: str) -> dict:
+            return await _call(model, j.user, token, system, content, MAP_SCHEMA)
+
         for batch in batches:
             if j.stop:
                 j.status = "stopped"
                 return
-            content = "\n".join(text for _id, text in batch)
-            res = await _call(model, j.user, token, _MAP_SYSTEM.format(lang=lang), content, MAP_SCHEMA)
-            for n in res.get("notes") or []:
-                if isinstance(n, dict) and n.get("text"):
-                    notes.append({"text": str(n["text"])[:300], "doc_ids": n.get("doc_ids") or []})
+            notes += await map_batch(_map, _MAP_SYSTEM.format(lang=lang), batch)
             j.done += 1
         if j.stop:
             j.status = "stopped"
@@ -562,15 +595,22 @@ async def _run(j: Job, token: str, expert, model: str, lang: str, incremental: b
                     sc = sidecar_service.load_sidecar(did) if d else None
                     if d is not None and sc:
                         all_material[did] = material(d, sc)
-        if notes:
+        res = {}
+        keep = min(len(notes), 400)
+        while notes and keep:
             content = (
                 "Archive map:\n" + map_markdown(dmap) + "\n\nNotes:\n"
-                + "\n".join(f"- {n['text']} " + " ".join(f"#{i}" for i in n["doc_ids"]) for n in notes[:400])
+                + "\n".join(f"- {n['text']} " + " ".join(f"#{i}" for i in n["doc_ids"]) for n in notes[:keep])
             )
-            res = await _call(model, j.user, token, _REDUCE_SYSTEM.format(lang=lang, n=MAX_ITEMS),
-                              content, REDUCE_SCHEMA)
-        else:
-            res = {}
+            try:
+                res = await _call(model, j.user, token, _REDUCE_SYSTEM.format(lang=lang, n=MAX_ITEMS),
+                                  content, REDUCE_SCHEMA, max_tokens=REDUCE_MAX_TOKENS)
+                break
+            except ValueError as exc:
+                if not cut_off(exc) or keep <= 40:
+                    raise
+                keep //= 2  # fewer notes in, a shorter briefing out
+                log.info("briefing: reduce cut off at the token limit — retrying with %d notes", keep)
         j.done += 1
         j.phase = "checking"
         orientation, dropped = validate(res, all_material)
