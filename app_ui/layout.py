@@ -41,20 +41,22 @@ _MOBILE_HEADER_CSS = (
 NAV_ITEMS = [
     ("dashboard", N_("Dashboard"), "/"),
     ("chat", N_("Chat"), "/chat"),
-    ("psychology", N_("Experts"), "/experts"),
-    ("auto_awesome", N_("Deep research"), "/werkbank"),
-    ("grid_view", N_("Browser"), "/browser"),
     ("note_alt", N_("Note vault"), "/brain"),
+    ("auto_awesome", N_("Deep research"), "/werkbank"),
+    ("psychology", N_("Experts"), "/experts"),
+    ("grid_view", N_("Browser"), "/browser"),
 ]
+FINDINGS_ITEM = ("notifications", N_("Findings"), "/findings")
 
 
 def nav_items() -> list[tuple[str, str, str]]:
-    """NAV_ITEMS plus the findings page — only with PROACTIVE_ENABLED=true."""
+    """NAV_ITEMS plus the findings page (third, after the chat) — only with
+    PROACTIVE_ENABLED=true."""
     from config.proactive import is_enabled
 
     if not is_enabled():
         return NAV_ITEMS
-    return NAV_ITEMS + [("notifications", N_("Findings"), "/findings")]
+    return NAV_ITEMS[:2] + [FINDINGS_ITEM] + NAV_ITEMS[2:]
 
 
 def user_icon(username: str) -> str:

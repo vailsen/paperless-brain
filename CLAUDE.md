@@ -328,6 +328,11 @@ page `app_ui/pages/experts.py`.
   Maximize / back sit in the chat's own header row (`chat-dock-max` /
   `-min`, a `pb-dock-max` message up); on a phone the dock has no row of its
   own except to offer "Talk about the selection".
+- **Desktop: the dock is a column on the right, always there** (width dragged at
+  the handle, `--pbm-dock-w`); a phone stacks it under the item. While dragging,
+  the frame ignores the pointer (`pbm-dragging`) — released over it, the drag
+  stuck. Maximize never reloads a frame that is there (it holds the input); a
+  chat opened without a context offers "Talk about the selection" instead.
 - **Chat pickers narrow by width, never by orientation** — a dock dragged low
   is wider than tall, and orientation rules let the pickers run off screen.
 - **The folder tree under `Dossiers/` is the dossier tree**; a dossier is found

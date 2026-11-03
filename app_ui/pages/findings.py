@@ -398,15 +398,20 @@ _MC_CSS = """
 .pbm-root{position:fixed;top:var(--q-header-height,52px);left:0;right:0;bottom:0;display:grid;
   grid-template-columns:290px minmax(0,1fr);background:var(--c-bg)}
 .pbm-nav{border-right:1px solid var(--c-border);display:flex;flex-direction:column;min-width:0;min-height:0}
-.pbm-center{display:flex;flex-direction:column;min-width:0;min-height:0}
-.pbm-viewer{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
-.pbm-handle{height:7px;flex-shrink:0;cursor:row-resize;background:var(--c-border);opacity:.6}
+/* Desktop: the chat is a column on the right, always there, its width
+   dragged at the handle. A phone stacks it under the item (media query). */
+.pbm-center{display:flex;flex-direction:row;min-width:0;min-height:0}
+.pbm-viewer{flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden}
+.pbm-handle{width:6px;flex-shrink:0;cursor:col-resize;background:var(--c-border);opacity:.6}
 .pbm-handle:hover{opacity:1}
-.pbm-dock{height:var(--pbm-dock-h,38vh);flex-shrink:0;display:flex;flex-direction:column;min-height:0;
-  border-top:1px solid var(--c-border);background:var(--c-surface)}
-.pbm-dock.is-closed{height:42px}
-.pbm-dock.is-closed .pbm-dock-frame{display:none}
-.pbm-dock-head{height:42px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 10px;min-width:0}
+.pbm-dock{width:var(--pbm-dock-w,40%);flex-shrink:0;display:flex;flex-direction:column;min-width:0;min-height:0;
+  background:var(--c-surface)}
+/* Only for "Talk about the selection" — no empty row otherwise. */
+.pbm-dock-head{display:none;height:36px;flex-shrink:0;align-items:center;gap:8px;padding:0 10px;min-width:0;
+  border-bottom:1px solid var(--c-border)}
+.pbm-dock-head.has-retarget{display:flex}
+.pbm-dragging .pbm-dock-frame iframe{pointer-events:none}
+.pbm-dragging{cursor:col-resize;user-select:none}
 .pbm-dock-frame{flex:1;min-height:0;position:relative}
 .pbm-dock-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--c-bg)}
 .pbm-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
@@ -463,8 +468,7 @@ _MC_CSS = """
 /* Maximized dock: the chat takes the viewer's place; the navigator (desktop)
    and the bottom switch (phone) stay, so the way back is one tap. */
 .pbm-root.dock-max .pbm-viewer,.pbm-root.dock-max .pbm-handle{display:none!important}
-.pbm-root.dock-max .pbm-dock{flex:1;height:auto!important}
-.pbm-root.dock-max .pbm-dock.is-closed .pbm-dock-frame{display:block}
+.pbm-root.dock-max .pbm-dock{flex:1;width:auto!important;height:auto!important}
 .pbm-kbd{font-size:.65rem;border:1px solid var(--c-border);border-radius:4px;padding:0 4px;color:var(--c-text-muted)}
 .pbm-nsearch{padding:4px 6px}
 .pbm-nres{display:flex;align-items:center;gap:8px;padding:6px 10px;margin:1px 0;border-radius:8px;cursor:pointer;
@@ -476,6 +480,9 @@ _MC_CSS = """
   border:1px dashed var(--c-border-strong);border-radius:8px;padding:6px 10px}
 @media (max-width:1023px){
   .pbm-root{grid-template-columns:minmax(0,1fr);bottom:calc(48px + env(safe-area-inset-bottom))}
+  .pbm-center{flex-direction:column}
+  .pbm-dock{width:auto;border-left:0}
+  .pbm-handle{width:auto;cursor:row-resize}
   .pbm-root .pbm-nav,.pbm-root .pbm-viewer,.pbm-root .pbm-dock,.pbm-root .pbm-handle{display:none}
   .pbm-root.z-nav .pbm-nav{display:flex}
   .pbm-root.z-viewer .pbm-viewer{display:block}
@@ -487,10 +494,8 @@ _MC_CSS = """
     margin-left:-18px;border-radius:2px;background:var(--c-border-strong)}
   .pbm-root.z-chat .pbm-dock{display:flex;height:var(--pbm-dock-m,62%)!important;border-top:0}
   .pbm-root.z-chat .pbm-dock .pbm-dock-frame{display:block}
-  .pbm-root.z-chat .pbm-dock-head .pbm-dock-toggle{display:none}
   .pbm-root.z-chat.dock-max .pbm-dock{height:100%!important}
-  .pbm-root.z-chat .pbm-dock-head{display:none}
-  .pbm-root.z-chat .pbm-dock-head.has-retarget{display:flex;height:30px}
+  .pbm-root.z-chat .pbm-dock-head.has-retarget{height:30px}
   .pbm-mbar{display:flex;position:fixed;left:0;right:0;bottom:0;align-items:center;
     padding:6px 12px calc(6px + env(safe-area-inset-bottom));border-top:1px solid var(--c-border);background:var(--c-surface)}
   .pbm-seg{display:flex;flex:1;gap:2px;padding:3px;border-radius:999px;background:var(--c-surface-2);
@@ -508,16 +513,21 @@ _MC_CSS = """
 _MC_JS = """<script>
 (function(){
   // Drag the dock's edge; the height is remembered on this device.
-  try{var h=localStorage.getItem('pbm-dock-h');if(h)document.documentElement.style.setProperty('--pbm-dock-h',h);
+  try{var w=localStorage.getItem('pbm-dock-w');if(w)document.documentElement.style.setProperty('--pbm-dock-w',w);
     var m=localStorage.getItem('pbm-dock-m');if(m)document.documentElement.style.setProperty('--pbm-dock-m',m);}catch(e){}
   document.addEventListener('pointerdown',function(e){
     var hd=e.target.closest&&e.target.closest('.pbm-handle');if(!hd)return;
-    e.preventDefault();var center=hd.parentElement;
-    // On a phone the chat split has its own height (a share of the screen).
-    var key=window.innerWidth<1024?'--pbm-dock-m':'--pbm-dock-h';
-    function mv(ev){var r=center.getBoundingClientRect();var px=Math.max(120,Math.min(r.height-90,r.bottom-ev.clientY));
+    // The chat frame would swallow the pointer while dragging over it —
+    // the release never reached this page and the drag stuck.
+    e.preventDefault();var center=hd.parentElement;document.documentElement.classList.add('pbm-dragging');
+    // Desktop: the chat column's width; a phone: the chat split's height.
+    var wide=window.innerWidth>=1024, key=wide?'--pbm-dock-w':'--pbm-dock-m';
+    function mv(ev){var r=center.getBoundingClientRect();var px=wide
+        ? Math.max(320,Math.min(r.width-360,r.right-ev.clientX))
+        : Math.max(120,Math.min(r.height-90,r.bottom-ev.clientY));
       document.documentElement.style.setProperty(key,px+'px');}
-    function up(){document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);
+    function up(){document.documentElement.classList.remove('pbm-dragging');
+      document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);
       try{localStorage.setItem('pbm'+key.slice(5),getComputedStyle(document.documentElement).getPropertyValue(key));}catch(e){}}
     document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);
   });
@@ -749,7 +759,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         "q": "",
         "zone": "viewer" if sel0[0] != "home" else "nav",
         "back": ("home", ""),
-        "dock_open": bool(get_pref("findings_dock_open", True)),
+        "dock_open": True,  # the chat column is always there
         "dock_ctx": None,  # ("dossier", id) | ("finding", id)
         "dock_max": False,
         "action": action,
@@ -789,7 +799,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         with ui.element("div").classes("pbm-center"):
             viewer = ui.element("div").classes("pbm-viewer")
             ui.element("div").classes("pbm-handle")
-            dock = ui.element("div").classes("pbm-dock" + ("" if st["dock_open"] else " is-closed"))
+            dock = ui.element("div").classes("pbm-dock")
     with ui.element("div").classes("pbm-mbar"), ui.element("div").classes("pbm-seg"):
         mbtns = {}
         for z, icon, label in (("nav", "account_tree", _("Navigator")), ("viewer", "article", _("Viewer")),
@@ -1721,8 +1731,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             retarget.set_visibility(False)
             ui.element("div").classes("flex-1")
             # Maximize / back live in the chat's own header row (pb-dock-max).
-            toggle = ui.button(icon="expand_more" if st["dock_open"] else "expand_less").props(
-                "flat dense round size=sm").classes("card-action-btn pbm-dock-toggle")
+
         frame_host = ui.element("div").classes("pbm-dock-frame")
 
     def _ctx_of_selection():
@@ -1766,7 +1775,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         """The dock never re-targets on its own: a running conversation stays
         where it is. It offers the switch when the selection is elsewhere."""
         want = _ctx_of_selection()
-        show = st["dock_ctx"] is not None and want is not None and want != st["dock_ctx"]
+        # Also when the chat was opened on the overview, without a context.
+        show = bool(frame_host.default_slot.children) and want is not None and want != st["dock_ctx"]
         retarget.set_visibility(show)
         # On a phone the head row exists only for this offer.
         dock_head.classes(add="has-retarget") if show else dock_head.classes(remove="has-retarget")
@@ -1781,15 +1791,13 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 _dock_open(True)
             if _is_mobile["v"] and st["zone"] != "chat":
                 _zone("chat")
-            _dock_load()
+            if not frame_host.default_slot.children:
+                _dock_load()  # never reload a frame that is there: it holds the input
         ui.run_javascript("window.pbmDockMode && window.pbmDockMode()")
 
     def _dock_open(on: bool) -> None:
-        st["dock_open"] = on
-        set_pref("findings_dock_open", on)
-        dock.classes(remove="is-closed") if on else dock.classes(add="is-closed")
-        toggle.props(f"icon={'expand_more' if on else 'expand_less'}")
-        if on:
+        st["dock_open"] = True  # always open now; kept for the callers
+        if not frame_host.default_slot.children:
             _dock_load()
 
     def _dock_ask(ctx) -> None:
@@ -1811,7 +1819,6 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if st["dock_open"] and not _is_mobile["v"]:
             _dock_load()
 
-    toggle.on_click(lambda: _dock_open(not st["dock_open"]))
     retarget.on_click(lambda: _dock_load(_ctx_of_selection(), force=True))
 
     # ── Build ────────────────────────────────────────────────────────────────
