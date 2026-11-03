@@ -17,14 +17,20 @@ the chat has no app header and keeps its conversation out of the browser's
 
 - **Phone:** the zone switch is a slim segmented control; "Chat" no longer
   replaces the item — the viewer stays on top and the chat sits below it
-  (drag the grip), so the data stays in sight while typing. "Continue in the
-  full chat" (dock header) opens the same conversation in `/chat`
-  (`/chat?conv=<id>`; the embedded chat answers a `pb-open-full` message).
+  (drag the grip), so the data stays in sight while typing. The dock is a
+  compact chat (input, expert, model, delete); its maximize button enlarges
+  it in place — same frame, so a half-typed message and a running answer
+  survive — with the full controls, and the bottom switch stays for the way
+  back. (A first version navigated to `/chat` and lost both; `/chat?conv=<id>`
+  still opens a conversation by id.)
+- The "Ask" buttons are gone (the dock and the switch are the way to chat);
+  a finding opened from a dossier goes "Back to the dossier", on the tab it
+  came from. "Relook" is called **Rescan**.
 - **Search** shows its results in the navigator, under the field — typing
   never switches the view. It also matches the titles of the documents that
   findings and dossiers name (read as the user), and lists those documents.
 - **Counters** on every binder tab and on every inbox bucket.
-- **Relook** (dossier menu, and a notice when documents are pending): a
+- **Rescan** (formerly "Relook"; dossier menu, and a notice when documents are pending): a
   user-requested worker job (`dossier_relook`, in `USER_REQUESTED_KINDS`) that
   rebuilds the dossier from all its documents — its own, the ones the user
   added (`added_docs`, code-owned, never dropped), and those of its findings.

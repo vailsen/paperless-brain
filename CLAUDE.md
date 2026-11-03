@@ -319,6 +319,12 @@ page `app_ui/pages/experts.py`.
   implementation. Embedded, the chat has no header and keeps its conversation
   out of the browser's `/chat` state (`_cstore`). The dock never re-targets a
   running conversation on its own; it offers "Talk about the selection".
+- **Compact until maximized, and maximized in place.** The embedded chat starts
+  `body.pb-compact` (no history drawer, title, context bar, quick actions, tool
+  switches, compaction or document drawer — `_EMBED_CSS`); the dock's maximize
+  button is a class on the findings page (`dock-max`) plus a `pb-dock-mode`
+  message, never a navigation: leaving for `/chat` lost the half-typed message
+  and the running answer, and the way back. The bottom switch stays visible.
 - **The folder tree under `Dossiers/` is the dossier tree**; a dossier is found
   by its `topic`, never by its path (`dossiers._path` scans).
 - **Dossier sections carry `<!-- pb:… -->` anchors**; a file without them is
@@ -330,7 +336,7 @@ page `app_ui/pages/experts.py`.
   before the user saw the preview; the merge output passes `numbers_missing`.
 - `/findings/{id}?action=` deep links still never apply on load.
 - **Hand-added documents (`added_docs`) are code-owned** like insights: a
-  rebuild reads them and never drops them. "Relook" (`dossier_relook`) is
+  rebuild reads them and never drops them. "Rescan" (job `dossier_relook`) is
   user-requested, so it may run outside the sweep windows and wake the host.
 - **Filing a finding into a dossier moves its topic**; membership stays the
   topic key, there is no second link. Renaming a dossier changes only `label`.

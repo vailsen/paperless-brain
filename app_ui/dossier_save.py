@@ -93,6 +93,8 @@ async def open_save_dialog(
             verbatim_btn = ui.button(_("Save verbatim"), icon="content_paste").props("flat no-caps dense")
             merge_btn = ui.button(_("Fit into dossier"), icon="auto_awesome").props(
                 "unelevated no-caps dense").classes("bg-primary text-white")
+            again_btn = ui.button(_("Start over"), icon="undo").props("flat no-caps dense")
+            again_btn.set_visibility(False)
             save_btn = ui.button(_("Save"), icon="save").props("unelevated no-caps dense").classes("bg-primary text-white")
             save_btn.set_visibility(False)
 
@@ -124,13 +126,17 @@ async def open_save_dialog(
                         ui.label(w["url"]).classes("text-xs").style(
                             "color:var(--c-text-muted); overflow-wrap:anywhere;")
 
-    def _mode(m: str) -> None:
-        cur["mode"] = m
+    def _reset() -> None:
         state["result"] = None
         preview.clear()
         save_btn.set_visibility(False)
-        merge_btn.props(remove="flat").classes(add="bg-primary text-white")
-        verbatim_btn.set_visibility(m == "answer")
+        again_btn.set_visibility(False)
+        merge_btn.set_visibility(True)
+        verbatim_btn.set_visibility(cur["mode"] == "answer")
+
+    def _mode(m: str) -> None:
+        cur["mode"] = m
+        _reset()
         _render_src()
 
     def _dossier():
@@ -144,9 +150,11 @@ async def open_save_dialog(
         preview.clear()
         with preview:
             ui.separator()
-            ui.label(_("Preview — edit before saving")).classes("text-xs font-semibold").style("color:var(--c-text-2)")
+            ui.label(_("Preview — title and text are yours to edit before saving")).classes(
+                "text-xs font-semibold").style("color:var(--c-text-2)")
             state["title"] = ui.input(_("Title"), value=res["title"]).props("outlined dense").classes("w-full")
-            state["text"] = ui.textarea(_("Insight"), value=res["text"]).props("outlined autogrow").classes("w-full")
+            state["text"] = ui.textarea(_("Insight"), value=res["text"]).props("outlined autogrow rows=4").classes(
+                "w-full")
             if res.get("unsupported"):
                 with ui.row().classes("w-full items-start gap-2 no-wrap").style(
                     "background:var(--c-warn-bg); border-radius:8px; padding:6px 8px;"):
@@ -169,8 +177,11 @@ async def open_save_dialog(
                 ui.label(_("New open questions")).classes("text-xs font-semibold").style("color:var(--c-text-2)")
                 for q in res["new_questions"]:
                     state["new_q"].append((q, ui.checkbox(q, value=True).props("dense").classes("text-sm")))
+        # The preview is the result: the two ways to make one step aside.
         save_btn.set_visibility(True)
-        merge_btn.props("flat").classes(remove="bg-primary text-white")
+        again_btn.set_visibility(True)
+        merge_btn.set_visibility(False)
+        verbatim_btn.set_visibility(False)
 
     async def _merge() -> None:
         if state["busy"]:
@@ -261,6 +272,7 @@ async def open_save_dialog(
             on_saved(topic)
 
     _render_src()
+    again_btn.on_click(_reset)
     merge_btn.on_click(_merge)
     verbatim_btn.on_click(_verbatim)
     save_btn.on_click(_save)

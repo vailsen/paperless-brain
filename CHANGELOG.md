@@ -12,7 +12,7 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **Experts: "Never these"** — every access dimension (correspondents, types,
   tags) can exclude as well as narrow. The pickers are dialogs with search and
   "Done", and the back gesture closes them on a phone.
-- **Dossiers: Relook** rebuilds a dossier from all its documents — its own,
+- **Dossiers: Rescan** rebuilds a dossier from all its documents — its own,
   the ones you added, and those of its findings — keeping your insights and
   research. A notice says when documents are waiting for it.
 - **Dossiers: add documents by hand**, and **file a finding into a dossier**
@@ -114,6 +114,21 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **The findings chat dock maximizes in place** instead of jumping to the
+  chat module, so a half-typed message and a running answer survive and the
+  bottom switch still leads back. Not maximized it is a compact chat — input,
+  expert, model — without drawers, quick actions or tool switches.
+- The chat header fits on a phone (the "Chat" title gives way; the delete
+  button was cut off), and the expert chooser shows each expert's icon.
+- The access pickers no longer lag: ticking and searching happen in the
+  browser, and only the result is sent when the list closes.
+- A briefing no longer fails with "finish_reason=length" on a thinking model:
+  more room for the answer, and a batch that still runs out is read in halves.
+- A hand-added document can be taken out of a dossier again.
+- A finding opened from a dossier goes back to the dossier; "Open dossier" and
+  the "Ask" buttons are gone, the move button has a label, "Relook" is now
+  "Rescan", and the save-to-dossier preview no longer offers the two ways to
+  make one once it is shown ("Start over" instead).
 - **The app on a phone reconnects at once after switching apps.** It checks
   its connection the moment it is visible again (or the network returns):
   a socket that is down reconnects immediately instead of after a growing

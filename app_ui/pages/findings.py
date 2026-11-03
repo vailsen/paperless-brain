@@ -449,6 +449,11 @@ _MC_CSS = """
 .pbm-due .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem;color:var(--c-text)}
 .pbm-due.warn .d{color:var(--c-warn)}
 .pbm-mbar{display:none}
+/* Maximized dock: the chat takes the viewer's place; the navigator (desktop)
+   and the bottom switch (phone) stay, so the way back is one tap. */
+.pbm-root.dock-max .pbm-viewer,.pbm-root.dock-max .pbm-handle{display:none!important}
+.pbm-root.dock-max .pbm-dock{flex:1;height:auto!important}
+.pbm-root.dock-max .pbm-dock.is-closed .pbm-dock-frame{display:block}
 .pbm-kbd{font-size:.65rem;border:1px solid var(--c-border);border-radius:4px;padding:0 4px;color:var(--c-text-muted)}
 .pbm-nsearch{padding:4px 6px}
 .pbm-nres{display:flex;align-items:center;gap:8px;padding:6px 10px;margin:1px 0;border-radius:8px;cursor:pointer;
@@ -472,6 +477,8 @@ _MC_CSS = """
   .pbm-root.z-chat .pbm-dock{display:flex;height:var(--pbm-dock-m,62%)!important;border-top:0}
   .pbm-root.z-chat .pbm-dock .pbm-dock-frame{display:block}
   .pbm-root.z-chat .pbm-dock-head .pbm-dock-toggle{display:none}
+  .pbm-root.z-chat.dock-max .pbm-dock{height:100%!important}
+  .pbm-root.z-chat .pbm-dock-head{height:30px}
   .pbm-mbar{display:flex;position:fixed;left:0;right:0;bottom:0;align-items:center;
     padding:6px 12px calc(6px + env(safe-area-inset-bottom));border-top:1px solid var(--c-border);background:var(--c-surface)}
   .pbm-seg{display:flex;flex:1;gap:2px;padding:3px;border-radius:999px;background:var(--c-surface-2);
@@ -507,10 +514,13 @@ _MC_JS = """<script>
     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){var i=document.querySelector('.pbm-search input');
       if(i){e.preventDefault();i.focus();i.select();}}
   });
-  // "Continue in the full chat": the embedded chat answers with its conversation.
-  window.pbmOpenFull=function(){var f=document.querySelector('.pbm-dock-frame iframe');
-    if(f&&f.contentWindow){f.contentWindow.postMessage({type:'pb-open-full'},window.location.origin);}
-    else{window.location.href='/chat';}};
+  // The dock maximized or not: tell the embedded chat, which shows its full
+  // controls only when maximized — also after the frame (re)loads.
+  window.pbmDockMode=function(){var f=document.querySelector('.pbm-dock-frame iframe');
+    var full=!!document.querySelector('.pbm-root.dock-max');
+    if(f&&f.contentWindow){f.contentWindow.postMessage({type:'pb-dock-mode',full:full},window.location.origin);}};
+  document.addEventListener('load',function(e){
+    if(e.target&&e.target.tagName==='IFRAME'&&e.target.closest('.pbm-dock-frame'))window.pbmDockMode();},true);
   // The embedded chat saved an insight: re-read the dossier.
   window.addEventListener('message',function(e){
     if(e.origin!==window.location.origin||!e.data||e.data.type!=='pb-insight-saved')return;
@@ -717,6 +727,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         "back": ("home", ""),
         "dock_open": bool(get_pref("findings_dock_open", True)),
         "dock_ctx": None,  # ("dossier", id) | ("finding", id)
+        "dock_max": False,
         "action": action,
     }
 
@@ -731,8 +742,10 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         return "/findings"
 
     def select(kind: str, key: str = "", *, tab_: str | None = None) -> None:
-        if st["sel"][0] in ("list", "home") and kind in ("finding", "dossier"):
-            st["back"] = st["sel"]
+        if kind in ("finding", "dossier") and (
+                st["sel"][0] in ("list", "home") or (st["sel"][0] == "dossier" and kind == "finding")):
+            # A finding opened from its dossier goes back to that dossier (and tab).
+            st["back"] = st["sel"] if st["sel"][0] != "dossier" else ("dossier", st["sel"][1], st["tab"])
         st["sel"] = (kind, key)
         if tab_ is not None:
             st["tab"] = tab_
@@ -761,6 +774,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 "flat no-caps dense").classes("pbm-seg-btn" + (" is-on" if z == st["zone"] else ""))
 
     def _zone(z: str) -> None:
+        if z != "chat" and st.get("dock_max"):
+            _dock_max(False)  # back to the item: the dock shrinks again
         st["zone"] = z
         root.classes(remove="z-nav z-viewer z-chat", add=f"z-{z}")
         for k, b in mbtns.items():
@@ -891,7 +906,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             ui.label(_("Dossiers")).classes("flex-1")
             ui.icon("info_outline", size="14px").classes("card-action-btn").tooltip(_(
                 "One binder per matter. Folders only sort them. Findings land in the dossier of their "
-                "topic; add documents or file findings by hand, then use “Relook”."))
+                "topic; add documents or file findings by hand, then use “Rescan”."))
             ui.button(icon="create_new_folder", on_click=_new_folder).props("flat dense round size=sm").classes(
                 "card-action-btn").tooltip(_("New folder"))
             ui.button(icon="add", on_click=lambda: _new_dossier("")).props("flat dense round size=sm").classes(
@@ -940,8 +955,16 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
     def _back_btn() -> None:
         b = st["back"]
-        label = {"home": _("Overview"), "list": _("Back to the list")}.get(b[0], _("Back"))
-        ui.button(label, icon="arrow_back", on_click=lambda: select(*b)).props("flat dense no-caps").classes("text-xs")
+        label = {"home": _("Overview"), "list": _("Back to the list"), "dossier": _("Back to the dossier")}.get(
+            b[0], _("Back"))
+
+        def _go_back() -> None:
+            if b[0] == "dossier":
+                select("dossier", b[1], tab_=b[2] if len(b) > 2 else None)
+            else:
+                select(*b)
+
+        ui.button(label, icon="arrow_back", on_click=_go_back).props("flat dense no-caps").classes("text-xs")
 
     def _home_view() -> None:
         items, ds = _data()
@@ -1070,15 +1093,9 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                         "flat dense round").classes("card-action-btn").tooltip(_("Finding as PDF"))
                     if f is not None:
                         d = next((x for x in dmod.list_dossiers(user) if x.topic == f.topic), None) if f.topic else None
-                        if d is not None:
-                            ui.button(_("Open dossier"), icon="folder_open",
-                                      on_click=lambda i=d.pbrain_id: select("dossier", i)).props(
-                                "flat dense no-caps").classes("text-xs")
-                        ui.button(icon="drive_file_move", on_click=lambda x=f: _file_finding(x)).props(
-                            "flat dense round").classes("card-action-btn").tooltip(
-                            _("File in a dossier") if d is None else _("Move to another dossier"))
-                    ui.button(_("Ask"), icon="forum", on_click=lambda: _dock_ask(("finding", fid))).props(
-                        "unelevated dense no-caps color=primary")
+                        ui.button(_("File in a dossier") if d is None else _("Move to another dossier"),
+                                  icon="drive_file_move", on_click=lambda x=f: _file_finding(x)).props(
+                            "flat dense no-caps").classes("text-xs")
             if f is None:
                 ui.label(_("This item no longer exists.")).classes("text-sm text-gray-400")
                 return
@@ -1138,7 +1155,10 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 msg = await reactions.react(user, fid, a, channel="app")
                 ui.notify(msg, type="positive")
                 # Handled: back to where the user came from.
-                st["sel"] = st["back"]
+                b = st["back"]
+                st["sel"] = (b[0], b[1])
+                if b[0] == "dossier" and len(b) > 2:
+                    st["tab"] = b[2]
                 nav_body.refresh()
                 viewer_body.refresh()
                 ui.run_javascript(f"history.replaceState(null,'',{json.dumps(_url())})")
@@ -1223,11 +1243,9 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                         if d.origin == "user":
                             sub.append(_("made by you"))
                         ui.label(" · ".join(sub)).classes("pbm-hint w-full")
-                    ui.button(_("Ask"), icon="forum", on_click=lambda: _dock_ask(("dossier", d.pbrain_id))).props(
-                        "unelevated dense no-caps color=primary")
                     with ui.button(icon="more_vert").props("flat dense round").classes("card-action-btn"):
                         with ui.menu():
-                            ui.menu_item(_("Relook — read all its documents again"), on_click=lambda: _relook(d))
+                            ui.menu_item(_("Rescan — rewrite it from all its documents"), on_click=lambda: _relook(d))
                             ui.menu_item(_("Add documents"), on_click=lambda: _add_docs(d))
                             ui.separator()
                             ui.menu_item(_("Rename"), on_click=lambda: _rename_dossier(d))
@@ -1266,13 +1284,13 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         with ui.element("div").classes("pbm-pending w-full"):
             if state:
                 ui.spinner(size="xs").props("color=grey")
-                ui.label(_("Relook queued — the model reads all documents of this matter; it gives way "
+                ui.label(_("Rescan queued — the model rewrites this dossier from all documents of the matter; it gives way "
                            "while you chat.")).classes("flex-1 min-w-0")
                 return
             ui.icon("inventory", size="xs")
             ui.label(_("{n} documents of this matter are not in the dossier yet (added by you or from "
                        "its findings).").format(n=len(pending))).classes("flex-1 min-w-0")  # TODO i18n-plural
-            ui.button(_("Relook"), icon="refresh", on_click=lambda: _relook(d)).props("flat dense no-caps")
+            ui.button(_("Rescan"), icon="refresh", on_click=lambda: _relook(d)).props("flat dense no-caps")
 
     def _relook(d) -> None:
         from proactive import jobs as _jobs
@@ -1281,7 +1299,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
         tok = token_for(user)
         if not tok:
-            ui.notify(_("Allow background access first (Settings > Proactive) — the relook runs in the "
+            ui.notify(_("Allow background access first (Settings > Proactive) — the rescan runs in the "
                         "background, as you."), type="warning")
             return
         if not dmod.all_doc_ids(user, d):
@@ -1289,7 +1307,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             return
         _jobs.enqueue("dossier_relook", user, {"topic": d.topic}, needs_llm=True,
                       model=resolve_model(user, tok), dedupe_key=dmod.relook_key(user, d.topic))
-        ui.notify(_("Relook queued. Your saved insights and research stay."), type="positive")
+        ui.notify(_("Rescan queued. State, timeline and open questions are rewritten; your insights, research and added documents stay."), type="positive")
         viewer_body.refresh()
 
     def _add_docs(d) -> None:
@@ -1300,7 +1318,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             ui.label(_("Add documents to “{name}”").format(name=d.display)).classes(
                 "text-base font-semibold").style("color:var(--c-text)")
             ui.label(_("Search your documents by title or content, or type #123. Added documents are read "
-                       "on the next relook and never dropped by a rebuild.")).classes("pbm-hint")
+                       "on the next rescan and never dropped by a rebuild.")).classes("pbm-hint")
             q = ui.input(placeholder=_("Search documents")).props("outlined dense clearable debounce=400").classes(
                 "w-full")
             res = ui.element("div").classes("w-full").style("flex:1; min-height:120px; overflow-y:auto;")
@@ -1339,7 +1357,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             async def _ok() -> None:
                 if chosen:
                     await dmod.add_documents(user, d.topic, list(chosen))
-                    ui.notify(_("Added. Press Relook to have the model read them."), type="positive")
+                    ui.notify(_("Added. Press Rescan to have the model read them."), type="positive")
                 dlg.close()
                 viewer_body.refresh()
 
@@ -1357,7 +1375,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         with ui.dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(440px,94vw);"):
             ui.label(_("File in a dossier")).classes("text-base font-semibold").style("color:var(--c-text)")
             ui.label(_("The finding moves to the dossier's topic; its documents join the dossier and are "
-                       "read on the next relook.")).classes("pbm-hint")
+                       "read on the next rescan.")).classes("pbm-hint")
             sel = ui.select(opts, value=next(iter(opts)), label=_("Dossier"), with_input=True).props(
                 "outlined dense options-dense").classes("w-full")
             name = ui.input(_("Name of the new dossier")).props("outlined dense").classes("w-full")
@@ -1535,12 +1553,16 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                             "flex-shrink:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
                             "max-width:30%;")
                         if doc.id in added:
-                            async def _rm(i=doc.id) -> None:
-                                await dmod.remove_document(user, d.topic, i)
+                            async def _rm(doc_id: int) -> None:
+                                await dmod.remove_document(user, d.topic, doc_id)
+                                ui.notify(_("Taken out of the dossier."), type="positive")
                                 viewer_body.refresh()
 
+                            # The id is bound in the lambda: a handler with a
+                            # parameter of its own is handed the click event.
                             ui.button(icon="remove_circle_outline").props("flat dense round size=sm").classes(
-                                "card-action-btn").on("click.stop", _rm).tooltip(_("Take out of the dossier"))
+                                "card-action-btn").on("click.stop", lambda _e, i=doc.id: _rm(i)).tooltip(
+                                _("Take out of the dossier"))
 
         ui.timer(0.05, _load, once=True)
 
@@ -1586,7 +1608,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
         _ask_text(_("New dossier"), _("Name"), "", _ok, hint=_(
             "A dossier is a binder for one matter. It starts empty: add documents to it, file findings into "
-            "it, or save chat answers to it — then “Relook” has the model write its state, timeline and open "
+            "it, or save chat answers to it — then “Rescan” has the model write its state, timeline and open "
             "questions from those documents. New findings whose topic matches its name land in it by themselves."))
 
     def _new_folder() -> None:
@@ -1630,15 +1652,15 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
     # ── Chat dock ────────────────────────────────────────────────────────────
     with dock:
+        # No "Chat about …" title: the dock sits right under what it is about.
         with ui.element("div").classes("pbm-dock-head"):
-            ui.icon("forum", size="xs").classes("text-gray-400")
-            dock_title = ui.label(_("Chat")).classes("text-sm flex-1").style(
-                "color:var(--c-text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;")
             retarget = ui.button("", icon="swap_horiz").props("flat dense no-caps size=sm").classes("text-xs")
             retarget.set_visibility(False)
-            # The same conversation, continued in the full chat.
-            ui.button(icon="open_in_full", on_click=lambda: ui.run_javascript("window.pbmOpenFull()")).props(
-                "flat dense round size=sm").classes("card-action-btn").tooltip(_("Continue in the full chat"))
+            ui.element("div").classes("flex-1")
+            # Maximized in place — the same frame, so a half-typed message and a
+            # running answer survive; the full chat controls appear with it.
+            max_btn = ui.button(icon="open_in_full", on_click=lambda: _dock_max(not st["dock_max"])).props(
+                "flat dense round size=sm").classes("card-action-btn").tooltip(_("Maximize the chat"))
             toggle = ui.button(icon="expand_more" if st["dock_open"] else "expand_less").props(
                 "flat dense round size=sm").classes("card-action-btn pbm-dock-toggle")
         frame_host = ui.element("div").classes("pbm-dock-frame")
@@ -1655,15 +1677,6 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     return ("dossier", d.pbrain_id)
             return ("finding", key)
         return None
-
-    def _ctx_label(ctx) -> str:
-        if ctx is None:
-            return _("Chat")
-        if ctx[0] == "dossier":
-            d = dmod.by_id(user, ctx[1])
-            return _("Chat about: {name}").format(name=d.display if d else "?")
-        f = findings.get(user, ctx[1])
-        return _("Chat about: {name}").format(name=f.title if f else "?")
 
     def _src(ctx) -> str:
         if ctx is None:
@@ -1687,7 +1700,6 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         frame_host.clear()
         with frame_host:
             ui.html(f'<iframe src="{_esc(_src(ctx))}" allow="microphone" title="chat"></iframe>', sanitize=False)
-        dock_title.set_text(_ctx_label(ctx))
         _dock_suggest()
 
     def _dock_suggest() -> None:
@@ -1698,6 +1710,19 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         retarget.set_visibility(show)
         if show:
             retarget.set_text(_("Talk about the selection"))
+
+    def _dock_max(on: bool) -> None:
+        st["dock_max"] = on
+        root.classes(add="dock-max") if on else root.classes(remove="dock-max")
+        max_btn.props(f"icon={'close_fullscreen' if on else 'open_in_full'}")
+        max_btn.tooltip(_("Back to the item") if on else _("Maximize the chat"))
+        if on:
+            if not st["dock_open"]:
+                _dock_open(True)
+            if _is_mobile["v"] and st["zone"] != "chat":
+                _zone("chat")
+            _dock_load()
+        ui.run_javascript("window.pbmDockMode && window.pbmDockMode()")
 
     def _dock_open(on: bool) -> None:
         st["dock_open"] = on
