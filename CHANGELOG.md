@@ -114,6 +114,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **The app on a phone reconnects at once after switching apps.** It checks
+  its connection the moment it is visible again (or the network returns):
+  a socket that is down reconnects immediately instead of after a growing
+  back-off, and one the phone kept but that no longer reaches the server is
+  replaced within 1.5 s instead of waiting for the heartbeat to run out.
 - "Fit into dossier" failed with a bare "ValueError" when a local model
   answered as text instead of calling the tool: it retries, then takes the
   text answer (checked the same way), and a real failure says why.

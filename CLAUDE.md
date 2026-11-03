@@ -107,6 +107,16 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 - **NiceGUI pattern**: use `@ui.refreshable` for dynamic content in plain columns. `QTabPanels`/`element.clear()` silently fails.
 - Chat events stream via `AsyncGenerator[ChatEvent, None]` — UI iterates with `async for` and updates reactively.
 
+### Reconnecting after the app was in the background
+
+`app_ui/layout.SOCKET_REVIVE_JS` (every page) + `pb_alive` in `main.py`. The
+server keeps a page for `reconnect_timeout=300`; the socket is what dies. On
+visible / `pageshow` / `online` a down socket reconnects at once, an "up" one
+must answer `pb_alive` within 1.5 s or is replaced; the retry backoff starts at
+150 ms. A manual reconnect writes `next_message_id` into the socket query first,
+as NiceGUI's own `reconnect_attempt` does — without it the server replays from a
+stale position.
+
 ### Chat tool results that trigger UI dialogs
 
 Three tools don't execute server-side — they return a special event that the UI page (`app_ui/pages/chat.py`) intercepts to open a dialog:

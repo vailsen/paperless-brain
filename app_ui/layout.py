@@ -111,6 +111,45 @@ document.addEventListener('click', function(e) {
 });
 </script>"""
 
+# Coming back to the app on a phone. Switching to another app suspends the
+# PWA; the server keeps the page alive (`reconnect_timeout=300`), but the
+# socket did not survive, and socket.io only found out on its own clock: a
+# dead socket the phone kept looked connected until the heartbeat ran out,
+# and a closed one waited out a 0.5–1.5 s backoff that grows while the radio
+# wakes up. So, on the way back (visible again, bfcache restore, network
+# back): a socket that is down reconnects now; one that claims to be up must
+# answer a round trip (`pb_alive`, main.py) within 1.5 s or it is replaced.
+# The retry backoff starts at 150 ms. Reconnecting keeps NiceGUI's message
+# position (`next_message_id`), the same as its own reconnect does.
+SOCKET_REVIVE_JS = """<script>
+(function(){
+  var hiddenAt = 0, busy = false;
+  function sock(){ var s = window.socket; return (s && s.io) ? s : null; }
+  (function tune(){
+    var s = sock();
+    if(!s){ return setTimeout(tune, 200); }
+    s.io.reconnectionDelay(150); s.io.reconnectionDelayMax(2500); s.io.randomizationFactor(0.2);
+  })();
+  function now(s){
+    try { if(s.io.opts && s.io.opts.query){ s.io.opts.query.next_message_id = window.nextMessageId; } } catch(e){}
+    s.disconnect(); s.connect();
+  }
+  function revive(){
+    var s = sock();
+    if(!s || busy){ return; }
+    if(!s.connected){ now(s); return; }
+    busy = true;
+    s.timeout(1500).emit('pb_alive', function(err){ busy = false; if(err){ now(s); } });
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){ hiddenAt = Date.now(); }
+    else if(hiddenAt && Date.now() - hiddenAt > 1000){ revive(); }
+  });
+  window.addEventListener('pageshow', function(e){ if(e.persisted){ revive(); } });
+  window.addEventListener('online', revive);
+})();
+</script>"""
+
 # The browser spellchecks with whatever dictionary it has — English, in practice —
 # and underlines every German word the user types. There is no per-field setting
 # that survives Quasar re-rendering its inputs, so this runs once per page and
@@ -162,6 +201,7 @@ def page_layout() -> None:
     ui.add_head_html(_MOBILE_HEADER_CSS)
     ui.add_head_html(_NO_SPELLCHECK_JS)
     ui.add_head_html(_EXTERNAL_LINKS_JS)
+    ui.add_head_html(SOCKET_REVIVE_JS)
     ui.add_head_html(PAGE_VIEWER_HTML)
 
     _ = get_translator()
