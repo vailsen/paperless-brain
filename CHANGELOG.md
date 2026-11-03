@@ -105,6 +105,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Changed
 
+- **Findings on a computer: the chat is a column on the right**, always
+  there and as wide as you drag it; maximize gives it the whole page next to
+  the navigator. The empty bar above it is gone. On a phone it stays below.
+- Navigation order: Dashboard, Chat, Findings, Note vault, Deep research,
+  Experts, Browser.
 - Findings on a phone: a slim segmented switch; the chat opens under the item
   instead of replacing it. Search results appear under the search field, so
   typing no longer jumps to another view. Every binder tab and every inbox
