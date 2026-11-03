@@ -791,7 +791,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         _zone("viewer")
         nav_body.refresh()
         viewer_body.refresh()
-        _dock_suggest()
+        with root:  # the timer must outlive the clicked element
+            ui.timer(0.01, _dock_follow, once=True)
         ui.run_javascript(f"history.replaceState(null,'',{json.dumps(_url())})")
 
     # ── Shell ────────────────────────────────────────────────────────────────
@@ -1716,14 +1717,45 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         _ask_text(_("Move to folder"), _("Folder"), d.folder, _ok, options=opts)
 
     def _dossier_expert(d) -> None:
+        """Pick the expert this dossier's chat starts with — each with its icon;
+        "" = the user's default expert. The dock follows at once."""
         from services import experts
 
-        async def _ok(eid: str) -> None:
-            await dmod.set_expert(user, d.topic, "" if eid == experts.UNIVERSAL_ID else eid)
+        default = experts.get_or_universal(user, experts.default_id(user))
+        rows = [("", default.icon or "psychology", _("Your default expert ({name})").format(name=default.name))]
+        rows += [(e.expert_id, e.icon or "psychology", e.name) for e in experts.list_experts(user)]
+        chosen = {"v": d.expert or ""}
+        with ui.dialog() as dlg, ui.card().classes("gap-1").style(
+                "background:var(--c-surface); width:min(420px,94vw); max-height:80vh; overflow-y:auto;"):
+            ui.label(_("Default expert for this dossier's chat")).classes("text-base font-semibold").style(
+                "color:var(--c-text)")
+            host = ui.column().classes("w-full gap-0")
 
-        opts = {e.expert_id: e.name for e in experts.list_experts(user)}
-        _ask_text(_("Default expert for this dossier's chat"), _("Expert"), d.expert or experts.UNIVERSAL_ID, _ok,
-                  options=opts)
+            def _rows() -> None:
+                host.clear()
+                with host:
+                    for eid, icon, name in rows:
+                        el = ui.element("div").classes("pbm-nres" + (" is-on" if chosen["v"] == eid else ""))
+                        el.on("click", lambda _e, i=eid: (chosen.update(v=i), _rows()))
+                        with el:
+                            ui.icon("radio_button_checked" if chosen["v"] == eid else "radio_button_unchecked",
+                                    size="xs").style("color:var(--c-text-muted)")
+                            ui.icon(icon, size="sm").style("color:var(--c-text-2)")
+                            ui.label(name).classes("t")
+
+            _rows()
+
+            async def _ok() -> None:
+                await dmod.set_expert(user, d.topic, chosen["v"])
+                dlg.close()
+                viewer_body.refresh()
+                if st["dock_ctx"] == ("dossier", d.pbrain_id):
+                    _dock_load(("dossier", d.pbrain_id), force=True)  # the chat switches with it
+
+            with ui.row().classes("w-full justify-end gap-2 mt-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("OK"), on_click=_ok).props("unelevated no-caps").classes("bg-primary text-white")
+        dlg.open()
 
     ui.on("pb_insight_saved", lambda _e: (viewer_body.refresh(), nav_body.refresh()))
     ui.on("pb_dock_max", lambda e: _dock_max(bool(e.args)))
@@ -1758,7 +1790,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if ctx[0] == "dossier":
             d = dmod.by_id(user, ctx[1])
             q = f"/chat?embed=1&dossier={quote(ctx[1])}"
-            if d is not None and d.expert:
+            if d is not None and d.expert:  # else the chat takes the default expert
                 q += f"&expert={quote(d.expert)}"
             return q
         return f"/chat?embed=1&finding={quote(ctx[1])}"
@@ -1776,9 +1808,31 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             ui.html(f'<iframe src="{_esc(_src(ctx))}" allow="microphone" title="chat"></iframe>', sanitize=False)
         _dock_suggest()
 
+    async def _dock_follow() -> None:
+        """The chat follows the selection — another dossier opens that
+        dossier's chat — unless it is busy: an answer is running or a message
+        is half-typed. Then it stays and offers "Talk about the selection"."""
+        want = _ctx_of_selection()
+        if want is None or want == st["dock_ctx"] or not frame_host.default_slot.children:
+            _dock_suggest()
+            return
+        try:
+            busy = await ui.run_javascript(
+                "(function(){var f=document.querySelector('.pbm-dock-frame iframe');"
+                "var d=f&&f.contentDocument;if(!d)return false;"
+                "var t=d.querySelector('.chat-main-input textarea');"
+                "var b=d.querySelector('.chat-send-btn i');"
+                "return !!((t&&t.value.trim())||(b&&b.textContent.trim()==='stop'));})()", timeout=2)
+        except Exception:  # noqa: BLE001 — no answer: treat as busy, never drop input
+            busy = True
+        if busy:
+            _dock_suggest()
+        else:
+            _dock_load(want, force=True)
+
     def _dock_suggest() -> None:
-        """The dock never re-targets on its own: a running conversation stays
-        where it is. It offers the switch when the selection is elsewhere."""
+        """Busy or not loaded: the dock does not re-target on its own. It
+        offers the switch when the selection is elsewhere."""
         want = _ctx_of_selection()
         # Also when the chat was opened on the overview, without a context.
         show = bool(frame_host.default_slot.children) and want is not None and want != st["dock_ctx"]

@@ -97,6 +97,18 @@ def enabled() -> bool:
     return bool(get_pref("experts_enabled", True))
 
 
+def default_id(user: str) -> str:
+    """The expert new chats start with ("Use as default expert" on the
+    experts page, pref `default_expert_id`) — Universal when none is set or
+    the chosen one is gone. Needs a page context."""
+    from services.user_prefs import get_pref
+
+    eid = str(get_pref("default_expert_id", "") or "")
+    if not eid or not enabled():
+        return UNIVERSAL_ID
+    return eid if any(e.expert_id == eid for e in list_experts(user)) else UNIVERSAL_ID
+
+
 def _subfolder() -> str:
     return settings.experts_subfolder
 

@@ -188,6 +188,8 @@ async def experts_page(e: str = "", view: str = "experts"):
                         sub = _("All documents")
                     else:
                         sub = _("{n} documents").format(n=n) if n is not None else _("Narrowed access")  # TODO i18n-plural
+                    if experts.default_id(user) == ex.expert_id:
+                        sub += " · " + _("default")
                     with ui.element("div").classes("pbx-item" + (" is-active" if ex.expert_id == st["sel"] else "")).on(
                         "click", lambda _e, i=ex.expert_id: _select(i)
                     ):
@@ -285,6 +287,20 @@ async def experts_page(e: str = "", view: str = "experts"):
     # ── Profile ──────────────────────────────────────────────────────────────
     def _profile(ex) -> None:
         sha = {"v": ex.sha}
+        with ui.element("div").classes("pbx-card"):
+            # One default at a time: ticking it here moves it from the other.
+            def _set_default(e) -> None:
+                from services.user_prefs import set_pref
+
+                set_pref("default_expert_id", ex.expert_id if e.value else experts.UNIVERSAL_ID)
+                ui.notify(_("New chats start with {name}.").format(
+                    name=ex.name if e.value else "Universal"), type="positive")
+                aside_body.refresh()
+
+            ui.checkbox(_("Use as default expert"), value=experts.default_id(user) == ex.expert_id,
+                        on_change=_set_default).props("dense")
+            ui.label(_("New chats, and a dossier's chat without an expert of its own, start with it. "
+                       "Only one expert is the default.")).classes("pbx-hint")
         with ui.element("div").classes("pbx-card"):
             ui.label(_("Name")).classes("pbx-label")
             name = ui.input(value=ex.name).props("outlined dense" + (" readonly" if ex.builtin else "")).classes("w-full")

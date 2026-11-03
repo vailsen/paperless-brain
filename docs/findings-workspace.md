@@ -127,9 +127,10 @@ Two consequences drive the plan:
   research), unchanged in substance. A dossier selected → the binder with tabs.
 - **Chat dock (bottom, `ui.splitter` horizontal, default 35 %, collapsible to a
   one-line input).** It always shows its context chip ("about: Kfz-Versicherung")
-  and the expert + model pickers. Selecting another item in the navigator does
-  **not** silently re-target a running conversation: the chip offers
-  "Switch context" (starts a new conversation) or keep.
+  and the expert + model pickers. Selecting another item in the navigator
+  moves the chat to it (that item's latest conversation, or a new one). Only
+  a busy chat — text typed, or an answer running — keeps its conversation; it
+  then offers "Talk about the selection".
 - **Topic colours** stay the user's choice (`app_ui/topic_colors.py`) and appear
   as the 3 px outline on tree rows and cards — nowhere else.
 
