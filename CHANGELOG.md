@@ -9,6 +9,13 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Help in the header**: the "?" next to your name opens the module overview
+  on every page (it used to be a fold on the dashboard), now with Findings,
+  Note vault, Deep research and Experts.
+- **Default expert**: "Use as default expert" on an expert's profile. New
+  chats, and a dossier's chat without an expert of its own, start with it.
+- **Quick actions bar switch** in the chat's tool settings; off stays off,
+  on every device.
 - **"Use experts" switch** (Settings > AI): off, every chat is the Universal
   expert, and the expert picker and the Experts menu item are gone. Your
   experts stay saved.
@@ -108,6 +115,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Changed
 
+- **The findings chat follows the selection**: picking another dossier or
+  finding moves the chat there. Only while you are typing or an answer is
+  running does it stay put and offer "Talk about the selection".
+- **Dossier chat expert** is chosen from a list with the experts' icons, and
+  takes effect in the open chat at once.
 - The findings chat starts with the dossier's own default expert, else the
   Universal one — not the expert last picked in the chat module. Picking an
   expert in a dossier's chat makes it that dossier's default.
@@ -135,6 +147,8 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- Chat history: a hovered conversation was white on black.
+- A dossier's chat expert was not used when you came back to the dossier.
 - A dossier's open questions showed one character per line when the model
   sent the list as text; such lists are read properly now, and dossiers
   already broken that way show no questions until their next rescan.

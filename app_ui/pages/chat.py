@@ -448,7 +448,7 @@ html, body { overflow: hidden !important; }
     border-left: 2px solid transparent;
     transition: background .15s; min-width: 0;
 }
-.chat-history-item:hover { background: #1a2235; }
+.chat-history-item:hover { background: var(--c-surface-2); }
 .chat-history-item:hover .chat-hist-actions { opacity: 1; }
 .chat-history-item.active { background: var(--c-surface-3); border-left-color: var(--c-accent); }
 .chat-hist-actions { opacity: 0; transition: opacity .15s; display: flex; gap: 0; flex-shrink: 0; }
@@ -1087,12 +1087,12 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
     # takes the expert last picked in /chat — that put one particular expert
     # on every dossier: the dossier's own default (?expert=) or Universal.
     _experts_on = _experts_mod.enabled()
+    # A new chat starts with the user's default expert ("Use as default
+    # expert"), the dock with the dossier's own (?expert=) or that default.
     _initial_expert_id = (
         _experts_mod.UNIVERSAL_ID if not _experts_on
         else expert if expert in _known_experts
-        else _experts_mod.UNIVERSAL_ID if _embed
-        else (get_pref("chat_expert_id", "") if get_pref("chat_expert_id", "") in _known_experts
-              else _experts_mod.UNIVERSAL_ID)
+        else _experts_mod.default_id(_username)
     )
 
     def _scoped_pl():
@@ -1622,6 +1622,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         for _cb, _grp in _tool_cbs:
             _cb.set_value(_TOOL_GROUP_DEFAULTS.get(_grp, True))
         _set_history_visible(False)
+        # A new conversation starts with the default expert (a dossier's dock
+        # with the dossier's own); picking another one follows this.
+        _apply_expert(_s.get("dock_expert") or _experts_mod.default_id(_username))
 
     async def _compact_chat() -> None:
         if not _s["messages"] or _s["running"]:
@@ -2143,6 +2146,14 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                         _save_chat_settings()
                                     _think_cb.on_value_change(_on_think_toggle)
 
+                                    def _on_quick_toggle(e) -> None:
+                                        set_pref("chat_quick_bar", bool(e.value))
+                                        quick_strip.set_visibility(bool(e.value))
+
+                                    ui.switch(_("Quick actions bar"), value=bool(get_pref("chat_quick_bar", True)),
+                                              on_change=_on_quick_toggle).props("dense dark").classes(
+                                        "text-gray-300 chat-tool-cb")
+
                     # Finding context ("Chat about this" on a finding page; auto-hide)
                     finding_row = ui.row().classes("chat-ctx-row").style(
                         "flex-shrink:0; min-height:30px; background:var(--c-surface-2);"
@@ -2175,14 +2186,15 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 "flex-wrap gap-1 flex-1 items-center"
                             )
 
-                    # Quick action chips
+                    # Quick action chips — the user can switch the bar off
+                    # (tool settings, pref `chat_quick_bar`, default on).
                     with (
                         ui.element("div")
                         .classes("chat-quick-strip")
                         .style(
                             "flex-shrink:0; background:var(--c-surface-2); border-top:1px solid var(--c-surface);"
                             "height:36px;"
-                        )
+                        ) as quick_strip
                     ):
                         with ui.element("div").classes("suggestion-row").style(
                             "width:100%; overflow-x:auto; scrollbar-width:none;"
@@ -2220,6 +2232,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
     update();
 })();
 </script>""")
+
+                    quick_strip.set_visibility(bool(get_pref("chat_quick_bar", True)))
 
                     # Input row
                     with (
@@ -3088,11 +3102,12 @@ window.__openVaultNote = function(noteId) {{
         if not _embed:
             set_pref("chat_expert_id", eid)
         elif _s.get("dossier_ctx") and _dossiers_on:
-            # Picked in a dossier's dock: that dossier's chat starts with it.
+            # Picked in a dossier's dock: that dossier's chat starts with it
+            # (Universal too, explicitly — "" would mean the user's default).
             from proactive import dossiers as _dossiers
 
-            asyncio.ensure_future(_dossiers.set_expert(
-                _username, _s["dossier_ctx"]["topic"], "" if eid == _experts_mod.UNIVERSAL_ID else eid))
+            _s["dock_expert"] = eid
+            asyncio.ensure_future(_dossiers.set_expert(_username, _s["dossier_ctx"]["topic"], eid))
         ex = _expert()
         if ex.default_model and any(m["name"] == ex.default_model for m in _reg_models) and _chat_model_sel is not None:
             _chat_model_sel.set_value(ex.default_model)
@@ -4537,19 +4552,25 @@ window.__openVaultNote = function(noteId) {{
     # "Last" means this browser's open chat, else the user's most recent
     # conversation — so a second device opens where the first one left off.
     if _embed and dossier:
-        # The dock: this dossier's latest conversation, else a fresh one with
-        # the dossier's default expert.
+        # The dock: this dossier's latest conversation — as long as it is with
+        # the dossier's expert. A conversation with another one (the default
+        # was changed since) stays in the history; a fresh one starts.
         _ctx_key = f"dossier:{dossier}"
+        _want_expert = expert if expert in _known_experts else _experts_mod.default_id(_username)
+        if not _experts_on:
+            _want_expert = _experts_mod.UNIVERSAL_ID
+        _s["dock_expert"] = _want_expert
         _dconv = next((c for c in _chat_hist.list_conversations(_username)
                        if c.get("context") == _ctx_key), None) if _username else None
+        if _dconv and (_dconv.get("expert_id") or _experts_mod.UNIVERSAL_ID) != _want_expert:
+            _dconv = None
         if _dconv:
             _cstore["chat_conv_id"] = _dconv["id"]
             _load_conv(_dconv["id"])
         else:
             _set_dossier_ctx(dossier)
             _cstore["chat_fresh"] = True
-            if expert in _known_experts:
-                _apply_expert(expert)
+            _apply_expert(_want_expert)
         if _s.get("dossier_ctx") is None:
             _set_dossier_ctx(dossier)
     if get_pref("chat_on_open", "last") == "new" and not _embed:

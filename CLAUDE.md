@@ -301,8 +301,12 @@ page `app_ui/pages/experts.py`.
 - **"Use experts" is a per-user switch** (`experts.enabled()`, pref
   `experts_enabled`): off, `_apply_expert` coerces every conversation to
   Universal and the picker and menu item are hidden. The findings dock never
-  inherits `/chat`'s last expert — dossier default (`expert`) or Universal;
-  picking one in a dossier's dock sets that default.
+  inherits `/chat`'s last expert — dossier default (`expert`), else the user's
+  default expert; picking one in a dossier's dock sets that dossier's default.
+- **One default expert per user** (pref `default_expert_id`, read only through
+  `experts.default_id()`, which falls back to Universal when the switch is off
+  or the expert is gone). New chats start with it — never with the last one
+  picked.
 - **Every expert keeps memory and vault** (`experts.ALWAYS_ON_GROUPS`). Experts
   never run in the Werkbank (`use_skill` is in `forbidden_tools`).
 - **Experts and skills are configuration, never embedded**
@@ -326,8 +330,10 @@ page `app_ui/pages/experts.py`.
 
 - **The dock is the chat page, embedded** (`/chat?embed=1&dossier=…`): one chat
   implementation. Embedded, the chat has no header and keeps its conversation
-  out of the browser's `/chat` state (`_cstore`). The dock never re-targets a
-  running conversation on its own; it offers "Talk about the selection".
+  out of the browser's `/chat` state (`_cstore`). **The dock follows the
+  selection** (`_dock_follow`) unless it is busy — text in the input or an
+  answer running; only then it keeps its conversation and offers "Talk about
+  the selection".
 - **Compact until maximized, and maximized in place.** The embedded chat starts
   `body.pb-compact` (no history drawer, title, context bar, quick actions, tool
   switches, compaction or document drawer — `_EMBED_CSS`); the dock's maximize

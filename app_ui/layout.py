@@ -273,6 +273,13 @@ def page_layout() -> None:
 
             memo_button()
 
+        # ── Help: the module overview, from every page ───────────────────────
+        if username:
+            from app_ui.help_dialog import open_help
+
+            ui.button(icon="help_outline", color=None, on_click=open_help).props("flat dark dense round").classes(
+                "text-gray-300 nav-btn").tooltip(_("Help"))
+
         # ── Logged-in user dropdown (Settings + Logout) ──────────────────────
         if username:
             ui.separator().props("vertical dark").classes("mx-2 h-6 self-center")
