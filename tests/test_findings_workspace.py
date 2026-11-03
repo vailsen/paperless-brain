@@ -1,4 +1,4 @@
-"""Mission control (docs/findings-mission-control.md): dossier tree and
+"""Findings workspace (docs/findings-workspace.md): dossier tree and
 insights, provenance from the tool log, the merge checks, ledger search."""
 
 import asyncio
@@ -138,3 +138,59 @@ def test_search_finds_held_findings_and_insights(vault):
     res = search_ledger("adac", [f], [d])
     assert res["insights"][0][1].title == "Übersicht ADAC"
     assert search_ledger("uebersicht", [f], [d])["insights"] == [] and search_ledger("ubersicht", [f], [d])["insights"]
+
+
+def test_search_finds_findings_by_the_names_of_their_documents(vault):
+    from app_ui.pages.findings import search_ledger
+    from proactive import dossiers, findings
+
+    f = findings.Finding(finding_id="abcdefg", kind="insight", title="Abschlag erhöht", doc_ids=[241])
+    d = dossiers.Dossier(topic="strom", label="Strom", added_docs=[300])
+    titles = {241: "Stadtwerke Jahresabrechnung 2026", 300: "Stadtwerke Vertrag"}
+    res = search_ledger("jahresabrechnung", [f], [d], titles)
+    assert res["findings"] == [f] and res["documents"] == [(241, "Stadtwerke Jahresabrechnung 2026")]
+    res = search_ledger("stadtwerke vertrag", [f], [d], titles)
+    assert res["dossiers"] == [d] and res["documents"][0][0] == 300
+
+
+def test_merge_falls_back_when_the_model_answers_past_the_tool(monkeypatch):
+    """A local model that writes prose instead of calling `file_insight` was a
+    bare "ValueError" in the dialog: retry once, then a plain-text round."""
+    from proactive import dossiers
+    from services import dossier_merge
+    from werkbank import llm_lane
+
+    calls = {"structured": 0}
+
+    async def structured(*a, **k):
+        calls["structured"] += 1
+        raise ValueError("OpenAI-compat model did not call tool 'file_insight' — finish_reason=stop")
+
+    async def text(*a, **k):
+        return "<think>hm</think>\nADAC ohne Werkstattbindung\n\nDer Tarif kostet 412 € im Jahr."
+
+    async def awake(*a, **k):
+        return None
+
+    monkeypatch.setattr(llm_lane, "complete_structured", structured)
+    monkeypatch.setattr(llm_lane, "complete", text)
+    monkeypatch.setattr(dossier_merge, "_wake", awake)
+    d = dossiers.Dossier(topic="kfz", open_questions=["Frist?"])
+    out = _run(dossier_merge.merge("Er kostet 412 € im Jahr.", d, model="m", user="alice", token="t", haystack=""))
+    assert calls["structured"] == 2 and out["mode"] == "text"
+    assert out["title"] == "ADAC ohne Werkstattbindung" and "412" in out["text"] and out["unsupported"] == []
+
+
+def test_a_whole_conversation_is_condensed_with_all_its_sources():
+    from services import dossier_merge
+
+    msgs = [{"role": "user", "content": "Lohnt der Wechsel?"},
+            {"role": "assistant", "content": "Laut Police [^241-p2] …"},
+            {"role": "user", "content": "Und der ADAC?"},
+            {"role": "assistant", "content": "412 € [web]"}]
+    t = dossier_merge.transcript(msgs)
+    assert t.startswith("User: Lohnt der Wechsel?") and "[#241 p2]" in t and t.endswith("Assistant: 412 € [web]")
+    p = dossier_merge.merge_provenance([{"docs": [{"id": 241, "page": 2}], "haystack": "a"},
+                                        {"web": [{"url": "https://adac.de/x"}], "haystack": "412"}])
+    assert p["evidence"] == "documents+web" and p["docs"] == [{"id": 241, "page": 2}] and "412" in p["haystack"]
+    assert dossier_merge.merge_provenance([{}, {}]) == {}

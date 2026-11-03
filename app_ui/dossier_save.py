@@ -1,4 +1,4 @@
-"""The "Save to dossier" dialog on chat answers (docs/findings-mission-control.md §5).
+"""The "Save to dossier" dialog on chat answers (docs/findings-workspace.md §5).
 
 Pick a dossier (or make one) → the merge round fits the excerpt into it →
 a preview the user can edit, with what the checks found → save. Nothing is
@@ -33,6 +33,7 @@ async def open_save_dialog(
     *, user: str, token: str, answer: str, selection: str, provenance: dict, conv_id: str,
     msg_index: int, preselect: str, models: list[dict], default_model: str,
     on_saved: Callable[[str], None] | None = None,
+    conversation: list[dict] | None = None, conv_provenance: dict | None = None,
 ) -> None:
     from app_ui.model_picker import model_select
     from proactive import dossiers
@@ -40,7 +41,19 @@ async def open_save_dialog(
     from services.user_prefs import get_pref, set_pref
 
     _ = get_translator()
-    excerpt = (selection or answer or "").strip()
+    one = {"excerpt": (selection or answer or "").strip(), "prov": provenance or {}}
+    whole = None
+    if conversation:
+        t = dossier_merge.transcript(conversation)
+        if t and sum(1 for m in conversation if m.get("role") == "assistant") > 1:
+            whole = {"excerpt": t, "prov": conv_provenance or {}}
+    cur = {"mode": "answer"}
+
+    def _excerpt() -> str:
+        return (whole if cur["mode"] == "conversation" and whole else one)["excerpt"]
+
+    def _prov() -> dict:
+        return (whole if cur["mode"] == "conversation" and whole else one)["prov"]
     all_d = sorted(dossiers.list_dossiers(user), key=lambda d: (d.folder.casefold(), d.display.casefold()))
     options = {d.topic: (f"{d.folder} / {d.display}" if d.folder else d.display) for d in all_d}
     options[_NEW] = _("New dossier …")
@@ -62,28 +75,11 @@ async def open_save_dialog(
         new_name.set_visibility(start == _NEW)
         target.on_value_change(lambda e: new_name.set_visibility(e.value == _NEW))
 
-        with ui.expansion(_("Excerpt ({n} characters)").format(n=len(excerpt)),
-                          icon="format_quote", value=bool(selection)).classes("w-full").props("dense"):
-            ui.markdown(excerpt[:6000]).classes("chat-md text-sm").style("color:var(--c-text-2)")
-
-        # Provenance, from the tool log — shown, never edited.
-        with ui.column().classes("w-full gap-1").style(
-            "border:1px solid var(--c-border); border-radius:8px; padding:8px 10px;"):
-            ui.label(_("Sources (from this answer's tool calls)")).classes("text-xs font-semibold").style(
-                "color:var(--c-text-2)")
-            if not provenance:
-                ui.label(_("No tool log stored for this answer — sources unknown.")).classes("text-xs").style(
-                    "color:var(--c-text-muted)")
-            else:
-                ui.label(_("Evidence: {kind}").format(kind=_evidence_label(_, provenance.get("evidence", "")))).classes(
-                    "text-xs").style("color:var(--c-text-muted)")
-                if provenance.get("docs"):
-                    ui.label(_("Documents: {list}").format(list=", ".join(
-                        f"#{d['id']}" + (f" p{d['page']}" if d.get("page") else "") for d in provenance["docs"]))).classes(
-                        "text-xs").style("color:var(--c-text-muted)")
-                for w in provenance.get("web") or []:
-                    ui.label(w["url"]).classes("text-xs").style(
-                        "color:var(--c-text-muted); overflow-wrap:anywhere;")
+        if whole:
+            ui.toggle({"answer": _("This answer") if not selection else _("The selected text"),
+                       "conversation": _("The whole conversation")}, value="answer",
+                      on_change=lambda e: _mode(e.value)).props("dense no-caps unelevated").classes("self-start")
+        src_host = ui.column().classes("w-full gap-2")
 
         note = ui.input(_("Your note for the merge (optional)")).props("outlined dense").classes("w-full")
         with ui.row().classes("w-full items-center gap-2 no-wrap"):
@@ -99,6 +95,43 @@ async def open_save_dialog(
                 "unelevated no-caps dense").classes("bg-primary text-white")
             save_btn = ui.button(_("Save"), icon="save").props("unelevated no-caps dense").classes("bg-primary text-white")
             save_btn.set_visibility(False)
+
+    def _render_src() -> None:
+        excerpt, provenance = _excerpt(), _prov()
+        src_host.clear()
+        with src_host:
+            with ui.expansion(_("Excerpt ({n} characters)").format(n=len(excerpt)),
+                              icon="format_quote", value=bool(selection) and cur["mode"] == "answer").classes(
+                    "w-full").props("dense"):
+                ui.markdown(excerpt[:6000]).classes("chat-md text-sm").style("color:var(--c-text-2)")
+            # Provenance, from the tool log — shown, never edited.
+            with ui.column().classes("w-full gap-1").style(
+                    "border:1px solid var(--c-border); border-radius:8px; padding:8px 10px;"):
+                ui.label(_("Sources (from this answer's tool calls)") if cur["mode"] == "answer"
+                         else _("Sources (from the tool calls of every answer)")).classes(
+                    "text-xs font-semibold").style("color:var(--c-text-2)")
+                if not provenance:
+                    ui.label(_("No tool log stored for this answer — sources unknown.")).classes("text-xs").style(
+                        "color:var(--c-text-muted)")
+                else:
+                    ui.label(_("Evidence: {kind}").format(kind=_evidence_label(_, provenance.get("evidence", "")))).classes(
+                        "text-xs").style("color:var(--c-text-muted)")
+                    if provenance.get("docs"):
+                        ui.label(_("Documents: {list}").format(list=", ".join(
+                            f"#{d['id']}" + (f" p{d['page']}" if d.get("page") else "") for d in provenance["docs"]))).classes(
+                            "text-xs").style("color:var(--c-text-muted)")
+                    for w in provenance.get("web") or []:
+                        ui.label(w["url"]).classes("text-xs").style(
+                            "color:var(--c-text-muted); overflow-wrap:anywhere;")
+
+    def _mode(m: str) -> None:
+        cur["mode"] = m
+        state["result"] = None
+        preview.clear()
+        save_btn.set_visibility(False)
+        merge_btn.props(remove="flat").classes(add="bg-primary text-white")
+        verbatim_btn.set_visibility(m == "answer")
+        _render_src()
 
     def _dossier():
         topic = target.value
@@ -158,21 +191,27 @@ async def open_save_dialog(
             fake = d or dossiers.Dossier(topic="", label=(new_name.value or "").strip(),
                                          lang=get_pref("language", "en"))
             res = await dossier_merge.merge(
-                excerpt, fake, model=model, user=user, token=token,
-                haystack=str(provenance.get("haystack") or ""), note=note.value or "",
+                _excerpt(), fake, model=model, user=user, token=token,
+                haystack=str(_prov().get("haystack") or ""), note=note.value or "",
+                conversation=cur["mode"] == "conversation",
             )
             _show_preview(res, d, model)
-            status.set_text("")
+            status.set_text(_("The model answered as plain text; numbers and questions were checked the same way.")
+                            if res.get("mode") == "text" else "")
         except Exception as exc:
             log.warning("merge round failed", exc_info=True)
-            status.set_text(_("The model could not do it ({err}). You can save the excerpt verbatim.").format(
-                err=type(exc).__name__))
+            from werkbank.v2.pipeline import describe_failure
+
+            kind, _detail = describe_failure(exc)
+            why = _("the model host does not answer") if kind == "host" else (str(exc) or type(exc).__name__)
+            status.set_text(_("The model could not do it: {err}. You can save the excerpt verbatim.").format(
+                err=why[:300]))
         finally:
             state["busy"] = False
             merge_btn.props(remove="loading")
 
     def _verbatim() -> None:
-        _show_preview(dossier_merge.verbatim(excerpt), _dossier(), "")
+        _show_preview(dossier_merge.verbatim(_excerpt()), _dossier(), "")
 
     async def _save() -> None:
         res = state.get("result")
@@ -183,6 +222,7 @@ async def open_save_dialog(
         if not title or not text:
             ui.notify(_("Title and text are needed."), type="warning")
             return
+        excerpt, provenance = _excerpt(), _prov()
         try:
             topic = target.value
             if topic == _NEW:
@@ -220,6 +260,7 @@ async def open_save_dialog(
         if on_saved:
             on_saved(topic)
 
+    _render_src()
     merge_btn.on_click(_merge)
     verbatim_btn.on_click(_verbatim)
     save_btn.on_click(_save)

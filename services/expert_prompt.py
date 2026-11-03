@@ -38,7 +38,10 @@ def scope_block(expert) -> str:
     if expert.builtin or expert.scope.unrestricted:
         return ""
     names = expert.scope_names()
-    labels = {"correspondents": "correspondents", "document_types": "document types", "tags": "tags (any of)"}
+    labels = {"correspondents": "correspondents", "document_types": "document types", "tags": "tags (any of)",
+              "exclude_correspondents": "NOT from correspondents",
+              "exclude_document_types": "NOT of document types",
+              "exclude_tags": "NOT tagged with any of"}
     lines = [f"- {labels[k]}: {', '.join(v)}" for k, v in names.items() if v]
     return (
         f"You are the expert \"{expert.name}\". You see only part of the user's archive — "

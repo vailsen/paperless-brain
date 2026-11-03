@@ -9,7 +9,7 @@ gives the updated dossier, without re-reading everything. Bumping
 a date that does not parse or a document id outside the dossier's documents is
 dropped — and sets `revisit_after` from the topic's interest weight.
 
-Mission control (docs/findings-mission-control.md):
+Findings workspace (docs/findings-workspace.md):
 
 - **The folder tree under `Dossiers/` is the dossier tree.** A dossier may sit
   in a subfolder; it is found by its `topic` key, never by its path.
@@ -101,6 +101,9 @@ class Dossier:
     origin: str = "proactive"  # proactive | user
     label: str = ""  # display name of a hand-made dossier
     expert: str = ""  # default expert of the chat dock
+    #: Documents the user added by hand — code-owned: a rebuild reads them and
+    #: never drops them.
+    added_docs: list[int] = field(default_factory=list)
     pbrain_id: str = ""
     rel: str = ""
     sha: str = ""
@@ -324,6 +327,7 @@ def parse(text: str, *, rel: str = "") -> Dossier | None:
         origin=str(m.get("origin") or "proactive"),
         label=str(m.get("label") or ""),
         expert=str(m.get("expert") or ""),
+        added_docs=[int(x) for x in m.get("added_docs") or [] if str(x).isdigit()],
         pbrain_id=get_id(m),
         rel=rel,
         sha=sha_of(text),
@@ -422,6 +426,8 @@ def _meta(d: Dossier) -> dict:
         meta["label"] = d.label
     if d.expert:
         meta["expert"] = d.expert
+    if d.added_docs:
+        meta["added_docs"] = sorted(set(d.added_docs))
     return meta
 
 
@@ -453,7 +459,7 @@ async def write(user: str, d: Dossier) -> Dossier:
         snap = await read_note(user, rel)
         note = split_note(snap.text)
         meta.pop("pbrain_id", None)  # keep the file's own identity
-        remove = tuple(k for k in ("research", "resolved", "label", "expert") if k not in meta)
+        remove = tuple(k for k in ("research", "resolved", "label", "expert", "added_docs") if k not in meta)
         text = join_note(type(note)(apply_edits(note.fm_raw, set_=meta, remove=remove), body,
                                     note.open_fence, note.close_fence))
         try:
@@ -469,6 +475,7 @@ def from_result(user: str, topic: str, result: dict, *, lang: str, version: int,
     tl, qs = validated(result, ids)
     if existing is not None:
         ids |= set(existing.doc_ids) if existing.origin == "user" else set()
+        ids |= set(existing.added_docs)
         done = {r["question"] for r in existing.resolved}
         qs = [q for q in qs if q not in done]
     return Dossier(
@@ -488,6 +495,7 @@ def from_result(user: str, topic: str, result: dict, *, lang: str, version: int,
         origin=existing.origin if existing else "proactive",
         label=existing.label if existing else "",
         expert=existing.expert if existing else "",
+        added_docs=list(existing.added_docs) if existing else [],
         pbrain_id=existing.pbrain_id if existing else "",
     )
 
@@ -511,7 +519,7 @@ async def add_research(user: str, topic: str, note_rel: str) -> bool:
     return True
 
 
-# ── Mission control: hand-made dossiers, tree, insights ──────────────────────
+# ── Workspace: hand-made dossiers, tree, insights ──────────────────────
 
 class DossierError(ValueError):
     pass
@@ -641,6 +649,80 @@ async def delete_insight(user: str, topic: str, insight_id: str) -> Dossier | No
         return None
     d.insights = [i for i in d.insights if i.insight_id != insight_id]
     return await write(user, d)
+
+
+async def add_documents(user: str, topic: str, doc_ids: list[int]) -> Dossier | None:
+    """The user puts documents into a dossier. They count from now on (the
+    Documents tab, the next relook); the model reads them on the relook."""
+    d = load(user, topic)
+    if d is None:
+        return None
+    d.added_docs = sorted(set(d.added_docs) | {int(i) for i in doc_ids})
+    return await write(user, d)
+
+
+async def remove_document(user: str, topic: str, doc_id: int) -> Dossier | None:
+    """Only a hand-added document can be taken out; the rest belongs to the
+    matter's thread and comes back on every rebuild."""
+    d = load(user, topic)
+    if d is None or doc_id not in d.added_docs:
+        return d
+    d.added_docs = [i for i in d.added_docs if i != doc_id]
+    d.doc_ids = [i for i in d.doc_ids if i != doc_id]
+    return await write(user, d)
+
+
+def relook_key(user: str, topic: str) -> str:
+    """Dedupe key of the user's "Relook" job (`tasks.topics.dossier_relook`)."""
+    return f"dossier_relook:{user}:{topic}"
+
+
+def all_doc_ids(user: str, d: Dossier) -> list[int]:
+    """Everything this matter knows of: what the dossier was built from, what
+    the user added, and the documents of its findings."""
+    ids = set(d.doc_ids) | set(d.added_docs)
+    for f in findings_of(user, d.topic):
+        ids |= set(f.doc_ids)
+    return sorted(ids)
+
+
+def pending_docs(user: str, d: Dossier) -> list[int]:
+    """Documents of the matter the dossier was not built from yet — what a
+    relook would read for the first time."""
+    return [i for i in all_doc_ids(user, d) if i not in set(d.doc_ids)]
+
+
+async def file_finding(user: str, finding_id: str, topic: str) -> bool:
+    """Put a finding into a dossier: it takes the dossier's topic (membership
+    is the topic key). Its documents become the dossier's pending documents;
+    reactions already counted for its old topic stay where they were."""
+    from proactive import findings
+
+    d = load(user, topic)
+    if d is None:
+        raise DossierError("missing")
+    out = await findings.update(user, finding_id, lambda f: (
+        None if f.topic == topic else {"topic": topic, "topic_label": d.display}))
+    return out is not None
+
+
+def context_text(d: Dossier, limit: int = 6000) -> str:
+    """The dossier as the chat sees it: state, open questions and the user's
+    saved insights first (they are what the dossier knows beyond its
+    documents), then the newest timeline entries. A map, not evidence."""
+    parts = [f"Current state:\n{d.current_state.strip() or '(not written yet)'}"]
+    if d.open_questions:
+        parts.append("Open questions:\n" + "\n".join(f"- {q}" for q in d.open_questions))
+    if d.insights:
+        parts.append("Insights the user saved (newest first):\n" + "\n".join(
+            f"- {i.created[:10]} {i.title}: {' '.join(i.text.split())[:500]}" for i in d.insights[:8]))
+    if d.timeline:
+        parts.append("Timeline (newest first):\n" + "\n".join(
+            f"- {t['date']} {t['event']} [#{t['doc_id']}]" for t in reversed(d.timeline[-25:])))
+    ids = sorted(set(d.doc_ids) | set(d.added_docs))
+    if ids:
+        parts.append("Documents of this matter: " + ", ".join(f"#{i}" for i in ids[:80]))
+    return "\n\n".join(parts)[:limit]
 
 
 def findings_of(user: str, topic: str) -> list:

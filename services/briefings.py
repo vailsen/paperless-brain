@@ -37,13 +37,16 @@ from datetime import datetime, timezone
 
 from config.settings import settings
 from services import vault_config
+from services.experts import SCOPE_KEYS
 
 log = logging.getLogger("briefings")
 
 BRIEFINGS = "Briefings"
 #: Above this many documents only a sample is studied (newest + a few per
-#: correspondent); the briefing says how many.
-MAX_STUDY = 400
+#: correspondent); the Briefing tab says how many of how many. Every document
+#: below it is read: a sample of a 515-document archive looked like an expert
+#: that sees only 300 (one model call per 25 summaries, ≈ 21 calls).
+MAX_STUDY = 1500
 SAMPLE_NEWEST = 200
 SAMPLE_PER_CORRESPONDENT = 5
 BATCH = 25
@@ -305,7 +308,7 @@ REDUCE_SCHEMA = {
 
 
 def estimate_calls(n_docs: int) -> int:
-    n = min(n_docs, MAX_STUDY + 200)
+    n = n_docs
     return max(1, -(-n // BATCH)) + 1 if n else 0
 
 
@@ -341,7 +344,7 @@ def _body_sha(body: str) -> str:
 def scope_hash(scope_meta: dict) -> str:
     ids = {k: sorted(int(x.get("id") if isinstance(x, dict) else x) for x in (scope_meta or {}).get(k) or []
                      if str(x.get("id") if isinstance(x, dict) else x).lstrip("-").isdigit())
-           for k in ("correspondents", "tags", "document_types")}
+           for k in SCOPE_KEYS if (scope_meta or {}).get(k) or k in SCOPE_KEYS[:3]}
     return hashlib.sha256(json.dumps(ids, sort_keys=True).encode()).hexdigest()[:16]
 
 

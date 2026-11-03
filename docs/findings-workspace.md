@@ -1,9 +1,9 @@
-# Findings → Mission Control
+# Findings workspace
 
-Status: **built**, 2026-11-02. Code: `app_ui/pages/findings.py` (mission
-control), `proactive/dossiers.py` (tree, anchors, insights),
+Status: **built**, 2026-11-02. Code: `app_ui/pages/findings.py` (the
+workspace), `proactive/dossiers.py` (tree, anchors, insights),
 `services/dossier_merge.py` + `app_ui/dossier_save.py` (save to dossier);
-tests `tests/test_mission_control.py`.
+tests `tests/test_findings_workspace.py`.
 
 **Changed from the plan while building:** the chat dock is the chat page
 itself, embedded (`/chat?embed=1&dossier=<id>` in an iframe), instead of
@@ -13,6 +13,34 @@ second chat implementation and no rewrite of a 4 000-line page. In embed mode
 the chat has no app header and keeps its conversation out of the browser's
 `/chat` state; a saved insight tells the page around it via `postMessage`.
 
+**Changed 2026-11-03 (after the first use):**
+
+- **Phone:** the zone switch is a slim segmented control; "Chat" no longer
+  replaces the item — the viewer stays on top and the chat sits below it
+  (drag the grip), so the data stays in sight while typing. "Continue in the
+  full chat" (dock header) opens the same conversation in `/chat`
+  (`/chat?conv=<id>`; the embedded chat answers a `pb-open-full` message).
+- **Search** shows its results in the navigator, under the field — typing
+  never switches the view. It also matches the titles of the documents that
+  findings and dossiers name (read as the user), and lists those documents.
+- **Counters** on every binder tab and on every inbox bucket.
+- **Relook** (dossier menu, and a notice when documents are pending): a
+  user-requested worker job (`dossier_relook`, in `USER_REQUESTED_KINDS`) that
+  rebuilds the dossier from all its documents — its own, the ones the user
+  added (`added_docs`, code-owned, never dropped), and those of its findings.
+  Insights, research and resolved questions stay.
+- **Add documents** to a dossier by hand (search or `#id`); **file a finding**
+  into a dossier (it takes the dossier's topic — the answer to open question 2
+  changed: yes, by moving the topic). "Not in a dossier" cards have the action.
+- **Triage** updates an existing dossier for every new document of its topic;
+  the model's `dossier_update` flag is only needed to *start* one.
+- **Save to dossier:** "This answer" or "The whole conversation" (condensed,
+  sources merged from every answer's tool log); the merge round retries once
+  and falls back to plain text when a local model answers past the tool, and
+  a failure says why.
+- The dossier the chat sees (`dossiers.context_text`) puts state, open
+  questions and saved insights before the timeline.
+
 Companion: `docs/experts.md` (the expert picker in the
 chat dock comes from there). Invariants of the proactive system (CLAUDE.md
 "Proactive system") apply unchanged; this plan adds a few of its own (§7).
@@ -20,7 +48,7 @@ chat dock comes from there). Invariants of the proactive system (CLAUDE.md
 ## 1. Goal
 
 The findings module works, but it is a list. A power user who has 40 open
-findings and a dozen dossiers wants a **control room**: everything open in one
+findings and a dozen dossiers wants a **workspace**: everything open in one
 view, every matter (dossier) one click away, and the conversation about a matter
 next to the matter — not in another module.
 
@@ -316,7 +344,7 @@ UI phases). One build/deploy at the end of a phase batch, not per fix.
   an old-format file parses and is rewritten with anchors; a moved file is still
   found by topic; tests in `tests/test_dossiers_*.py`.
 
-### Phase 2 — Mission control shell (findings page rewrite)
+### Phase 2 — Workspace shell (findings page rewrite)
 - New layout: navigator / viewer / dock placeholder; phone tabs.
 - Navigator: inbox buckets, dossier tree (create folder, rename, move via
   menu — drag & drop is a later nicety), Unfiled.

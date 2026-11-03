@@ -109,6 +109,7 @@ async def _dossier(request: Request) -> dict:
         raise HTTPException(status_code=400, detail="no model")
     return await dossier(
         user, tok, str(data.get("topic", "")), int(data.get("seed_doc_id") or 0), data.get("existing"), model,
+        doc_ids=[int(i) for i in data.get("doc_ids") or [] if str(i).isdigit()],
     )
 
 

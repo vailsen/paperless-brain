@@ -1,4 +1,4 @@
-"""Save a chat answer to a dossier (docs/findings-mission-control.md §5).
+"""Save a chat answer to a dossier (docs/findings-workspace.md §5).
 
 Two halves, kept apart on purpose:
 
@@ -16,10 +16,13 @@ Two halves, kept apart on purpose:
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 
 from services.citations import CITE_RE
+
+log = logging.getLogger("dossier_merge")
 
 _URL_RE = re.compile(r"https?://[^\s<>()\[\]\"']+[^\s<>()\[\].,;:!?'\"]")
 _DIGITS = re.compile(r"\d[\d.,]*\d|\d")
@@ -114,7 +117,56 @@ MERGE_SCHEMA = {
 }
 
 
-def merge_input(excerpt: str, dossier, note: str = "") -> str:
+def transcript(messages: list[dict], *, limit: int = 16000) -> str:
+    """A conversation as `User:` / `Assistant:` turns for the merge round —
+    the newest turns win when it is too long, the first question stays."""
+    turns = []
+    for m in messages:
+        role, content = m.get("role"), m.get("content")
+        if role not in ("user", "assistant") or not isinstance(content, str) or not content.strip():
+            continue
+        turns.append(("User: " if role == "user" else "Assistant: ") + plain_refs(content).strip()[:3000])
+    if not turns:
+        return ""
+    head, rest = turns[0], turns[1:]
+    kept: list[str] = []
+    size = len(head)
+    for t in reversed(rest):
+        if size + len(t) > limit:
+            break
+        kept.insert(0, t)
+        size += len(t)
+    if len(kept) < len(rest):
+        kept.insert(0, "[…]")
+    return "\n\n".join([head] + kept)
+
+
+def merge_provenance(provs: list[dict]) -> dict:
+    """Several answers' provenance as one (whole-conversation save)."""
+    docs: list[dict] = []
+    web: list[dict] = []
+    hay: list[str] = []
+    model = expert = ""
+    for p in provs:
+        if not p:
+            continue
+        for d in p.get("docs") or []:
+            if d not in docs:
+                docs.append(d)
+        for w in p.get("web") or []:
+            if w.get("url") not in {x.get("url") for x in web}:
+                web.append(w)
+        hay.append(str(p.get("haystack") or ""))
+        model = p.get("model") or model
+        expert = p.get("expert") or expert
+    if not any(provs):
+        return {}
+    kind = "+".join(k for k, v in (("documents", docs), ("web", web)) if v) or "reasoning"
+    return {"docs": docs[:30], "web": web[:12], "evidence": kind, "model": model, "expert": expert,
+            "at": datetime.now().isoformat(timespec="minutes"), "haystack": "\n".join(hay)[:40000]}
+
+
+def merge_input(excerpt: str, dossier, note: str = "", *, conversation: bool = False) -> str:
     qs = "\n".join(f"{i}. {q}" for i, q in enumerate(dossier.open_questions, 1)) or "(none)"
     parts = [
         f"Dossier: {dossier.display}",
@@ -123,6 +175,10 @@ def merge_input(excerpt: str, dossier, note: str = "") -> str:
     ]
     if note.strip():
         parts.append(f"The user's note on this excerpt: {note.strip()}")
+    if conversation:
+        parts.append("The excerpt is a whole conversation (User / Assistant turns). Condense what it "
+                     "established — conclusions, figures, decisions, what is still open — not the "
+                     "back-and-forth, and not what the assistant only guessed.")
     parts.append(f"Excerpt:\n{plain_refs(excerpt).strip()}")
     return "\n\n".join(parts)
 
@@ -161,15 +217,81 @@ def verbatim(excerpt: str) -> dict:
             "new_questions": [], "contradiction": "", "unsupported": []}
 
 
+_RETRY = ("Your previous answer was not usable. Call the tool `file_insight` once, with all five "
+          "fields filled (empty list / empty string where nothing applies). No text outside the call.")
+
+TEXT_SYSTEM = """\
+You file an excerpt from a chat into a dossier. Write ONE standalone insight \
+in {lang}: the first line is a short title (no "#"), then a blank line, then \
+the insight itself — concise, no greeting, no "as mentioned above". Keep every \
+number, date and name exactly as the excerpt has it and add nothing that is \
+not in it."""
+
+
+def from_text(text: str) -> dict:
+    """The plain-text fallback's answer → the merge result shape."""
+    from werkbank.llm_lane import _strip_thinking
+
+    lines = [ln.rstrip() for ln in _strip_thinking(text or "").strip().splitlines()]
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    title = lines[0].strip(" #*") if lines else ""
+    return {"title": title, "insight": "\n".join(lines[1:]).strip() or title,
+            "answers_questions": [], "new_questions": [], "contradicts_state": ""}
+
+
+async def _wake(model: str, user: str) -> None:
+    """A local model's host may be asleep (the chat woke it, then it slept)."""
+    try:
+        from werkbank.v2.pipeline import ensure_host
+
+        await ensure_host(user, model)
+    except Exception as exc:  # the call below names the failure
+        log.info("merge: host not ready: %s", exc)
+
+
 async def merge(excerpt: str, dossier, *, model: str, user: str, token: str, haystack: str,
-                note: str = "") -> dict:
+                note: str = "", conversation: bool = False) -> dict:
+    """Structured round; once more with a sharper instruction when the model
+    answered past the tool (local models behind an OpenAI-compatible endpoint
+    often do); then a plain-text round, whose title/insight is checked the
+    same way. Only a third failure reaches the user — with its reason."""
     from i18n import language_name
     from werkbank import llm_lane
 
-    res = await llm_lane.complete_structured(
-        MERGE_SYSTEM.format(lang=language_name(dossier.lang)),
-        [{"role": "user", "content": merge_input(excerpt, dossier, note)}],
-        model=model, user_id=user, token=token, json_schema=MERGE_SCHEMA, tool_name="file_insight",
-        max_tokens=2000, temperature=0.1,
-    )
-    return check_merge(res, excerpt=excerpt, haystack=haystack, n_questions=len(dossier.open_questions))
+    lang = language_name(dossier.lang)
+    await _wake(model, user)
+    msgs = [{"role": "user", "content": merge_input(excerpt, dossier, note, conversation=conversation)}]
+    n_q = len(dossier.open_questions)
+    last: Exception | None = None
+    for attempt in range(2):
+        try:
+            res = await llm_lane.complete_structured(
+                MERGE_SYSTEM.format(lang=lang),
+                msgs if attempt == 0 else msgs + [{"role": "user", "content": _RETRY}],
+                model=model, user_id=user, token=token, json_schema=MERGE_SCHEMA, tool_name="file_insight",
+                max_tokens=4000, temperature=0.1,
+            )
+            if isinstance(res, dict) and str(res.get("insight") or "").strip():
+                out = check_merge(res, excerpt=excerpt, haystack=haystack, n_questions=n_q)
+                out["mode"] = "structured"
+                return out
+            last = ValueError("the answer had no insight text")
+        except ValueError as exc:
+            last = exc
+            log.info("merge: structured attempt %d failed: %s", attempt + 1, exc)
+    try:
+        text = await llm_lane.complete(TEXT_SYSTEM.format(lang=lang), msgs, model=model, user_id=user,
+                                       token=token, max_tokens=3000, temperature=0.1, think=False)
+    except Exception as exc:
+        raise MergeFailed(str(last or exc)) from exc
+    res = from_text(text)
+    if not res["insight"].strip():
+        raise MergeFailed(str(last) if last else "empty answer")
+    out = check_merge(res, excerpt=excerpt, haystack=haystack, n_questions=n_q)
+    out["mode"] = "text"
+    return out
+
+
+class MergeFailed(RuntimeError):
+    """All rounds failed; the message says why (shown in the dialog)."""
