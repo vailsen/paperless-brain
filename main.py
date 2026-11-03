@@ -82,6 +82,14 @@ def _keep_pings_short() -> None:
     core.sio.eio.ping_timeout = 20
 
 
+@core.sio.on("pb_alive")
+async def _pb_alive(_sid: str, *_args) -> bool:
+    """The round trip a page coming back from the background asks for
+    (`app_ui/layout.SOCKET_REVIVE_JS`): an answer proves its socket still
+    reaches the server; no answer within 1.5 s and the page reconnects."""
+    return True
+
+
 @app.on_startup
 async def _start_watchdog() -> None:
     _check_vault_root()
