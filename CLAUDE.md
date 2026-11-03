@@ -325,6 +325,11 @@ page `app_ui/pages/experts.py`.
   button is a class on the findings page (`dock-max`) plus a `pb-dock-mode`
   message, never a navigation: leaving for `/chat` lost the half-typed message
   and the running answer, and the way back. The bottom switch stays visible.
+  Maximize / back sit in the chat's own header row (`chat-dock-max` /
+  `-min`, a `pb-dock-max` message up); on a phone the dock has no row of its
+  own except to offer "Talk about the selection".
+- **Chat pickers narrow by width, never by orientation** — a dock dragged low
+  is wider than tall, and orientation rules let the pickers run off screen.
 - **The folder tree under `Dossiers/` is the dossier tree**; a dossier is found
   by its `topic`, never by its path (`dossiers._path` scans).
 - **Dossier sections carry `<!-- pb:… -->` anchors**; a file without them is
