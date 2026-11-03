@@ -194,3 +194,35 @@ def test_a_whole_conversation_is_condensed_with_all_its_sources():
                                         {"web": [{"url": "https://adac.de/x"}], "haystack": "412"}])
     assert p["evidence"] == "documents+web" and p["docs"] == [{"id": 241, "page": 2}] and "412" in p["haystack"]
     assert dossier_merge.merge_provenance([{}, {}]) == {}
+
+
+def test_open_questions_sent_as_a_json_string_stay_questions(vault):
+    """A local model sent `open_questions` as the string '["Wer zahlt?", …]':
+    every character became a question of its own."""
+    from proactive import dossiers
+
+    res = {"timeline": '[{"date": "2026-06-11", "event": "Ankauf", "doc_id": 537}]',
+           "open_questions": '["Widersprüchliche HU-Termine prüfen", "BGV kündigen?"]'}
+    tl, qs = dossiers.validated(res, {537})
+    assert qs == ["Widersprüchliche HU-Termine prüfen", "BGV kündigen?"] and tl[0]["doc_id"] == 537
+    assert dossiers.validated({"open_questions": "- Eins\n- Zwei"}, set())[1] == ["Eins", "Zwei"]
+    # Files already broken that way read as no questions (the next rescan writes them again).
+    assert dossiers.heal_questions(list('["Widersprüchliche')) == []
+    assert dossiers.heal_questions(["Frist?", "Werkstatt?"]) == ["Frist?", "Werkstatt?"]
+
+
+def test_question_actions_survive_a_rebuild(vault):
+    from proactive import dossiers
+
+    _run(dossiers.write("alice", dossiers.Dossier(topic="kfz", doc_ids=[1], open_questions=["A?", "B?", "C?"])))
+    _run(dossiers.resolve_question("alice", "kfz", "A?"))
+    _run(dossiers.drop_question("alice", "kfz", "B?"))
+    _run(dossiers.add_question("alice", "kfz", "Eigene?"))
+    d = dossiers.load("alice", "kfz")
+    assert d.open_questions == ["C?", "Eigene?"] and d.resolved[0]["question"] == "A?" and d.dropped_questions == ["B?"]
+    # A rebuild that proposes A? and B? again does not bring them back.
+    rebuilt = dossiers.from_result("alice", "kfz", {"doc_ids": [1], "open_questions": ["A?", "B?", "D?"]},
+                                   lang="de", version=1, existing=d)
+    assert rebuilt.open_questions == ["D?"] and rebuilt.dropped_questions == ["B?"]
+    _run(dossiers.reopen_question("alice", "kfz", "A?"))
+    assert "A?" in dossiers.load("alice", "kfz").open_questions

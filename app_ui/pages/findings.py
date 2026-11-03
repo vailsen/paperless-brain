@@ -445,6 +445,10 @@ _MC_CSS = """
   color:var(--c-text-2);margin-right:4px}
 .pbm-due{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--c-border);cursor:pointer;min-width:0}
 .pbm-due:last-child{border-bottom:0}
+.pbm-q{display:flex;align-items:flex-start;gap:4px;min-width:0;width:100%;padding:2px 0}
+.pbm-q .t{flex:1;min-width:0;font-size:.875rem;color:var(--c-text-2);overflow-wrap:anywhere;padding-top:5px}
+.pbm-q.is-done .t{color:var(--c-text-muted);text-decoration:line-through}
+.pbm-q-add{margin-top:4px;border-top:1px dashed var(--c-border)}
 .pbm-due .d{font-variant-numeric:tabular-nums;color:var(--c-text-2);font-size:.8rem;flex-shrink:0;width:6.5rem}
 .pbm-due .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem;color:var(--c-text)}
 .pbm-due.warn .d{color:var(--c-warn)}
@@ -529,6 +533,13 @@ _MC_JS = """<script>
     if(f&&f.contentWindow){f.contentWindow.postMessage({type:'pb-dock-mode',full:full},window.location.origin);}};
   document.addEventListener('load',function(e){
     if(e.target&&e.target.tagName==='IFRAME'&&e.target.closest('.pbm-dock-frame'))window.pbmDockMode();},true);
+  // "Ask the chat" on an open question: into the dock's input, once the
+  // frame is there (it may be loading the dossier's conversation).
+  window.pbmPrefill=function(text){var tries=0;(function go(){
+    var f=document.querySelector('.pbm-dock-frame iframe');
+    var ta=f&&f.contentDocument&&f.contentDocument.querySelector('.chat-main-input textarea');
+    if(!ta){if(++tries<60)setTimeout(go,250);return;}
+    ta.value=text;ta.dispatchEvent(new Event('input',{bubbles:true}));ta.focus();})();};
   // The embedded chat's maximize / back buttons.
   window.addEventListener('message',function(e){
     if(e.origin!==window.location.origin||!e.data||e.data.type!=='pb-dock-max')return;
@@ -1417,6 +1428,12 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 ui.button(_("File"), on_click=_ok).props("unelevated no-caps").classes("bg-primary text-white")
         dlg.open()
 
+    def _ask_question(d, q: str) -> None:
+        """The question goes into the dock's input — the user sends it (or
+        edits it first); the dock opens on this dossier."""
+        _dock_ask(("dossier", d.pbrain_id))
+        ui.run_javascript(f"window.pbmPrefill && window.pbmPrefill({json.dumps(q)})")
+
     def _set_tab(k: str) -> None:
         st["tab"] = k
         viewer_body.refresh()
@@ -1432,18 +1449,47 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                          if d.origin != "user" else _("Save insights from the chat to fill this dossier.")).classes("pbm-hint")
         with ui.element("div").classes("pbm-card"):
             ui.label(_("Open questions")).classes("pbm-label")
+            ui.label(_("Tick one off when it is answered, ask the chat about it, or remove it. A rescan "
+                       "never brings back what you ticked or removed.")).classes("pbm-hint")
+
+            async def _q(fn, q: str) -> None:
+                await fn(user, d.topic, q)
+                viewer_body.refresh()
+
             if not d.open_questions and not d.resolved:
                 ui.label(_("None.")).classes("pbm-hint")
             for q in d.open_questions:
-                with ui.row().classes("w-full items-start gap-2 no-wrap"):
-                    ui.icon("radio_button_unchecked", size="xs").classes("text-gray-400 mt-1")
-                    ui.label(q).classes("text-sm flex-1").style("color:var(--c-text-2)")
+                with ui.element("div").classes("pbm-q"):
+                    ui.button(icon="radio_button_unchecked").props("flat dense round size=sm").classes(
+                        "card-action-btn flex-shrink-0").on(
+                        "click", lambda _e, q=q: _q(dmod.resolve_question, q)).tooltip(_("Answered"))
+                    ui.label(q).classes("t")
+                    ui.button(icon="forum").props("flat dense round size=sm").classes(
+                        "card-action-btn flex-shrink-0").on(
+                        "click", lambda _e, q=q: _ask_question(d, q)).tooltip(_("Ask the chat"))
+                    ui.button(icon="close").props("flat dense round size=sm").classes(
+                        "card-action-btn flex-shrink-0").on(
+                        "click", lambda _e, q=q: _q(dmod.drop_question, q)).tooltip(_("Not a question here — remove"))
             for r in d.resolved:
-                with ui.row().classes("w-full items-start gap-2 no-wrap"):
-                    ui.icon("check_circle", size="xs").classes("text-gray-400 mt-1")
-                    ui.label(r["question"]).classes("text-sm flex-1").style(
-                        "color:var(--c-text-muted); text-decoration:line-through;")
-                    ui.button(_("Answer"), on_click=lambda: _set_tab("insights")).props("flat dense no-caps size=sm")
+                with ui.element("div").classes("pbm-q is-done"):
+                    ui.button(icon="check_circle").props("flat dense round size=sm").classes(
+                        "card-action-btn flex-shrink-0").on(
+                        "click", lambda _e, q=r["question"]: _q(dmod.reopen_question, q)).tooltip(_("Open again"))
+                    ui.label(r["question"]).classes("t")
+                    if r.get("insight"):
+                        ui.button(_("Answer"), on_click=lambda: _set_tab("insights")).props(
+                            "flat dense no-caps size=sm").classes("flex-shrink-0")
+            new_q = ui.input(placeholder=_("Add a question of your own")).props(
+                "dense borderless").classes("w-full text-sm pbm-q-add")
+
+            async def _add_q() -> None:
+                if (new_q.value or "").strip():
+                    await dmod.add_question(user, d.topic, new_q.value)
+                    viewer_body.refresh()
+
+            new_q.on("keydown.enter", _add_q)
+            with new_q.add_slot("append"):
+                ui.button(icon="add", on_click=_add_q).props("flat dense round size=sm").classes("card-action-btn")
         if d.insights:
             ins = d.insights[0]
             with ui.element("div").classes("pbm-card"):

@@ -9,6 +9,10 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Open questions in a dossier can be worked on**: tick one off as answered
+  (and open it again), remove one that does not belong, add your own, or
+  "Ask the chat" — the question lands in the chat input. A rescan never
+  brings back what you ticked or removed.
 - **Experts: "Never these"** — every access dimension (correspondents, types,
   tags) can exclude as well as narrow. The pickers are dialogs with search and
   "Done", and the back gesture closes them on a phone.
@@ -114,6 +118,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- A dossier's open questions showed one character per line when the model
+  sent the list as text; such lists are read properly now, and dossiers
+  already broken that way show no questions until their next rescan.
+- On a phone the chat's expert and model pickers share the row's free width
+  instead of sitting small behind an empty gap.
 - The findings chat dock has no extra row on a phone: maximize and back sit
   next to the expert and model pickers, which stay on screen however low the
   dock is dragged.

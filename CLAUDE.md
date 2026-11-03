@@ -347,6 +347,14 @@ page `app_ui/pages/experts.py`.
   topic key, there is no second link. Renaming a dossier changes only `label`.
 - **A dossier that exists gets every new document of its topic** (triage, in
   code) — the model's `dossier_update` flag only starts one.
+- **Open questions are the user's to tick off, reopen, remove or add**
+  (`dossiers.resolve_question` / `reopen_question` / `drop_question` /
+  `add_question`); ticked ones live in `resolved`, removed ones in
+  `dropped_questions`, both code-owned, so no rebuild brings them back.
+  "Ask the chat" only fills the dock's input — the user sends it.
+- **A model's list may arrive as a JSON string** (`dossiers._as_list`); iterating
+  it filed every character as a question. Files already split that way read as
+  no questions (`heal_questions`) until the next rescan.
 
 ## Deployment target
 
