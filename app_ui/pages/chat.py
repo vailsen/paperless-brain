@@ -25,7 +25,7 @@ from services.citations import number_citations
 from models.brain_fact_result import BrainFactResult
 from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
-from services import citations, doc_image_service, sync_state
+from services import citations, doc_image_service, sync_state, web_citations
 from services.user_prefs import get_pref, set_pref
 from services.session_auth import get_session_token
 
@@ -167,6 +167,8 @@ def _inject_doc_links(
 
     # While streaming, a marker arrives in pieces; hide the unfinished tail.
     text = _PARTIAL_CITE_RE.sub("", text)
+    # Web markers of answers stored before they were linked: plain "(name)".
+    text = web_citations.plain_web_refs(text)
     text, sources = number_citations(text, _sup)
 
     text = _DOC_ID_RE.sub(
@@ -2667,6 +2669,9 @@ document.addEventListener('click', function(e) {{
     if (d) {{ e.preventDefault(); window.__openDocById(d.getAttribute('data-doc-id')); return; }}
     var img = e.target.closest('.chat-md img[src^="/api/doc-image/"]');
     if (img) {{ e.preventDefault(); window.open(img.getAttribute('src'), '_blank', 'noopener'); return; }}
+    // A web source in an answer opens beside the chat, never in its place.
+    var ext = e.target.closest('.chat-md a[href^="http"]');
+    if (ext) {{ e.preventDefault(); window.open(ext.getAttribute('href'), '_blank', 'noopener'); return; }}
 }});
 window.__openDocById = function(docId) {{
     if (!window.socket || !window.did_handshake) {{
@@ -3646,6 +3651,11 @@ window.__openVaultNote = function(noteId) {{
             if _shown_images:
                 accumulated[0] = with_images(accumulated[0], _shown_images, _)
             if accumulated[0]:
+                # [^Cleveland Clinic] → a link to the page a web tool returned.
+                try:
+                    accumulated[0] = web_citations.link_web_refs(accumulated[0], _tool_trace)
+                except Exception as exc:
+                    _log.warning("web citation linking failed: %s", exc)
                 # A marker behind a fact from another page of the same document
                 # is pointed at that page before the answer is stored.
                 try:
