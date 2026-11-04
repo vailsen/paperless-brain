@@ -311,7 +311,22 @@ async def _candidates(user: str, token: str, topic: str, seed: int) -> dict[int,
     return out
 
 
-async def dossier(user: str, token: str, topic: str, seed: int, existing: dict | None, model) -> dict:
+#: A relook reads at most this many documents, newest first.
+RELOOK_MAX_DOCS = 40
+
+
+def _insight_context(existing: dict | None) -> str:
+    if not existing or not existing.get("saved_insights"):
+        return ""
+    # The user's saved insights: context for the current state, read only —
+    # they stay in the dossier whatever this returns, and they are not a
+    # source for the timeline (no document behind them here).
+    return ("\nInsights the user saved (context only, not a source):\n"
+            + "\n".join(f"- {i}" for i in existing["saved_insights"]))
+
+
+async def dossier(user: str, token: str, topic: str, seed: int, existing: dict | None, model,
+                  doc_ids: list[int] | None = None) -> dict:
     from i18n import language_name
     from werkbank.llm_lane import complete_structured
 
@@ -322,6 +337,31 @@ async def dossier(user: str, token: str, topic: str, seed: int, existing: dict |
     # stored language and was always written in English.
     lang = language_name(prefs.get(user).content_language)
     system = DOSSIER_SYSTEM.format(topic=topic, language=lang)
+
+    if doc_ids:
+        # Relook (the user asked): rebuild from all documents of the matter.
+        # Only what the user can read — the token, not the list, decides.
+        from config.settings import settings
+        from services.paperless import PaperlessClient
+
+        try:  # the user is waiting: wake a local model's host like a research run does
+            from werkbank.v2.pipeline import ensure_host
+
+            await ensure_host(user, model.name)
+        except Exception as exc:  # the model call below names the failure
+            log.info("%s: relook of %s — host not ready: %s", user, topic, exc)
+        readable = {d.id for d in await PaperlessClient(settings.paperless_url, token).list_documents(ids=doc_ids)}
+        ids = sorted((i for i in doc_ids if i in readable), reverse=True)[:RELOOK_MAX_DOCS]
+        if not ids:
+            return {"error": "no documents"}
+        content = (
+            "Documents:\n\n" + "\n\n".join(_doc_brief(d) for d in sorted(ids))
+            + _insight_context(existing)
+            + "\n\nWrite the complete dossier from these documents."
+        )
+        raw = await complete_structured(system, [{"role": "user", "content": content}], model=model.name,
+                                        user_id=who, token=tok, json_schema=DOSSIER_SCHEMA, tool_name="dossier")
+        return {**raw, "doc_ids": ids, "read_doc_ids": ids, "mode": "relook"}
 
     if existing and existing.get("doc_ids"):
         # Incremental: the dossier so far plus the one new document.
@@ -336,11 +376,7 @@ async def dossier(user: str, token: str, topic: str, seed: int, existing: dict |
                 f"- {t['date']} — {t['event']} — #{t['doc_id']}" for t in existing.get("timeline", [])
             )
             + "\nOpen questions:\n" + "\n".join(f"- {q}" for q in existing.get("open_questions", []))
-            # The user's saved insights: context for the current state, read
-            # only — they stay in the dossier whatever this returns, and they
-            # are not a source for the timeline (no document behind them here).
-            + ("\nInsights the user saved (context only, not a source):\n"
-               + "\n".join(f"- {i}" for i in existing.get("saved_insights", [])) if existing.get("saved_insights") else "")
+            + _insight_context(existing)
             + f"\n\nNew document:\n{_doc_brief(seed, 4000)}\n\n"
             "Return the complete updated dossier."
         )

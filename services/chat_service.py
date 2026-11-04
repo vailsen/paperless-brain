@@ -3342,12 +3342,9 @@ class ClaudeChatBackend:
         effort: str = "",
         max_output_tokens: int | None = None,
     ):
-        import anthropic
+        from services.anthropic_client import async_client
 
-        kwargs: dict = {"api_key": api_key}
-        if base_url:
-            kwargs["base_url"] = base_url
-        self.client = anthropic.AsyncAnthropic(**kwargs)
+        self.client = async_client(api_key, base_url)
         # An empty base_url is what tells first-party Anthropic apart from an
         # Anthropic-*compatible* endpoint. The two want different thinking
         # parameters and there is nothing in the model string that says which is

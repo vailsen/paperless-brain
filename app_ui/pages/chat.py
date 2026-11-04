@@ -450,7 +450,7 @@ html, body { overflow: hidden !important; }
     border-left: 2px solid transparent;
     transition: background .15s; min-width: 0;
 }
-.chat-history-item:hover { background: #1a2235; }
+.chat-history-item:hover { background: var(--c-surface-2); }
 .chat-history-item:hover .chat-hist-actions { opacity: 1; }
 .chat-history-item.active { background: var(--c-surface-3); border-left-color: var(--c-accent); }
 .chat-hist-actions { opacity: 0; transition: opacity .15s; display: flex; gap: 0; flex-shrink: 0; }
@@ -487,18 +487,31 @@ html, body { overflow: hidden !important; }
 @media (max-width: 767px) {
     .chat-temp-input { display: none !important; }
 }
+/* Narrow by width, never by orientation: the findings dock is wider than
+   tall when dragged low, and the pickers then ran past the screen. */
+@media (max-width: 767px) {
+    .chat-expert-sel { min-width: 4.5rem !important; max-width: 6.5rem !important; }
+    .chat-expert-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-expert-sel .q-field__control { padding-left: 4px !important; padding-right: 2px !important; }
+    .chat-expert-sel .q-field__prepend { padding-right: 2px; }
+    .chat-model-sel { min-width: 5rem !important; max-width: 7rem !important; }
+    .chat-model-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-model-sel .q-field__control { padding-left: 6px !important; padding-right: 2px !important; }
+    .chat-title { display: none !important; }
+}
+/* A phone: the two pickers share the row's free width instead of sitting
+   at a fixed small size behind an empty spacer. */
+@media (max-width: 767px) {
+    .chat-head-spacer { display: none !important; }
+    .chat-expert-sel, .chat-model-sel { flex: 1 1 0 !important; min-width: 0 !important; max-width: none !important;
+        width: auto !important; }
+    .chat-expert-sel { flex-grow: 0.8 !important; }
+}
 @media (max-width: 767px) and (orientation: portrait) {
     .chat-temp-input { display: flex !important; }
     .chat-backend-sel { min-width: 5.5rem !important; max-width: 7rem !important; }
     .chat-backend-sel .q-field__native { font-size: 0.7rem !important; }
     .chat-backend-sel .q-field__control { padding-left: 6px !important; padding-right: 2px !important; }
-    .chat-model-sel { min-width: 5rem !important; max-width: 7rem !important; }
-    .chat-model-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chat-model-sel .q-field__control { padding-left: 6px !important; padding-right: 2px !important; }
-    .chat-expert-sel { min-width: 4.5rem !important; max-width: 6.5rem !important; }
-    .chat-expert-sel .q-field__native { font-size: 0.7rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chat-expert-sel .q-field__control { padding-left: 4px !important; padding-right: 2px !important; }
-    .chat-expert-sel .q-field__prepend { display: none; }
 }
 /* Quick chips horizontal scroll, no scrollbar */
 .chat-quick-strip { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
@@ -728,11 +741,33 @@ _EMBED_CSS = """<style>
 .q-header{display:none!important;}
 :root{--q-header-height:0px;}
 .q-page-container{padding-top:0!important;}
-</style>"""
+/* The dock, not maximized: a quick chat under the item it is about. No
+   history drawer, no title, no context bar (the item is right above), no
+   quick actions, tool switches or compaction, no document drawer — the
+   maximized dock has all of that. */
+body.pb-compact .chat-hist-btn, body.pb-compact .chat-title, body.pb-compact .chat-ctx-row,
+body.pb-compact .chat-quick-strip, body.pb-compact .chat-input-tool, body.pb-compact .chat-tool-panel,
+body.pb-compact .chat-edge-handle, body.pb-compact .chat-docs-mobile, body.pb-compact .chat-docs-scrim,
+body.pb-compact .chat-history-drawer, body.pb-compact .chat-history-scrim,
+body.pb-compact .chat-splitter > .q-splitter__separator,
+body.pb-compact .chat-splitter > .q-splitter__after{display:none!important;}
+body.pb-compact .chat-splitter > .q-splitter__before{width:100%!important;}
+body.pb-compact .chat-input-row{padding:6px 10px!important;}
+.chat-head{padding:0 8px!important;gap:6px!important;}
+body.pb-compact .chat-dock-min, body:not(.pb-compact) .chat-dock-max{display:none!important;}
+</style>
+<script>
+// The findings page says whether its dock is maximized (pb-dock-mode).
+document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('pb-compact');});
+window.addEventListener('message',function(e){
+  if(e.origin!==window.location.origin||!e.data||e.data.type!=='pb-dock-mode')return;
+  document.body.classList.toggle('pb-compact',!e.data.full);
+});
+</script>"""
 
 
 @ui.page("/chat")
-async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0):
+async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = ""):
     if not require_auth():
         return
     page_layout()
@@ -1050,10 +1085,16 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             _log.warning("could not create the Universal expert", exc_info=True)
     _experts_list = _experts_mod.list_experts(_username) if _username else []
     _known_experts = {e.expert_id for e in _experts_list}
+    # "Use experts" off: every chat is the Universal expert. The dock never
+    # takes the expert last picked in /chat — that put one particular expert
+    # on every dossier: the dossier's own default (?expert=) or Universal.
+    _experts_on = _experts_mod.enabled()
+    # A new chat starts with the user's default expert ("Use as default
+    # expert"), the dock with the dossier's own (?expert=) or that default.
     _initial_expert_id = (
-        expert if expert in _known_experts
-        else (get_pref("chat_expert_id", "") if get_pref("chat_expert_id", "") in _known_experts
-              else _experts_mod.UNIVERSAL_ID)
+        _experts_mod.UNIVERSAL_ID if not _experts_on
+        else expert if expert in _known_experts
+        else _experts_mod.default_id(_username)
     )
 
     def _scoped_pl():
@@ -1206,7 +1247,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         if ex.builtin or ex.scope.unrestricted:
             return _("Expert {name}: all documents").format(name=ex.name)
         return _("Expert {name}: {scope}").format(
-            name=ex.name, scope=" · ".join(", ".join(v) for v in ex.scope_names().values()))
+            name=ex.name, scope=" · ".join(
+                ("−" if k.startswith("exclude_") else "") + ", ".join(v) for k, v in ex.scope_names().items()))
 
     def _render_library_all() -> None:
         for lib in _drawer["libraries"]:
@@ -1490,6 +1532,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             _set_dossier_ctx(_ctx.split(":", 1)[1])
         elif not _embed:
             _set_dossier_ctx(None)
+        if _ctx.startswith("finding:"):
+            _set_finding_ctx(_ctx.split(":", 1)[1])
         _s["total_tokens"] = 0
         _s["context_window"] = 0
         _s["current_ctx_tokens"] = 0
@@ -1579,6 +1623,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         for _cb, _grp in _tool_cbs:
             _cb.set_value(_TOOL_GROUP_DEFAULTS.get(_grp, True))
         _set_history_visible(False)
+        # A new conversation starts with the default expert (a dossier's dock
+        # with the dossier's own); picking another one follows this.
+        _apply_expert(_s.get("dock_expert") or _experts_mod.default_id(_username))
 
     async def _compact_chat() -> None:
         if not _s["messages"] or _s["running"]:
@@ -1829,7 +1876,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     "display:flex; flex-direction:column; overflow:hidden;"
                 ):
                     # Header row
-                    with ui.row().style(
+                    with ui.row().classes("chat-head").style(
                         f"flex-shrink:0; height:{_TABS_H};"
                         "background:var(--c-surface); border-bottom:1px solid var(--c-border);"
                         "align-items:center; padding:0 12px; gap:8px;"
@@ -1838,18 +1885,20 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         history_toggle_btn = (
                             ui.button(icon="menu")
                             .props("flat dark dense")
-                            .classes("text-gray-400")
+                            .classes("text-gray-400 chat-hist-btn")
                             .tooltip(_("Conversation history"))
                         )
                         history_toggle_btn.on_click(
                             lambda: _set_history_visible(not _s["history_visible"])
                         )
-                        ui.icon("chat", size="xs").classes("text-gray-400")
+                        # The title is the first thing to go on a phone: the
+                        # pickers and the delete button need the width.
+                        ui.icon("chat", size="xs").classes("text-gray-400 chat-title")
                         ui.label(_("Chat")).classes(
-                            "text-gray-200 font-semibold text-sm"
+                            "text-gray-200 font-semibold text-sm chat-title"
                         ).style("flex-shrink:0;")
                         # Spacer — pushes spinner + model + buttons to right
-                        ui.element("div").style("flex:1;")
+                        ui.element("div").classes("chat-head-spacer").style("flex:1;")
                         # Context usage progress
                         with ui.element("div").style(
                             "display:inline-flex; align-items:center; gap:4px; cursor:default;"
@@ -1875,20 +1924,34 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
 
                         # Expert: an icon-led select; the scope chip says
                         # whether it narrows the archive.
+                        _ex_opts = [(e.expert_id, e.name, e.icon or "psychology") for e in _experts_list] or [
+                            ("universal", "Universal", "psychology")]
                         _expert_sel = (
-                            ui.select(
-                                {e.expert_id: e.name for e in _experts_list} or {"universal": "Universal"},
-                                value=_s["expert_id"],
-                            )
+                            ui.select({k: n for k, n, _i in _ex_opts}, value=_s["expert_id"])
                             .props("dense outlined dark options-dense")
                             .classes("chat-expert-sel")
                             .style("flex-shrink:0; width:10rem;")
                             .tooltip(_("Expert"))
                         )
+                        # Each expert with its own icon — in the list and on the
+                        # field. NiceGUI hands Quasar the options as
+                        # {value: index, label}, so the slots look the icon up by index.
+                        _ex_icons = json.dumps([i for _k, _n, i in _ex_opts])
+                        _expert_sel.add_slot("option", (
+                            '<q-item v-bind="props.itemProps">'
+                            f"<q-item-section avatar style=\"min-width:28px\"><q-icon :name='{_ex_icons}[props.opt.value]' "
+                            'size="18px" /></q-item-section><q-item-section><q-item-label>{{ props.opt.label }}'
+                            "</q-item-label></q-item-section></q-item>"
+                        ))
+                        _ex_icon_of = {k: i for k, _n, i in _ex_opts}
                         with _expert_sel.add_slot("prepend"):
-                            ui.icon("psychology", size="xs").classes("text-gray-400")
+                            _ex_icon = ui.icon(_ex_icon_of.get(_s["expert_id"], "psychology"), size="18px").classes(
+                                "text-gray-400")
+                        _expert_sel.on_value_change(
+                            lambda e: _ex_icon.props(f"name={_ex_icon_of.get(e.value, 'psychology')}"))
                         # A lambda: the handler is defined below the layout.
                         _expert_sel.on_value_change(lambda e: _on_expert_pick(e))
+                        _expert_sel.set_visibility(_experts_on)
                         if _reg_models:
                             _chat_model_sel = (
                                 model_select(_reg_models, _initial_model_name)
@@ -1919,6 +1982,17 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         ).props("flat dark dense").classes("text-gray-400").tooltip(
                             _("Delete conversation")
                         )
+                        if _embed:
+                            # The findings dock: maximize / back, in this row. A
+                            # message to the page around it — no server round trip,
+                            # no navigation, so the input and a running answer stay.
+                            for _cls, _icon, _on, _tip in (
+                                    ("chat-dock-max", "open_in_full", "true", _("Maximize the chat")),
+                                    ("chat-dock-min", "close_fullscreen", "false", _("Back to the item"))):
+                                ui.button(icon=_icon).props("flat dark dense").classes(
+                                    f"text-gray-400 {_cls}").tooltip(_tip).on(
+                                    "click", js_handler="() => window.parent.postMessage({type:'pb-dock-max',on:"
+                                    + _on + "}, window.location.origin)")
 
                     # Messages scroll area
                     messages_scroll = (
@@ -2073,8 +2147,16 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                         _save_chat_settings()
                                     _think_cb.on_value_change(_on_think_toggle)
 
+                                    def _on_quick_toggle(e) -> None:
+                                        set_pref("chat_quick_bar", bool(e.value))
+                                        quick_strip.set_visibility(bool(e.value))
+
+                                    ui.switch(_("Quick actions bar"), value=bool(get_pref("chat_quick_bar", True)),
+                                              on_change=_on_quick_toggle).props("dense dark").classes(
+                                        "text-gray-300 chat-tool-cb")
+
                     # Finding context ("Chat about this" on a finding page; auto-hide)
-                    finding_row = ui.row().style(
+                    finding_row = ui.row().classes("chat-ctx-row").style(
                         "flex-shrink:0; min-height:30px; background:var(--c-surface-2);"
                         "border-top:1px solid var(--c-surface);"
                     )
@@ -2105,14 +2187,15 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 "flex-wrap gap-1 flex-1 items-center"
                             )
 
-                    # Quick action chips
+                    # Quick action chips — the user can switch the bar off
+                    # (tool settings, pref `chat_quick_bar`, default on).
                     with (
                         ui.element("div")
                         .classes("chat-quick-strip")
                         .style(
                             "flex-shrink:0; background:var(--c-surface-2); border-top:1px solid var(--c-surface);"
                             "height:36px;"
-                        )
+                        ) as quick_strip
                     ):
                         with ui.element("div").classes("suggestion-row").style(
                             "width:100%; overflow-x:auto; scrollbar-width:none;"
@@ -2150,6 +2233,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
     update();
 })();
 </script>""")
+
+                    quick_strip.set_visibility(bool(get_pref("chat_quick_bar", True)))
 
                     # Input row
                     with (
@@ -2895,7 +2980,14 @@ window.__openVaultNote = function(noteId) {{
         finding_bar.clear()
         fc, dc = _s.get("finding_ctx"), _s.get("dossier_ctx")
         finding_row.set_visibility(bool(fc or dc))
-        if fc:
+        if fc and _embed:
+            # In the dock the finding is right above: no way "back", just what
+            # this conversation is about.
+            with finding_bar:
+                ui.icon("lightbulb", size="xs").classes("text-gray-400 flex-shrink-0")
+                ui.label(_("About: {name}").format(name=fc["title"])).classes(
+                    "text-xs text-gray-400 truncate flex-1 min-w-0")
+        elif fc:
             with finding_bar:
                 ui.button(
                     _("Back to finding"), icon="arrow_back",
@@ -2929,7 +3021,7 @@ window.__openVaultNote = function(noteId) {{
 
             d = _dossiers.by_id(_username, pbrain_id)
         _s["dossier_ctx"] = (
-            {"id": d.pbrain_id, "topic": d.topic, "title": d.display, "text": _dossiers.render_body(d)}
+            {"id": d.pbrain_id, "topic": d.topic, "title": d.display, "text": _dossiers.context_text(d)}
             if d else None
         )
         _render_ctx_bar()
@@ -2960,13 +3052,18 @@ window.__openVaultNote = function(noteId) {{
             from app_ui.dossier_save import open_save_dialog
 
             prov = _s["turn_meta"].get(idx) or {}
+            from services.dossier_merge import merge_provenance
+
+            conv = msgs[: idx + 1]
+            conv_prov = merge_provenance([_s["turn_meta"].get(i) or {} for i in range(idx + 1)
+                                          if msgs[i].get("role") == "assistant"])
             await open_save_dialog(
                 user=_username, token=get_session_token() or "",
                 answer=msgs[idx]["content"], selection=(picked or "").strip(),
                 provenance=prov, conv_id=_s.get("conv_id") or "", msg_index=idx,
                 preselect=(_s.get("dossier_ctx") or {}).get("topic") or "",
                 models=_reg_models, default_model=_s.get("chat_model_name", ""),
-                on_saved=_on_insight_saved,
+                on_saved=_on_insight_saved, conversation=conv, conv_provenance=conv_prov,
             )
 
         return _click
@@ -3025,7 +3122,7 @@ window.__openVaultNote = function(noteId) {{
     # ── Expert switching ──────────────────────────────────────────────────────
     def _apply_expert(eid: str) -> None:
         """Set the active expert without asking (load / new conversation)."""
-        if eid not in {e.expert_id for e in _experts_mod.list_experts(_username)}:
+        if not _experts_on or eid not in {e.expert_id for e in _experts_mod.list_experts(_username)}:
             eid = _experts_mod.UNIVERSAL_ID
         _s["expert_id"] = eid
         if _expert_sel is not None and _expert_sel.value != eid:
@@ -3065,6 +3162,13 @@ window.__openVaultNote = function(noteId) {{
         _s["expert_id"] = eid
         if not _embed:
             set_pref("chat_expert_id", eid)
+        elif _s.get("dossier_ctx") and _dossiers_on:
+            # Picked in a dossier's dock: that dossier's chat starts with it
+            # (Universal too, explicitly — "" would mean the user's default).
+            from proactive import dossiers as _dossiers
+
+            _s["dock_expert"] = eid
+            asyncio.ensure_future(_dossiers.set_expert(_username, _s["dossier_ctx"]["topic"], eid))
         ex = _expert()
         if ex.default_model and any(m["name"] == ex.default_model for m in _reg_models) and _chat_model_sel is not None:
             _chat_model_sel.set_value(ex.default_model)
@@ -4478,19 +4582,25 @@ window.__openVaultNote = function(noteId) {{
     # "Last" means this browser's open chat, else the user's most recent
     # conversation — so a second device opens where the first one left off.
     if _embed and dossier:
-        # The dock: this dossier's latest conversation, else a fresh one with
-        # the dossier's default expert.
+        # The dock: this dossier's latest conversation — as long as it is with
+        # the dossier's expert. A conversation with another one (the default
+        # was changed since) stays in the history; a fresh one starts.
         _ctx_key = f"dossier:{dossier}"
+        _want_expert = expert if expert in _known_experts else _experts_mod.default_id(_username)
+        if not _experts_on:
+            _want_expert = _experts_mod.UNIVERSAL_ID
+        _s["dock_expert"] = _want_expert
         _dconv = next((c for c in _chat_hist.list_conversations(_username)
                        if c.get("context") == _ctx_key), None) if _username else None
+        if _dconv and (_dconv.get("expert_id") or _experts_mod.UNIVERSAL_ID) != _want_expert:
+            _dconv = None
         if _dconv:
             _cstore["chat_conv_id"] = _dconv["id"]
             _load_conv(_dconv["id"])
         else:
             _set_dossier_ctx(dossier)
             _cstore["chat_fresh"] = True
-            if expert in _known_experts:
-                _apply_expert(expert)
+            _apply_expert(_want_expert)
         if _s.get("dossier_ctx") is None:
             _set_dossier_ctx(dossier)
     if get_pref("chat_on_open", "last") == "new" and not _embed:
@@ -4533,6 +4643,17 @@ window.__openVaultNote = function(noteId) {{
     elif not (_embed and _s["messages"]):
         with messages_container:
             _welcome_msg()
+    if conv and not _embed and _username:
+        # "Continue in the full chat" from the findings dock: that conversation.
+        if conv != _s.get("conv_id") and any(c["id"] == conv for c in _chat_hist.list_conversations(_username)):
+            _load_conv(conv)
+            messages_scroll.scroll_to(percent=1.0)
+        ui.run_javascript("history.replaceState(null, '', '/chat')")
+    elif dossier and not _embed:
+        # The dock had no conversation yet: a new one about the dossier.
+        _new_conv()
+        _set_dossier_ctx(dossier)
+        ui.run_javascript("history.replaceState(null, '', '/chat')")
     if expert in _known_experts and not _embed and expert != _s.get("expert_id"):
         # "Chat with this expert" from /experts: a new conversation with it.
         _new_conv()
@@ -4564,6 +4685,7 @@ window.__openVaultNote = function(noteId) {{
         _set_finding_ctx(_cstore.get("chat_finding"))
     _refresh_pinned_chips()
     _refresh_history_list()
+
 
     # ── History drawer drag-resize ────────────────────────────────────────────
     ui.add_head_html("""<script>

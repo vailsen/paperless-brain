@@ -35,6 +35,9 @@ MAX_NAME_CHARS = 60
 #: Tool groups an expert can never lose (docs/experts.md: every expert has
 #: full access to memory and vault).
 ALWAYS_ON_GROUPS = frozenset({"memory", "vault"})
+#: Opt-in dimensions, then their "never these" counterparts.
+SCOPE_KEYS = ("correspondents", "tags", "document_types",
+              "exclude_correspondents", "exclude_tags", "exclude_document_types")
 
 #: Icons offered in the editor. Material names, rendered in text colour —
 #: experts carry no colour of their own (UI visual discipline).
@@ -74,7 +77,7 @@ class Expert:
         out: dict[str, list[str]] = {}
         if self.builtin:
             return out
-        for key in ("correspondents", "tags", "document_types"):
+        for key in SCOPE_KEYS:
             names = []
             for item in self.scope_meta.get(key) or []:
                 if isinstance(item, dict):
@@ -84,6 +87,26 @@ class Expert:
             if names:
                 out[key] = names
         return out
+
+
+def enabled() -> bool:
+    """The user's "Use experts" switch (Settings > AI). Off, every chat is the
+    Universal expert and no picker is offered. Needs a page context."""
+    from services.user_prefs import get_pref
+
+    return bool(get_pref("experts_enabled", True))
+
+
+def default_id(user: str) -> str:
+    """The expert new chats start with ("Use as default expert" on the
+    experts page, pref `default_expert_id`) — Universal when none is set or
+    the chosen one is gone. Needs a page context."""
+    from services.user_prefs import get_pref
+
+    eid = str(get_pref("default_expert_id", "") or "")
+    if not eid or not enabled():
+        return UNIVERSAL_ID
+    return eid if any(e.expert_id == eid for e in list_experts(user)) else UNIVERSAL_ID
 
 
 def _subfolder() -> str:
@@ -121,9 +144,7 @@ def _meta(e: Expert) -> dict:
         "default_model": e.default_model,
     }
     if not e.builtin:
-        meta["scope"] = {
-            k: list(e.scope_meta.get(k) or []) for k in ("correspondents", "tags", "document_types")
-        }
+        meta["scope"] = {k: list(e.scope_meta.get(k) or []) for k in SCOPE_KEYS if e.scope_meta.get(k)}
         meta["tools_off"] = sorted(set(e.tools_off) - ALWAYS_ON_GROUPS)
     else:
         meta["builtin"] = True
@@ -253,13 +274,14 @@ async def scope_with_names(pl, scope_meta: dict) -> dict:
     """Refresh the display names of a scope from the user's Paperless maps
     (a correspondent renamed in Paperless shows its new name). Ids Paperless
     no longer knows are kept with their stored name, marked `missing`."""
-    maps = {
+    by_dim = {
         "correspondents": await pl.get_correspondent_map(),
         "tags": await pl.get_tag_map(),
         "document_types": await pl.get_document_types_map(),
     }
     out = {}
-    for key, names in maps.items():
+    for key in SCOPE_KEYS:
+        names = by_dim[key.removeprefix("exclude_")]
         items = []
         for item in scope_meta.get(key) or []:
             raw = item.get("id") if isinstance(item, dict) else item

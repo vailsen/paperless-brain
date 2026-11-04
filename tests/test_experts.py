@@ -51,6 +51,27 @@ def test_tags_are_any_of():
     assert s.allows(_doc(1, tags=(3, 8))) and not s.allows(_doc(2, tags=(3,))) and not s.allows(_doc(3))
 
 
+def test_never_these_takes_documents_out():
+    from services.expert_scope import Scope
+
+    s = Scope.from_meta({"exclude_correspondents": [{"id": 1}], "exclude_tags": [9]})
+    assert not s.unrestricted
+    assert s.allows(_doc(1, corr=2, tags=(3,)))
+    assert not s.allows(_doc(2, corr=1))           # excluded correspondent
+    assert not s.allows(_doc(3, corr=2, tags=(3, 9)))  # one excluded tag is enough
+    assert s.allows(_doc(4, corr=None))            # no correspondent: not excluded
+    both = Scope.from_meta({"document_types": [5], "exclude_document_types": [5]})
+    assert not both.allows(_doc(5, dtype=5))       # never wins over only
+
+
+def test_scope_hash_unchanged_without_exclusions():
+    from services import briefings
+
+    old = briefings.scope_hash({"correspondents": [1], "tags": [], "document_types": []})
+    assert briefings.scope_hash({"correspondents": [{"id": 1}]}) == old
+    assert briefings.scope_hash({"correspondents": [1], "exclude_tags": [3]}) != old
+
+
 # ── The scoped client, and every document tool behind it ────────────────────
 
 DOCS = {1: _doc(1, corr=1), 2: _doc(2, corr=2)}
@@ -333,3 +354,34 @@ def test_staleness_sees_new_documents_and_scope_changes():
     assert briefings.staleness(b, docs, {"correspondents": [1]}) == {"state": "outdated", "new": 1}
     assert briefings.staleness(b, docs, {"correspondents": [2]})["state"] == "scope_changed"
     assert briefings.staleness(None, docs, {})["state"] == "none"
+
+
+def test_a_batch_cut_off_at_the_token_limit_is_read_in_halves():
+    """Qwen 3.8 on 63 medical letters: "did not call tool 'output' —
+    finish_reason=length" failed the whole study. The batch is split instead."""
+    import asyncio
+
+    from services import briefings
+
+    seen = []
+
+    async def call(system, content):
+        n = content.count("\n") + 1
+        seen.append(n)
+        if n > 8:
+            raise ValueError("OpenAI-compat model did not call tool 'output' — finish_reason=length "
+                             "(answer was cut off at the token limit)")
+        return {"notes": [{"text": f"{n} docs", "doc_ids": []}]}
+
+    batch = [(i, f"(#{i}) summary") for i in range(25)]
+    notes = asyncio.run(briefings.map_batch(call, "sys", batch))
+    assert seen[0] == 25 and sum(n for n in seen if n <= 8) == 25  # every summary read once, in halves
+    assert len(notes) == len([n for n in seen if n <= 8])
+
+    async def other(system, content):
+        raise ValueError("invalid JSON")
+
+    import pytest
+
+    with pytest.raises(ValueError):  # anything else still fails, with its reason
+        asyncio.run(briefings.map_batch(other, "sys", batch))

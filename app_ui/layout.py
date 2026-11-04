@@ -41,20 +41,30 @@ _MOBILE_HEADER_CSS = (
 NAV_ITEMS = [
     ("dashboard", N_("Dashboard"), "/"),
     ("chat", N_("Chat"), "/chat"),
-    ("psychology", N_("Experts"), "/experts"),
-    ("auto_awesome", N_("Deep research"), "/werkbank"),
-    ("grid_view", N_("Browser"), "/browser"),
     ("note_alt", N_("Note vault"), "/brain"),
+    ("auto_awesome", N_("Deep research"), "/werkbank"),
+    ("psychology", N_("Experts"), "/experts"),
+    ("grid_view", N_("Browser"), "/browser"),
 ]
+FINDINGS_ITEM = ("notifications", N_("Findings"), "/findings")
 
 
 def nav_items() -> list[tuple[str, str, str]]:
-    """NAV_ITEMS plus the findings page — only with PROACTIVE_ENABLED=true."""
+    """NAV_ITEMS plus the findings page (third, after the chat) — only with
+    PROACTIVE_ENABLED=true."""
     from config.proactive import is_enabled
 
+    items = list(NAV_ITEMS)
+    try:  # "Use experts" off (Settings > AI): no Experts item
+        from services.experts import enabled as _experts_on
+
+        if not _experts_on():
+            items = [it for it in items if it[2] != "/experts"]
+    except Exception:  # noqa: BLE001, S110 — outside a page (tests): the full menu
+        pass
     if not is_enabled():
-        return NAV_ITEMS
-    return NAV_ITEMS + [("notifications", N_("Findings"), "/findings")]
+        return items
+    return items[:2] + [FINDINGS_ITEM] + items[2:]
 
 
 def user_icon(username: str) -> str:
@@ -111,6 +121,45 @@ document.addEventListener('click', function(e) {
 });
 </script>"""
 
+# Coming back to the app on a phone. Switching to another app suspends the
+# PWA; the server keeps the page alive (`reconnect_timeout=300`), but the
+# socket did not survive, and socket.io only found out on its own clock: a
+# dead socket the phone kept looked connected until the heartbeat ran out,
+# and a closed one waited out a 0.5–1.5 s backoff that grows while the radio
+# wakes up. So, on the way back (visible again, bfcache restore, network
+# back): a socket that is down reconnects now; one that claims to be up must
+# answer a round trip (`pb_alive`, main.py) within 1.5 s or it is replaced.
+# The retry backoff starts at 150 ms. Reconnecting keeps NiceGUI's message
+# position (`next_message_id`), the same as its own reconnect does.
+SOCKET_REVIVE_JS = """<script>
+(function(){
+  var hiddenAt = 0, busy = false;
+  function sock(){ var s = window.socket; return (s && s.io) ? s : null; }
+  (function tune(){
+    var s = sock();
+    if(!s){ return setTimeout(tune, 200); }
+    s.io.reconnectionDelay(150); s.io.reconnectionDelayMax(2500); s.io.randomizationFactor(0.2);
+  })();
+  function now(s){
+    try { if(s.io.opts && s.io.opts.query){ s.io.opts.query.next_message_id = window.nextMessageId; } } catch(e){}
+    s.disconnect(); s.connect();
+  }
+  function revive(){
+    var s = sock();
+    if(!s || busy){ return; }
+    if(!s.connected){ now(s); return; }
+    busy = true;
+    s.timeout(1500).emit('pb_alive', function(err){ busy = false; if(err){ now(s); } });
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){ hiddenAt = Date.now(); }
+    else if(hiddenAt && Date.now() - hiddenAt > 1000){ revive(); }
+  });
+  window.addEventListener('pageshow', function(e){ if(e.persisted){ revive(); } });
+  window.addEventListener('online', revive);
+})();
+</script>"""
+
 # The browser spellchecks with whatever dictionary it has — English, in practice —
 # and underlines every German word the user types. There is no per-field setting
 # that survives Quasar re-rendering its inputs, so this runs once per page and
@@ -162,6 +211,7 @@ def page_layout() -> None:
     ui.add_head_html(_MOBILE_HEADER_CSS)
     ui.add_head_html(_NO_SPELLCHECK_JS)
     ui.add_head_html(_EXTERNAL_LINKS_JS)
+    ui.add_head_html(SOCKET_REVIVE_JS)
     ui.add_head_html(PAGE_VIEWER_HTML)
 
     _ = get_translator()
@@ -222,6 +272,13 @@ def page_layout() -> None:
             from app_ui.memo_dialog import memo_button
 
             memo_button()
+
+        # ── Help: the module overview, from every page ───────────────────────
+        if username:
+            from app_ui.help_dialog import open_help
+
+            ui.button(icon="help_outline", color=None, on_click=open_help).props("flat dark dense round").classes(
+                "text-gray-300 nav-btn").tooltip(_("Help"))
 
         # ── Logged-in user dropdown (Settings + Logout) ──────────────────────
         if username:

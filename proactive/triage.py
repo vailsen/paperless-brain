@@ -213,7 +213,12 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
     )
     made, outcome = await findings.upsert_series(user, f)
     log.info("%s: triage of doc %s → finding %s (%s, advice=%s)", user, a.doc_id, made.finding_id, outcome, bool(rec))
-    if raw.get("dossier_update"):
+    from proactive import dossiers as _dossiers
+
+    # A matter that already has a dossier gets every new document of its
+    # topic — code decides that, not the model (a dossier missed the two
+    # newest letters the model did not flag as "continues a matter").
+    if raw.get("dossier_update") or (topic and _dossiers.load(user, topic) is not None):
         from proactive import jobs
 
         jobs.enqueue("dossier_update", user, {"topic": topic, "doc_id": a.doc_id},

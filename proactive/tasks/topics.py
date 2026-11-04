@@ -22,7 +22,8 @@ def _model_payload(m) -> dict:
     return {"name": m.name, "lane": m.lane, "source": m.source, "model_id": m.model_id}
 
 
-async def _build_or_update(user: str, topic: str, seed: int, *, rebuild: bool = False) -> None:
+async def _build_or_update(user: str, topic: str, seed: int, *, rebuild: bool = False,
+                           doc_ids: list[int] | None = None) -> None:
     from proactive.internal_client import InternalUnavailable
     from proactive.internal_client import dossier as remote
 
@@ -35,8 +36,10 @@ async def _build_or_update(user: str, topic: str, seed: int, *, rebuild: bool = 
     llm.check_cloud_cap(user, model)
     existing = dossiers.load(user, topic)
     payload = None if (existing is None or rebuild) else existing.existing_payload()
+    if doc_ids and existing is not None:
+        payload = existing.existing_payload()  # a relook sees the saved insights too
     try:
-        res = await remote(user, topic, seed, payload, _model_payload(model))
+        res = await remote(user, topic, seed, payload, _model_payload(model), doc_ids=doc_ids)
     except InternalUnavailable as exc:
         raise Defer(f"app not reachable ({exc})", 600) from exc
     if res.get("error"):
@@ -56,6 +59,22 @@ async def _build_or_update(user: str, topic: str, seed: int, *, rebuild: bool = 
 async def dossier_update(job: Job) -> None:
     """Triage said: this document continues a longer matter."""
     await _build_or_update(job.user, job.payload["topic"], int(job.payload.get("doc_id") or 0))
+
+
+@handler("dossier_relook", needs_llm=True)
+async def dossier_relook(job: Job) -> None:
+    """The user pressed "Relook" on a dossier: rebuild it from every document
+    of the matter — its own, the ones the user added, those of its findings.
+    User-requested, so it runs outside the sweep windows (and may wake the
+    host, `windows.USER_REQUESTED_KINDS`). Insights and research stay."""
+    d = dossiers.load(job.user, job.payload["topic"])
+    if d is None:
+        return
+    ids = dossiers.all_doc_ids(job.user, d)
+    if not ids:
+        log.info("%s: relook of %s — no documents", job.user, d.topic)
+        return
+    await _build_or_update(job.user, d.topic, 0, doc_ids=ids)
 
 
 def _in_window_or_defer() -> windows.OpenWindow:

@@ -1,9 +1,9 @@
-# Findings → Mission Control
+# Findings workspace
 
-Status: **built**, 2026-11-02. Code: `app_ui/pages/findings.py` (mission
-control), `proactive/dossiers.py` (tree, anchors, insights),
+Status: **built**, 2026-11-02. Code: `app_ui/pages/findings.py` (the
+workspace), `proactive/dossiers.py` (tree, anchors, insights),
 `services/dossier_merge.py` + `app_ui/dossier_save.py` (save to dossier);
-tests `tests/test_mission_control.py`.
+tests `tests/test_findings_workspace.py`.
 
 **Changed from the plan while building:** the chat dock is the chat page
 itself, embedded (`/chat?embed=1&dossier=<id>` in an iframe), instead of
@@ -13,6 +13,40 @@ second chat implementation and no rewrite of a 4 000-line page. In embed mode
 the chat has no app header and keeps its conversation out of the browser's
 `/chat` state; a saved insight tells the page around it via `postMessage`.
 
+**Changed 2026-11-03 (after the first use):**
+
+- **Phone:** the zone switch is a slim segmented control; "Chat" no longer
+  replaces the item — the viewer stays on top and the chat sits below it
+  (drag the grip), so the data stays in sight while typing. The dock is a
+  compact chat (input, expert, model, delete); its maximize button enlarges
+  it in place — same frame, so a half-typed message and a running answer
+  survive — with the full controls, and the bottom switch stays for the way
+  back. (A first version navigated to `/chat` and lost both; `/chat?conv=<id>`
+  still opens a conversation by id.)
+- The "Ask" buttons are gone (the dock and the switch are the way to chat);
+  a finding opened from a dossier goes "Back to the dossier", on the tab it
+  came from. "Relook" is called **Rescan**.
+- **Search** shows its results in the navigator, under the field — typing
+  never switches the view. It also matches the titles of the documents that
+  findings and dossiers name (read as the user), and lists those documents.
+- **Counters** on every binder tab and on every inbox bucket.
+- **Rescan** (formerly "Relook"; dossier menu, and a notice when documents are pending): a
+  user-requested worker job (`dossier_relook`, in `USER_REQUESTED_KINDS`) that
+  rebuilds the dossier from all its documents — its own, the ones the user
+  added (`added_docs`, code-owned, never dropped), and those of its findings.
+  Insights, research and resolved questions stay.
+- **Add documents** to a dossier by hand (search or `#id`); **file a finding**
+  into a dossier (it takes the dossier's topic — the answer to open question 2
+  changed: yes, by moving the topic). "Not in a dossier" cards have the action.
+- **Triage** updates an existing dossier for every new document of its topic;
+  the model's `dossier_update` flag is only needed to *start* one.
+- **Save to dossier:** "This answer" or "The whole conversation" (condensed,
+  sources merged from every answer's tool log); the merge round retries once
+  and falls back to plain text when a local model answers past the tool, and
+  a failure says why.
+- The dossier the chat sees (`dossiers.context_text`) puts state, open
+  questions and saved insights before the timeline.
+
 Companion: `docs/experts.md` (the expert picker in the
 chat dock comes from there). Invariants of the proactive system (CLAUDE.md
 "Proactive system") apply unchanged; this plan adds a few of its own (§7).
@@ -20,7 +54,7 @@ chat dock comes from there). Invariants of the proactive system (CLAUDE.md
 ## 1. Goal
 
 The findings module works, but it is a list. A power user who has 40 open
-findings and a dozen dossiers wants a **control room**: everything open in one
+findings and a dozen dossiers wants a **workspace**: everything open in one
 view, every matter (dossier) one click away, and the conversation about a matter
 next to the matter — not in another module.
 
@@ -93,9 +127,10 @@ Two consequences drive the plan:
   research), unchanged in substance. A dossier selected → the binder with tabs.
 - **Chat dock (bottom, `ui.splitter` horizontal, default 35 %, collapsible to a
   one-line input).** It always shows its context chip ("about: Kfz-Versicherung")
-  and the expert + model pickers. Selecting another item in the navigator does
-  **not** silently re-target a running conversation: the chip offers
-  "Switch context" (starts a new conversation) or keep.
+  and the expert + model pickers. Selecting another item in the navigator
+  moves the chat to it (that item's latest conversation, or a new one). Only
+  a busy chat — text typed, or an answer running — keeps its conversation; it
+  then offers "Talk about the selection".
 - **Topic colours** stay the user's choice (`app_ui/topic_colors.py`) and appear
   as the 3 px outline on tree rows and cards — nowhere else.
 
@@ -316,7 +351,7 @@ UI phases). One build/deploy at the end of a phase batch, not per fix.
   an old-format file parses and is rewritten with anchors; a moved file is still
   found by topic; tests in `tests/test_dossiers_*.py`.
 
-### Phase 2 — Mission control shell (findings page rewrite)
+### Phase 2 — Workspace shell (findings page rewrite)
 - New layout: navigator / viewer / dock placeholder; phone tabs.
 - Navigator: inbox buckets, dossier tree (create folder, rename, move via
   menu — drag & drop is a later nicety), Unfiled.

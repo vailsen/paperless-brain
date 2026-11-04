@@ -977,6 +977,20 @@ async def settings_page() -> None:
                     "with their own instructions, skills and document access."
                 )
             )
+            from services.user_prefs import get_pref as _gp
+            from services.user_prefs import set_pref as _sp
+
+            def _experts_toggle(e) -> None:
+                _sp("experts_enabled", bool(e.value))
+                ui.navigate.reload()  # the menu and the chat change with it
+
+            ui.switch(_("Use experts"), value=bool(_gp("experts_enabled", True)),
+                      on_change=_experts_toggle).props("dense")
+            _hint(_(
+                "Off: every chat is the Universal expert — all documents, all tools, your standing "
+                "instructions — and the expert picker and the Experts menu item are gone. Your experts "
+                "stay saved and come back when you switch this on."
+            ))
             with ui.row().classes("w-full justify-end mt-1"):
                 ui.button(
                     _("Open Experts"), icon="arrow_forward",

@@ -394,62 +394,7 @@ async def dashboard():
         ):
             ui.label(_("Dashboard")).classes("text-gray-100 text-2xl font-bold")
 
-            # ── Hilfe-Bereich ─────────────────────────────────────────────────
-            with (
-                ui.expansion(_("Help — Module overview"), icon="help_outline")
-                .props("dense dark")
-                .classes("w-full text-gray-400 text-sm bg-gray-900 rounded-lg px-2")
-            ):
-                with (
-                    ui.grid(columns=2)
-                    .classes("w-full gap-4 mt-2 mb-1")
-                    .style("align-items:start")
-                ):
-                    for _icon, _title, _desc in [
-                        (
-                            "chat",
-                            _("Chat"),
-                            _(
-                                "AI assistant with access to your document archive, your memory, the web, email and calendar. Ask questions, have documents summarized, draft letters or run research. Pick the AI model you want at the top."
-                            ),
-                        ),
-                        (
-                            "auto_awesome",
-                            _("Deep research"),
-                            _(
-                                "Autonomous multi-step agent for complex tasks. Enter a request → the AI plans it, breaks it into sub-tasks and carries them out on its own (document research, web search, email analysis, calculations). The result is presented for review — saved only after approval. Examples: 'Create an overview of all insurance policies', 'Analyze my utility bills from the last 3 years', 'Research current funding programs for my project'."
-                            ),
-                        ),
-                        (
-                            "folder_open",
-                            _("Browser"),
-                            _(
-                                "Full-screen view of the document archive (Paperless-ngx). Search by full text or semantic similarity, filter by type, correspondent, tag or date. Open documents directly, pin important ones to the dashboard or cluster similar documents via vector search. Every document you reference in chat or deep research comes from this archive."
-                            ),
-                        ),
-                        (
-                            "note_alt",
-                            _("Note vault"),
-                            _(
-                                "Your notes and the assistant's long-term memory, in one place — a file tree with a markdown editor. Write notes here or in Obsidian; edit their properties (tags, and whether a note is indexed at all). The chat searches these notes and reads the stored facts about you, your contracts and vehicles automatically. Voice memos land here too, and 'Dreaming' (dashboard) tidies up the assistant's own memory entries."
-                            ),
-                        ),
-                    ]:
-                        with ui.row().classes("items-start gap-3"):
-                            ui.icon(_icon, size="sm").classes(
-                                "text-gray-400 flex-shrink-0"
-                            ).style("align-self:flex-start;margin-top:1px")
-                            with (
-                                ui.column()
-                                .classes("gap-0.5")
-                                .style("align-self:flex-start")
-                            ):
-                                ui.label(_title).classes(
-                                    "text-gray-200 font-semibold text-sm"
-                                )
-                                ui.label(_desc).classes(
-                                    "text-gray-500 text-xs leading-snug"
-                                )
+            # The module overview moved to the "?" in the header (app_ui/help_dialog.py).
 
             # ── top row: 3 stat cards (equal height via align-items:stretch) ────
             with ui.row().style(

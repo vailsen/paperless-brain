@@ -1,6 +1,6 @@
 # Experts
 
-Status: **built**, 2026-11-02. Companion: `docs/findings-mission-control.md`
+Status: **built**, 2026-11-02. Companion: `docs/findings-workspace.md`
 (the chat dock there gets the expert picker from here).
 
 Code: `services/experts.py`, `services/expert_scope.py`, `services/skills.py`,
@@ -12,6 +12,14 @@ Code: `services/experts.py`, `services/expert_scope.py`, `services/skills.py`,
 **Decisions taken after the plan (2026-11-02), they override the text below:**
 
 - Every scope dimension is optional — empty means no restriction there.
+- **Every dimension can also exclude** (2026-11-03): `exclude_correspondents`,
+  `exclude_tags`, `exclude_document_types` in the file's `scope:`. "Never
+  these" wins over "only these"; exclusions alone narrow a full view. The
+  Access tab picks both through a dialog with search and "Done"
+  (`app_ui/multi_pick.py`) — the back gesture closes it on a phone.
+- **The briefing studies every document up to 1 500** (it sampled above 400:
+  a 515-document expert showed "300 documents" and looked narrowed). Above
+  that it still samples, and the Briefing tab says "sees N, studies M".
 - **Every expert has its memory and vault tools.** `memory` and `vault` can
   never be switched off for an expert (`experts.ALWAYS_ON_GROUPS`).
 - **Skills and expert files are not embedded.** No `skills` collection:
@@ -493,7 +501,7 @@ One phase at a time; tests green, 390 px check for UI phases, one deploy per bat
 - `PaperlessBrain Skills/` folder (excluded from embedding), sharing,
   shared-by-others section, assign by reference, duplicate.
 - Skills block + `use_skill` with the inline/on-demand threshold.
-- Library UI (no wizard yet). Findings dock picker (mission-control phase 5).
+- Library UI (no wizard yet). Findings dock picker (findings workspace phase 5).
 - **Accept:** a shared skill appears for another user at once,
   read-only; un-sharing removes it from their experts; `use_skill` cannot load
   an unassigned skill.

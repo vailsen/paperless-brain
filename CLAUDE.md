@@ -60,6 +60,10 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
   never read them — those use per-user models with their own `base_url`.
   `OLLAMA_SERVER` additionally names the host the WoL/shutdown buttons control;
   without it that is inferred from the first local-lane model in the registry.
+- **Every Anthropic SDK client comes from `services/anthropic_client.async_client`.**
+  SDK 2.x sends the key as `Authorization: Bearer`; for a custom base URL the
+  factory moves it back to `X-Api-Key` (gateways read that). Sampling parameters
+  are never sent on the Anthropic path (2026-10-21 rejects them with a 400).
 - No provider API key belongs in `.env`. Every chat/research/vision model is managed
   per user in the UI (Settings > AI Models, `services/model_registry.py`): one entry per
   **service** (backend `anthropic` / `openai_compatible`, base URL, key, lane) with any
@@ -102,10 +106,20 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 ### UI
 
 - NiceGUI 3.x, pages in `app_ui/pages/` (each imports `page_layout` + `require_auth` from `app_ui/layout.py`)
-- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `findings` (mission control, proactive only)
+- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `findings` (workspace, proactive only)
 - Dialogs: `app_ui/document_dialog.py`, `app_ui/cluster_dialog.py`
 - **NiceGUI pattern**: use `@ui.refreshable` for dynamic content in plain columns. `QTabPanels`/`element.clear()` silently fails.
 - Chat events stream via `AsyncGenerator[ChatEvent, None]` — UI iterates with `async for` and updates reactively.
+
+### Reconnecting after the app was in the background
+
+`app_ui/layout.SOCKET_REVIVE_JS` (every page) + `pb_alive` in `main.py`. The
+server keeps a page for `reconnect_timeout=300`; the socket is what dies. On
+visible / `pageshow` / `online` a down socket reconnects at once, an "up" one
+must answer `pb_alive` within 1.5 s or is replaced; the retry backoff starts at
+150 ms. A manual reconnect writes `next_message_id` into the socket query first,
+as NiceGUI's own `reconnect_attempt` does — without it the server replays from a
+stale position.
 
 ### Chat tool results that trigger UI dialogs
 
@@ -277,7 +291,10 @@ page `app_ui/pages/experts.py`.
   tools). The chat page's own lookups (citation titles, pins, downloads) use
   `_scoped_pl()`. A new document path goes through one of them.
 - **Opt-in per dimension**: empty = no restriction; filled dimensions AND,
-  values within one OR. A scope is focus, not security — that stays the token.
+  values within one OR. **Opt-out** (`exclude_*`) takes documents out whatever
+  else matches. A scope is focus, not security — that stays the token.
+- **Long pickers on a phone go through `app_ui/multi_pick.MultiPick`** (a
+  dialog with Done that the back gesture closes), not a `q-select` menu.
 - **The personality is the old custom-instructions slot** (header, 2 000-char
   cap); scope, briefing and skill blocks come before it and are code-framed.
   Settings > AI no longer edits instructions; the Universal expert inherited
@@ -287,6 +304,15 @@ page `app_ui/pages/experts.py`.
   file is recreated.
 - **An expert is fixed per conversation** (`chat_conversations.expert_id`);
   switching asks for a new conversation.
+- **"Use experts" is a per-user switch** (`experts.enabled()`, pref
+  `experts_enabled`): off, `_apply_expert` coerces every conversation to
+  Universal and the picker and menu item are hidden. The findings dock never
+  inherits `/chat`'s last expert — dossier default (`expert`), else the user's
+  default expert; picking one in a dossier's dock sets that dossier's default.
+- **One default expert per user** (pref `default_expert_id`, read only through
+  `experts.default_id()`, which falls back to Universal when the switch is off
+  or the expert is gone). New chats start with it — never with the last one
+  picked.
 - **Every expert keeps memory and vault** (`experts.ALWAYS_ON_GROUPS`). Experts
   never run in the Werkbank (`use_skill` is in `forbidden_tools`).
 - **Experts and skills are configuration, never embedded**
@@ -303,15 +329,33 @@ page `app_ui/pages/experts.py`.
   citations. Built from sidecar summaries, in the app, yields to chat; a
   restart loses a running study, nothing restarts on its own.
 
-## Mission control (findings)
+## Findings workspace
 
-`docs/findings-mission-control.md`. Code: `app_ui/pages/findings.py`,
+`docs/findings-workspace.md`. Code: `app_ui/pages/findings.py`,
 `proactive/dossiers.py`, `services/dossier_merge.py`, `app_ui/dossier_save.py`.
 
 - **The dock is the chat page, embedded** (`/chat?embed=1&dossier=…`): one chat
   implementation. Embedded, the chat has no header and keeps its conversation
-  out of the browser's `/chat` state (`_cstore`). The dock never re-targets a
-  running conversation on its own; it offers "Talk about the selection".
+  out of the browser's `/chat` state (`_cstore`). **The dock follows the
+  selection** (`_dock_follow`) unless it is busy — text in the input or an
+  answer running; only then it keeps its conversation and offers "Talk about
+  the selection".
+- **Compact until maximized, and maximized in place.** The embedded chat starts
+  `body.pb-compact` (no history drawer, title, context bar, quick actions, tool
+  switches, compaction or document drawer — `_EMBED_CSS`); the dock's maximize
+  button is a class on the findings page (`dock-max`) plus a `pb-dock-mode`
+  message, never a navigation: leaving for `/chat` lost the half-typed message
+  and the running answer, and the way back. The bottom switch stays visible.
+  Maximize / back sit in the chat's own header row (`chat-dock-max` /
+  `-min`, a `pb-dock-max` message up); on a phone the dock has no row of its
+  own except to offer "Talk about the selection".
+- **Desktop: the dock is a column on the right, always there** (width dragged at
+  the handle, `--pbm-dock-w`); a phone stacks it under the item. While dragging,
+  the frame ignores the pointer (`pbm-dragging`) — released over it, the drag
+  stuck. Maximize never reloads a frame that is there (it holds the input); a
+  chat opened without a context offers "Talk about the selection" instead.
+- **Chat pickers narrow by width, never by orientation** — a dock dragged low
+  is wider than tall, and orientation rules let the pickers run off screen.
 - **The folder tree under `Dossiers/` is the dossier tree**; a dossier is found
   by its `topic`, never by its path (`dossiers._path` scans).
 - **Dossier sections carry `<!-- pb:… -->` anchors**; a file without them is
@@ -322,6 +366,21 @@ page `app_ui/pages/experts.py`.
   returned, web pages a tool returned or read. Nothing is written to a dossier
   before the user saw the preview; the merge output passes `numbers_missing`.
 - `/findings/{id}?action=` deep links still never apply on load.
+- **Hand-added documents (`added_docs`) are code-owned** like insights: a
+  rebuild reads them and never drops them. "Rescan" (job `dossier_relook`) is
+  user-requested, so it may run outside the sweep windows and wake the host.
+- **Filing a finding into a dossier moves its topic**; membership stays the
+  topic key, there is no second link. Renaming a dossier changes only `label`.
+- **A dossier that exists gets every new document of its topic** (triage, in
+  code) — the model's `dossier_update` flag only starts one.
+- **Open questions are the user's to tick off, reopen, remove or add**
+  (`dossiers.resolve_question` / `reopen_question` / `drop_question` /
+  `add_question`); ticked ones live in `resolved`, removed ones in
+  `dropped_questions`, both code-owned, so no rebuild brings them back.
+  "Ask the chat" only fills the dock's input — the user sends it.
+- **A model's list may arrive as a JSON string** (`dossiers._as_list`); iterating
+  it filed every character as a question. Files already split that way read as
+  no questions (`heal_questions`) until the next rescan.
 
 ## Deployment target
 

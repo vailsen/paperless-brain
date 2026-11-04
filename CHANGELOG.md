@@ -9,6 +9,35 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Help in the header**: the "?" next to your name opens the module overview
+  on every page (it used to be a fold on the dashboard), now with Findings,
+  Note vault, Deep research and Experts.
+- **Default expert**: "Use as default expert" on an expert's profile. New
+  chats, and a dossier's chat without an expert of its own, start with it.
+- **Quick actions bar switch** in the chat's tool settings; off stays off,
+  on every device.
+- **"Use experts" switch** (Settings > AI): off, every chat is the Universal
+  expert, and the expert picker and the Experts menu item are gone. Your
+  experts stay saved.
+- **Open questions in a dossier can be worked on**: tick one off as answered
+  (and open it again), remove one that does not belong, add your own, or
+  "Ask the chat" — the question lands in the chat input. A rescan never
+  brings back what you ticked or removed.
+- **Experts: "Never these"** — every access dimension (correspondents, types,
+  tags) can exclude as well as narrow. The pickers are dialogs with search and
+  "Done", and the back gesture closes them on a phone.
+- **Dossiers: Rescan** rebuilds a dossier from all its documents — its own,
+  the ones you added, and those of its findings — keeping your insights and
+  research. A notice says when documents are waiting for it.
+- **Dossiers: add documents by hand**, and **file a finding into a dossier**
+  (also from the "Not in a dossier" list).
+- **Save to dossier: the whole conversation**, condensed, with the sources of
+  every answer.
+- **Findings search** also finds findings and dossiers by the names of their
+  documents, and lists those documents.
+- **"Continue in the full chat"** in the findings chat dock opens the same
+  conversation in the chat.
+
 - **Findings are an inbox**: Open, Relevant, Done, Dismissed — instead of
   eight statuses that mixed notification, research and your decision.
   "Relevant" takes a finding out of the inbox; a deadline reminder brings it
@@ -84,7 +113,75 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   switch: a sync that imported or removed documents, and a finished Werkbank
   run. Operator: generate keys once with `python -m proactive.notify.webpush`.
 
+### Changed
+
+- **The findings chat follows the selection**: picking another dossier or
+  finding moves the chat there. Only while you are typing or an answer is
+  running does it stay put and offer "Talk about the selection".
+- **Dossier chat expert** is chosen from a list with the experts' icons, and
+  takes effect in the open chat at once.
+- The findings chat starts with the dossier's own default expert, else the
+  Universal one — not the expert last picked in the chat module. Picking an
+  expert in a dossier's chat makes it that dossier's default.
+- The middle of the findings page stays centred between the navigator and the
+  chat column, however wide the chat is dragged.
+- **Anthropic SDK 2.x** (API version 2026-10-21) and NiceGUI 3.19 (upload
+  path-escape fix, select chips no longer swallow the first click). An
+  Anthropic service with its own base URL still gets the key as `X-Api-Key`.
+  A dev venv needs `pip install -U -e .`.
+- **Findings on a computer: the chat is a column on the right**, always
+  there and as wide as you drag it; maximize gives it the whole page next to
+  the navigator. The empty bar above it is gone. On a phone it stays below.
+- Navigation order: Dashboard, Chat, Findings, Note vault, Deep research,
+  Experts, Browser.
+- Findings on a phone: a slim segmented switch; the chat opens under the item
+  instead of replacing it. Search results appear under the search field, so
+  typing no longer jumps to another view. Every binder tab and every inbox
+  bucket has a counter. "Mission control" is just "Findings" again.
+- A dossier gets every new document of its topic, not only those the model
+  flagged as continuing the matter.
+- An expert's briefing studies every document up to 1 500 (it sampled above
+  400, so a 515-document expert said "300 documents"), and the Briefing tab
+  says how many it sees and studies.
+- The chat about a dossier sees its saved insights first.
+
 ### Fixed
+
+- Chat history: a hovered conversation was white on black.
+- A dossier's chat expert was not used when you came back to the dossier.
+- A dossier's open questions showed one character per line when the model
+  sent the list as text; such lists are read properly now, and dossiers
+  already broken that way show no questions until their next rescan.
+- On a phone the chat's expert and model pickers share the row's free width
+  instead of sitting small behind an empty gap.
+- The findings chat dock has no extra row on a phone: maximize and back sit
+  next to the expert and model pickers, which stay on screen however low the
+  dock is dragged.
+- The Documents tab of a dossier shows full names on two lines, and the
+  button to take out a document you added is no longer cut off the screen.
+- **The findings chat dock maximizes in place** instead of jumping to the
+  chat module, so a half-typed message and a running answer survive and the
+  bottom switch still leads back. Not maximized it is a compact chat — input,
+  expert, model — without drawers, quick actions or tool switches.
+- The chat header fits on a phone (the "Chat" title gives way; the delete
+  button was cut off), and the expert chooser shows each expert's icon.
+- The access pickers no longer lag: ticking and searching happen in the
+  browser, and only the result is sent when the list closes.
+- A briefing no longer fails with "finish_reason=length" on a thinking model:
+  more room for the answer, and a batch that still runs out is read in halves.
+- A hand-added document can be taken out of a dossier again.
+- A finding opened from a dossier goes back to the dossier; "Open dossier" and
+  the "Ask" buttons are gone, the move button has a label, "Relook" is now
+  "Rescan", and the save-to-dossier preview no longer offers the two ways to
+  make one once it is shown ("Start over" instead).
+- **The app on a phone reconnects at once after switching apps.** It checks
+  its connection the moment it is visible again (or the network returns):
+  a socket that is down reconnects immediately instead of after a growing
+  back-off, and one the phone kept but that no longer reaches the server is
+  replaced within 1.5 s instead of waiting for the heartbeat to run out.
+- "Fit into dossier" failed with a bare "ValueError" when a local model
+  answered as text instead of calling the tool: it retries, then takes the
+  text answer (checked the same way), and a real failure says why.
 
 - **The idle shutdown no longer turns off a PC someone is using.** It checks
   for an active, non-idle desktop session on the machine first and leaves it

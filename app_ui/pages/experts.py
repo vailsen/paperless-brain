@@ -188,6 +188,8 @@ async def experts_page(e: str = "", view: str = "experts"):
                         sub = _("All documents")
                     else:
                         sub = _("{n} documents").format(n=n) if n is not None else _("Narrowed access")  # TODO i18n-plural
+                    if experts.default_id(user) == ex.expert_id:
+                        sub += " · " + _("default")
                     with ui.element("div").classes("pbx-item" + (" is-active" if ex.expert_id == st["sel"] else "")).on(
                         "click", lambda _e, i=ex.expert_id: _select(i)
                     ):
@@ -286,6 +288,20 @@ async def experts_page(e: str = "", view: str = "experts"):
     def _profile(ex) -> None:
         sha = {"v": ex.sha}
         with ui.element("div").classes("pbx-card"):
+            # One default at a time: ticking it here moves it from the other.
+            def _set_default(e) -> None:
+                from services.user_prefs import set_pref
+
+                set_pref("default_expert_id", ex.expert_id if e.value else experts.UNIVERSAL_ID)
+                ui.notify(_("New chats start with {name}.").format(
+                    name=ex.name if e.value else "Universal"), type="positive")
+                aside_body.refresh()
+
+            ui.checkbox(_("Use as default expert"), value=experts.default_id(user) == ex.expert_id,
+                        on_change=_set_default).props("dense")
+            ui.label(_("New chats, and a dossier's chat without an expert of its own, start with it. "
+                       "Only one expert is the default.")).classes("pbx-hint")
+        with ui.element("div").classes("pbx-card"):
             ui.label(_("Name")).classes("pbx-label")
             name = ui.input(value=ex.name).props("outlined dense" + (" readonly" if ex.builtin else "")).classes("w-full")
             if not ex.builtin:
@@ -371,29 +387,41 @@ async def experts_page(e: str = "", view: str = "experts"):
             return
         current = await experts.scope_with_names(pl, ex.scope_meta)
         host.clear()
+        from app_ui.multi_pick import MultiPick
+
         sels: dict = {}
         with host:
             ui.label(_(
-                "Opt-in: pick what this expert may see. A field left empty does not restrict. "
-                "Filled fields all apply together; within one field any value matches."
+                "“Only these” narrows the view: a field left empty does not restrict, filled fields all "
+                "apply together, and within one field any value matches. “Never these” takes documents "
+                "out, whatever else matches."
             )).classes("pbx-hint")
             for key, label, names in (("correspondents", _("Correspondents"), corr),
                                       ("document_types", _("Document types"), types),
                                       ("tags", _("Tags"), tags)):
-                with ui.element("div").classes("pbx-card"):
+                with ui.element("div").classes("pbx-card gap-1"):
                     with ui.row().classes("w-full items-center no-wrap gap-2"):
                         ui.label(label).classes("pbx-label flex-1")
                         hint = ui.label("").classes("pbx-hint")
-                    opts = {i: n for i, n in sorted(names.items(), key=lambda kv: kv[1].casefold())}
-                    for item in current.get(key) or []:
-                        opts.setdefault(item["id"], item["name"] + " ⚠")
-                    sel = ui.select(opts, value=[it["id"] for it in current.get(key) or []], multiple=True,
-                                    with_input=True).props("outlined dense use-chips options-dense").classes("w-full")
-                    sels[key] = (sel, names, hint)
+                    for mode in ("", "exclude_"):
+                        k = mode + key
+                        opts = {i: n for i, n in sorted(names.items(), key=lambda kv: kv[1].casefold())}
+                        for item in current.get(k) or []:
+                            opts.setdefault(item["id"], item["name"] + " ⚠")
+                        sel = MultiPick(opts, [it["id"] for it in current.get(k) or []],
+                                        title=f"{label} — " + (_("only these") if not mode else _("never these")),
+                                        empty=_("any") if not mode else _("none excluded"),
+                                        on_change=lambda _v: _changed(), negative=bool(mode),
+                                        label=_("Only these") if not mode else _("Never these"))
+                        sels[k] = (sel, names, hint if not mode else None)
 
             def _hints() -> None:
-                for _k, (sel, _n, hint) in sels.items():
-                    hint.set_text(_("no restriction") if not sel.value else _("{n} selected").format(n=len(sel.value)))
+                for key in ("correspondents", "document_types", "tags"):
+                    inc, exc = sels[key][0].value, sels["exclude_" + key][0].value
+                    parts = [_("{n} only").format(n=len(inc)) if inc else _("no restriction")]
+                    if exc:
+                        parts.append(_("{n} never").format(n=len(exc)))
+                    sels[key][2].set_text(" · ".join(parts))
 
             with ui.element("div").classes("pbx-card"):
                 with ui.row().classes("w-full items-center no-wrap gap-2"):
@@ -406,8 +434,7 @@ async def experts_page(e: str = "", view: str = "experts"):
                 def _draft_scope():
                     from services.expert_scope import Scope
 
-                    return Scope(frozenset(sels["correspondents"][0].value or []), frozenset(sels["tags"][0].value or []),
-                                 frozenset(sels["document_types"][0].value or []))
+                    return Scope.from_meta({k: list(sel.value or []) for k, (sel, _n, _h) in sels.items()})
 
                 lib = DocLibrary(lambda: scoped_client(settings.paperless_url, token, _draft_scope()), _open_doc)
                 with ui.element("div").style("height:380px; display:flex; flex-direction:column; width:100%;"):
@@ -432,15 +459,13 @@ async def experts_page(e: str = "", view: str = "experts"):
                 _hints()
                 if pending["t"] is not None:
                     pending["t"].cancel()
-                pending["t"] = ui.timer(0.8, _recount, once=True)
-
-            for sel, _n, _h in sels.values():
-                sel.on_value_change(_changed)
+                with host:  # not in a picker's dialog, which is deleted on close
+                    pending["t"] = ui.timer(0.8, _recount, once=True)
 
             async def _save_access() -> None:
                 cur = experts.get(user, ex.expert_id) or ex
                 cur.scope_meta = {key: [{"id": int(i), "name": names.get(int(i), str(i))} for i in (sel.value or [])]
-                                  for key, (sel, names, _h) in sels.items()}
+                                  for key, (sel, names, _h) in sels.items() if sel.value}
                 try:
                     saved = await experts.save(user, cur, expected_sha=cur.sha)
                 except NoteConflict:
@@ -566,8 +591,10 @@ async def experts_page(e: str = "", view: str = "experts"):
                 with ui.row().classes("w-full items-center no-wrap gap-2"):
                     ui.element("div").classes("pbx-dot " + ("current" if b else ""))
                     if b:
-                        ui.label(_("Built {when} · {model} · {n} studied · {s} skipped").format(
-                            when=b.built[:10], model=b.model or "?", n=len(b.studied_ids), s=b.skipped)).classes(
+                        ui.label(_("Built {when} · {model} · {n} of {total} documents studied · {s} without "
+                                   "extraction skipped").format(
+                            when=b.built[:10], model=b.model or "?", n=len(b.studied_ids), total=b.total_docs or "?",
+                            s=b.skipped)).classes(
                             "text-sm flex-1").style("color:var(--c-text)")
                     else:
                         ui.label(_("No briefing yet")).classes("text-sm flex-1").style("color:var(--c-text)")
@@ -613,8 +640,15 @@ async def experts_page(e: str = "", view: str = "experts"):
                             cost.set_text("")
                             return
                         sel_n = len(briefings.select_for_study(docs))
-                        cost.set_text(_("{n} documents · about {c} model calls").format(
-                            n=sel_n, c=briefings.estimate_calls(sel_n)))
+                        if sel_n >= len(docs):
+                            cost.set_text(_("Studies all {n} documents it sees · about {c} model calls").format(
+                                n=sel_n, c=briefings.estimate_calls(sel_n)))
+                        else:
+                            cost.set_text(_(
+                                "Sees {total} documents, studies {n} of them (the newest {newest} and up to "
+                                "{per} per correspondent) · about {c} model calls").format(
+                                total=len(docs), n=sel_n, newest=briefings.SAMPLE_NEWEST,
+                                per=briefings.SAMPLE_PER_CORRESPONDENT, c=briefings.estimate_calls(sel_n)))
                         s = briefings.staleness(b, docs, ex.scope_meta)
                         if b and s["state"] == "outdated":
                             stale_lbl.set_text(_("{n} new documents since the briefing").format(n=s["new"]))
