@@ -245,6 +245,12 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   (`repair_pages`): no support on the cited page, clear support on another page of the same
   document → the marker names that page and gets its own number. A supported marker is never
   touched; `claim_before` applies the browser's claim rule.
+- **A web source is a link, resolved from the tool log** (`services/web_citations.py`). A
+  model verifying on the web writes `[^Cleveland Clinic]`; before the answer is stored, each
+  such marker becomes `([Cleveland Clinic](url))` — matched by site or title against pages a
+  web tool *returned this turn* (a failed fetch is none). A model-made URL is never linked; an
+  unmatched name stays plain `(name)`, also the render fallback for older answers. Links in
+  an answer open in a new tab.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
   link mid-marker.
 

@@ -1,0 +1,59 @@
+"""Web sources in chat answers: [^Site name] → a link to a page a tool returned."""
+
+from services.web_citations import link_web_refs, plain_web_refs, sources_from_trace
+
+TRACE = [
+    {"name": "web_search", "input": {"query": "ischial bursitis"}, "output": (
+        "Web search: 'ischial bursitis'\n\n"
+        "1. [Ischial Bursitis: Causes & Treatment](https://my.clevelandclinic.org/health/ischial-bursitis) (2024)\n"
+        "   Ischial bursitis is …\n\n"
+        "2. [Piriformis beim Radfahren](https://www.zommunique.com/piriformis)\n")},
+    {"name": "web_fetch_page", "input": {"url": "https://my.clevelandclinic.org/health/ischial-bursitis"},
+     "output": "[trafilatura] Content of https://my.clevelandclinic.org/health/ischial-bursitis:\n\nIschial …"},
+    {"name": "web_fetch_page", "input": {"url": "https://blocked.example/x"},
+     "output": "Web fetch failed: timeout"},
+    {"name": "search", "input": {}, "output": "[Not a web result](https://evil.example/x)"},
+]
+
+
+def test_site_names_become_links_to_the_pages_the_tools_returned():
+    text = "Schon brennt's. [^Cleveland Clinic][^Zommunique]\nWeiter."
+    out = link_web_refs(text, TRACE)
+    assert out == ("Schon brennt's. ([Cleveland Clinic](https://my.clevelandclinic.org/health/ischial-bursitis), "
+                   "[Zommunique](https://www.zommunique.com/piriformis))\nWeiter.")
+
+
+def test_a_name_no_tool_returned_is_plain_text_never_a_link():
+    out = link_web_refs("Laut Studie.[^Mayo Clinic] Ende", TRACE)
+    assert out == "Laut Studie. (Mayo Clinic) Ende"
+
+
+def test_a_url_is_linked_only_if_a_tool_returned_it():
+    assert "](https://made.up/x)" not in link_web_refs("A [^https://made.up/x]", TRACE)
+    out = link_web_refs("A [^https://www.zommunique.com/piriformis]", TRACE)
+    assert "(www.zommunique.com" not in out and "](https://www.zommunique.com/piriformis)" in out
+
+
+def test_title_words_match_too():
+    out = link_web_refs("Text [^Piriformis beim Radfahren]", TRACE)
+    assert "](https://www.zommunique.com/piriformis)" in out
+
+
+def test_document_citations_are_left_alone():
+    text = "Rente [^32-p3] und Akte [^241]. Gemischt [^241][^Cleveland Clinic]"
+    out = link_web_refs(text, TRACE)
+    assert "[^32-p3]" in out and "[^241]." in out
+    assert "[^241] ([Cleveland Clinic](https://my.clevelandclinic.org/health/ischial-bursitis))" in out
+
+
+def test_only_web_tools_are_sources():
+    assert all("evil.example" not in s["url"] for s in sources_from_trace(TRACE))
+
+
+def test_render_fallback_for_old_answers():
+    assert plain_web_refs("Fakt.[^Cleveland Clinic], [^Zommunique] Ende [^12]") == \
+        "Fakt. (Cleveland Clinic, Zommunique) Ende [^12]"
+
+
+def test_a_failed_fetch_is_no_source():
+    assert "blocked.example" not in link_web_refs("A [^blocked]", TRACE)

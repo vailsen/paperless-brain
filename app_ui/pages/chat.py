@@ -25,7 +25,7 @@ from services.citations import number_citations
 from models.brain_fact_result import BrainFactResult
 from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
-from services import citations, doc_image_service, sync_state
+from services import citations, doc_image_service, sync_state, web_citations
 from services.user_prefs import get_pref, set_pref
 from services.session_auth import get_session_token
 
@@ -167,6 +167,8 @@ def _inject_doc_links(
 
     # While streaming, a marker arrives in pieces; hide the unfinished tail.
     text = _PARTIAL_CITE_RE.sub("", text)
+    # Web markers of answers stored before they were linked: plain "(name)".
+    text = web_citations.plain_web_refs(text)
     text, sources = number_citations(text, _sup)
 
     text = _DOC_ID_RE.sub(
@@ -1325,9 +1327,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         sanitize=False,
                         extras=_MD_EXTRAS,
                     ).classes("chat-md")
-                    if idx >= 0 and _dossiers_on and (msg.get("content") or "").strip():
-                        with ui.row().classes("justify-end w-full mt-1 gap-1"):
-                            _save_btn(idx, _sb)
+                    if (msg.get("content") or "").strip():
+                        _answer_menu(idx, _sb, msg["content"])
 
     async def _resolve_cite_titles(texts: list[str]) -> dict[int, str]:
         """Titles of the documents cited in ``texts`` — asked of Paperless as
@@ -2265,6 +2266,20 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             )
                             compact_btn.on_click(lambda: asyncio.ensure_future(_compact_chat()))
 
+                            def _dl_conversation() -> None:
+                                from app_ui.chat_export import conversation_markdown
+
+                                md = conversation_markdown(
+                                    _s["messages"], you=_("You"), assistant=_expert().name or "PaperlessBrain")
+                                if not md:
+                                    ui.notify(_("Nothing to download yet."), type="info")
+                                    return
+                                ui.download(md.encode("utf-8"), _("conversation.md"), media_type="text/markdown")
+
+                            (ui.button(icon="download", color=None, on_click=_dl_conversation)
+                             .props("flat dark").classes("chat-input-tool")
+                             .tooltip(_("Download conversation as Markdown")))
+
                             input_field = (
                                 ui.textarea(placeholder=_("Message …"))
                                 .classes("flex-1 chat-main-input")
@@ -2752,6 +2767,9 @@ document.addEventListener('click', function(e) {{
     if (d) {{ e.preventDefault(); window.__openDocById(d.getAttribute('data-doc-id')); return; }}
     var img = e.target.closest('.chat-md img[src^="/api/doc-image/"]');
     if (img) {{ e.preventDefault(); window.open(img.getAttribute('src'), '_blank', 'noopener'); return; }}
+    // A web source in an answer opens beside the chat, never in its place.
+    var ext = e.target.closest('.chat-md a[href^="http"]');
+    if (ext) {{ e.preventDefault(); window.open(ext.getAttribute('href'), '_blank', 'noopener'); return; }}
 }});
 window.__openDocById = function(docId) {{
     if (!window.socket || !window.did_handshake) {{
@@ -3016,18 +3034,19 @@ window.__openVaultNote = function(noteId) {{
         return None
 
     # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
-    def _save_btn(idx: int, bubble_el) -> None:
+    def _save_action(idx: int, bubble_el):
         async def _click() -> None:
             msgs = _s["messages"]
             if not (0 <= idx < len(msgs)) or msgs[idx].get("role") != "assistant":
                 ui.notify(_("This answer is no longer in the conversation."), type="warning")
                 return
+            # The selection was taken when the "…" button was pressed — the menu
+            # click itself collapses it.
             try:
                 picked = await ui.run_javascript(
-                    "(function(){var s=window.getSelection();var el=document.getElementById("
-                    + json.dumps(f"c{bubble_el.id}")
-                    + ");if(!s||s.isCollapsed||!el||!el.contains(s.anchorNode))return '';"
-                    "return s.toString();})()", timeout=2.0)
+                    "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
+                    "return (s&&s.id===" + json.dumps(f"c{bubble_el.id}") + ")?s.text:'';})()",
+                    timeout=2.0)
             except Exception:
                 picked = ""
             from app_ui.dossier_save import open_save_dialog
@@ -3047,9 +3066,51 @@ window.__openVaultNote = function(noteId) {{
                 on_saved=_on_insight_saved, conversation=conv, conv_provenance=conv_prov,
             )
 
-        # color=None: icons inherit the text colour (no accent on a tool button).
-        ui.button(icon="create_new_folder", on_click=_click, color=None).props("flat dark dense").classes(
-            "text-gray-600").tooltip(_("Save to dossier (select text first to save only that part)"))
+        return _click
+
+    def _answer_menu(idx: int, bubble_el, content: str, trace_dlg=None) -> None:
+        """One "…" button under an answer: Markdown, CSV per table, save to
+        dossier, tool history. Four buttons in a row did not line up and
+        crowded a phone."""
+        csvs = _extract_markdown_csvs(content) if content else []
+        save = _save_action(idx, bubble_el) if (content and _dossiers_on and idx >= 0) else None
+        if not (content or csvs or trace_dlg):
+            return
+
+        def _dl_md() -> None:
+            ui.download(content.encode("utf-8"), _("answer.md"), media_type="text/markdown")
+
+        def _item(icon: str, label: str, on_click) -> None:
+            with ui.menu_item(on_click=on_click):
+                with ui.row().classes("items-center gap-2 no-wrap"):
+                    ui.icon(icon, size="1.1rem").classes("text-gray-500")
+                    ui.label(label).classes("text-sm")
+
+        with ui.row().classes("justify-end w-full mt-1"):
+            # color=None: icons inherit the text colour (no accent on a tool button).
+            btn = ui.button(icon="more_horiz", color=None).props("flat dark dense round").classes(
+                "text-gray-600").tooltip(_("More"))
+            btn.on("mousedown", js_handler=(
+                "() => { var s = window.getSelection(); var el = document.getElementById("
+                + json.dumps(f"c{bubble_el.id}") + ");"
+                " window.__pbSelSnap = (s && !s.isCollapsed && el && el.contains(s.anchorNode))"
+                " ? {id: el.id, text: s.toString()} : null; }"))
+            with btn, ui.menu().props("auto-close"):
+                if content:
+                    _item("download", _("Download answer as Markdown"), _dl_md)
+                for ci, csv_bytes in enumerate(csvs):
+                    multi = len(csvs) > 1
+
+                    def _dl_csv(_b=csv_bytes, _n=ci + 1, _m=multi):
+                        ui.download(_b, f"tabelle_{_n}.csv" if _m else "tabelle.csv", media_type="text/csv")
+
+                    _item("table_view", _("Table {n} as CSV").format(n=ci + 1) if multi
+                          else _("Download table as CSV"), _dl_csv)
+                if save is not None:
+                    _item("create_new_folder", _("Save to dossier (select text first to save only that part)"),
+                          save)
+                if trace_dlg is not None:
+                    _item("info_outline", _("Show tool history"), trace_dlg.open)
 
     def _on_insight_saved(topic: str) -> None:
         if _embed:
@@ -3750,6 +3811,11 @@ window.__openVaultNote = function(noteId) {{
             if _shown_images:
                 accumulated[0] = with_images(accumulated[0], _shown_images, _)
             if accumulated[0]:
+                # [^Cleveland Clinic] → a link to the page a web tool returned.
+                try:
+                    accumulated[0] = web_citations.link_web_refs(accumulated[0], _tool_trace)
+                except Exception as exc:
+                    _log.warning("web citation linking failed: %s", exc)
                 # A marker behind a fact from another page of the same document
                 # is pointed at that page before the answer is stored.
                 try:
@@ -3787,10 +3853,6 @@ window.__openVaultNote = function(noteId) {{
                     _log.warning("provenance failed", exc_info=True)
                 _update_context_progress()  # re-estimate now that assistant msg is in history
             _md_raw = accumulated[0]
-
-            def _dl_md(_c=_md_raw):
-                if _c:
-                    ui.download(_c.encode("utf-8"), _("answer.md"), media_type="text/markdown")
 
             # ── Build tool-trace dialog (button added to shared footer row below) ──
             trace_dlg = None
@@ -3848,43 +3910,11 @@ window.__openVaultNote = function(noteId) {{
                                                 " whitespace-pre-wrap"
                                             )
 
-            # ── Single shared footer row: .MD | CSV… | ⓘ ─────────────────────
-            _csvs = _extract_markdown_csvs(accumulated[0]) if accumulated[0] else []
-            _multi = len(_csvs) > 1
-            if _md_raw or _csvs or trace_dlg:
+            # ── Footer: one "…" menu (Markdown, CSV…, dossier, tool history) ──
+            if _md_raw or trace_dlg:
                 with bubble[0]:
-                    with ui.row().classes("justify-end w-full mt-1 gap-1"):
-                        if _md_raw:
-                            ui.button(".MD", icon="download", on_click=_dl_md).props(
-                                "flat dark dense"
-                            ).classes("text-gray-600 text-xs").tooltip(
-                                _("Download answer as Markdown")
-                            )
-                        for _ci, _csv_bytes in enumerate(_csvs):
-                            _label = f"CSV{_ci + 1}" if _multi else "CSV"
-
-                            def _dl_csv(_b=_csv_bytes, _n=_ci + 1, _m=_multi):
-                                ui.download(
-                                    _b,
-                                    f"tabelle_{_n}.csv" if _m else "tabelle.csv",
-                                    media_type="text/csv",
-                                )
-
-                            ui.button(_label, icon="download", on_click=_dl_csv).props(
-                                "flat dark dense"
-                            ).classes("text-gray-500 text-xs").tooltip(
-                                _("Table {n} as CSV").format(n=_ci + 1)
-                                if _multi
-                                else _("Download table as CSV")
-                            )
-                        if _md_raw and _dossiers_on:
-                            _save_btn(len(_s["messages"]) - 1, bubble[0])
-                        if trace_dlg is not None:
-                            ui.button(
-                                icon="info_outline", on_click=trace_dlg.open
-                            ).props("flat dark dense").classes("text-gray-600").tooltip(
-                                _("Show tool history")
-                            )
+                    _answer_menu(len(_s["messages"]) - 1 if _md_raw else -1, bubble[0], _md_raw or "",
+                                 trace_dlg)
 
             # ── Letter dialog (triggered by trigger_docx_generation tool) ──────
             if _pending_docx[0] is not None:

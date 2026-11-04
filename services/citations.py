@@ -68,7 +68,9 @@ def number_citations(text: str, render) -> tuple[str, list[tuple[int, int, int]]
 
 def plain_citations(text: str, page_label: str = "p. {n}") -> str:
     """Markers as superscript numbers plus a source list — for a PDF or a copy."""
-    out, sources = number_citations(text, lambda n, _d, _p: f"<sup>{n}</sup>")
+    from services.web_citations import plain_web_refs
+
+    out, sources = number_citations(plain_web_refs(text), lambda n, _d, _p: f"<sup>{n}</sup>")
     if not sources:
         return out
     items = "  \n".join(
