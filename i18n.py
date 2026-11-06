@@ -23,6 +23,7 @@ DEFAULT_LANG = "en"
 SUPPORTED_LANGUAGES: dict[str, str] = {
     "en": "English",
     "de": "Deutsch",
+    "pl": "Polski",
 }
 
 # Per-language LLM metadata: English language name + date-format hint.
@@ -30,7 +31,8 @@ SUPPORTED_LANGUAGES: dict[str, str] = {
 # system prompts (chat + werkbank roles).
 LANGUAGE_META: dict[str, dict[str, str]] = {
     "en": {"name": "English", "date_format": "YYYY-MM-DD", "dt_strftime": "%Y-%m-%d %H:%M", "weekdays": "Monday Tuesday Wednesday Thursday Friday Saturday Sunday", "months": "January February March April May June July August September October November December"},
-    "de": {"name": "German (Deutsch)", "date_format": "DD.MM.YYYY", "dt_strftime": "%d.%m.%Y %H:%M", "weekdays": "Montag Dienstag Mittwoch Donnerstag Freitag Samstag Sonntag", "months": "Januar Februar März April Mai Juni Juli August September Oktober November Dezember"},
+    "de": {"name": "German (Deutsch)", "date_format": "DD.MM.YYYY", "dt_strftime": "%d.%m.%Y %H:%M", "weekdays": "Montag Dienstag Mittwoch Donnerstag Freitag Samstag Sonntag", "months": "Januar Februar März April Mai Juni Juli August September October November Dezember"},
+    "pl": {"name": "Polish (Polski)", "date_format": "DD.MM.YYYY", "dt_strftime": "%d.%m.%Y %H:%M", "weekdays": "poniedziałek wtorek środa czwartek piątek sobota niedziela", "months": "styczeń luty marzec kwiecień maj czerwiec lipiec sierpień wrzesień październik listopad grudzień"},
 }
 
 
@@ -95,6 +97,11 @@ _LANG_MARKERS: dict[str, frozenset[str]] = {
         can not but or also only this that these those of to do does did you your
         show give list about there their they it's i'm was were be been
     """.split()),
+    "pl": frozenset("""
+        w i na do ze z że to jest nie jak gdy kiedy gdzie mój moja moje mam
+        mamy dla od ale lub albo też tylko już był była było są proszę pokaż
+        pokaż mi ciebie siebie nas was ich jego jej dla tego tym nich
+    """.split()),
 }
 
 
@@ -110,11 +117,15 @@ def detect_language(text: str, default: str = DEFAULT_LANG) -> str:
     if not text:
         return default
     lowered = text.lower()
-    words = set(re.findall(r"[a-zà-ÿäöüß']+", lowered))
+    words = set(re.findall(r"[a-zà-ÿäöüßąęćłńóśźż']+", lowered))
     scores = {code: len(words & markers) for code, markers in _LANG_MARKERS.items()}
     # Umlauts and ß are decisive on their own — no English word carries them.
     if re.search(r"[äöüß]", lowered):
         scores["de"] = scores.get("de", 0) + 2
+    # Polish diacritics are also decisive on their own.
+    if re.search(r"[ąęćłńóśźż]", lowered):
+        scores["pl"] = scores.get("pl", 0) + 2
+        
     best = max(scores, key=lambda c: scores[c])
     runner_up = max((c for c in scores if c != best), key=lambda c: scores[c], default=None)
     if scores[best] < 2 or (runner_up and scores[best] == scores[runner_up]):
