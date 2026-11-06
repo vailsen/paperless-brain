@@ -766,6 +766,14 @@ window.addEventListener('message',function(e){
 </script>"""
 
 
+#: The chat can read a finding or dossier, never change one: offering to
+#: "update the finding" ended in nothing happening (there is no such tool).
+_CTX_READ_ONLY = (
+    "You cannot change findings or dossiers — no tool does that, so never offer to update, note or "
+    "file anything in them. To keep an answer, the user presses \"Save to dossier\" under it."
+)
+
+
 @ui.page("/chat")
 async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = ""):
     if not require_auth():
@@ -3079,11 +3087,35 @@ window.__openVaultNote = function(noteId) {{
         return _click
 
     def _answer_menu(idx: int, bubble_el, content: str, trace_dlg=None) -> None:
+        if _embed and content and _dossiers_on and idx >= 0:
+            _answer_menu_embed(idx, bubble_el, content, trace_dlg)
+            return
+        _answer_menu_full(idx, bubble_el, content, trace_dlg)
+
+    def _sel_snapshot_js(bubble_el) -> str:
+        return ("() => { var s = window.getSelection(); var el = document.getElementById("
+                + json.dumps(f"c{bubble_el.id}") + ");"
+                " window.__pbSelSnap = (s && !s.isCollapsed && el && el.contains(s.anchorNode))"
+                " ? {id: el.id, text: s.toString()} : null; }")
+
+    def _answer_menu_embed(idx: int, bubble_el, content: str, trace_dlg=None) -> None:
+        """In the findings dock, saving to the dossier is what an answer is
+        for: its own button, next to the "…" menu with the rest."""
+        with ui.row().classes("justify-end items-center w-full mt-1 gap-1 no-wrap"):
+            sv = ui.button(_("Save to dossier"), icon="create_new_folder", color=None).props(
+                "flat dark dense no-caps").classes("text-gray-500 text-xs").tooltip(
+                _("Select text first to save only that part"))
+            sv.on("mousedown", js_handler=_sel_snapshot_js(bubble_el))
+            sv.on_click(_save_action(idx, bubble_el))
+            _answer_menu_full(idx, bubble_el, content, trace_dlg, with_save=False, inline=True)
+
+    def _answer_menu_full(idx: int, bubble_el, content: str, trace_dlg=None, *, with_save: bool = True,
+                          inline: bool = False) -> None:
         """One "…" button under an answer: Markdown, CSV per table, save to
         dossier, tool history. Four buttons in a row did not line up and
         crowded a phone."""
         csvs = _extract_markdown_csvs(content) if content else []
-        save = _save_action(idx, bubble_el) if (content and _dossiers_on and idx >= 0) else None
+        save = _save_action(idx, bubble_el) if (with_save and content and _dossiers_on and idx >= 0) else None
         if not (content or csvs or trace_dlg):
             return
 
@@ -3096,15 +3128,13 @@ window.__openVaultNote = function(noteId) {{
                     ui.icon(icon, size="1.1rem").classes("text-gray-500")
                     ui.label(label).classes("text-sm")
 
-        with ui.row().classes("justify-end w-full mt-1"):
+        from contextlib import nullcontext
+
+        with (nullcontext() if inline else ui.row().classes("justify-end w-full mt-1")):
             # color=None: icons inherit the text colour (no accent on a tool button).
             btn = ui.button(icon="more_horiz", color=None).props("flat dark dense round").classes(
                 "text-gray-600").tooltip(_("More"))
-            btn.on("mousedown", js_handler=(
-                "() => { var s = window.getSelection(); var el = document.getElementById("
-                + json.dumps(f"c{bubble_el.id}") + ");"
-                " window.__pbSelSnap = (s && !s.isCollapsed && el && el.contains(s.anchorNode))"
-                " ? {id: el.id, text: s.toString()} : null; }"))
+            btn.on("mousedown", js_handler=_sel_snapshot_js(bubble_el))
             with btn, ui.menu().props("auto-close"):
                 if content:
                     _item("download", _("Download answer as Markdown"), _dl_md)
@@ -3478,7 +3508,7 @@ window.__openVaultNote = function(noteId) {{
                 "content": (
                     "[The user opened this chat from a PaperlessBrain finding. The finding is "
                     "the system's own note, not evidence: cite the documents it names, never "
-                    "the finding.]\n<finding>\n# " + _fc["title"] + "\n\n"
+                    "the finding. " + _CTX_READ_ONLY + "]\n<finding>\n# " + _fc["title"] + "\n\n"
                     + _fc["text"][:FINDING_CTX_CHARS] + "\n</finding>\n\n"
                     + llm_messages[-1]["content"]
                 ),
@@ -3490,7 +3520,7 @@ window.__openVaultNote = function(noteId) {{
                 "content": (
                     "[The user is looking at this PaperlessBrain dossier. It is the system's own "
                     "summary — a map, not evidence: use its document ids to decide what to read, "
-                    "cite the documents, never the dossier.]\n<dossier>\n# " + _dc["title"] + "\n\n"
+                    "cite the documents, never the dossier. " + _CTX_READ_ONLY + "]\n<dossier>\n# " + _dc["title"] + "\n\n"
                     + _dc["text"][:FINDING_CTX_CHARS] + "\n</dossier>\n\n"
                     + llm_messages[-1]["content"]
                 ),

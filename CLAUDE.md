@@ -391,6 +391,11 @@ page `app_ui/pages/experts.py`.
   user's across every chat, and the inbox left each finding's documents there.
 - **Saving to a dossier never proposes questions** — the model only says which
   existing ones the excerpt answers; its new ones were invented.
+- **The chat never offers to change a finding or dossier** (`chat._CTX_READ_ONLY`
+  in both context blocks): no tool does it, so "shall I update the finding?"
+  ended in nothing. In the dock, "Save to dossier" is a button of its own.
+- **Settings are a menu and one pane** (`settings._group` / `_show`, `?s=<group>`),
+  a chip row on a phone — the expansion panels had become one long scroll.
 - **The overview is one row per topic** (`app_ui/findings_chart`), never a
   chart: every chart cut the topic names.
 - **A deadline's title says what to do** (`deadlines.title_for`, the
