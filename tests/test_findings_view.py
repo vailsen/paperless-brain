@@ -107,11 +107,11 @@ def test_overview_one_row_per_topic_pressing_first_no_topic_last():
     assert by["kfz"]["label"] == "Kfz" and by[fv.NO_TOPIC]["label"] == ""
 
 
-def test_overview_due_label_short_near_year_far():
+def test_overview_due_label_is_the_whole_date():
     from app_ui import findings_chart
 
-    assert findings_chart.due_label("2026-11-18", TODAY) == "11-18"
-    assert findings_chart.due_label("2064-01-01", TODAY) == "2064"
+    assert findings_chart.due_label("2026-11-18", TODAY) == "2026-11-18"
+    assert findings_chart.due_label("2027-04-01", TODAY) == "2027-04-01"
     assert findings_chart.due_label("", TODAY) == ""
 
 
