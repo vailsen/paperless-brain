@@ -10,6 +10,8 @@ findings, and from those to reminders.
   (`doc_ids`, quotes) and sends nothing — the date is already known.
   Re-analysing a document (a lost DB, a version bump) finds the same finding
   and writes nothing when the evidence is unchanged.
+- The title says what to do (`title_for`, the analysis' description), never
+  "<kind>: <file name> (<date>)"; the date is shown next to it anyway.
 - Reminders at the user's offsets (default 30/7/1 days). Which offsets were
   sent lives in the finding's `reminders_sent`, so a restart or a deleted
   `proactive.db` never sends one twice. A worker that was down past several
@@ -42,6 +44,63 @@ def _kind_label(kind: str, lang: str) -> str:
         "informational": N_("Date"),
     }
     return translator_for(lang)(labels.get(kind, labels["informational"]))
+
+
+#: A title is read in a list next to its date; the date is not repeated.
+TITLE_MAX = 90
+TITLES_MARKER = "deadline_titles_v1:{user}"
+
+
+def title_for(d: Deadline, lang: str, doc_title: str = "") -> str:
+    """What has to be done — the analysis' one-line description ("Einspruch
+    gegen den Steuerbescheid einlegen"), not "Widerspruchsfrist:
+    2026_10_22_Steuerbescheid_…": a file name says which paper, not what to
+    do. Only without a description the kind and the document title."""
+    text = " ".join((d.description or "").split()).strip()
+    text = text.split(". ")[0].rstrip(" .;:")
+    if len(text) > TITLE_MAX:
+        cut = text[:TITLE_MAX].rsplit(" ", 1)[0]
+        text = (cut or text[:TITLE_MAX]).rstrip(" ,;:-") + " …"
+    if text:
+        return text[0].upper() + text[1:]
+    label = _kind_label(d.kind, lang)
+    return f"{label}: {doc_title}" if doc_title else label
+
+
+def _old_title(f: findings.Finding) -> bool:
+    """A title written by the old rule — "<kind>: <document title> (<date>)"."""
+    return bool(f.deadline) and f.title.endswith(f"({f.deadline})") and ": " in f.title
+
+
+async def retitle(user: str) -> int:
+    """Once per user: deadline findings titled the old way get the title of
+    `title_for`, from the document's analysis. A title that does not look
+    like the old rule is left alone."""
+    from proactive.db import kv_get, kv_set
+
+    marker = TITLES_MARKER.format(user=user)
+    if kv_get(marker):
+        return 0
+    changed = 0
+    for f in findings.list_findings(user):
+        if f.kind != "deadline" or not _old_title(f) or not f.doc_ids:
+            continue
+        new = ""
+        for doc_id in f.doc_ids:
+            a = analysis.get(int(doc_id))
+            d = next((x for x in (a.deadlines if a else []) if x.date == f.deadline
+                      and x.kind == (f.deadline_kind or x.kind) and x.description), None)
+            if d is not None:
+                new = title_for(d, f.lang)
+                break
+        if not new or new == f.title:
+            continue
+        await findings.update(user, f.finding_id, lambda x, t=new: {"title": t} if _old_title(x) else None)
+        changed += 1
+    kv_set(marker, clock.now_iso())
+    if changed:
+        log.info("%s: %d deadline finding(s) retitled", user, changed)
+    return changed
 
 
 def urgency(d: Deadline, today: date) -> str:
@@ -118,11 +177,10 @@ async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str,
     for d in a.deadlines:
         if not d.actionable or d.day < today:
             continue
-        title = f"{_kind_label(d.kind, lang)}: {doc_title}" if doc_title else _kind_label(d.kind, lang)
         f = findings.Finding(
             finding_id="",
             kind="deadline",
-            title=f"{title} ({d.date})",
+            title=title_for(d, lang, doc_title),
             topic=slugify(a.topic_hint),
             topic_label=findings.topic_label_for(a.topic_hint, slugify(a.topic_hint)),
             urgency=urgency(d, today),

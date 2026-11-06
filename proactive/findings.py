@@ -609,6 +609,15 @@ def _safe_filename(title: str) -> str:
     return name
 
 
+def _archived(user: str, topic: str) -> bool:
+    from proactive import dossiers
+
+    try:
+        return dossiers.is_archived(user, topic)
+    except Exception:  # noqa: BLE001 — an unreadable archive never stops a finding
+        return False
+
+
 async def create(user: str, f: Finding) -> Finding:
     """Write a new finding file. `f.finding_id` and `pbrain_id` are minted here
     when empty."""
@@ -616,6 +625,9 @@ async def create(user: str, f: Finding) -> Finding:
     from vault.paths import atomic_write_text, ensure_vault_dir
 
     f.user = user
+    if f.status == "new" and _archived(user, f.topic):
+        # A finding of an archived matter is kept, as done: nothing is sent.
+        f.status = "done"
     f.finding_id = f.finding_id or new_finding_id()
     f.pbrain_id = f.pbrain_id or str(uuid.uuid4())
     f.created = f.created or clock.local_now().isoformat(timespec="seconds")
@@ -701,7 +713,8 @@ async def upsert(user: str, f: Finding) -> tuple[Finding, str]:
         return await create(user, f), "created"
     if existing.evidence_hash == f.evidence_hash:
         return existing, "unchanged"
-    reopen = transition(existing.status, "reopen") is not None
+    # An archived matter is closed: new evidence refreshes, never reopens.
+    reopen = transition(existing.status, "reopen") is not None and not _archived(user, f.topic)
     fields = {
         "title": f.title,
         "topic": f.topic,

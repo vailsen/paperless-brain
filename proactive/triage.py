@@ -218,7 +218,10 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
     # A matter that already has a dossier gets every new document of its
     # topic — code decides that, not the model (a dossier missed the two
     # newest letters the model did not flag as "continues a matter").
-    if raw.get("dossier_update") or (topic and _dossiers.load(user, topic) is not None):
+    if topic and _dossiers.is_archived(user, topic):
+        # An archived matter only notes the document; no model work.
+        await _dossiers.note_archived_doc(user, topic, a.doc_id)
+    elif raw.get("dossier_update") or (topic and _dossiers.load(user, topic) is not None):
         from proactive import jobs
 
         jobs.enqueue("dossier_update", user, {"topic": topic, "doc_id": a.doc_id},

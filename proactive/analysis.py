@@ -241,6 +241,13 @@ def save(a: Analysis) -> None:
         )
 
 
+def forget(doc_id: int) -> None:
+    """Drop the current analysis of a document: the next `ensure` reads it
+    again (a reset dossier — the user asked for a fresh look)."""
+    with connect() as conn:
+        conn.execute("DELETE FROM doc_analysis WHERE doc_id = ? AND analysis_version = ?", (int(doc_id), version()))
+
+
 def all_current() -> list[Analysis]:
     with connect() as conn:
         ids = [r[0] for r in conn.execute(

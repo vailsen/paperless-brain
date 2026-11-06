@@ -68,15 +68,16 @@ async def open_save_dialog(
         with ui.row().classes("w-full items-center no-wrap"):
             ui.icon("create_new_folder", size="sm").classes("text-gray-400")
             ui.label(_("Save to dossier")).classes("text-base font-semibold flex-1").style("color:var(--c-text)")
-            ui.button(icon="close", on_click=dlg.close).props("flat dense round").classes("card-action-btn")
+            close_btn = ui.button(icon="close", on_click=dlg.close).props("flat dense round").classes("card-action-btn")
 
         target = ui.select(options, value=start, label=_("Dossier")).props("outlined dense options-dense").classes("w-full")
         new_name = ui.input(_("Name of the new dossier")).props("outlined dense").classes("w-full")
         new_name.set_visibility(start == _NEW)
         target.on_value_change(lambda e: new_name.set_visibility(e.value == _NEW))
 
+        mode_toggle = None
         if whole:
-            ui.toggle({"answer": _("This answer") if not selection else _("The selected text"),
+            mode_toggle = ui.toggle({"answer": _("This answer") if not selection else _("The selected text"),
                        "conversation": _("The whole conversation")}, value="answer",
                       on_change=lambda e: _mode(e.value)).props("dense no-caps unelevated").classes("self-start")
         src_host = ui.column().classes("w-full gap-2")
@@ -85,7 +86,10 @@ async def open_save_dialog(
         with ui.row().classes("w-full items-center gap-2 no-wrap"):
             msel = model_select(models, model0 if any(m["name"] == model0 for m in models) else default_model,
                                 label=_("Model for fitting it in")).props("outlined dense").classes("flex-1")
-        status = ui.label("").classes("text-xs").style("color:var(--c-text-muted)")
+        with ui.row().classes("w-full items-center gap-2 no-wrap"):
+            spin = ui.spinner(size="sm").props("color=primary").classes("flex-shrink-0")
+            spin.set_visibility(False)
+            status = ui.label("").classes("text-xs flex-1 min-w-0").style("color:var(--c-text-muted)")
 
         preview = ui.column().classes("w-full gap-2")
 
@@ -196,8 +200,9 @@ async def open_save_dialog(
             return
         set_pref("dossier_merge_model", model)
         state["busy"] = True
-        status.set_text(_("Fitting it into the dossier …"))
-        merge_btn.props("loading")
+        _lock(True)
+        status.set_text(_("Fitting it into the dossier — this can take a minute. Please wait: the preview "
+                          "opens here when the model is done, and nothing is saved before you press Save."))
         try:
             fake = d or dossiers.Dossier(topic="", label=(new_name.value or "").strip(),
                                          lang=get_pref("language", "en"))
@@ -219,7 +224,17 @@ async def open_save_dialog(
                 err=why[:300]))
         finally:
             state["busy"] = False
-            merge_btn.props(remove="loading")
+            _lock(False)
+
+    def _lock(on: bool) -> None:
+        """While the model works: one thing is happening — no second way to
+        save, no other dossier, and the dialog does not close on a stray tap."""
+        merge_btn.props("loading") if on else merge_btn.props(remove="loading")
+        spin.set_visibility(on)
+        dlg.props("persistent") if on else dlg.props(remove="persistent")
+        for el in (verbatim_btn, target, new_name, note, msel, close_btn, mode_toggle):
+            if el is not None:
+                el.disable() if on else el.enable()
 
     def _verbatim() -> None:
         _show_preview(dossier_merge.verbatim(_excerpt()), _dossier(), "")

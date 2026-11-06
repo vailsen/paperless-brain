@@ -237,55 +237,49 @@ def _status_select(value: str, on_change) -> None:
         ui.icon(next(i for k, _l, i in opts if k == value)).style("font-size:18px")
 
 
-def _overview(items: list, today, state: dict, set_state) -> None:
-    """Per topic: what is in view and what calls for action (`app_ui/findings_chart`).
-    A click on a dot filters the list to that topic. Collapsible; remembered."""
-    from app_ui import findings_chart
-    from app_ui.theme import current_theme
-    from services.user_prefs import get_pref, set_pref
+def _overview(items: list, today, on_pick) -> None:
+    """Per topic: open findings, pressing ones, the next deadline
+    (`app_ui/findings_chart`). A tap opens the topic — its dossier, else the
+    inbox filtered to it. The first `TOP_ROWS`, then "Show all"."""
+    from app_ui import findings_chart, topic_colors
 
     _ = get_translator()
     data = findings_chart.topics(items, today)
     if not data:
         return
+    colors = topic_colors.colors()
+    shown = {"all": False}
 
-    def _toggle(e) -> None:
-        # Stored without re-rendering the list: a re-render rebuilt the
-        # expansion open, so it could not be collapsed.
-        state["chart"] = bool(e.value)
-        view = dict(get_pref("findings_view") or {})
-        view["chart"] = state["chart"]
-        set_pref("findings_view", view)
+    @ui.refreshable
+    def rows() -> None:
+        with ui.element("div").classes("pb-thead"):
+            ui.element("span").classes("sp")
+            ui.label(_("open")).classes("n")
+            ui.label(_("due")).classes("due")
+        rs = data if shown["all"] else data[:findings_chart.TOP_ROWS]
+        with ui.element("div").classes("pb-topics"):
+            for r in rs:
+                none = r["topic"] == findings_chart.NO_TOPIC
+                el = ui.element("div").classes("pb-trow" + (" is-none" if none else ""))
+                el.on("click", lambda _e, k=r["topic"]: on_pick(k))
+                with el:
+                    dot = ui.element("span").classes("dot")
+                    if r["topic"] in colors:
+                        dot.style(f"background:{topic_colors.css_var(colors[r['topic']])}")
+                    ui.label(r["label"] or _("No topic")).classes("name")
+                    if r["act"]:
+                        ui.label(_("{n} pressing").format(n=r["act"])).classes("act")
+                    ui.label(str(r["open"])).classes("n")
+                    ui.label(findings_chart.due_label(r["due"], today) or "—").classes("due")
+        if len(data) > findings_chart.TOP_ROWS:
+            ui.button(_("Show fewer") if shown["all"] else _("Show all {n} topics").format(n=len(data)),
+                      icon="expand_less" if shown["all"] else "expand_more",
+                      on_click=lambda: (shown.update(all=not shown["all"]), rows.refresh())).props(
+                "flat dense no-caps").classes("text-xs self-start")
 
-    def _pick(topic_keys: list[str], names: list[str]) -> None:
-        if len(topic_keys) == 1:
-            set_state("topic", topic_keys[0])
-            return
-        with ui.dialog() as dlg, ui.card().style(
-                "background:var(--c-surface);min-width:240px;max-height:80vh;overflow-y:auto"):
-            ui.label(_("Which topic?")).classes("text-sm font-semibold")
-            for key, name in zip(topic_keys, names):
-                ui.button(name, on_click=lambda k=key: (dlg.close(), set_state("topic", k))).props(
-                    "flat dense no-caps align=left").classes("w-full")
-        dlg.open()
-
-    with ui.expansion(_("Overview"), icon="grid_view", value=bool(state.get("chart", True)),
-                      on_value_change=_toggle).classes("w-full pb-overview").props("dense"):
-        ui.label(_("One tile per topic, its size the number of findings. A red outline means action is "
-                   "recommended — high or critical urgency, or a deadline within a week. Tap a tile to show "
-                   "its findings.")).classes("text-xs w-full").style("color:var(--c-text-muted)")
-        labels = {"none": _("No topic"), "pressing": _("{n} pressing"),
-                  "more": _("{n} more topics")}  # TODO i18n-plural
-        from app_ui import topic_colors
-
-        spec = findings_chart.tiles(data, current_theme(), labels, topic_colors.colors())
-        tm = ui.element("div").classes("pb-treemap").style(f"height:{findings_chart.HEIGHT_PX}px")
-        tm._props["data-tm"] = findings_chart.payload(spec)
-        def _picked(e) -> None:
-            d = (e.args or {}).get("detail") or {}
-            _pick(list(d.get("keys") or []), list(d.get("names") or []))
-
-        tm.on("pb-pick", _picked, args=["detail"])
+    with ui.element("div").classes("pbm-card"):
+        ui.label(_("Topics")).classes("pbm-label")
+        rows()
 
 
 def _topic_colors_dialog(topics: dict[str, str], refresh) -> None:
@@ -447,6 +441,8 @@ _MC_CSS = """
 .pbm-hint{font-size:.75rem;color:var(--c-text-muted)}
 .pbm-ins{border-left:2px solid var(--c-border);padding:2px 0 14px 12px;margin-left:4px;min-width:0}
 .pbm-ins h4{font-size:.92rem;font-weight:600;color:var(--c-text);margin:0;line-height:1.35}
+.pbm-fold{max-height:13.5em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 70%,transparent);
+  mask-image:linear-gradient(#000 70%,transparent)}
 .pbm-src{font-size:.72rem;color:var(--c-text-muted);overflow-wrap:anywhere}
 .pbm-evid{display:inline-block;font-size:.68rem;padding:1px 7px;border-radius:999px;border:1px solid var(--c-border);
   color:var(--c-text-2);margin-right:4px}
@@ -709,8 +705,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
     user = _user()
     ui.add_css(_LIST_CSS)
     ui.add_css(_MC_CSS)
-    ui.add_css(findings_chart.TREEMAP_CSS)
-    ui.add_body_html(f"<script>{findings_chart.TREEMAP_JS}</script>")
+    ui.add_css(findings_chart.CSS)
     ui.add_body_html(_DOC_CLICK_JS)
     ui.add_head_html(_MC_JS)
 
@@ -755,6 +750,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         sel0 = ("dossier", dossier)
     elif view in BUCKETS:
         sel0 = ("list", view)
+    elif view in dmod.SHELVES:
+        sel0 = ("shelf", view)
     st: dict = {
         "sel": sel0,
         "tab": tab or "overview",
@@ -774,6 +771,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if kind == "dossier":
             return f"/findings?d={quote(key)}&tab={quote(st['tab'])}"
         if kind == "list":
+            return f"/findings?view={quote(key)}"
+        if kind == "shelf":
             return f"/findings?view={quote(key)}"
         return "/findings"
 
@@ -972,10 +971,60 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         tree.expand()
         if cur[0] == "dossier":
             tree._props["selected"] = f"d:{cur[1]}"
+        _shelf_rows(cur)
+
+    def _shelf_rows(cur) -> None:
+        """Archive and trash, under the tree — only when they hold something."""
+        for shelf, icon, label in ((dmod.ARCHIVE, "archive", _("Archive")),
+                                   (dmod.TRASH, "delete_outline", _("Deleted dossiers"))):
+            n = len(dmod.list_shelf(user, shelf))
+            if not n:
+                continue
+            el = ui.element("div").classes("pbm-bucket" + (" is-active" if cur == ("shelf", shelf) else ""))
+            el.on("click", lambda _e, k=shelf: select("shelf", k))
+            with el:
+                ui.icon(icon, size="xs")
+                ui.label(label)
+                ui.label(str(n)).classes("n")
 
     def _tree_pick(node_id) -> None:
         if node_id and str(node_id).startswith("d:"):
             select("dossier", str(node_id)[2:])
+        elif node_id and str(node_id).startswith("f:"):
+            _folder_dialog(str(node_id)[2:])
+
+    def _folder_dialog(folder: str) -> None:
+        with ui.dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(420px,94vw);"):
+            ui.label(_("Folder “{name}”").format(name=folder)).classes("text-base font-semibold").style(
+                "color:var(--c-text)")
+            ui.label(_("Deleting the folder moves its dossiers one level up; nothing else changes.")).classes(
+                "pbm-hint")
+
+            async def _del() -> None:
+                try:
+                    n = await dmod.delete_folder(user, folder)
+                except dmod.DossierError as err:
+                    ui.notify(_("The folder holds notes that are not dossiers — it stays. Remove them in your "
+                                "vault first.") if str(err) == "not_empty" else _("Not a valid folder."),
+                              type="warning")
+                    return
+                dlg.close()
+                ui.notify(_("Folder deleted.") + (" " + _("{n} dossiers moved up.").format(n=n) if n else ""),
+                          type="positive")  # TODO i18n-plural
+                nav_body.refresh()
+                viewer_body.refresh()
+
+            def _new_here() -> None:
+                dlg.close()
+                _new_dossier(folder)
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("New dossier here"), icon="add", on_click=_new_here).props("flat no-caps")
+                ui.button(_("Delete folder"), icon="folder_delete", on_click=_del).props(
+                    "unelevated no-caps").classes("bg-negative text-white")
+        # The tree keeps a folder selected; a second tap would only unselect it.
+        dlg.on("hide", lambda: nav_body.refresh())
+        dlg.open()
 
     # ── Viewer ───────────────────────────────────────────────────────────────
     @ui.refreshable
@@ -987,6 +1036,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             _dossier_view(key)
         elif kind == "list":
             _list_view(key)
+        elif kind == "shelf":
+            _shelf_view(key)
         else:
             _home_view()
 
@@ -1036,8 +1087,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     with el:
                         ui.label(f.deadline).classes("d")
                         ui.label(f.title).classes("t")
-            state = {"chart": bool((get_pref("findings_view") or {}).get("chart", True))}
-            _overview(items, today, state, lambda k, v: _topic_pick(v))
+            _overview(items, today, _topic_pick)
             recent = sorted(ds, key=lambda d: (d.insights[0].created if d.insights else ""), reverse=True)
             recent = [d for d in recent if d.insights][:5]
             if recent:
@@ -1066,7 +1116,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         shown = _bucket_items(items, bucket, today, topics)
         topic_filter = st.pop("list_topic", "")
         if topic_filter:
-            shown = [f for f in shown if f.topic == topic_filter]
+            shown = [f for f in shown if (f.topic or fv.NO_TOPIC) == topic_filter]
         view_pref = get_pref("findings_view") or {}
         sort = view_pref.get("sort", fv.DEFAULT_VIEW["sort"])
         group = view_pref.get("group", fv.DEFAULT_VIEW["group"])
@@ -1095,7 +1145,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     topics_d, lambda: (nav_body.refresh(), viewer_body.refresh()))).props(
                     "flat dense round").classes("card-action-btn").tooltip(_("Topic colours"))
             if topic_filter:
-                ui.label(_("Topic: {t}").format(t=topic_filter)).classes("pbm-hint")
+                name = next((f.topic_display for f in shown if f.topic), "") or _("No topic")
+                ui.label(_("Topic: {t}").format(t=name)).classes("pbm-hint")
             if bucket == "unfiled" and shown:
                 ui.label(_("Open findings whose topic has no dossier. File one into a dossier with the folder "
                            "icon; its documents join that dossier.")).classes("pbm-hint")
@@ -1141,8 +1192,15 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 _status_icon(f.status, "1.1rem")
                 _hints(f)
                 ui.label(_meta_line(f)).classes("text-xs text-gray-400 min-w-0 flex-1")
-            if f.doc_ids:
-                with ui.row().classes("gap-2 flex-wrap"):
+            home = next((x for x in dmod.list_dossiers(user) if x.topic == f.topic), None) if f.topic else None
+            if f.doc_ids or home is not None:
+                # `finding-md`: the delegated click handler opens `#pbdoc-` links
+                # only inside it — outside, #731 was a dead anchor.
+                with ui.row().classes("finding-md w-full items-center gap-2 flex-wrap"):
+                    if home is not None:
+                        ui.button(_("Dossier: {name}").format(name=home.display), icon="folder_open",
+                                  on_click=lambda i=home.pbrain_id: select("dossier", i)).props(
+                            "flat dense no-caps").classes("text-xs")
                     for did in f.doc_ids:
                         ui.link(f"#{did}", f"#pbdoc-{did}").classes("text-xs")
 
@@ -1291,6 +1349,11 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
                             if _ex.enabled():
                                 ui.menu_item(_("Default expert for its chat"), on_click=lambda: _dossier_expert(d))
+                            ui.separator()
+                            ui.menu_item(_("Archive — close the matter"), on_click=lambda: _archive_dossier(d))
+                            ui.menu_item(_("Reset — delete and read its documents again"),
+                                         on_click=lambda: _reset_dossier(d))
+                            ui.menu_item(_("Delete dossier"), on_click=lambda: _delete_dossier(d))
                 _relook_banner(d)
             all_docs = dmod.all_doc_ids(user, d)
             tabs = [("overview", _("Overview"), None), ("timeline", _("Timeline"), len(d.timeline)),
@@ -1463,6 +1526,17 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             else:
                 ui.label(_("Not written yet — it is built from the documents of this matter.")
                          if d.origin != "user" else _("Save insights from the chat to fill this dossier.")).classes("pbm-hint")
+        if d.insights:
+            # Right under the state: the newest thing the user learned about
+            # the matter. The state is the model's, rewritten by a rescan
+            # (which reads the insights); an insight is the user's own, kept.
+            with ui.element("div").classes("pbm-card"):
+                with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    ui.label(_("Latest insight")).classes("pbm-label flex-1")
+                    if len(d.insights) > 1:
+                        ui.button(_("All {n}").format(n=len(d.insights)), on_click=lambda: _set_tab("insights")).props(
+                            "flat dense no-caps size=sm")
+                _insight(d, d.insights[0], compact=True)
         with ui.element("div").classes("pbm-card"):
             ui.label(_("Open questions")).classes("pbm-label")
             ui.label(_("Tick one off when it is answered, ask the chat about it, or remove it. A rescan "
@@ -1506,11 +1580,6 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             new_q.on("keydown.enter", _add_q)
             with new_q.add_slot("append"):
                 ui.button(icon="add", on_click=_add_q).props("flat dense round size=sm").classes("card-action-btn")
-        if d.insights:
-            ins = d.insights[0]
-            with ui.element("div").classes("pbm-card"):
-                ui.label(_("Latest insight")).classes("pbm-label")
-                _insight(d, ins, compact=True)
         live = [f for f in items if f.status in fv.OPEN_STATUSES]
         if live:
             with ui.element("div").classes("pbm-card"):
@@ -1550,21 +1619,40 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 "reasoning": _("reasoning only")}.get(kind, kind)
 
     def _insight(d, ins, compact: bool = False) -> None:
+        from app_ui.findings_view import insight_origin
+
         with ui.element("div").classes("pbm-ins w-full"):
             with ui.row().classes("w-full items-start gap-2 no-wrap"):
                 with ui.column().classes("gap-0 flex-1").style("min-width:0;"):
                     ui.html(f"<h4>{_esc(ins.title)}</h4>", sanitize=False)
-                    ui.label(ins.created.replace("T", " ")[:16]).classes("pbm-hint")
-                if not compact:
-                    async def _del(i=ins.insight_id) -> None:
-                        await dmod.delete_insight(user, d.topic, i)
-                        viewer_body.refresh()
-                        nav_body.refresh()
+                    with ui.row().classes("items-center gap-2"):
+                        ui.label(insight_origin(ins, _)).classes("pbm-hint")
+                        if ins.conv_id and _conv_exists(ins.conv_id):
+                            ui.link(_("Open the conversation"), f"/chat?conv={quote(ins.conv_id)}").classes(
+                                "pbm-hint").style("text-decoration:underline")
 
-                    ui.button(icon="delete_outline", on_click=_del).props("flat dense round size=sm").classes(
-                        "card-action-btn").tooltip(_("Remove insight"))
-            ui.markdown(_in_app_links(ins.text if not compact else ins.text[:600], user)).classes(
-                "chat-md finding-md w-full")
+                async def _del(i=ins.insight_id) -> None:
+                    await dmod.delete_insight(user, d.topic, i)
+                    ui.notify(_("Insight removed."), type="positive")
+                    viewer_body.refresh()
+                    nav_body.refresh()
+
+                ui.button(icon="delete_outline", on_click=lambda: _confirm(
+                    _("Remove this insight from the dossier? The chat conversation stays."), _del)).props(
+                    "flat dense round size=sm").classes("card-action-btn").tooltip(_("Remove insight"))
+            # The whole text: a long one is folded, never cut (it was cut at
+            # 600 characters mid-word, with nothing to open the rest).
+            body = ui.markdown(_in_app_links(ins.text, user)).classes(
+                "chat-md finding-md w-full" + (" pbm-fold" if compact and len(ins.text) > 700 else ""))
+            if compact and len(ins.text) > 700:
+                more = ui.button(_("Show all"), icon="expand_more").props("flat dense no-caps size=sm").classes(
+                    "self-start")
+
+                def _unfold(b=body, m=more) -> None:
+                    b.classes(remove="pbm-fold")
+                    m.set_visibility(False)
+
+                more.on_click(_unfold)
             parts = [f'<span class="pbm-evid">{_esc(_evidence(ins.evidence))}</span>']
             if ins.docs:
                 parts.append(" · ".join(
@@ -1580,6 +1668,28 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 parts.append('<span style="color:var(--c-warn)">' + _esc(
                     _("unconfirmed numbers: {n}").format(n=", ".join(ins.unsupported))) + "</span>")
             ui.html('<div class="pbm-src finding-md">' + " · ".join(parts) + "</div>", sanitize=False)
+
+    def _conv_exists(conv_id: str) -> bool:
+        import services.chat_history_service as hist
+
+        try:
+            return any(c["id"] == conv_id for c in hist.list_conversations(user))
+        except Exception:  # noqa: BLE001 — history unreadable: no link
+            return False
+
+    def _confirm(text: str, on_ok, ok_label: str | None = None, danger: bool = True) -> None:
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:min(440px,94vw);"):
+            ui.label(text).classes("text-sm").style("color:var(--c-text)")
+
+            async def _ok() -> None:
+                dlg.close()
+                await on_ok()
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(ok_label or _("Remove"), on_click=_ok).props("unelevated no-caps").classes(
+                    "text-white " + ("bg-negative" if danger else "bg-primary"))
+        dlg.open()
 
     def _tab_insights(d, items) -> None:
         ui.label(_("Saved from chat answers with “Save to dossier”. Sources come from the answer's own tool "
@@ -1650,6 +1760,154 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             return
         for link in reversed(d.research):
             ui.markdown(_in_app_links(link, user)).classes("chat-md finding-md w-full")
+
+    # ── Archive and trash ────────────────────────────────────────────────────
+    def _shelf_view(shelf: str) -> None:
+        archive = shelf == dmod.ARCHIVE
+        rows = dmod.list_shelf(user, shelf)
+        with ui.column().classes("pbm-panel gap-3"):
+            _back_btn()
+            ui.label(_("Archive") if archive else _("Deleted dossiers")).classes("text-xl font-bold").style(
+                "color:var(--c-text)")
+            ui.label(_("Closed matters. Their findings are done, nothing is sent for them; a new document of "
+                       "the matter is only noted. Unarchive brings everything back.") if archive else _(
+                "What was deleted, kept as a record: restore it, or reset it — the worker then reads its "
+                "documents again as if new.")).classes("pbm-hint")
+            if not rows:
+                ui.label(_("Nothing here.")).classes("pbm-hint")
+            for d in rows:
+                with ui.element("div").classes("pbm-card"):
+                    with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                        ui.icon("archive" if archive else "delete_outline", size="sm").classes("text-gray-400")
+                        with ui.column().classes("gap-0 flex-1").style("min-width:0;"):
+                            ui.label(d.display).classes("text-sm font-semibold w-full").style("color:var(--c-text)")
+                            sub = [_("archived {date}").format(date=d.archived) if archive else (
+                                _("reset {date}").format(date=d.reset) if d.reset
+                                else _("deleted {date}").format(date=d.deleted)),
+                                _("{n} documents").format(n=len(set(d.doc_ids) | set(d.added_docs)))]  # TODO i18n-plural
+                            if d.new_since_archive:
+                                sub.append(_("{n} new since").format(n=len(d.new_since_archive)))  # TODO i18n-plural
+                            if d.insights:
+                                sub.append(_("{n} insights").format(n=len(d.insights)))  # TODO i18n-plural
+                            ui.label(" · ".join(sub)).classes("pbm-hint w-full")
+                        with ui.row().classes("gap-1 no-wrap flex-shrink-0"):
+                            if archive:
+                                ui.button(_("Unarchive"), icon="unarchive",
+                                          on_click=lambda x=d: _shelf_do(dmod.unarchive, x,
+                                                                         _("Back in your dossiers."))).props(
+                                    "flat dense no-caps").classes("text-xs")
+                            else:
+                                ui.button(_("Restore"), icon="restore",
+                                          on_click=lambda x=d: _shelf_do(dmod.restore, x,
+                                                                         _("Back in your dossiers."))).props(
+                                    "flat dense no-caps").classes("text-xs")
+                            with ui.button(icon="more_vert").props("flat dense round").classes("card-action-btn"):
+                                with ui.menu():
+                                    ui.menu_item(_("Reset — read its documents again"),
+                                                 on_click=lambda x=d: _reset_dossier(x))
+                                    if archive:
+                                        ui.menu_item(_("Delete dossier"), on_click=lambda x=d: _delete_dossier(x))
+                                    else:
+                                        ui.menu_item(_("Remove the record for good"),
+                                                     on_click=lambda x=d: _purge(x))
+                    if d.current_state.strip():
+                        with ui.expansion(_("Last state"), icon="notes").classes("w-full").props("dense"):
+                            ui.markdown(_in_app_links(d.current_state, user)).classes("chat-md finding-md w-full")
+
+    async def _shelf_do(fn, d, done: str) -> None:
+        try:
+            out = await fn(user, d.pbrain_id)
+        except dmod.DossierError as err:
+            ui.notify(_("A dossier of that matter exists already — delete or archive it first.")
+                      if str(err) == "exists" else _("This dossier no longer exists."), type="warning")
+            return
+        ui.notify(done, type="positive")
+        if out is not None and getattr(out, "pbrain_id", "") and not out.shelf:
+            select("dossier", out.pbrain_id)
+        else:
+            nav_body.refresh()
+            viewer_body.refresh()
+
+    def _after_shelving() -> None:
+        st["sel"] = ("home", "")
+        nav_body.refresh()
+        viewer_body.refresh()
+        ui.run_javascript(f"history.replaceState(null,'',{json.dumps(_url())})")
+
+    def _archive_dossier(d) -> None:
+        async def _ok() -> None:
+            try:
+                await dmod.archive(user, d.topic)
+            except dmod.DossierError:
+                ui.notify(_("This dossier no longer exists."), type="warning")
+                return
+            ui.notify(_("Archived. Its findings are done; you find it under Archive."), type="positive")
+            _after_shelving()
+
+        _confirm(_("Archive “{name}”? Its open findings and deadlines are closed and nothing is sent for "
+                   "them any more. A new document of the matter is only noted. You can unarchive it at any "
+                   "time.").format(name=d.display), _ok, ok_label=_("Archive"), danger=False)
+
+    def _delete_dossier(d) -> None:
+        async def _ok() -> None:
+            try:
+                await dmod.delete_dossier(user, d.pbrain_id)
+            except dmod.DossierError:
+                ui.notify(_("This dossier no longer exists."), type="warning")
+                return
+            ui.notify(_("Deleted. A record is kept under “Deleted dossiers”."), type="positive")
+            _after_shelving()
+
+        _confirm(_("Delete “{name}”? Its findings stay (they show as not in a dossier), and nothing is read "
+                   "again. A record — name, documents, insights — is kept under “Deleted dossiers”, so you "
+                   "can restore or reset it later.").format(name=d.display), _ok, ok_label=_("Delete"))
+
+    def _reset_dossier(d) -> None:
+        from services.background_access import token_for
+
+        if not token_for(user):
+            ui.notify(_("Allow background access first (Settings > Proactive) — the worker reads the "
+                        "documents in the background, as you."), type="warning")
+            return
+        n_find = len(dmod.findings_of(user, d.topic))
+
+        async def _ok() -> None:
+            from proactive import jobs as _jobs
+            from proactive.models import resolve_model
+            from proactive.tasks.documents import DOC_REPROCESS, reprocess_key
+
+            tok = token_for(user)
+            if not tok:
+                return
+            try:
+                ids = await dmod.reset_dossier(user, d.pbrain_id)
+            except dmod.DossierError as err:
+                ui.notify(_("A dossier of that matter exists already — delete or archive it first.")
+                          if str(err) == "exists" else _("This dossier no longer exists."), type="warning")
+                return
+            model = resolve_model(user, tok)
+            for i in ids:
+                _jobs.enqueue(DOC_REPROCESS, user, {"doc_id": int(i)}, needs_llm=True, model=model,
+                              dedupe_key=reprocess_key(user, i))
+            ui.notify(_("Reset. {n} documents are queued; the worker reads them as soon as the model is "
+                        "free, and writes findings — and a dossier — again.").format(n=len(ids)),
+                      type="positive")  # TODO i18n-plural
+            _after_shelving()
+
+        _confirm(_("Reset “{name}”? The dossier and its {n} findings are deleted — notes and research "
+                   "results in those findings too — and the worker reads its documents again as if new. "
+                   "A record of the dossier is kept under “Deleted dossiers”.").format(
+            name=d.display, n=n_find), _ok, ok_label=_("Reset"))  # TODO i18n-plural
+
+    def _purge(d) -> None:
+        async def _ok() -> None:
+            await dmod.purge(user, d.pbrain_id)
+            ui.notify(_("Record removed."), type="positive")
+            nav_body.refresh()
+            viewer_body.refresh()
+
+        _confirm(_("Remove the record of “{name}” for good? This cannot be undone.").format(name=d.display),
+                 _ok, ok_label=_("Remove"))
 
     # ── Dossier actions ──────────────────────────────────────────────────────
     def _ask_text(title: str, label: str, value: str, on_ok, options: dict | None = None, hint: str = "") -> None:

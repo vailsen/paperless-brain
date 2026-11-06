@@ -44,6 +44,11 @@ _INSIGHT_RE = re.compile(r"^<!-- pb:insight (\{.*\}) -->\s*$")
 _RESOLVED_RE = re.compile(r"^~~(.*)~~")
 #: Folder depth shown in the tree (a binder shelf, not a file system).
 MAX_DEPTH = 3
+#: Shelves next to the tree, inside `Dossiers/`: archived dossiers, and the
+#: record of deleted ones. Never part of the tree, never found by `load`.
+ARCHIVE = "_Archive"
+TRASH = "_Deleted"
+SHELVES = (ARCHIVE, TRASH)
 SECTION_KEYS = ("state", "timeline", "questions", "insights", "research")
 
 
@@ -107,6 +112,13 @@ class Dossier:
     #: Questions the user removed — code-owned, so a rebuild cannot bring
     #: them back.
     dropped_questions: list[str] = field(default_factory=list)
+    #: Lifecycle (see "Archive and trash" below) — code-owned.
+    archived: str = ""          # date it went into the archive
+    archived_from: str = ""     # its folder before
+    closed_findings: dict = field(default_factory=dict)  # finding id → status the archive closed
+    new_since_archive: list[int] = field(default_factory=list)
+    deleted: str = ""           # date it went into the trash
+    reset: str = ""             # … by "Reset": its documents were handed back to the worker
     pbrain_id: str = ""
     rel: str = ""
     sha: str = ""
@@ -131,6 +143,13 @@ class Dossier:
         return topic_display(self.topic, "", self.lang)
 
     @property
+    def shelf(self) -> str:
+        """Where the file lives: "" (the tree), `ARCHIVE` or `TRASH`."""
+        if self.deleted or self.reset:
+            return TRASH
+        return ARCHIVE if self.archived else ""
+
+    @property
     def folder(self) -> str:
         """Folder inside `Dossiers/` ("" = root), from the file's path."""
         parts = Path(self.rel).parts
@@ -145,30 +164,38 @@ def _root(user: str) -> Path:
     return findings_root(user) / DOSSIERS
 
 
-def _files(user: str) -> list[Path]:
-    d = _root(user)
+def _files(user: str, shelf: str = "") -> list[Path]:
+    """The tree's dossier files — or, with `shelf`, the archive's / trash's."""
+    d = _root(user) / shelf if shelf else _root(user)
     if not d.is_dir():
         return []
     out = []
     for p in sorted(d.rglob("*.md")):
         if p.name.endswith(".conflict.md") or p.is_symlink():
             continue
-        if len(p.relative_to(d).parts) > MAX_DEPTH + 1:
+        parts = p.relative_to(d).parts
+        if len(parts) > (1 if shelf else MAX_DEPTH + 1) or (not shelf and parts[0] in SHELVES):
             continue
         out.append(p)
     return out
 
 
-def _path(user: str, topic: str) -> Path:
-    """The file of a topic: wherever it sits in the tree; a new one at the root."""
-    for p in _files(user):
-        try:
-            head = p.read_text(encoding="utf-8")[:2000]
-        except OSError:
-            continue
-        if re.search(rf"^topic:\s*['\"]?{re.escape(topic)}['\"]?\s*$", head, re.M):
+def _topic_of(p: Path) -> str:
+    try:
+        head = p.read_text(encoding="utf-8")[:2000]
+    except OSError:
+        return ""
+    m = re.search(r"^topic:\s*['\"]?([^'\"\n]+?)['\"]?\s*$", head, re.M)
+    return m.group(1) if m else ""
+
+
+def _path(user: str, topic: str, shelf: str = "") -> Path:
+    """The file of a topic: wherever it sits in the tree (or on `shelf`); a
+    new one at the root."""
+    for p in _files(user, shelf):
+        if _topic_of(p) == topic:
             return p
-    return _root(user) / f"{topic}.md"
+    return (_root(user) / shelf if shelf else _root(user)) / f"{topic}.md"
 
 
 def _ref(doc: dict) -> str:
@@ -334,10 +361,21 @@ def parse(text: str, *, rel: str = "") -> Dossier | None:
         expert=str(m.get("expert") or ""),
         added_docs=[int(x) for x in m.get("added_docs") or [] if str(x).isdigit()],
         dropped_questions=[str(x) for x in m.get("dropped_questions") or [] if str(x).strip()],
+        archived=_day(m.get("archived")),
+        archived_from=str(m.get("archived_from") or ""),
+        closed_findings={str(k): str(v) for k, v in (m.get("closed_findings") or {}).items()}
+        if isinstance(m.get("closed_findings"), dict) else {},
+        new_since_archive=[int(x) for x in m.get("new_since_archive") or [] if str(x).isdigit()],
+        deleted=_day(m.get("deleted")),
+        reset=_day(m.get("reset")),
         pbrain_id=get_id(m),
         rel=rel,
         sha=sha_of(text),
     )
+
+
+def _day(v) -> str:
+    return v.isoformat() if hasattr(v, "isoformat") else (str(v) if v else "")
 
 
 def _load_path(user: str, p: Path) -> Dossier | None:
@@ -349,8 +387,8 @@ def _load_path(user: str, p: Path) -> Dossier | None:
         return None
 
 
-def load(user: str, topic: str) -> Dossier | None:
-    return _load_path(user, _path(user, topic))
+def load(user: str, topic: str, shelf: str = "") -> Dossier | None:
+    return _load_path(user, _path(user, topic, shelf))
 
 
 def list_dossiers(user: str) -> list[Dossier]:
@@ -378,6 +416,8 @@ def folders(user: str) -> list[str]:
     for p in sorted(d.rglob("*")):
         if p.is_dir() and not p.is_symlink() and not p.name.startswith("."):
             rel = p.relative_to(d)
+            if rel.parts[0] in SHELVES:
+                continue
             if len(rel.parts) <= MAX_DEPTH:
                 out.append(rel.as_posix())
     return sorted(out, key=lambda s: (s.count("/"), s.casefold()))
@@ -468,7 +508,26 @@ def _meta(d: Dossier) -> dict:
         meta["added_docs"] = sorted(set(d.added_docs))
     if d.dropped_questions:
         meta["dropped_questions"] = list(d.dropped_questions)
+    for k in _LIFECYCLE:
+        v = getattr(d, k)
+        if v:
+            meta[k] = v if not isinstance(v, list) else sorted(set(v))
     return meta
+
+
+_LIFECYCLE = ("archived", "archived_from", "closed_findings", "new_since_archive", "deleted", "reset")
+
+
+def _file_of(user: str, d: Dossier) -> Path:
+    """The file `d` is written to: on a shelf (archive, trash) the very file
+    it was read from — the trash may hold several records of one topic."""
+    if d.shelf and d.rel:
+        from vault.paths import vault_path
+
+        p = vault_path(user) / d.rel
+        if p.exists():
+            return p
+    return _path(user, d.topic, d.shelf)
 
 
 async def write(user: str, d: Dossier) -> Dossier:
@@ -481,7 +540,7 @@ async def write(user: str, d: Dossier) -> Dossier:
     meta = _meta(d)
     body = render_body(d)
     for _attempt in range(2):
-        path = _path(user, d.topic)
+        path = _file_of(user, d)
         rel = path.relative_to(vault_path(user)).as_posix()
         if not path.exists():
             def _create(path=path) -> bool:
@@ -494,18 +553,18 @@ async def write(user: str, d: Dossier) -> Dossier:
 
             async with get_user_lock(user):
                 if await asyncio.to_thread(_create):
-                    return load(user, d.topic)
+                    return _load_path(user, path)
             continue
         snap = await read_note(user, rel)
         note = split_note(snap.text)
         meta.pop("pbrain_id", None)  # keep the file's own identity
-        remove = tuple(k for k in ("research", "resolved", "label", "expert", "added_docs", "dropped_questions")
-                       if k not in meta)
+        remove = tuple(k for k in ("research", "resolved", "label", "expert", "added_docs", "dropped_questions",
+                                   *_LIFECYCLE) if k not in meta)
         text = join_note(type(note)(apply_edits(note.fm_raw, set_=meta, remove=remove), body,
                                     note.open_fence, note.close_fence))
         try:
             await save_note(user, rel, text, expected_sha=snap.sha, base_text=snap.text)
-            return load(user, d.topic)
+            return _load_path(user, path)
         except NoteConflict:
             continue
     raise RuntimeError(f"{user}: dossier {d.topic} kept changing")
@@ -816,3 +875,251 @@ def findings_of(user: str, topic: str) -> list:
     from proactive import findings
 
     return [f for f in findings.list_findings(user) if f.topic == topic]
+
+
+# ── Archive and trash ────────────────────────────────────────────────────
+#
+# A matter can be closed for good (archive) or taken away (delete, reset).
+# Both shelves are folders in `Dossiers/` next to the tree, so the files stay
+# in the user's vault — the vault is the source of truth, and what was put
+# away can be brought back.
+#
+# - **Archive** closes the matter: the dossier moves to `_Archive/`, its open
+#   findings are set to done (`closed_findings` remembers what each was), and
+#   it is out of the tree, the chat's picker and every rebuild. A new document
+#   of the matter is only noted (`new_since_archive`) — no model work, and a
+#   finding of an archived topic is written as done, so nothing is sent.
+#   "Unarchive" puts it back, reopens what the archive closed (a deadline that
+#   has passed meanwhile stays done) and lists the new documents as pending.
+# - **Delete** moves the file to `_Deleted/` — the record: name, documents,
+#   insights. Its findings stay (they show as "not in a dossier").
+# - **Reset** deletes the dossier *and* its findings, and hands its documents
+#   back to the worker (`doc_reprocess`), which reads them as if new. The
+#   record in `_Deleted/` keeps the list, so a reset can be repeated later.
+# - From the trash: restore, reset, or remove the record for good.
+
+
+class Shelved(DossierError):
+    pass
+
+
+def list_shelf(user: str, shelf: str) -> list[Dossier]:
+    out = [x for p in _files(user, shelf) if (x := _load_path(user, p)) is not None]
+    key = (lambda d: d.archived) if shelf == ARCHIVE else (lambda d: d.deleted or d.reset)
+    return sorted(out, key=key, reverse=True)
+
+
+def shelved_by_id(user: str, pbrain_id: str) -> Dossier | None:
+    """A dossier of the archive or the trash, by its id."""
+    for shelf in SHELVES:
+        for d in list_shelf(user, shelf):
+            if d.pbrain_id == pbrain_id:
+                return d
+    return None
+
+
+def is_archived(user: str, topic: str) -> bool:
+    """The topic's matter is closed: archived, and no live dossier of it
+    (one made again by hand wins)."""
+    if not topic or not any(_topic_of(p) == topic for p in _files(user, ARCHIVE)):
+        return False
+    return not any(_topic_of(p) == topic for p in _files(user))
+
+
+async def _move_file(user: str, d: Dossier, dest_dir: Path) -> Path:
+    """Move `d`'s file into `dest_dir` under a free name; returns the new path."""
+    from vault.locks import get_user_lock
+    from vault.paths import ensure_vault_dir, vault_path
+
+    src = vault_path(user) / d.rel
+
+    def _mv() -> Path:
+        if not src.exists():
+            raise DossierError("missing")
+        ensure_vault_dir(_root(user))
+        ensure_vault_dir(dest_dir)
+        dest, n = dest_dir / src.name, 2
+        while dest.exists() and dest != src:
+            dest = dest_dir / f"{src.stem} ({n}){src.suffix}"
+            n += 1
+        if dest != src:
+            src.rename(dest)
+        return dest
+
+    async with get_user_lock(user):
+        return await asyncio.to_thread(_mv)
+
+
+def _open_status(status: str) -> bool:
+    from proactive.states import display_status
+
+    return display_status(status) in ("open", "relevant")
+
+
+async def archive(user: str, topic: str) -> Dossier:
+    """Close the matter: the dossier into the archive, its open findings done."""
+    from proactive import findings
+
+    d = load(user, topic)
+    if d is None:
+        raise DossierError("missing")
+    closed: dict[str, str] = {}
+    for f in findings_of(user, topic):
+        if _open_status(f.status):
+            done = await findings.update(user, f.finding_id, lambda x: (
+                {"status": "done", "snoozed_until": None} if _open_status(x.status) else None))
+            if done is not None:
+                closed[f.finding_id] = f.status
+    folder = d.folder
+    path = await _move_file(user, d, _root(user) / ARCHIVE)
+    a = _load_path(user, path)
+    a.archived = clock.local_now().date().isoformat()
+    a.archived_from = folder
+    a.closed_findings = closed
+    log.info("%s: dossier %s archived, %d finding(s) closed", user, topic, len(closed))
+    return await write(user, a)
+
+
+async def unarchive(user: str, pbrain_id: str) -> Dossier:
+    """Back into the tree (its old folder), with what the archive closed."""
+    from proactive import findings
+
+    d = shelved_by_id(user, pbrain_id)
+    if d is None or d.shelf != ARCHIVE:
+        raise DossierError("missing")
+    if load(user, d.topic) is not None:
+        raise DossierError("exists")
+    today = clock.local_now().date().isoformat()
+    for fid, status in d.closed_findings.items():
+        f = findings.get(user, fid)
+        if f is None or f.status != "done" or (f.deadline and str(f.deadline)[:10] < today):
+            continue
+        back = "surfaced" if status in ("new", "held", "snoozed") else status
+        await findings.update(user, fid, lambda x, s=back: {"status": s} if x.status == "done" else None)
+    try:
+        folder = _safe_folder(d.archived_from)
+    except DossierError:
+        folder = ""
+    if folder:
+        await ensure_folder(user, folder)
+    path = await _move_file(user, d, _root(user) / folder if folder else _root(user))
+    out = _load_path(user, path)
+    out.added_docs = sorted(set(out.added_docs) | set(out.new_since_archive))
+    out.archived = out.archived_from = ""
+    out.closed_findings, out.new_since_archive = {}, []
+    return await write(user, out)
+
+
+async def note_archived_doc(user: str, topic: str, doc_id: int) -> bool:
+    """A new document of an archived matter: noted, nothing else."""
+    d = load(user, topic, ARCHIVE)
+    if d is None or doc_id in d.new_since_archive or doc_id in d.doc_ids:
+        return False
+    d.new_since_archive.append(int(doc_id))
+    await write(user, d)
+    return True
+
+
+def _record_doc_ids(user: str, d: Dossier) -> list[int]:
+    return sorted(set(all_doc_ids(user, d)) | set(d.new_since_archive))
+
+
+async def delete_dossier(user: str, pbrain_id: str) -> Dossier:
+    """Into the trash, as a record; its findings stay."""
+    d = by_id(user, pbrain_id) or shelved_by_id(user, pbrain_id)
+    if d is None or d.shelf == TRASH:
+        raise DossierError("missing")
+    path = await _move_file(user, d, _root(user) / TRASH)
+    rec = _load_path(user, path)
+    rec.deleted = clock.local_now().date().isoformat()
+    rec.added_docs = sorted(set(rec.added_docs) | set(rec.new_since_archive))
+    log.info("%s: dossier %s deleted (record kept)", user, d.topic)
+    return await write(user, rec)
+
+
+async def reset_dossier(user: str, pbrain_id: str) -> list[int]:
+    """Delete the dossier and every finding of its topic; returns the
+    documents to hand back to the worker. Also from the trash (a record)."""
+    from proactive import findings
+    from vault.notes import delete
+
+    d = by_id(user, pbrain_id) or shelved_by_id(user, pbrain_id)
+    if d is None:
+        raise DossierError("missing")
+    if d.shelf == TRASH and load(user, d.topic) is not None:
+        raise DossierError("exists")  # a new dossier of that topic: reset that one
+    ids = _record_doc_ids(user, d)
+    for f in findings_of(user, d.topic):
+        try:
+            await delete(user, f.rel)
+        except FileNotFoundError:
+            pass
+        findings._index.pop(f.finding_id, None)
+    if d.shelf != TRASH:
+        path = await _move_file(user, d, _root(user) / TRASH)
+        d = _load_path(user, path)
+    d.reset = clock.local_now().date().isoformat()
+    d.added_docs = sorted(set(d.added_docs) | set(ids))
+    await write(user, d)
+    log.info("%s: dossier %s reset — %d document(s) back to the worker", user, d.topic, len(ids))
+    return ids
+
+
+async def restore(user: str, pbrain_id: str) -> Dossier:
+    """A record from the trash back into the tree, at the top level."""
+    d = shelved_by_id(user, pbrain_id)
+    if d is None or d.shelf != TRASH:
+        raise DossierError("missing")
+    if load(user, d.topic) is not None:
+        raise DossierError("exists")
+    path = await _move_file(user, d, _root(user))
+    out = _load_path(user, path)
+    out.deleted = out.reset = out.archived = out.archived_from = ""
+    out.closed_findings, out.new_since_archive = {}, []
+    return await write(user, out)
+
+
+async def purge(user: str, pbrain_id: str) -> bool:
+    """Remove a record from the trash for good."""
+    from vault.notes import delete
+
+    d = shelved_by_id(user, pbrain_id)
+    if d is None or d.shelf != TRASH:
+        return False
+    await delete(user, d.rel)
+    return True
+
+
+async def delete_folder(user: str, folder: str) -> int:
+    """Remove a folder of the tree. Its dossiers (and subfolders' dossiers)
+    move up to the folder's parent first, so no dossier is lost; returns how
+    many moved."""
+    from vault.locks import get_user_lock
+
+    folder = _safe_folder(folder)
+    if not folder or folder.split("/")[0] in SHELVES:
+        raise DossierError("folder")
+    parent = folder.rpartition("/")[0]
+    target = _root(user) / folder
+    moved = 0
+    for d in list_dossiers(user):
+        if d.folder == folder or d.folder.startswith(folder + "/"):
+            await _move_file(user, d, _root(user) / parent if parent else _root(user))
+            moved += 1
+
+    def _rm() -> None:
+        # Empty folders only, deepest first: anything else in there (a note
+        # that is not a dossier, an attachment) is the user's and stays.
+        if not target.is_dir():
+            return
+        for p in sorted((x for x in target.rglob("*") if x.is_dir()), key=lambda x: -len(x.parts)) + [target]:
+            try:
+                p.rmdir()
+            except OSError:
+                pass
+        if target.exists():
+            raise DossierError("not_empty")
+
+    async with get_user_lock(user):
+        await asyncio.to_thread(_rm)
+    return moved
