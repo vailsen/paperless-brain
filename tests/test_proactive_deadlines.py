@@ -473,3 +473,16 @@ def test_a_legacy_finding_is_adopted_not_duplicated(env, fake_llm):
     _analyse(env, 100, {"title": "A", "correspondent": 7})   # version bump, sender known now
     alice = findings.list_findings("alice")
     assert len(alice) == 2 and all(f.finding_key.startswith("deadline:c7:") for f in alice)
+
+
+def test_deadline_title_says_what_to_do_not_the_file_name():
+    from proactive.analysis import Deadline
+    from proactive.deadlines import title_for
+
+    d = Deadline("2026-11-18", "objection", True, "einspruch gegen den Steuerbescheid einlegen. Frist 1 Monat", "q")
+    assert title_for(d, "de", "2026_10_22_Steuerbescheid_Einkommensteuer_Finanzamt") == \
+        "Einspruch gegen den Steuerbescheid einlegen"
+    long = Deadline("2026-11-18", "payment", True, "Bezahlen " + "sehr " * 40 + "Ende", "q")
+    assert len(title_for(long, "de")) <= 92 and title_for(long, "de").endswith(" …")
+    bare = Deadline("2026-11-18", "payment", True, "", "q")
+    assert title_for(bare, "en", "Invoice 12") == "Payment due: Invoice 12"

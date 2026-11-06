@@ -146,6 +146,32 @@ async def process_for_user(user: str, token: str, doc_id: int, model: ResolvedMo
     return await per_user(user, token, a, meta, model) or used
 
 
+DOC_REPROCESS = "doc_reprocess"
+
+
+def reprocess_key(user: str, doc_id: int) -> str:
+    return f"{DOC_REPROCESS}:{user}:{int(doc_id)}"
+
+
+@handler(DOC_REPROCESS, needs_llm=True)
+async def doc_reprocess(job: Job) -> None:
+    """A dossier was reset: read one of its documents again, as if new — a
+    fresh analysis (when the text is there to make one), then everything per
+    user. User-requested, so outside the sweep windows too."""
+    from proactive import users
+
+    doc_id = int(job.payload["doc_id"])
+    tok = users.token(job.user)
+    if not tok:
+        return
+    model = resolve_model(job.user, tok)
+    if model is None:
+        raise Defer("no allowed model", 3600)
+    if analysis.sidecar_text(doc_id) is not None:
+        analysis.forget(doc_id)
+    await process_for_user(job.user, tok, doc_id, model)
+
+
 def install() -> None:
     from proactive.tasks import sweep
 

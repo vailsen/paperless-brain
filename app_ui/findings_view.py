@@ -216,3 +216,11 @@ def counts(items: list, today: date) -> dict:
         "pressing": sum(1 for f in live if is_pressing(f, today)),
         "researching": sum(1 for f in live if f.status == "interested"),
     }
+
+
+def insight_origin(ins, _) -> str:
+    """Where a saved insight comes from, in one line: "From the chat ·
+    2026-11-06 17:10 · fitted in by <model>" — or "saved verbatim"."""
+    when = (ins.created or "").replace("T", " ")[:16]
+    how = _("fitted in by {model}").format(model=ins.merged_by) if ins.merged_by else _("saved verbatim")
+    return " · ".join(x for x in (_("From the chat"), when, how) if x)

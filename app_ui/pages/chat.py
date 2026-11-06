@@ -2770,6 +2770,14 @@ document.addEventListener('click', function(e) {{
     // A web source in an answer opens beside the chat, never in its place.
     var ext = e.target.closest('.chat-md a[href^="http"]');
     if (ext) {{ e.preventDefault(); window.open(ext.getAttribute('href'), '_blank', 'noopener'); return; }}
+    // Open thoughts can be long: a tap anywhere in them folds them again
+    // (not while selecting text), and the bubble's top comes back into view.
+    var th = e.target.closest('details.pb-thoughts[open]');
+    if (th && !e.target.closest('summary') && !String(window.getSelection() || '')) {{
+        th.open = false;
+        var s = th.querySelector('summary');
+        if (s && s.getBoundingClientRect().top < 0) s.scrollIntoView({{block: 'nearest'}});
+    }}
 }});
 window.__openDocById = function(docId) {{
     if (!window.socket || !window.did_handshake) {{
@@ -3518,7 +3526,7 @@ window.__openVaultNote = function(noteId) {{
                     )
                     # Persistent <details> — browser owns open/closed state; we only
                     # update the inner content div, so state is never lost on refresh.
-                    with ui.element("details").style(
+                    with ui.element("details").classes("pb-thoughts").style(
                         "margin-bottom:8px;border-left:2px solid var(--c-border);"
                         "padding-left:8px;display:none"
                     ) as _thinking_details_el:

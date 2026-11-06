@@ -100,9 +100,33 @@ def _is_active(nav_path: str, current: str) -> bool:
 def require_auth() -> bool:
     """Returns True if authenticated. Call at the top of protected pages."""
     if not get_session_token():
+        _remember_target()
         ui.navigate.to("/login")
         return False
     return True
+
+
+def _remember_target() -> None:
+    """Where the user was going — a push notification's finding, say — so the
+    login leads there instead of the dashboard. A path of this app only."""
+    from nicegui import app as ng_app
+    from nicegui import context
+
+    try:
+        url = context.client.request.url
+        target = url.path + (f"?{url.query}" if url.query else "")
+        if target.startswith("/") and not target.startswith("//") and target not in ("/", "/login"):
+            ng_app.storage.user["after_login"] = target
+    except Exception:  # noqa: BLE001 — no request (a handler): the dashboard it is
+        pass
+
+
+def take_login_target() -> str:
+    """The remembered target, once."""
+    from nicegui import app as ng_app
+
+    target = str(ng_app.storage.user.pop("after_login", "") or "")
+    return target if target.startswith("/") and not target.startswith("//") else "/"
 
 
 # A link to another site opens in a new tab — everywhere, including links a
@@ -187,6 +211,22 @@ _NO_SPELLCHECK_JS = """<script>
 </script>"""
 
 
+# A tapped push notification (static/sw.js) whose window the service worker
+# could not navigate itself: it asks the page. Own origin only.
+PUSH_OPEN_JS = """<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    var d = e.data || {};
+    if (d.type !== 'pb-open' || typeof d.url !== 'string') return;
+    try {
+      var u = new URL(d.url, location.origin);
+      if (u.origin === location.origin && u.href !== location.href) location.assign(u.href);
+    } catch (_) {}
+  });
+}
+</script>"""
+
+
 def page_layout() -> None:
     """Call at the top of every page to inject the shared header + drawer."""
     apply_theme()
@@ -212,6 +252,7 @@ def page_layout() -> None:
     ui.add_head_html(_NO_SPELLCHECK_JS)
     ui.add_head_html(_EXTERNAL_LINKS_JS)
     ui.add_head_html(SOCKET_REVIVE_JS)
+    ui.add_head_html(PUSH_OPEN_JS)
     ui.add_head_html(PAGE_VIEWER_HTML)
 
     _ = get_translator()

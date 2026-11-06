@@ -121,9 +121,10 @@ Two consequences drive the plan:
   the dossier tree, then "Unfiled" (open findings whose topic has no dossier).
   Counts are badges in `--c-text-muted`; only "Pressing" uses `--c-warn`
   (a state the user must react to — colour rule).
-- **Viewer (centre).** Nothing selected → a home view: KPI strip, the existing
-  treemap (`findings_chart`), the next 30 days of deadlines as a horizontal
-  timeline. A finding selected → today's finding detail (reactions, notes,
+- **Viewer (centre).** Nothing selected → a home view: KPI strip, the next 30
+  days of deadlines, and one row per topic (`findings_chart`: open, pressing,
+  next deadline; pressing first, "no topic" last — the treemap cut the names
+  and was replaced on 2026-11-06). A finding selected → today's finding detail (reactions, notes,
   research), unchanged in substance. A dossier selected → the binder with tabs.
 - **Chat dock (bottom, `ui.splitter` horizontal, default 35 %, collapsible to a
   one-line input).** It always shows its context chip ("about: Kfz-Versicherung")
@@ -355,7 +356,7 @@ UI phases). One build/deploy at the end of a phase batch, not per fix.
 - New layout: navigator / viewer / dock placeholder; phone tabs.
 - Navigator: inbox buckets, dossier tree (create folder, rename, move via
   menu — drag & drop is a later nicety), Unfiled.
-- Viewer: home (KPIs, treemap, 30-day deadline strip), finding detail (current
+- Viewer: home (KPIs, topic rows, 30-day deadline strip), finding detail (current
   content moved into a component), binder with tabs.
 - Global search (lexical, in code).
 - URL state: `/findings?d=<pbrain_id>&tab=insights` / `/findings/<fid>` — deep
@@ -418,3 +419,41 @@ UI phases). One build/deploy at the end of a phase batch, not per fix.
 3. Should insights reach the chat's retrieval as hints? They are user-approved,
    but still model-condensed. Proposal: indexed with `trust: low` like the
    dossier itself, never evidence.
+
+
+## Archive and trash (2026-11-06)
+
+Two shelves next to the tree, both folders in `Dossiers/` (`_Archive/`,
+`_Deleted/`), never part of the tree, the chat's dossier picker or a rebuild
+(`proactive/dossiers.py`, "Archive and trash").
+
+- **Archive** closes a matter: the file moves to `_Archive/`, its open findings
+  become done (`closed_findings` remembers each one's status), a new document
+  of the topic is only noted (`new_since_archive`, no model work) and a new
+  finding of the topic is written as done — nothing is sent. Unarchive puts it
+  back into its old folder, reopens what the archive closed (a deadline that
+  passed meanwhile stays done) and lists the new documents as pending.
+- **Delete** moves the file to `_Deleted/` as a record (name, documents,
+  insights); its findings stay and show as "not in a dossier".
+- **Reset** deletes the dossier and every finding of its topic and queues
+  `doc_reprocess` for each of its documents (fresh analysis, then triage — the
+  same path as a new document). User-requested, so outside the sweep windows.
+  The record stays in `_Deleted/` and can be reset again.
+- From the trash: restore, reset, or remove the record for good.
+- A folder of the tree can be deleted (tap it); its dossiers move up a level,
+  and a folder holding notes that are not dossiers stays.
+
+## What happens when the vault is edited by hand
+
+The files are the source of truth; the page reads them on every render.
+
+- A deleted finding file is gone for good: nothing recreates it, unless a new
+  document (or a version bump) produces the same finding again.
+- A deleted dossier file is gone from the tree; its findings stay. A new
+  document of that topic which triage marks as "continues a matter" starts a
+  new dossier.
+- A dossier moved to another folder in Obsidian stays the same dossier (found
+  by `topic`). Moving one into `_Archive/` by hand archives it without closing
+  its findings.
+- Status, snooze date or topic edited in the frontmatter count from the next
+  ledger scan.

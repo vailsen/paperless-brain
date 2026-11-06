@@ -381,6 +381,18 @@ page `app_ui/pages/experts.py`.
 - **A model's list may arrive as a JSON string** (`dossiers._as_list`); iterating
   it filed every character as a question. Files already split that way read as
   no questions (`heal_questions`) until the next rescan.
+- **Archive and trash are shelves, not states**: `Dossiers/_Archive/` and
+  `Dossiers/_Deleted/`, outside the tree, `load` and `list_dossiers`. An
+  archived topic writes new findings as done and only notes new documents;
+  a reset deletes the dossier and its findings and queues `doc_reprocess`.
+  A deleted dossier is a record in `_Deleted/` — restorable, resettable.
+- **The overview is one row per topic** (`app_ui/findings_chart`), never a
+  chart: every chart cut the topic names.
+- **A deadline's title says what to do** (`deadlines.title_for`, the
+  analysis' description), not "<kind>: <file name> (<date>)".
+- **A push tap keeps its path** (`static/sw.js`): any address of the app is
+  mapped onto the installed one; a window the worker cannot navigate is told
+  by message (`layout.PUSH_OPEN_JS`), and the login returns to the target.
 
 ## Deployment target
 
