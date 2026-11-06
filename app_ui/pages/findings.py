@@ -468,6 +468,12 @@ _MC_CSS = """
 .pbm-doc .t{font-size:.86rem;color:var(--c-text);overflow-wrap:anywhere}
 .pbm-doc .m{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.75rem;color:var(--c-text-muted);
   font-variant-numeric:tabular-nums}
+.pbm-fdoc{display:flex;flex-direction:column;gap:3px;padding:6px 10px;border:1px solid var(--c-border);
+  border-radius:8px;background:var(--c-surface);cursor:pointer;min-width:0;box-sizing:border-box}
+.pbm-fdoc:hover{border-color:var(--c-border-strong)}
+.pbm-fdoc .t{font-size:.86rem;color:var(--c-text);overflow-wrap:anywhere;min-width:0}
+.pbm-fdoc .id{font-size:.72rem;color:var(--c-text-muted);flex-shrink:0}
+.pbm-fdoc .m{font-size:.75rem;color:var(--c-text-muted)}
 .pbm-mbar{display:none}
 /* Maximized dock: the chat takes the viewer's place; the navigator (desktop)
    and the bottom switch (phone) stay, so the way back is one tap. */
@@ -1082,12 +1088,13 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             if c["researching"]:
                 ui.label(_("{n} being researched — it gives way while you chat.").format(n=c["researching"])).classes(
                     "pbm-hint")
-            # Next 30 days of deadlines.
+            # Next 60 days of deadlines: a renewal is often due a month after
+            # the last day to cancel it, and 30 days showed only the renewal.
             due = sorted((f for f in items if f.status in fv.OPEN_STATUSES and f.deadline
-                          and (fv.days_left(f, today) is not None) and 0 <= fv.days_left(f, today) <= 30),
+                          and (fv.days_left(f, today) is not None) and 0 <= fv.days_left(f, today) <= 60),
                          key=lambda f: f.deadline)
             with ui.element("div").classes("pbm-card"):
-                ui.label(_("Due in the next 30 days")).classes("pbm-label")
+                ui.label(_("Due in the next 60 days")).classes("pbm-label")
                 if not due:
                     ui.label(_("Nothing due.")).classes("pbm-hint")
                 for f in due:
@@ -1202,16 +1209,12 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 _hints(f)
                 ui.label(_meta_line(f)).classes("text-xs text-gray-400 min-w-0 flex-1")
             home = next((x for x in dmod.list_dossiers(user) if x.topic == f.topic), None) if f.topic else None
-            if f.doc_ids or home is not None:
-                # `finding-md`: the delegated click handler opens `#pbdoc-` links
-                # only inside it — outside, #731 was a dead anchor.
-                with ui.row().classes("finding-md w-full items-center gap-2 flex-wrap"):
-                    if home is not None:
-                        ui.button(_("Dossier: {name}").format(name=home.display), icon="folder_open",
-                                  on_click=lambda i=home.pbrain_id: select("dossier", i)).props(
-                            "flat dense no-caps").classes("text-xs")
-                    for did in f.doc_ids:
-                        ui.link(f"#{did}", f"#pbdoc-{did}").classes("text-xs")
+            if home is not None:
+                ui.button(_("Dossier: {name}").format(name=home.display), icon="folder_open",
+                          on_click=lambda i=home.pbrain_id: select("dossier", i)).props(
+                    "flat dense no-caps").classes("text-xs self-start")
+            if f.doc_ids:
+                _finding_docs(list(f.doc_ids))
 
             if f.status == "researched" and f.research_note:
                 ui.label(_("Researched — the newest result is at the top, the report is in your vault.")).classes(
@@ -1322,6 +1325,47 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     with ui.element("div").classes("pb-tl-item w-full min-w-0"):
                         ui.label(head).classes("pb-tl-head")
                         ui.markdown(_in_app_links(text.strip(), user)).classes("chat-md finding-md w-full min-w-0")
+
+    def _finding_docs(ids: list[int]) -> None:
+        """The finding's documents as the document dialog shows them: title,
+        sender, type, date, tags — read as the user, so a document they cannot
+        see stays a bare number. A tap opens the document."""
+        from app_ui.tag_style import tag_chip
+
+        host = ui.column().classes("w-full gap-1 min-w-0")
+        with host:
+            for did in ids:
+                ui.link(f"#{did}", f"#pbdoc-{did}").classes("text-xs finding-md")
+
+        async def _load() -> None:
+            try:
+                docs = {d.id: d for d in await get_session_paperless().list_documents(ids=ids)}
+            except Exception:  # noqa: BLE001 — Paperless away: the numbers stay
+                return
+            host.clear()
+            with host:
+                for did in ids:
+                    doc = docs.get(did)
+                    el = ui.element("div").classes("pbm-fdoc w-full")
+                    el.on("click", lambda _e, i=did: _open_doc_id(i))
+                    with el:
+                        if doc is None:
+                            ui.label(f"#{did}").classes("t")
+                            continue
+                        with ui.row().classes("items-baseline gap-2 no-wrap w-full min-w-0"):
+                            ui.label(doc.title).classes("t")
+                            ui.label(f"#{doc.id}").classes("id")
+                        with ui.row().classes("m items-center gap-2 flex-wrap w-full"):
+                            for icon, text in (("person", doc.correspondent), ("description", doc.document_type),
+                                               ("calendar_today", doc.created.date().isoformat() if doc.created else "")):
+                                if text:
+                                    with ui.row().classes("items-center gap-1 no-wrap"):
+                                        ui.icon(icon, size="xs")
+                                        ui.label(text)
+                            for tag in sorted(doc.tags or []):
+                                tag_chip(tag)
+
+        ui.timer(0.05, _load, once=True)
 
     # ── Dossier binder ───────────────────────────────────────────────────────
     def _dossier_view(pid: str) -> None:

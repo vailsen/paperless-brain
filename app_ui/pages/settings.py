@@ -288,8 +288,39 @@ def _show_status(
 # ── Page ──────────────────────────────────────────────────────────────────────
 
 
+_SETTINGS_CSS = """
+.pb-set{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;width:100%;max-width:1100px;
+  margin:0 auto;padding:24px;box-sizing:border-box;align-items:start}
+.pb-set-nav{position:sticky;top:calc(var(--q-header-height,52px) + 16px);display:flex;flex-direction:column;gap:2px;
+  min-width:0}
+.pb-set-nav .pb-set-title{font-size:1.25rem;font-weight:700;color:var(--c-text);padding:0 10px 10px}
+.pb-set-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;
+  color:var(--c-text-2);font-size:.9rem;min-width:0}
+.pb-set-item:hover{background:var(--c-surface-2)}
+.pb-set-item.is-active{background:var(--c-accent-soft);color:var(--c-text)}
+.pb-set-item .q-icon{font-size:20px;flex-shrink:0}
+.pb-set-item .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-set-main{min-width:0;max-width:760px;width:100%}
+.pb-set-sec{display:flex;flex-direction:column;gap:0;width:100%;min-width:0}
+.pb-set-head{margin-bottom:4px}
+.pb-set-head .h{font-size:1.15rem;font-weight:700;color:var(--c-text)}
+.pb-set-head .s{font-size:.8rem;color:var(--c-text-muted)}
+.pb-set-sec > .q-card:first-of-type{margin-top:8px!important}
+/* A phone: the menu becomes a row of chips above the content. */
+@media (max-width:767px){
+  .pb-set{grid-template-columns:minmax(0,1fr);gap:12px;padding:12px}
+  .pb-set-nav{position:static;flex-direction:row;overflow-x:auto;scrollbar-width:none;gap:6px;padding-bottom:2px}
+  .pb-set-nav::-webkit-scrollbar{display:none}
+  .pb-set-nav .pb-set-title{display:none}
+  .pb-set-item{flex-shrink:0;border:1px solid var(--c-border);border-radius:999px;padding:5px 12px;font-size:.82rem}
+  .pb-set-item .q-icon{font-size:17px}
+  .pb-set-item .t{overflow:visible}
+}
+"""
+
+
 @ui.page("/settings")
-async def settings_page() -> None:
+async def settings_page(s: str = "") -> None:
     if not require_auth():
         return
     page_layout()
@@ -312,25 +343,53 @@ async def settings_page() -> None:
 
     saved_cal_mode = "ical" if (_saved_ical_urls[0] or cal_cfg.get("ical_url")) else ("caldav" if cal_cfg.get("url") else "ical")
 
-    with ui.column().classes("w-full max-w-2xl mx-auto p-6 gap-3"):
-        ui.label(_("Settings")).classes("text-xl font-bold text-gray-100 mb-1")
+    ui.add_css(_SETTINGS_CSS)
+    _layout = ui.element("div").classes("pb-set")
+    with _layout:
+        _nav = ui.element("nav").classes("pb-set-nav")
+        with _nav:
+            ui.label(_("Settings")).classes("pb-set-title")
+        _main = ui.element("div").classes("pb-set-main")
+    with _main:
 
         # ── Sections ──────────────────────────────────────────────────────────
-        # Fifteen cards in one column put everything equally far away. The
-        # groups are created here, up front; `_card()` then parents each card
-        # into its group. Since a NiceGUI element's parent is fixed when it is
-        # created, the sections below keep their original build order and code —
-        # only the `with` line changes.
-        _groups: dict[str, ui.expansion] = {}
+        # A menu on the left, one group at a time on the right: as expansion
+        # panels in one column, the groups had grown into one long scroll.
+        # The groups are created here, up front; `_card()` then parents each
+        # card into its group. Since a NiceGUI element's parent is fixed when
+        # it is created, the sections below keep their original build order
+        # and code — only the `with` line changes. The open group is in the
+        # URL (`?s=ai`), so a reload or a link lands on it.
+        _groups: dict[str, ui.element] = {}
+        _items: dict[str, ui.element] = {}
+        _cur = {"k": ""}
+
+        def _show(key: str) -> None:
+            _cur["k"] = key
+            for k, sec in _groups.items():
+                sec.set_visibility(k == key)
+                _items[k].classes(add="is-active") if k == key else _items[k].classes(remove="is-active")
+            # On a phone the menu is a chip row: bring the chosen one into view.
+            ui.run_javascript(
+                f"history.replaceState(null,'','/settings?s={key}');window.scrollTo(0,0);"
+                "setTimeout(function(){var a=document.querySelector('.pb-set-item.is-active');"
+                "if(a)a.scrollIntoView({inline:'center',block:'nearest'});},50)")
 
         def _group(key: str, icon: str, title: str, subtitle: str, opened: bool = False) -> None:
-            _groups[key] = (
-                ui.expansion(
-                    title, caption=subtitle, icon=icon, group="settings", value=opened
-                )
-                .props('expand-separator header-class="settings-group-header"')
-                .classes("w-full settings-group")
-            )
+            with _nav:
+                item = ui.element("div").classes("pb-set-item")
+                item.on("click", lambda _e, k=key: _show(k))
+                with item:
+                    ui.icon(icon)
+                    ui.label(title).classes("t")
+            _items[key] = item
+            with _main:
+                sec = ui.element("section").classes("pb-set-sec")
+                with sec:
+                    with ui.column().classes("pb-set-head gap-0"):
+                        ui.label(title).classes("h")
+                        ui.label(subtitle).classes("s")
+            _groups[key] = sec
 
         def _card(group: str) -> ui.card:
             with _groups[group]:
@@ -360,6 +419,8 @@ async def settings_page() -> None:
                 _("Proactive"),
                 _("Reminders, insights and notification channels"),
             )
+
+        _show(s if s in _groups else "general")
 
         if "proactive" in _groups:
             with _card("proactive"):
