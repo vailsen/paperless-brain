@@ -386,6 +386,11 @@ page `app_ui/pages/experts.py`.
   archived topic writes new findings as done and only notes new documents;
   a reset deletes the dossier and its findings and queues `doc_reprocess`.
   A deleted dossier is a record in `_Deleted/` — restorable, resettable.
+- **A finding's dock chat is about that finding** (its dossier comes along as
+  context), a fresh conversation per finding, and pins nothing: pins are the
+  user's across every chat, and the inbox left each finding's documents there.
+- **Saving to a dossier never proposes questions** — the model only says which
+  existing ones the excerpt answers; its new ones were invented.
 - **The overview is one row per topic** (`app_ui/findings_chart`), never a
   chart: every chart cut the topic names.
 - **A deadline's title says what to do** (`deadlines.title_for`, the

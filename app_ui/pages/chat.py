@@ -3035,10 +3035,12 @@ window.__openVaultNote = function(noteId) {{
         _render_ctx_bar()
 
     def _conv_context() -> str | None:
-        if _s.get("dossier_ctx"):
-            return f"dossier:{_s['dossier_ctx']['id']}"
+        # A finding is the narrower context: a conversation about one finding
+        # of a dossier is not the dossier's conversation the dock reopens.
         if _s.get("finding_ctx"):
             return f"finding:{_s['finding_ctx']['id']}"
+        if _s.get("dossier_ctx"):
+            return f"dossier:{_s['dossier_ctx']['id']}"
         return None
 
     # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
@@ -4673,7 +4675,13 @@ window.__openVaultNote = function(noteId) {{
         from proactive import findings as _findings
 
         _f = _findings.get(_username, finding)
-        if _f is not None:
+        if _f is not None and _embed:
+            # The dock: a fresh conversation per finding. Its documents are not
+            # pinned — pins are the user's, kept across every chat, and each
+            # finding of the inbox left its documents behind. The finding's
+            # text (with its document references) is the context.
+            _new_conv()
+        elif _f is not None:
             _new_conv()
             async def _title(d: int) -> str:
                 try:

@@ -53,14 +53,12 @@ def topics(items: list, today: date) -> list[dict]:
 
 
 def due_label(day: str, today: date) -> str:
-    """"11-18" this year and next, the year alone further out ("2064")."""
-    if not day:
-        return ""
+    """The whole date, always: "04-01" alone read as this year for a 2027
+    deadline."""
     try:
-        d = date.fromisoformat(day)
+        return date.fromisoformat(day).isoformat() if day else ""
     except ValueError:
         return ""
-    return d.strftime("%m-%d") if (d - today).days <= 300 else str(d.year)
 
 
 CSS = """
@@ -74,11 +72,11 @@ CSS = """
 .pb-trow .act{font-size:.72rem;font-weight:600;color:var(--c-warn);flex-shrink:0}
 .pb-trow .n{width:2.2rem;text-align:right;font-size:.8rem;color:var(--c-text-2);flex-shrink:0;
   font-variant-numeric:tabular-nums}
-.pb-trow .due{width:3.2rem;text-align:right;font-size:.75rem;color:var(--c-text-muted);flex-shrink:0;
+.pb-trow .due{width:5.6rem;text-align:right;font-size:.75rem;color:var(--c-text-muted);flex-shrink:0;
   font-variant-numeric:tabular-nums}
 .pb-trow.is-none .name{color:var(--c-text-2);font-style:italic}
 .pb-thead{display:flex;gap:10px;font-size:.68rem;color:var(--c-text-muted);padding:0 2px 2px}
 .pb-thead .sp{flex:1}
 .pb-thead .n{width:2.2rem;text-align:right}
-.pb-thead .due{width:3.2rem;text-align:right}
+.pb-thead .due{width:5.6rem;text-align:right}
 """

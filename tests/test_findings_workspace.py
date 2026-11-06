@@ -120,7 +120,7 @@ def test_merge_check_flags_numbers_and_clamps():
                       excerpt="Kostet 412 € im Jahr.", haystack="", n_questions=2)
     assert res["unsupported"] == ["380"] and res["answers"] == [1]
     assert res["title"] == "T" and not res["text"].startswith("#") and "[#5 p2]" in res["text"]
-    assert len(res["new_questions"]) == 3
+    assert res["new_questions"] == []  # never proposed: they were made up
 
 
 # ── Ledger search ────────────────────────────────────────────────────────────

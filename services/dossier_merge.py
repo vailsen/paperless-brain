@@ -8,7 +8,8 @@ Two halves, kept apart on purpose:
   no tool returned is not a source. Stored per answer (`chat_turn_meta`) so a
   reloaded conversation can still be saved with its real sources.
 - **The merge round** (`merge`) turns the conversational excerpt into a dated,
-  standalone insight and says which open questions it answers. Its output is
+  standalone insight and says which existing open questions it answers (it
+  never proposes new ones — they were invented). Its output is
   checked before the user sees it: numbers must occur in the excerpt or the
   tool outputs; question indices must exist. The user confirms in a preview —
   nothing is written to a dossier silently.
@@ -100,9 +101,10 @@ You file an excerpt from a chat answer into a dossier (a binder about one \
 matter). Write it as ONE standalone, dated insight: no "as mentioned above", \
 no greeting, concise, in {lang}. Keep every number, date and name exactly as \
 the excerpt has it; do not add facts that are not in the excerpt. Say which of \
-the dossier's open questions (by number) the insight answers, if any, and \
-which new open questions it raises (at most 3). If the insight contradicts \
-the dossier's current state, say how in one sentence; otherwise leave it empty."""
+the dossier's open questions (by number) the excerpt answers outright — only \
+those; none is the normal case. Never make up questions. If the insight \
+contradicts the dossier's current state, say how in one sentence; otherwise \
+leave it empty."""
 
 MERGE_SCHEMA = {
     "type": "object",
@@ -110,10 +112,9 @@ MERGE_SCHEMA = {
         "title": {"type": "string"},
         "insight": {"type": "string"},
         "answers_questions": {"type": "array", "items": {"type": "integer"}},
-        "new_questions": {"type": "array", "items": {"type": "string"}},
         "contradicts_state": {"type": "string"},
     },
-    "required": ["title", "insight", "answers_questions", "new_questions", "contradicts_state"],
+    "required": ["title", "insight", "answers_questions", "contradicts_state"],
 }
 
 
@@ -198,7 +199,9 @@ def check_merge(result: dict, *, excerpt: str, haystack: str, n_questions: int) 
             continue
         if 1 <= i <= n_questions and i not in answers:
             answers.append(i)
-    new_q = [" ".join(str(q).split())[:300] for q in (result.get("new_questions") or []) if str(q).strip()][:3]
+    # Saving a chat answer files what was said. Questions the model proposed
+    # were made up and showed as ticked checkboxes; the user adds their own.
+    new_q: list[str] = []
     return {
         "title": title,
         "text": text,

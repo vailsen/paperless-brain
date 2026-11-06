@@ -415,6 +415,12 @@ _MC_CSS = """
 .pbm-bucket.is-active{background:var(--c-accent-soft);color:var(--c-text)}
 .pbm-bucket .n{margin-left:auto;color:var(--c-text-muted);font-size:.75rem;font-variant-numeric:tabular-nums}
 .pbm-bucket.warn .n{color:var(--c-warn)}
+.pbm-shelf-sep{height:1px;background:var(--c-border);margin:8px 6px 4px}
+.pbm-shelf{display:flex;align-items:center;gap:6px;padding:4px 6px;margin:1px 6px;border-radius:6px;cursor:pointer;
+  font-size:.84rem;color:var(--c-text-2);min-width:0}
+.pbm-shelf:hover{background:var(--c-surface-2)}
+.pbm-shelf.is-active{background:var(--c-accent-soft);color:var(--c-text)}
+.pbm-shelf .n{margin-left:auto;color:var(--c-text-muted);font-size:.72rem}
 .pbm-sec{font-size:.7rem;font-weight:600;color:var(--c-text-muted);padding:12px 14px 4px;display:flex;align-items:center;gap:4px}
 .pbm-tree .q-tree__node-header{padding:3px 6px;border-radius:6px}
 .pbm-tree .q-tree__node--selected .q-tree__node-header{background:var(--c-accent-soft)}
@@ -974,13 +980,16 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         _shelf_rows(cur)
 
     def _shelf_rows(cur) -> None:
-        """Archive and trash, under the tree — only when they hold something."""
-        for shelf, icon, label in ((dmod.ARCHIVE, "archive", _("Archive")),
-                                   (dmod.TRASH, "delete_outline", _("Deleted dossiers"))):
-            n = len(dmod.list_shelf(user, shelf))
-            if not n:
-                continue
-            el = ui.element("div").classes("pbm-bucket" + (" is-active" if cur == ("shelf", shelf) else ""))
+        """Archive and trash, under a line below the tree — aligned with its
+        top-level entries — only when they hold something."""
+        shelves = [(k, i, label, n) for k, i, label in (
+            (dmod.ARCHIVE, "archive", _("Archive")), (dmod.TRASH, "delete_outline", _("Deleted dossiers")))
+            if (n := len(dmod.list_shelf(user, k)))]
+        if not shelves:
+            return
+        ui.element("div").classes("pbm-shelf-sep")
+        for shelf, icon, label, n in shelves:
+            el = ui.element("div").classes("pbm-shelf" + (" is-active" if cur == ("shelf", shelf) else ""))
             el.on("click", lambda _e, k=shelf: select("shelf", k))
             with el:
                 ui.icon(icon, size="xs")
@@ -2034,11 +2043,9 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if kind == "dossier":
             return ("dossier", key)
         if kind == "finding":
-            f = findings.get(user, key)
-            if f and f.topic:
-                d = next((x for x in dmod.list_dossiers(user) if x.topic == f.topic), None)
-                if d is not None:
-                    return ("dossier", d.pbrain_id)
+            # Always the finding itself (its dossier comes along, `_src`):
+            # with the dossier as the context, clicking through its findings
+            # kept one conversation that knew none of them.
             return ("finding", key)
         return None
 
@@ -2051,7 +2058,12 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             if d is not None and d.expert:  # else the chat takes the default expert
                 q += f"&expert={quote(d.expert)}"
             return q
-        return f"/chat?embed=1&finding={quote(ctx[1])}"
+        q = f"/chat?embed=1&finding={quote(ctx[1])}"
+        f = findings.get(user, ctx[1])
+        d = next((x for x in dmod.list_dossiers(user) if x.topic == f.topic), None) if f and f.topic else None
+        if d is not None:
+            q += f"&dossier={quote(d.pbrain_id)}" + (f"&expert={quote(d.expert)}" if d.expert else "")
+        return q
 
     def _dock_load(ctx=None, *, force: bool = False) -> None:
         if ctx is None and st["dock_ctx"] is None:
@@ -2118,8 +2130,6 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             _dock_load()
 
     def _dock_ask(ctx) -> None:
-        if ctx[0] == "finding":
-            ctx = _ctx_of_selection() if st["sel"] == ("finding", ctx[1]) else ctx
         _dock_load(ctx, force=ctx != st["dock_ctx"])
         if st["zone"] != "chat" and _is_mobile["v"]:
             _zone("chat")
