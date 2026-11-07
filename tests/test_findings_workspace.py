@@ -89,7 +89,8 @@ def test_tree_nodes_follow_the_folders():
     b = Dossier(topic="b", label="B", rel="F/Dossiers/b.md", pbrain_id="2")
     nodes = dossier_tree([a, b], ["Auto", "Leer"], {"a": 3})
     assert [n["label"] for n in nodes] == ["Auto", "Leer", "B"]
-    assert nodes[0]["children"][0] == {"id": "d:1", "label": "A", "topic": "a", "count": 3, "insights": 0}
+    assert nodes[0]["children"][0] == {"id": "d:1", "label": "A", "topic": "a", "count": 3, "insights": 0,
+                                         "stale": False}
 
 
 # ── Provenance and the merge check ───────────────────────────────────────────

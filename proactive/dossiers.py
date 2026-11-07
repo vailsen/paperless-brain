@@ -123,6 +123,10 @@ class Dossier:
     aliases: list[str] = field(default_factory=list)      # topic keys merged into this one
     excluded_docs: list[int] = field(default_factory=list)  # moved or taken out: never back in
     merged_into: str = ""       # a trash record: the topic it was merged into
+    #: Changed by hand since its last rebuild (documents added, moved, taken
+    #: out, merged): the state is out of date. A rebuild clears it — by
+    #: `from_result` not carrying it over; the night queues a rescan for it.
+    stale: str = ""
     pbrain_id: str = ""
     rel: str = ""
     sha: str = ""
@@ -375,6 +379,7 @@ def parse(text: str, *, rel: str = "") -> Dossier | None:
         aliases=[str(x) for x in m.get("aliases") or [] if str(x).strip()],
         excluded_docs=[int(x) for x in m.get("excluded_docs") or [] if str(x).isdigit()],
         merged_into=str(m.get("merged_into") or ""),
+        stale=_day(m.get("stale")),
         pbrain_id=get_id(m),
         rel=rel,
         sha=sha_of(text),
@@ -523,7 +528,7 @@ def _meta(d: Dossier) -> dict:
 
 
 _LIFECYCLE = ("archived", "archived_from", "closed_findings", "new_since_archive", "deleted", "reset",
-              "aliases", "excluded_docs", "merged_into")
+              "aliases", "excluded_docs", "merged_into", "stale")
 
 
 def _file_of(user: str, d: Dossier) -> Path:
@@ -771,6 +776,7 @@ async def add_documents(user: str, topic: str, doc_ids: list[int]) -> Dossier | 
     if d is None:
         return None
     d.added_docs = sorted(set(d.added_docs) | {int(i) for i in doc_ids})
+    _stale(d)
     return await write(user, d)
 
 
@@ -782,6 +788,7 @@ async def remove_document(user: str, topic: str, doc_id: int) -> Dossier | None:
         return d
     d.added_docs = [i for i in d.added_docs if i != doc_id]
     d.doc_ids = [i for i in d.doc_ids if i != doc_id]
+    _stale(d)
     return await write(user, d)
 
 
@@ -830,6 +837,15 @@ async def add_question(user: str, topic: str, question: str) -> Dossier | None:
     return await _edit_questions(user, topic, change)
 
 
+def _stale(d: Dossier) -> None:
+    d.stale = d.stale or clock.local_now().date().isoformat()
+
+
+def stale_dossiers(user: str) -> list[Dossier]:
+    """The dossiers whose state a hand change made out of date."""
+    return [d for d in list_dossiers(user) if d.stale]
+
+
 def relook_key(user: str, topic: str) -> str:
     """Dedupe key of the user's "Relook" job (`tasks.topics.dossier_relook`)."""
     return f"dossier_relook:{user}:{topic}"
@@ -861,6 +877,9 @@ async def file_finding(user: str, finding_id: str, topic: str) -> bool:
         raise DossierError("missing")
     out = await findings.update(user, finding_id, lambda f: (
         None if f.topic == topic else {"topic": topic, "topic_label": d.display}))
+    if out is not None and set(out.doc_ids) - set(d.doc_ids):
+        _stale(d)  # its documents are new to the dossier
+        await write(user, d)
     return out is not None
 
 
@@ -1215,6 +1234,7 @@ async def merge(user: str, source_id: str, target_id: str) -> Dossier:
     from proactive.interests import slugify
 
     dst.aliases = sorted((set(dst.aliases) | keys | {slugify(src.display)}) - {dst.topic, ""})
+    _stale(dst)
     out = await write(user, dst)
     path = await _move_file(user, src, _root(user) / TRASH)
     rec = _load_path(user, path)
@@ -1253,12 +1273,41 @@ async def move_documents(user: str, source_id: str, doc_ids: list[int], target_i
     src.added_docs = [i for i in src.added_docs if i not in ids]
     src.doc_ids = [i for i in src.doc_ids if i not in ids]
     src.timeline = [t for t in src.timeline if t["doc_id"] not in ids]
+    _stale(src)
     await write(user, src)
     if dst is not None:
         dst = by_id(user, target_id)
         dst.excluded_docs = [i for i in dst.excluded_docs if i not in ids]
         dst.added_docs = sorted((set(dst.added_docs) | ids) - set(dst.doc_ids))
+        _stale(dst)
         await write(user, dst)
     log.info("%s: %d document(s) out of %s%s, %d finding(s) along", user, len(ids), src.topic,
              f" into {dst.topic}" if dst else "", moved)
     return moved
+
+
+async def rename_folder(user: str, folder: str, new_name: str) -> str:
+    """Rename a folder of the tree (its last part); the dossiers inside move
+    with it — they are found by their topic, never by their path."""
+    from vault.locks import get_user_lock
+
+    folder = _safe_folder(folder)
+    if not folder or folder.split("/")[0] in SHELVES:
+        raise DossierError("folder")
+    name = _safe_folder(new_name)
+    if not name or "/" in name or name in SHELVES:
+        raise DossierError("folder")
+    parent = folder.rpartition("/")[0]
+    new = f"{parent}/{name}" if parent else name
+    src, dst = _root(user) / folder, _root(user) / new
+
+    def _mv() -> None:
+        if not src.is_dir():
+            raise DossierError("missing")
+        if dst.exists() and dst != src:
+            raise DossierError("exists")
+        src.rename(dst)
+
+    async with get_user_lock(user):
+        await asyncio.to_thread(_mv)
+    return new

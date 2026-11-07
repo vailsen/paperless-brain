@@ -408,7 +408,13 @@ page `app_ui/pages/experts.py`.
   alias (the source becomes a `_Deleted/` record with `merged_into`);
   `move_documents` puts documents into `excluded_docs` of the source for good
   (a rebuild or a finding cannot bring them back) and takes a finding along
-  when all its documents moved. A rescan is offered after both, never started.
+  when all its documents moved.
+- **A hand change marks the dossier `stale`** (add, move, take out, merge,
+  filing a finding with new documents); only a rescan (`dossier_relook`, it
+  reads every document) clears it — an update for one new letter keeps it.
+  The navigator lists them under "Rescan pending" with "Rescan all";
+  `topics.dossier_stale_check` queues the rest inside a sweep window, so
+  nothing waits past the night.
 - **The overview is one row per topic** (`app_ui/findings_chart`), never a
   chart: every chart cut the topic names.
 - **A deadline's title says what to do** (`deadlines.title_for`, the

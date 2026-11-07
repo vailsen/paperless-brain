@@ -427,6 +427,7 @@ _MC_CSS = """
 .pbm-tnode{display:flex;align-items:center;gap:6px;min-width:0;width:100%;font-size:.84rem;color:var(--c-text-2)}
 .pbm-tnode .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pbm-tnode .n{color:var(--c-text-muted);font-size:.72rem}
+.pbm-tnode .stale{width:7px;height:7px;border-radius:50%;background:var(--c-text-muted);flex-shrink:0}
 .pbm-tnode .bar{width:3px;height:14px;border-radius:2px;flex-shrink:0}
 /* Centred between the navigator and the chat column, wherever the handle is. */
 .pbm-panel{padding:16px 18px;max-width:960px;width:100%;box-sizing:border-box;margin-left:auto;margin-right:auto}
@@ -665,7 +666,7 @@ def dossier_tree(dossiers: list, folders: list[str], open_counts: dict[str, int]
     for d in sorted(dossiers, key=lambda d: d.display.casefold()):
         folder_node(d.folder).append({
             "id": f"d:{d.pbrain_id}", "label": d.display, "topic": d.topic,
-            "count": open_counts.get(d.topic, 0), "insights": len(d.insights),
+            "count": open_counts.get(d.topic, 0), "insights": len(d.insights), "stale": bool(d.stale),
         })
 
     def order(nodes: list[dict]) -> list[dict]:
@@ -683,6 +684,7 @@ _TREE_NODE = """
   <q-icon :name="props.node.folder ? 'folder' : 'folder_open'" size="16px" />
   <span v-if="props.node.color" class="bar" :style="{background: props.node.color}"></span>
   <span class="t">{{ props.node.label }}</span>
+  <span v-if="props.node.stale" class="stale"></span>
   <span v-if="props.node.count" class="n">{{ props.node.count }}</span>
 </div>
 """
@@ -763,7 +765,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         sel0 = ("dossier", dossier)
     elif view in BUCKETS:
         sel0 = ("list", view)
-    elif view in dmod.SHELVES:
+    elif view in dmod.SHELVES or view == "stale":
         sel0 = ("shelf", view)
     st: dict = {
         "sel": sel0,
@@ -953,9 +955,6 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     ui.label(str(n)).classes("n")
         with ui.element("div").classes("pbm-sec"):
             ui.label(_("Dossiers")).classes("flex-1")
-            ui.icon("info_outline", size="14px").classes("card-action-btn").tooltip(_(
-                "One binder per matter. Folders only sort them. Findings land in the dossier of their "
-                "topic; add documents or file findings by hand, then use “Rescan”."))
             ui.button(icon="create_new_folder", on_click=_new_folder).props("flat dense round size=sm").classes(
                 "card-action-btn").tooltip(_("New folder"))
             ui.button(icon="add", on_click=lambda: _new_dossier("")).props("flat dense round size=sm").classes(
@@ -989,9 +988,11 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
     def _shelf_rows(cur) -> None:
         """Archive and trash, under a line below the tree — aligned with its
         top-level entries — only when they hold something."""
-        shelves = [(k, i, label, n) for k, i, label in (
-            (dmod.ARCHIVE, "archive", _("Archive")), (dmod.TRASH, "delete_outline", _("Deleted dossiers")))
-            if (n := len(dmod.list_shelf(user, k)))]
+        shelves = [(k, i, label, n) for k, i, label, n in (
+            ("stale", "update", _("Rescan pending"), len(dmod.stale_dossiers(user))),
+            (dmod.ARCHIVE, "archive", _("Archive"), len(dmod.list_shelf(user, dmod.ARCHIVE))),
+            (dmod.TRASH, "delete_outline", _("Deleted dossiers"), len(dmod.list_shelf(user, dmod.TRASH))))
+            if n]
         if not shelves:
             return
         ui.element("div").classes("pbm-shelf-sep")
@@ -1034,7 +1035,17 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 dlg.close()
                 _new_dossier(folder)
 
+            def _rename() -> None:
+                dlg.close()
+
+                async def _ok(name: str) -> None:
+                    await dmod.rename_folder(user, folder, name)
+
+                _ask_text(_("Rename folder"), _("Name"), folder.rsplit("/", 1)[-1], _ok, hint=_(
+                    "Only the folder's name changes; the dossiers in it stay as they are."))
+
             with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Rename"), icon="edit", on_click=_rename).props("flat no-caps")
                 ui.button(_("New dossier here"), icon="add", on_click=_new_here).props("flat no-caps")
                 ui.button(_("Delete folder"), icon="folder_delete", on_click=_del).props(
                     "unelevated no-caps").classes("bg-negative text-white")
@@ -1437,7 +1448,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
     def _relook_banner(d) -> None:
         pending = dmod.pending_docs(user, d)
         state = _relook_state(d)
-        if not pending and not state:
+        if not pending and not state and not d.stale:
             return
         with ui.element("div").classes("pbm-pending w-full"):
             if state:
@@ -1447,10 +1458,12 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 return
             ui.icon("inventory", size="xs")
             ui.label(_("{n} documents of this matter are not in the dossier yet (added by you or from "
-                       "its findings).").format(n=len(pending))).classes("flex-1 min-w-0")  # TODO i18n-plural
+                       "its findings).").format(n=len(pending)) if pending else  # TODO i18n-plural
+                     _("Changed by hand — the state is out of date. Rescan now, or it is rescanned in the "
+                       "night.")).classes("flex-1 min-w-0")
             ui.button(_("Rescan"), icon="refresh", on_click=lambda: _relook(d)).props("flat dense no-caps")
 
-    def _relook(d) -> None:
+    def _relook(d, quiet: bool = False) -> None:
         from proactive import jobs as _jobs
         from proactive.models import resolve_model
         from services.background_access import token_for
@@ -1465,6 +1478,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             return
         _jobs.enqueue("dossier_relook", user, {"topic": d.topic}, needs_llm=True,
                       model=resolve_model(user, tok), dedupe_key=dmod.relook_key(user, d.topic))
+        if quiet:
+            return
         ui.notify(_("Rescan queued. State, timeline and open questions are rewritten; your insights, research and added documents stay."), type="positive")
         viewer_body.refresh()
 
@@ -1830,28 +1845,11 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     key=lambda x: (x.folder.casefold(), x.display.casefold()))
         return {x.pbrain_id: (f"{x.folder} / {x.display}" if x.folder else x.display) for x in ds}
 
-    def _offer_rescan(ds: list) -> None:
-        """After a merge or a move the state of each dossier is out of date;
-        a rescan rewrites it. Offered, not started: it costs model time."""
-        ds = [x for x in ds if x is not None]
-        # Under the page root: the caller's own element was just refreshed
-        # away, and a dialog inside it never showed.
-        with root, ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:min(440px,94vw);"):
-            ui.label(_("Rescan now?")).classes("text-base font-semibold").style("color:var(--c-text)")
-            ui.label(_("The current state, timeline and open questions still describe the old set of "
-                       "documents. A rescan rewrites them: {names}.").format(
-                names=", ".join(f"“{x.display}”" for x in ds))).classes("pbm-hint")
-
-            def _go() -> None:
-                dlg.close()
-                for x in ds:
-                    _relook(x)
-
-            with ui.row().classes("w-full justify-end gap-2"):
-                ui.button(_("Later"), on_click=dlg.close).props("flat no-caps")
-                ui.button(_("Rescan"), icon="refresh", on_click=_go).props("unelevated no-caps").classes(
-                    "bg-primary text-white")
-        dlg.open()
+    def _marked() -> None:
+        """After a merge or move: the dossiers are marked "rescan pending"
+        (navigator); no question in between — several changes, one rescan."""
+        nav_body.refresh()
+        viewer_body.refresh()
 
     def _move_docs(d, ids: list[int]) -> None:
         if not ids:
@@ -1879,9 +1877,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 target = dmod.by_id(user, sel.value)
                 ui.notify(_("Moved. {n} findings went along.").format(n=n) if n else _("Moved."),
                           type="positive")  # TODO i18n-plural
-                nav_body.refresh()
-                viewer_body.refresh()
-                _offer_rescan([dmod.by_id(user, d.pbrain_id), target])
+                _marked()
 
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
@@ -1895,8 +1891,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         async def _ok() -> None:
             await dmod.move_documents(user, d.pbrain_id, ids)
             ui.notify(_("Taken out of the dossier."), type="positive")
-            viewer_body.refresh()
-            _offer_rescan([dmod.by_id(user, d.pbrain_id)])
+            _marked()
 
         _confirm(_("Take {n} documents out of “{name}”? A rescan does not bring them back; their findings "
                    "stay where they are.").format(n=len(ids), name=d.display),  # TODO i18n-plural
@@ -1926,7 +1921,6 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 dlg.close()
                 ui.notify(_("Merged into “{name}”.").format(name=target.display), type="positive")
                 select("dossier", target.pbrain_id)
-                _offer_rescan([target])
 
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
@@ -1942,7 +1936,38 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             ui.markdown(_in_app_links(link, user)).classes("chat-md finding-md w-full")
 
     # ── Archive and trash ────────────────────────────────────────────────────
+    def _stale_view() -> None:
+        rows = dmod.stale_dossiers(user)
+        with ui.column().classes("pbm-panel gap-3"):
+            _back_btn()
+            with ui.row().classes("w-full items-center gap-2"):
+                ui.label(_("Rescan pending")).classes("text-xl font-bold flex-1").style("color:var(--c-text)")
+                if rows:
+                    ui.button(_("Rescan all"), icon="refresh", on_click=lambda: _rescan_all(rows)).props(
+                        "unelevated no-caps").classes("bg-primary text-white")
+            ui.label(_("Dossiers you changed by hand — documents added, moved or taken out, merged — whose "
+                       "state is out of date. Rescan them when you are done; whatever is left is rescanned "
+                       "in the night.")).classes("pbm-hint")
+            if not rows:
+                ui.label(_("Nothing pending.")).classes("pbm-hint")
+            for d in rows:
+                el = ui.element("div").classes("pbm-due")
+                el.on("click", lambda _e, i=d.pbrain_id: select("dossier", i))
+                with el:
+                    ui.label(d.stale).classes("d")
+                    ui.label(d.display + (" — " + _("rescan queued") if _relook_state(d) else "")).classes("t")
+
+    def _rescan_all(rows) -> None:
+        for d in rows:
+            _relook(d, quiet=True)
+        ui.notify(_("{n} rescans queued — they run one after another as soon as the model is free.").format(
+            n=len(rows)), type="positive")  # TODO i18n-plural
+        viewer_body.refresh()
+
     def _shelf_view(shelf: str) -> None:
+        if shelf == "stale":
+            _stale_view()
+            return
         archive = shelf == dmod.ARCHIVE
         rows = dmod.list_shelf(user, shelf)
         with ui.column().classes("pbm-panel gap-3"):

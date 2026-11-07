@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-07 09:38+0100\n"
+"POT-Creation-Date: 2026-11-07 10:02+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -108,10 +108,10 @@ msgstr "Dienst gespeichert."
 #: app_ui/pages/dashboard.py:1020 app_ui/pages/dashboard.py:1225
 #: app_ui/pages/dashboard.py:1415 app_ui/pages/experts.py:877
 #: app_ui/pages/experts.py:897 app_ui/pages/experts.py:918
-#: app_ui/pages/findings.py:1523 app_ui/pages/findings.py:1561
-#: app_ui/pages/findings.py:1744 app_ui/pages/findings.py:1887
-#: app_ui/pages/findings.py:1932 app_ui/pages/findings.py:2116
-#: app_ui/pages/findings.py:2194 app_ui/pages/settings.py:1259
+#: app_ui/pages/findings.py:1538 app_ui/pages/findings.py:1576
+#: app_ui/pages/findings.py:1759 app_ui/pages/findings.py:1883
+#: app_ui/pages/findings.py:1926 app_ui/pages/findings.py:2141
+#: app_ui/pages/findings.py:2219 app_ui/pages/settings.py:1259
 #: app_ui/title_rename_settings.py:79 app_ui/title_rename_settings.py:186
 #: app_ui/title_rename_settings.py:245 werkbank/ui/module_page.py:136
 #: werkbank/v2/ui/brief_dialog.py:158 werkbank/v2/ui/page.py:522
@@ -296,7 +296,7 @@ msgstr "Dienst gelöscht."
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
 #: app_ui/ai_models_settings.py:500 app_ui/pages/brain.py:293
 #: app_ui/pages/brain.py:1101 app_ui/pages/experts.py:819
-#: app_ui/pages/experts.py:898 app_ui/pages/findings.py:2043
+#: app_ui/pages/experts.py:898 app_ui/pages/findings.py:2068
 #: werkbank/ui/task_dialog.py:363 werkbank/ui/task_dialog.py:699
 #: werkbank/v2/ui/page.py:264
 msgid "Delete"
@@ -394,7 +394,7 @@ msgstr "Ursprungsdokument"
 msgid "↓ Newest"
 msgstr "↓ Neuestes"
 
-#: app_ui/cluster_dialog.py:161 app_ui/pages/findings.py:1063
+#: app_ui/cluster_dialog.py:161 app_ui/pages/findings.py:1074
 #: app_ui/skill_wizard_dialog.py:42
 msgid "Back"
 msgstr "Zurück"
@@ -403,8 +403,8 @@ msgstr "Zurück"
 msgid "Cards"
 msgstr "Karten"
 
-#: app_ui/cluster_dialog.py:191 app_ui/pages/findings.py:1414
-#: proactive/dossiers.py:239
+#: app_ui/cluster_dialog.py:191 app_ui/pages/findings.py:1425
+#: proactive/dossiers.py:243
 msgid "Timeline"
 msgstr "Zeitachse"
 
@@ -462,13 +462,13 @@ msgid "Loading …"
 msgstr "Lädt …"
 
 #: app_ui/doc_library.py:140 app_ui/pages/browser.py:207
-#: app_ui/pages/experts.py:190 app_ui/pages/findings.py:1387
-#: app_ui/pages/findings.py:1799 app_ui/pages/findings.py:1967
+#: app_ui/pages/experts.py:190 app_ui/pages/findings.py:1398
+#: app_ui/pages/findings.py:1814 app_ui/pages/findings.py:1992
 #, python-brace-format
 msgid "{n} documents"
 msgstr "{n} Dokumente"
 
-#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:753
+#: app_ui/document_dialog.py:163 app_ui/pages/findings.py:755
 #, python-brace-format
 msgid "#{id} not found"
 msgstr "#{id} nicht gefunden"
@@ -678,16 +678,16 @@ msgstr "Fehler beim Neu-Einlesen: {err}"
 msgid "Re-ingest (extraction + embedding)"
 msgstr "Neu einlesen (Extraktion + Embedding)"
 
-#: app_ui/dossier_save.py:27 app_ui/pages/findings.py:1673
-#: proactive/dossiers.py:221
+#: app_ui/dossier_save.py:27 app_ui/pages/findings.py:1688
+#: proactive/dossiers.py:225
 msgid "documents"
 msgstr "Dokumente"
 
-#: app_ui/dossier_save.py:27 app_ui/pages/findings.py:1673
+#: app_ui/dossier_save.py:27 app_ui/pages/findings.py:1688
 msgid "web"
 msgstr "Web"
 
-#: app_ui/dossier_save.py:27 app_ui/pages/findings.py:1673
+#: app_ui/dossier_save.py:27 app_ui/pages/findings.py:1688
 msgid "documents + web"
 msgstr "Dokumente + Web"
 
@@ -695,7 +695,7 @@ msgstr "Dokumente + Web"
 msgid "reasoning only — no tool evidence"
 msgstr "nur Überlegung — keine Belege aus Tools"
 
-#: app_ui/dossier_save.py:59 app_ui/pages/findings.py:1532
+#: app_ui/dossier_save.py:59 app_ui/pages/findings.py:1547
 msgid "New dossier …"
 msgstr "Neues Dossier …"
 
@@ -703,12 +703,12 @@ msgstr "Neues Dossier …"
 msgid "Save to dossier"
 msgstr "Ins Dossier speichern"
 
-#: app_ui/dossier_save.py:73 app_ui/pages/findings.py:1537
-#: app_ui/pages/findings.py:1869 app_ui/pages/findings.py:1917
+#: app_ui/dossier_save.py:73 app_ui/pages/findings.py:1552
+#: app_ui/pages/findings.py:1867 app_ui/pages/findings.py:1912
 msgid "Dossier"
 msgstr "Dossier"
 
-#: app_ui/dossier_save.py:74 app_ui/pages/findings.py:1539
+#: app_ui/dossier_save.py:74 app_ui/pages/findings.py:1554
 msgid "Name of the new dossier"
 msgstr "Name des neuen Dossiers"
 
@@ -856,9 +856,9 @@ msgstr "Ein Dossier mit diesem Namen gibt es schon."
 msgid "Give the dossier a name."
 msgstr "Gib dem Dossier einen Namen."
 
-#: app_ui/dossier_save.py:277 app_ui/pages/findings.py:1552
-#: app_ui/pages/findings.py:1876 app_ui/pages/findings.py:1924
-#: app_ui/pages/findings.py:2109
+#: app_ui/dossier_save.py:277 app_ui/pages/findings.py:1567
+#: app_ui/pages/findings.py:1874 app_ui/pages/findings.py:1919
+#: app_ui/pages/findings.py:2134
 msgid "Could not save."
 msgstr "Konnte nicht gespeichert werden."
 
@@ -871,25 +871,25 @@ msgstr "Konnte nicht gespeichert werden: {err}"
 msgid "Saved to dossier."
 msgstr "Im Dossier gespeichert."
 
-#: app_ui/findings_view.py:28 app_ui/pages/findings.py:936
-#: app_ui/pages/findings.py:1140
+#: app_ui/findings_view.py:28 app_ui/pages/findings.py:938
+#: app_ui/pages/findings.py:1151
 msgid "Inbox"
 msgstr "Offen"
 
-#: app_ui/findings_view.py:29 app_ui/pages/findings.py:938
-#: app_ui/pages/findings.py:1082 app_ui/pages/findings.py:1140
+#: app_ui/findings_view.py:29 app_ui/pages/findings.py:940
+#: app_ui/pages/findings.py:1093 app_ui/pages/findings.py:1151
 #: proactive/notify/__init__.py:33
 msgid "Relevant"
 msgstr "Relevant"
 
 #: app_ui/findings_view.py:30 app_ui/multi_pick.py:155
-#: app_ui/pages/findings.py:941 app_ui/pages/findings.py:1141
+#: app_ui/pages/findings.py:943 app_ui/pages/findings.py:1152
 #: proactive/notify/__init__.py:36 werkbank/ui/module_page.py:180
 msgid "Done"
 msgstr "Fertig"
 
-#: app_ui/findings_view.py:31 app_ui/pages/findings.py:942
-#: app_ui/pages/findings.py:1141
+#: app_ui/findings_view.py:31 app_ui/pages/findings.py:944
+#: app_ui/pages/findings.py:1152
 msgid "Dismissed"
 msgstr "Verworfen"
 
@@ -974,7 +974,7 @@ msgstr ""
 
 #: app_ui/help_dialog.py:20 app_ui/inference_status.py:13 app_ui/layout.py:43
 #: app_ui/pages/chat.py:1905 app_ui/pages/experts.py:261
-#: app_ui/pages/findings.py:821 app_ui/pages/settings.py:469
+#: app_ui/pages/findings.py:823 app_ui/pages/settings.py:469
 msgid "Chat"
 msgstr "Chat"
 
@@ -993,8 +993,8 @@ msgstr ""
 " wählst du oben; Werkzeugschalter und Schnellaktionen liegen unter der "
 "Eingabe."
 
-#: app_ui/help_dialog.py:27 app_ui/layout.py:49 app_ui/pages/findings.py:906
-#: app_ui/pages/findings.py:1078 app_ui/pages/findings.py:1415
+#: app_ui/help_dialog.py:27 app_ui/layout.py:49 app_ui/pages/findings.py:908
+#: app_ui/pages/findings.py:1089 app_ui/pages/findings.py:1426
 msgid "Findings"
 msgstr "Hinweise"
 
@@ -1568,7 +1568,7 @@ msgstr "Dieser Code ist ungültig oder abgelaufen."
 msgid "Email address confirmed."
 msgstr "E-Mail-Adresse bestätigt."
 
-#: app_ui/pages/findings.py:1279 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:1290 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr "Bestätigen"
 
@@ -1645,7 +1645,7 @@ msgstr "Geräte"
 msgid "Unknown device"
 msgstr "Unbekanntes Gerät"
 
-#: app_ui/pages/findings.py:1745 app_ui/pages/findings.py:2090
+#: app_ui/pages/findings.py:1760 app_ui/pages/findings.py:2115
 #: app_ui/proactive_settings.py:363
 msgid "Remove"
 msgstr "Entfernen"
@@ -1898,9 +1898,9 @@ msgstr "Ein paar Fragen, um den Skill zu schärfen. Überspring, was du willst."
 #: app_ui/pages/brain.py:971 app_ui/pages/chat.py:3989
 #: app_ui/pages/chat.py:4032 app_ui/pages/experts.py:305
 #: app_ui/pages/experts.py:770 app_ui/pages/experts.py:861
-#: app_ui/pages/experts.py:904 app_ui/pages/findings.py:2125
-#: app_ui/pages/findings.py:2146 app_ui/skill_wizard_dialog.py:92
-#: werkbank/ui/archetype_dialog.py:118
+#: app_ui/pages/experts.py:904 app_ui/pages/findings.py:1044
+#: app_ui/pages/findings.py:2150 app_ui/pages/findings.py:2171
+#: app_ui/skill_wizard_dialog.py:92 werkbank/ui/archetype_dialog.py:118
 msgid "Name"
 msgstr "Name"
 
@@ -2198,8 +2198,8 @@ msgstr ""
 msgid "Every analysed document has already been renamed."
 msgstr "Alle analysierten Dokumente wurden bereits umbenannt."
 
-#: app_ui/pages/brain.py:279 app_ui/pages/findings.py:2117
-#: app_ui/pages/findings.py:2195
+#: app_ui/pages/brain.py:279 app_ui/pages/findings.py:2142
+#: app_ui/pages/findings.py:2220
 msgid "OK"
 msgstr "OK"
 
@@ -2361,7 +2361,7 @@ msgid "New note"
 msgstr "Neue Notiz"
 
 #: app_ui/pages/brain.py:952 app_ui/pages/brain.py:1095
-#: app_ui/pages/findings.py:960 app_ui/pages/findings.py:2136
+#: app_ui/pages/findings.py:959 app_ui/pages/findings.py:2161
 msgid "New folder"
 msgstr "Neuer Ordner"
 
@@ -2374,7 +2374,7 @@ msgid "Shared notes are read-only."
 msgstr "Geteilte Notizen sind schreibgeschützt."
 
 #: app_ui/pages/brain.py:971 app_ui/pages/brain.py:1098
-#: app_ui/pages/findings.py:1400
+#: app_ui/pages/findings.py:1048 app_ui/pages/findings.py:1411
 msgid "Rename"
 msgstr "Umbenennen"
 
@@ -2488,13 +2488,13 @@ msgid "Range"
 msgstr "Zeitraum"
 
 #: app_ui/pages/browser.py:158 app_ui/pages/dashboard.py:330
-#: app_ui/pages/findings.py:735
+#: app_ui/pages/findings.py:737
 #, python-brace-format
 msgid "#{id} unpinned"
 msgstr "#{id} gelöst"
 
 #: app_ui/pages/browser.py:162 app_ui/pages/dashboard.py:333
-#: app_ui/pages/findings.py:739
+#: app_ui/pages/findings.py:741
 #, python-brace-format
 msgid "#{id} pinned"
 msgstr "#{id} angeheftet"
@@ -2525,7 +2525,7 @@ msgstr "Erstellt"
 msgid "Document type"
 msgstr "Dokumententyp"
 
-#: app_ui/pages/browser.py:323 app_ui/pages/findings.py:1157
+#: app_ui/pages/browser.py:323 app_ui/pages/findings.py:1168
 msgid "Sort"
 msgstr "Sortierung"
 
@@ -2605,7 +2605,7 @@ msgstr ": Dok. #{id}"
 
 #: app_ui/pages/chat.py:795 app_ui/pages/chat.py:3281
 #: app_ui/pages/dashboard.py:415 app_ui/pages/experts.py:127
-#: app_ui/pages/findings.py:918 app_ui/pages/findings.py:1416
+#: app_ui/pages/findings.py:920 app_ui/pages/findings.py:1427
 #: app_ui/pages/settings.py:413
 msgid "Documents"
 msgstr "Dokumente"
@@ -3716,7 +3716,7 @@ msgstr "Keine Fristen gefunden."
 msgid "Overdue only"
 msgstr "Nur überfällige"
 
-#: app_ui/pages/dashboard.py:1722 app_ui/pages/findings.py:1703
+#: app_ui/pages/dashboard.py:1722 app_ui/pages/findings.py:1718
 msgid "Show all"
 msgstr "Alle anzeigen"
 
@@ -3921,8 +3921,8 @@ msgstr "Gespeichert, aber nur die ersten {max} Zeichen werden verwendet."
 msgid "Saved."
 msgstr "Gespeichert."
 
-#: app_ui/pages/experts.py:386 app_ui/pages/findings.py:1498
-#: app_ui/pages/findings.py:1782
+#: app_ui/pages/experts.py:386 app_ui/pages/findings.py:1513
+#: app_ui/pages/findings.py:1797
 msgid "Paperless is not reachable."
 msgstr "Paperless ist nicht erreichbar."
 
@@ -4269,7 +4269,7 @@ msgstr ""
 msgid "{label} (deleted)"
 msgstr "{label} (gelöscht)"
 
-#: app_ui/pages/findings.py:164 app_ui/pages/findings.py:909
+#: app_ui/pages/findings.py:164 app_ui/pages/findings.py:911
 #, python-brace-format
 msgid "Due {date}"
 msgstr "Fällig {date}"
@@ -4291,7 +4291,7 @@ msgid "due"
 msgstr "fällig"
 
 #: app_ui/pages/findings.py:269 app_ui/pages/findings.py:334
-#: app_ui/pages/findings.py:1165
+#: app_ui/pages/findings.py:1176
 msgid "No topic"
 msgstr "Ohne Thema"
 
@@ -4313,7 +4313,7 @@ msgstr "Alle {n} Themen anzeigen"
 msgid "Topics"
 msgstr "Themen"
 
-#: app_ui/pages/findings.py:291 app_ui/pages/findings.py:1163
+#: app_ui/pages/findings.py:291 app_ui/pages/findings.py:1174
 msgid "Topic colours"
 msgstr "Themenfarben"
 
@@ -4329,70 +4329,60 @@ msgstr "Noch keine Themen."
 msgid "No colour"
 msgstr "Keine Farbe"
 
-#: app_ui/pages/findings.py:374 app_ui/pages/findings.py:1201
-#: app_ui/pages/findings.py:1534
+#: app_ui/pages/findings.py:374 app_ui/pages/findings.py:1212
+#: app_ui/pages/findings.py:1549
 msgid "File in a dossier"
 msgstr "In ein Dossier ablegen"
 
-#: app_ui/pages/findings.py:820
+#: app_ui/pages/findings.py:822
 msgid "Navigator"
 msgstr "Navigator"
 
-#: app_ui/pages/findings.py:820
+#: app_ui/pages/findings.py:822
 msgid "Viewer"
 msgstr "Ansicht"
 
-#: app_ui/pages/findings.py:838
+#: app_ui/pages/findings.py:840
 msgid "Search findings & dossiers"
 msgstr "Befunde & Dossiers durchsuchen"
 
-#: app_ui/pages/findings.py:887
+#: app_ui/pages/findings.py:889
 msgid "Searching …"
 msgstr "Suche …"
 
-#: app_ui/pages/findings.py:889 app_ui/pages/findings.py:1502
+#: app_ui/pages/findings.py:891 app_ui/pages/findings.py:1517
 msgid "Nothing found."
 msgstr "Nichts gefunden."
 
-#: app_ui/pages/findings.py:902 app_ui/pages/findings.py:955
-#: app_ui/pages/findings.py:1083
+#: app_ui/pages/findings.py:904 app_ui/pages/findings.py:957
+#: app_ui/pages/findings.py:1094
 msgid "Dossiers"
 msgstr "Dossiers"
 
-#: app_ui/pages/findings.py:913 app_ui/pages/findings.py:1415
-#: proactive/dossiers.py:248
+#: app_ui/pages/findings.py:915 app_ui/pages/findings.py:1426
+#: proactive/dossiers.py:252
 msgid "Insights"
 msgstr "Erkenntnisse"
 
-#: app_ui/pages/findings.py:935 app_ui/pages/findings.py:1062
-#: app_ui/pages/findings.py:1414
+#: app_ui/pages/findings.py:937 app_ui/pages/findings.py:1073
+#: app_ui/pages/findings.py:1425
 msgid "Overview"
 msgstr "Übersicht"
 
-#: app_ui/pages/findings.py:937 app_ui/pages/findings.py:1081
-#: app_ui/pages/findings.py:1140
+#: app_ui/pages/findings.py:939 app_ui/pages/findings.py:1092
+#: app_ui/pages/findings.py:1151
 msgid "Pressing"
 msgstr "Dringend"
 
-#: app_ui/pages/findings.py:939 app_ui/pages/findings.py:1141
+#: app_ui/pages/findings.py:941 app_ui/pages/findings.py:1152
 msgid "Not in a dossier"
 msgstr "Ohne Dossier"
 
-#: app_ui/pages/findings.py:957
-msgid ""
-"One binder per matter. Folders only sort them. Findings land in the "
-"dossier of their topic; add documents or file findings by hand, then use "
-"“Rescan”."
-msgstr ""
-"Ein Ordner je Angelegenheit. Ordner im Baum sortieren nur. Hinweise "
-"landen im Dossier ihres Themas; Dokumente und Hinweise kannst du selbst "
-"hinzufügen, dann „Neu erstellen“."
-
-#: app_ui/pages/findings.py:962 app_ui/pages/findings.py:2125
+#: app_ui/pages/findings.py:961 app_ui/pages/findings.py:2150
 msgid "New dossier"
 msgstr "Neues Dossier"
 
-#: app_ui/pages/findings.py:978
+#: app_ui/pages/findings.py:977
 msgid ""
 "No dossiers yet. They appear when the system follows a matter — or make "
 "one yourself."
@@ -4400,27 +4390,31 @@ msgstr ""
 "Noch keine Dossiers. Sie entstehen, wenn das System einer Sache folgt — "
 "oder du legst selbst eins an."
 
-#: app_ui/pages/findings.py:993 app_ui/pages/findings.py:1950
-#: app_ui/pages/findings.py:2029
+#: app_ui/pages/findings.py:992 app_ui/pages/findings.py:1944
+msgid "Rescan pending"
+msgstr "Neu erstellen ausstehend"
+
+#: app_ui/pages/findings.py:993 app_ui/pages/findings.py:1975
+#: app_ui/pages/findings.py:2054
 msgid "Archive"
 msgstr "Archiv"
 
-#: app_ui/pages/findings.py:993 app_ui/pages/findings.py:1950
+#: app_ui/pages/findings.py:994 app_ui/pages/findings.py:1975
 msgid "Deleted dossiers"
 msgstr "Gelöschte Dossiers"
 
-#: app_ui/pages/findings.py:1014
+#: app_ui/pages/findings.py:1015
 #, python-brace-format
 msgid "Folder “{name}”"
 msgstr "Ordner „{name}“"
 
-#: app_ui/pages/findings.py:1016
+#: app_ui/pages/findings.py:1017
 msgid "Deleting the folder moves its dossiers one level up; nothing else changes."
 msgstr ""
 "Beim Löschen des Ordners rücken seine Dossiers eine Ebene nach oben; "
 "sonst ändert sich nichts."
 
-#: app_ui/pages/findings.py:1023
+#: app_ui/pages/findings.py:1024
 msgid ""
 "The folder holds notes that are not dossiers — it stays. Remove them in "
 "your vault first."
@@ -4428,66 +4422,76 @@ msgstr ""
 "Der Ordner enthält Notizen, die keine Dossiers sind — er bleibt. Entferne"
 " sie zuerst in deinem Vault."
 
-#: app_ui/pages/findings.py:1024 app_ui/pages/findings.py:2109
+#: app_ui/pages/findings.py:1025 app_ui/pages/findings.py:2134
 msgid "Not a valid folder."
 msgstr "Kein gültiger Ordner."
 
-#: app_ui/pages/findings.py:1028
+#: app_ui/pages/findings.py:1029
 msgid "Folder deleted."
 msgstr "Ordner gelöscht."
 
-#: app_ui/pages/findings.py:1028
+#: app_ui/pages/findings.py:1029
 #, python-brace-format
 msgid "{n} dossiers moved up."
 msgstr "{n} Dossiers nach oben verschoben."
 
-#: app_ui/pages/findings.py:1038
+#: app_ui/pages/findings.py:1044
+msgid "Rename folder"
+msgstr "Ordner umbenennen"
+
+#: app_ui/pages/findings.py:1045
+msgid "Only the folder's name changes; the dossiers in it stay as they are."
+msgstr ""
+"Nur der Name des Ordners ändert sich; die Dossiers darin bleiben, wie sie"
+" sind."
+
+#: app_ui/pages/findings.py:1049
 msgid "New dossier here"
 msgstr "Neues Dossier hier"
 
-#: app_ui/pages/findings.py:1039
+#: app_ui/pages/findings.py:1050
 msgid "Delete folder"
 msgstr "Ordner löschen"
 
-#: app_ui/pages/findings.py:1062
+#: app_ui/pages/findings.py:1073
 msgid "Back to the list"
 msgstr "Zurück zur Liste"
 
-#: app_ui/pages/findings.py:1062
+#: app_ui/pages/findings.py:1073
 msgid "Back to the dossier"
 msgstr "Zurück zum Dossier"
 
-#: app_ui/pages/findings.py:1080
+#: app_ui/pages/findings.py:1091
 msgid "In the inbox"
 msgstr "Im Posteingang"
 
-#: app_ui/pages/findings.py:1090
+#: app_ui/pages/findings.py:1101
 #, python-brace-format
 msgid "{n} being researched — it gives way while you chat."
 msgstr "{n} in Recherche — sie pausiert, solange du chattest."
 
-#: app_ui/pages/findings.py:1098
+#: app_ui/pages/findings.py:1109
 msgid "Due in the next 60 days"
 msgstr "Fällig in den nächsten 60 Tagen"
 
-#: app_ui/pages/findings.py:1100
+#: app_ui/pages/findings.py:1111
 msgid "Nothing due."
 msgstr "Nichts fällig."
 
-#: app_ui/pages/findings.py:1112
+#: app_ui/pages/findings.py:1123
 msgid "Latest insights"
 msgstr "Neueste Erkenntnisse"
 
-#: app_ui/pages/findings.py:1154
+#: app_ui/pages/findings.py:1165
 msgid "Group"
 msgstr "Gruppieren"
 
-#: app_ui/pages/findings.py:1166
+#: app_ui/pages/findings.py:1177
 #, python-brace-format
 msgid "Topic: {t}"
 msgstr "Thema: {t}"
 
-#: app_ui/pages/findings.py:1168
+#: app_ui/pages/findings.py:1179
 msgid ""
 "Open findings whose topic has no dossier. File one into a dossier with "
 "the folder icon; its documents join that dossier."
@@ -4495,145 +4499,145 @@ msgstr ""
 "Offene Hinweise, deren Thema kein Dossier hat. Mit dem Ordner-Symbol "
 "legst du einen in ein Dossier ab; seine Dokumente kommen mit."
 
-#: app_ui/pages/findings.py:1173 app_ui/pages/findings.py:1957
+#: app_ui/pages/findings.py:1184 app_ui/pages/findings.py:1982
 msgid "Nothing here."
 msgstr "Hier ist nichts."
 
-#: app_ui/pages/findings.py:1198
+#: app_ui/pages/findings.py:1209
 msgid "Finding as PDF"
 msgstr "Hinweis als PDF"
 
-#: app_ui/pages/findings.py:1201
+#: app_ui/pages/findings.py:1212
 msgid "Move to another dossier"
 msgstr "In ein anderes Dossier verschieben"
 
-#: app_ui/pages/findings.py:1205 proactive/reactions.py:56
+#: app_ui/pages/findings.py:1216 proactive/reactions.py:56
 msgid "This item no longer exists."
 msgstr "Diesen Eintrag gibt es nicht mehr."
 
-#: app_ui/pages/findings.py:1214
+#: app_ui/pages/findings.py:1225
 #, python-brace-format
 msgid "Dossier: {name}"
 msgstr "Dossier: {name}"
 
-#: app_ui/pages/findings.py:1221
+#: app_ui/pages/findings.py:1232
 msgid "Researched — the newest result is at the top, the report is in your vault."
 msgstr ""
 "Recherchiert — das neueste Ergebnis steht oben, der Bericht liegt in "
 "deinem Vault."
 
-#: app_ui/pages/findings.py:1234
+#: app_ui/pages/findings.py:1245
 msgid "Research running — it gives way while you chat."
 msgstr "Recherche läuft — sie pausiert, solange du chattest."
 
-#: app_ui/pages/findings.py:1237 app_ui/pages/findings.py:1257
+#: app_ui/pages/findings.py:1248 app_ui/pages/findings.py:1268
 msgid "Research queued — it starts as soon as the model is free."
 msgstr "Recherche wartet — sie startet, sobald das Modell frei ist."
 
-#: app_ui/pages/findings.py:1240
+#: app_ui/pages/findings.py:1251
 msgid "No research is running for this item."
 msgstr "Für diesen Eintrag läuft keine Recherche."
 
-#: app_ui/pages/findings.py:1245
+#: app_ui/pages/findings.py:1256
 msgid "The research failed."
 msgstr "Die Recherche ist fehlgeschlagen."
 
-#: app_ui/pages/findings.py:1249 app_ui/pages/findings.py:1287
+#: app_ui/pages/findings.py:1260 app_ui/pages/findings.py:1298
 msgid "Research again"
 msgstr "Erneut recherchieren"
 
-#: app_ui/pages/findings.py:1277
+#: app_ui/pages/findings.py:1288
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr "„{action}“ auf diesen Eintrag anwenden?"
 
-#: app_ui/pages/findings.py:1281 proactive/reactions.py:55
+#: app_ui/pages/findings.py:1292 proactive/reactions.py:55
 msgid "Already handled."
 msgstr "Bereits erledigt."
 
-#: app_ui/pages/findings.py:1288
+#: app_ui/pages/findings.py:1299
 msgid "Start research"
 msgstr "Recherchieren"
 
-#: app_ui/pages/findings.py:1293
+#: app_ui/pages/findings.py:1304
 msgid "Add a note"
 msgstr "Notiz hinzufügen"
 
-#: app_ui/pages/findings.py:1294
+#: app_ui/pages/findings.py:1305
 msgid "e.g. The operation took place in April 2024."
 msgstr "z. B. Die Operation fand im April 2024 statt."
 
-#: app_ui/pages/findings.py:1301
+#: app_ui/pages/findings.py:1312
 msgid "Note added."
 msgstr "Notiz hinzugefügt."
 
-#: app_ui/pages/findings.py:1305
+#: app_ui/pages/findings.py:1316
 msgid "Save note"
 msgstr "Notiz speichern"
 
-#: app_ui/pages/findings.py:1378 app_ui/pages/findings.py:2002
-#: app_ui/pages/findings.py:2022 app_ui/pages/findings.py:2036
-#: app_ui/pages/findings.py:2066
+#: app_ui/pages/findings.py:1389 app_ui/pages/findings.py:2027
+#: app_ui/pages/findings.py:2047 app_ui/pages/findings.py:2061
+#: app_ui/pages/findings.py:2091
 msgid "This dossier no longer exists."
 msgstr "Dieses Dossier gibt es nicht mehr."
 
-#: app_ui/pages/findings.py:1388
+#: app_ui/pages/findings.py:1399
 #, python-brace-format
 msgid "{n} findings"
 msgstr "{n} Befunde"
 
-#: app_ui/pages/findings.py:1389 app_ui/pages/findings.py:1971
+#: app_ui/pages/findings.py:1400 app_ui/pages/findings.py:1996
 #, python-brace-format
 msgid "{n} insights"
 msgstr "{n} Erkenntnisse"
 
-#: app_ui/pages/findings.py:1391
+#: app_ui/pages/findings.py:1402
 #, python-brace-format
 msgid "revisit {date}"
 msgstr "Wiedervorlage {date}"
 
-#: app_ui/pages/findings.py:1393
+#: app_ui/pages/findings.py:1404
 msgid "made by you"
 msgstr "von dir angelegt"
 
-#: app_ui/pages/findings.py:1397
+#: app_ui/pages/findings.py:1408
 msgid "Rescan — rewrite it from all its documents"
 msgstr "Neu erstellen — aus allen Dokumenten neu schreiben"
 
-#: app_ui/pages/findings.py:1398 app_ui/pages/findings.py:1775
-#: app_ui/pages/findings.py:1793
+#: app_ui/pages/findings.py:1409 app_ui/pages/findings.py:1790
+#: app_ui/pages/findings.py:1808
 msgid "Add documents"
 msgstr "Dokumente hinzufügen"
 
-#: app_ui/pages/findings.py:1401 app_ui/pages/findings.py:2155
+#: app_ui/pages/findings.py:1412 app_ui/pages/findings.py:2180
 msgid "Move to folder"
 msgstr "In Ordner verschieben"
 
-#: app_ui/pages/findings.py:1402
+#: app_ui/pages/findings.py:1413
 msgid "Merge into another dossier …"
 msgstr "Mit einem anderen Dossier zusammenführen …"
 
-#: app_ui/pages/findings.py:1406
+#: app_ui/pages/findings.py:1417
 msgid "Default expert for its chat"
 msgstr "Standard-Experte für seinen Chat"
 
-#: app_ui/pages/findings.py:1408
+#: app_ui/pages/findings.py:1419
 msgid "Archive — close the matter"
 msgstr "Archivieren — die Sache abschließen"
 
-#: app_ui/pages/findings.py:1409
+#: app_ui/pages/findings.py:1420
 msgid "Reset — delete and read its documents again"
 msgstr "Zurücksetzen — löschen und Dokumente neu lesen"
 
-#: app_ui/pages/findings.py:1411 app_ui/pages/findings.py:1989
+#: app_ui/pages/findings.py:1422 app_ui/pages/findings.py:2014
 msgid "Delete dossier"
 msgstr "Dossier löschen"
 
-#: app_ui/pages/findings.py:1416 proactive/dossiers.py:251
+#: app_ui/pages/findings.py:1427 proactive/dossiers.py:255
 msgid "Research"
 msgstr "Recherche"
 
-#: app_ui/pages/findings.py:1445
+#: app_ui/pages/findings.py:1456
 msgid ""
 "Rescan queued — the model rewrites this dossier from all documents of the"
 " matter; it gives way while you chat."
@@ -4641,7 +4645,7 @@ msgstr ""
 "Neu erstellen eingeplant — das Modell schreibt dieses Dossier aus allen "
 "Dokumenten der Angelegenheit neu; es wartet, solange du chattest."
 
-#: app_ui/pages/findings.py:1449
+#: app_ui/pages/findings.py:1460
 #, python-brace-format
 msgid ""
 "{n} documents of this matter are not in the dossier yet (added by you or "
@@ -4650,11 +4654,19 @@ msgstr ""
 "{n} Dokumente dieser Angelegenheit sind noch nicht im Dossier (von dir "
 "hinzugefügt oder aus seinen Hinweisen)."
 
-#: app_ui/pages/findings.py:1451 app_ui/pages/findings.py:1852
+#: app_ui/pages/findings.py:1462
+msgid ""
+"Changed by hand — the state is out of date. Rescan now, or it is "
+"rescanned in the night."
+msgstr ""
+"Von Hand geändert — der Stand ist veraltet. Jetzt neu erstellen, oder es "
+"geschieht in der Nacht."
+
+#: app_ui/pages/findings.py:1464
 msgid "Rescan"
 msgstr "Neu erstellen"
 
-#: app_ui/pages/findings.py:1460
+#: app_ui/pages/findings.py:1473
 msgid ""
 "Allow background access first (Settings > Proactive) — the rescan runs in"
 " the background, as you."
@@ -4662,13 +4674,13 @@ msgstr ""
 "Erlaube zuerst den Hintergrundzugriff (Einstellungen > Proaktiv) — das "
 "Neu-Erstellen läuft im Hintergrund, als du."
 
-#: app_ui/pages/findings.py:1464
+#: app_ui/pages/findings.py:1477
 msgid "This dossier has no documents yet. Add some, or file a finding into it."
 msgstr ""
 "Dieses Dossier hat noch keine Dokumente. Füge welche hinzu oder lege "
 "einen Hinweis darin ab."
 
-#: app_ui/pages/findings.py:1468
+#: app_ui/pages/findings.py:1483
 msgid ""
 "Rescan queued. State, timeline and open questions are rewritten; your "
 "insights, research and added documents stay."
@@ -4677,12 +4689,12 @@ msgstr ""
 "geschrieben; deine Erkenntnisse, Recherchen und hinzugefügten Dokumente "
 "bleiben."
 
-#: app_ui/pages/findings.py:1476
+#: app_ui/pages/findings.py:1491
 #, python-brace-format
 msgid "Add documents to “{name}”"
 msgstr "Dokumente zu „{name}“ hinzufügen"
 
-#: app_ui/pages/findings.py:1478
+#: app_ui/pages/findings.py:1493
 msgid ""
 "Search your documents by title or content, or type #123. Added documents "
 "are read on the next rescan and never dropped by a rebuild."
@@ -4691,23 +4703,23 @@ msgstr ""
 "Hinzugefügte Dokumente werden beim nächsten Neu-Erstellen gelesen und bei"
 " keinem Neuaufbau entfernt."
 
-#: app_ui/pages/findings.py:1480
+#: app_ui/pages/findings.py:1495
 msgid "Search documents"
 msgstr "Dokumente suchen"
 
-#: app_ui/pages/findings.py:1506
+#: app_ui/pages/findings.py:1521
 msgid "already in it"
 msgstr "schon darin"
 
-#: app_ui/pages/findings.py:1518
+#: app_ui/pages/findings.py:1533
 msgid "Added. Press Rescan to have the model read them."
 msgstr "Hinzugefügt. Mit „Neu erstellen“ liest das Modell sie."
 
-#: app_ui/pages/findings.py:1524 werkbank/v2/ui/brief_dialog.py:76
+#: app_ui/pages/findings.py:1539 werkbank/v2/ui/brief_dialog.py:76
 msgid "Add"
 msgstr "Hinzufügen"
 
-#: app_ui/pages/findings.py:1535
+#: app_ui/pages/findings.py:1550
 msgid ""
 "The finding moves to the dossier's topic; its documents join the dossier "
 "and are read on the next rescan."
@@ -4715,49 +4727,49 @@ msgstr ""
 "Der Hinweis bekommt das Thema des Dossiers; seine Dokumente kommen ins "
 "Dossier und werden beim nächsten Neu-Erstellen gelesen."
 
-#: app_ui/pages/findings.py:1551 app_ui/pages/findings.py:2108
+#: app_ui/pages/findings.py:1566 app_ui/pages/findings.py:2133
 msgid "That name is taken."
 msgstr "Dieser Name ist vergeben."
 
-#: app_ui/pages/findings.py:1551 app_ui/pages/findings.py:2108
+#: app_ui/pages/findings.py:1566 app_ui/pages/findings.py:2133
 msgid "Enter a name."
 msgstr "Gib einen Namen ein."
 
-#: app_ui/pages/findings.py:1556
+#: app_ui/pages/findings.py:1571
 #, python-brace-format
 msgid "Filed in “{name}”."
 msgstr "Abgelegt in „{name}“."
 
-#: app_ui/pages/findings.py:1562
+#: app_ui/pages/findings.py:1577
 msgid "File"
 msgstr "Ablegen"
 
-#: app_ui/pages/findings.py:1578 proactive/dossiers.py:238
+#: app_ui/pages/findings.py:1593 proactive/dossiers.py:242
 msgid "Current state"
 msgstr "Aktueller Stand"
 
-#: app_ui/pages/findings.py:1582
+#: app_ui/pages/findings.py:1597
 msgid "Not written yet — it is built from the documents of this matter."
 msgstr "Noch nicht geschrieben — er entsteht aus den Dokumenten dieser Sache."
 
-#: app_ui/pages/findings.py:1583
+#: app_ui/pages/findings.py:1598
 msgid "Save insights from the chat to fill this dossier."
 msgstr "Speichere Erkenntnisse aus dem Chat, um dieses Dossier zu füllen."
 
-#: app_ui/pages/findings.py:1590
+#: app_ui/pages/findings.py:1605
 msgid "Latest insight"
 msgstr "Neueste Erkenntnis"
 
-#: app_ui/pages/findings.py:1592
+#: app_ui/pages/findings.py:1607
 #, python-brace-format
 msgid "All {n}"
 msgstr "Alle {n}"
 
-#: app_ui/pages/findings.py:1596 proactive/dossiers.py:242
+#: app_ui/pages/findings.py:1611 proactive/dossiers.py:246
 msgid "Open questions"
 msgstr "Offene Fragen"
 
-#: app_ui/pages/findings.py:1597
+#: app_ui/pages/findings.py:1612
 msgid ""
 "Tick one off when it is answered, ask the chat about it, or remove it. A "
 "rescan never brings back what you ticked or removed."
@@ -4766,72 +4778,72 @@ msgstr ""
 "sie. Neu erstellen holt nichts zurück, was du abgehakt oder entfernt "
 "hast."
 
-#: app_ui/pages/findings.py:1605
+#: app_ui/pages/findings.py:1620
 msgid "None."
 msgstr "Keine."
 
-#: app_ui/pages/findings.py:1610
+#: app_ui/pages/findings.py:1625
 msgid "Answered"
 msgstr "Beantwortet"
 
-#: app_ui/pages/findings.py:1614
+#: app_ui/pages/findings.py:1629
 msgid "Ask the chat"
 msgstr "Den Chat fragen"
 
-#: app_ui/pages/findings.py:1617
+#: app_ui/pages/findings.py:1632
 msgid "Not a question here — remove"
 msgstr "Gehört nicht hierher — entfernen"
 
-#: app_ui/pages/findings.py:1622
+#: app_ui/pages/findings.py:1637
 msgid "Open again"
 msgstr "Wieder öffnen"
 
-#: app_ui/pages/findings.py:1625
+#: app_ui/pages/findings.py:1640
 msgid "Answer"
 msgstr "Antwort"
 
-#: app_ui/pages/findings.py:1627
+#: app_ui/pages/findings.py:1642
 msgid "Add a question of your own"
 msgstr "Eigene Frage hinzufügen"
 
-#: app_ui/pages/findings.py:1641
+#: app_ui/pages/findings.py:1656
 msgid "Open findings"
 msgstr "Offene Befunde"
 
-#: app_ui/pages/findings.py:1650
+#: app_ui/pages/findings.py:1665
 msgid "No timeline yet."
 msgstr "Noch keine Zeitachse."
 
-#: app_ui/pages/findings.py:1666
+#: app_ui/pages/findings.py:1681
 msgid "No findings on this matter."
 msgstr "Keine Befunde zu dieser Sache."
 
-#: app_ui/pages/findings.py:1674
+#: app_ui/pages/findings.py:1689
 msgid "reasoning only"
 msgstr "nur Überlegung"
 
-#: app_ui/pages/findings.py:1686
+#: app_ui/pages/findings.py:1701
 msgid "Open the conversation"
 msgstr "Gespräch öffnen"
 
-#: app_ui/pages/findings.py:1691
+#: app_ui/pages/findings.py:1706
 msgid "Insight removed."
 msgstr "Erkenntnis entfernt."
 
-#: app_ui/pages/findings.py:1696
+#: app_ui/pages/findings.py:1711
 msgid "Remove this insight from the dossier? The chat conversation stays."
 msgstr "Diese Erkenntnis aus dem Dossier entfernen? Das Chat-Gespräch bleibt."
 
-#: app_ui/pages/findings.py:1697
+#: app_ui/pages/findings.py:1712
 msgid "Remove insight"
 msgstr "Erkenntnis entfernen"
 
-#: app_ui/pages/findings.py:1724 proactive/dossiers.py:228
+#: app_ui/pages/findings.py:1739 proactive/dossiers.py:232
 #, python-brace-format
 msgid "unconfirmed numbers: {n}"
 msgstr "unbestätigte Zahlen: {n}"
 
-#: app_ui/pages/findings.py:1750
+#: app_ui/pages/findings.py:1765
 msgid ""
 "Saved from chat answers with “Save to dossier”. Sources come from the "
 "answer's own tool calls — the model cannot add any."
@@ -4840,62 +4852,45 @@ msgstr ""
 "stammen aus den Tool-Aufrufen der Antwort selbst — das Modell kann keine "
 "hinzufügen."
 
-#: app_ui/pages/findings.py:1753
+#: app_ui/pages/findings.py:1768
 msgid "Ask about this dossier"
 msgstr "Zu diesem Dossier fragen"
 
-#: app_ui/pages/findings.py:1774
+#: app_ui/pages/findings.py:1789
 msgid "No documents linked yet."
 msgstr "Noch keine Dokumente verknüpft."
 
-#: app_ui/pages/findings.py:1787
+#: app_ui/pages/findings.py:1802
 msgid "Move to …"
 msgstr "Verschieben nach …"
 
-#: app_ui/pages/findings.py:1790 app_ui/pages/findings.py:1903
+#: app_ui/pages/findings.py:1805 app_ui/pages/findings.py:1898
 msgid "Take out"
 msgstr "Herausnehmen"
 
-#: app_ui/pages/findings.py:1798
+#: app_ui/pages/findings.py:1813
 #, python-brace-format
 msgid "{n} selected"
 msgstr "{n} ausgewählt"
 
-#: app_ui/pages/findings.py:1821
+#: app_ui/pages/findings.py:1836
 msgid "added by you"
 msgstr "von dir hinzugefügt"
 
-#: app_ui/pages/findings.py:1822
+#: app_ui/pages/findings.py:1837
 msgid "not read yet"
 msgstr "noch nicht gelesen"
 
-#: app_ui/pages/findings.py:1840
-msgid "Rescan now?"
-msgstr "Jetzt neu erstellen?"
-
-#: app_ui/pages/findings.py:1841
-#, python-brace-format
-msgid ""
-"The current state, timeline and open questions still describe the old set"
-" of documents. A rescan rewrites them: {names}."
-msgstr ""
-"Aktueller Stand, Zeitleiste und offene Fragen beschreiben noch die alten "
-"Dokumente. „Neu erstellen“ schreibt sie neu: {names}."
-
-#: app_ui/pages/findings.py:1851 proactive/notify/__init__.py:32
-msgid "Later"
-msgstr "Später"
-
-#: app_ui/pages/findings.py:1861
+#: app_ui/pages/findings.py:1859
 msgid "There is no other dossier yet — make one first."
 msgstr "Es gibt noch kein anderes Dossier — lege zuerst eins an."
 
-#: app_ui/pages/findings.py:1864
+#: app_ui/pages/findings.py:1862
 #, python-brace-format
 msgid "Move {n} documents"
 msgstr "{n} Dokumente verschieben"
 
-#: app_ui/pages/findings.py:1866
+#: app_ui/pages/findings.py:1864
 #, python-brace-format
 msgid ""
 "They leave “{name}” for good — a rescan does not bring them back — and "
@@ -4905,24 +4900,24 @@ msgstr ""
 "— und kommen in das gewählte Dossier. Ein Fund, dessen Dokumente alle "
 "umziehen, geht mit."
 
-#: app_ui/pages/findings.py:1880
+#: app_ui/pages/findings.py:1878
 #, python-brace-format
 msgid "Moved. {n} findings went along."
 msgstr "Verschoben. {n} Funde sind mitgegangen."
 
-#: app_ui/pages/findings.py:1880
+#: app_ui/pages/findings.py:1878
 msgid "Moved."
 msgstr "Verschoben."
 
-#: app_ui/pages/findings.py:1888
+#: app_ui/pages/findings.py:1884
 msgid "Move"
 msgstr "Verschieben"
 
-#: app_ui/pages/findings.py:1897
+#: app_ui/pages/findings.py:1893
 msgid "Taken out of the dossier."
 msgstr "Aus dem Dossier genommen."
 
-#: app_ui/pages/findings.py:1901
+#: app_ui/pages/findings.py:1896
 #, python-brace-format
 msgid ""
 "Take {n} documents out of “{name}”? A rescan does not bring them back; "
@@ -4931,16 +4926,16 @@ msgstr ""
 "{n} Dokumente aus „{name}“ herausnehmen? „Neu erstellen“ holt sie nicht "
 "zurück; ihre Funde bleiben, wo sie sind."
 
-#: app_ui/pages/findings.py:1908
+#: app_ui/pages/findings.py:1903
 msgid "There is no other dossier to merge with."
 msgstr "Es gibt kein anderes Dossier zum Zusammenführen."
 
-#: app_ui/pages/findings.py:1911
+#: app_ui/pages/findings.py:1906
 #, python-brace-format
 msgid "Merge “{name}” into …"
 msgstr "„{name}“ zusammenführen mit …"
 
-#: app_ui/pages/findings.py:1913
+#: app_ui/pages/findings.py:1908
 #, python-brace-format
 msgid ""
 "The dossier you pick takes over its findings, documents, insights, "
@@ -4953,22 +4948,54 @@ msgstr ""
 "Dokument, das das Modell unter „{name}“ ablegt, landet ebenfalls dort. "
 "„{name}“ selbst bleibt als Eintrag unter „Gelöschte Dossiers“."
 
-#: app_ui/pages/findings.py:1927
+#: app_ui/pages/findings.py:1922
 #, python-brace-format
 msgid "Merged into “{name}”."
 msgstr "Zusammengeführt in „{name}“."
 
-#: app_ui/pages/findings.py:1933
+#: app_ui/pages/findings.py:1927
 msgid "Merge"
 msgstr "Zusammenführen"
 
-#: app_ui/pages/findings.py:1939
+#: app_ui/pages/findings.py:1933
 msgid "No research on this matter yet. “Start research” on one of its findings."
 msgstr ""
 "Zu dieser Sache gibt es noch keine Recherche. „Recherche starten“ bei "
 "einem ihrer Befunde."
 
+#: app_ui/pages/findings.py:1946
+msgid "Rescan all"
+msgstr "Alle neu erstellen"
+
+#: app_ui/pages/findings.py:1948
+msgid ""
+"Dossiers you changed by hand — documents added, moved or taken out, "
+"merged — whose state is out of date. Rescan them when you are done; "
+"whatever is left is rescanned in the night."
+msgstr ""
+"Dossiers, die du von Hand geändert hast — Dokumente hinzugefügt, "
+"verschoben oder herausgenommen, zusammengeführt —, deren Stand veraltet "
+"ist. Erstelle sie neu, wenn du fertig bist; was übrig bleibt, wird in der"
+" Nacht neu erstellt."
+
 #: app_ui/pages/findings.py:1952
+msgid "Nothing pending."
+msgstr "Nichts ausstehend."
+
+#: app_ui/pages/findings.py:1958
+msgid "rescan queued"
+msgstr "Neu erstellen eingereiht"
+
+#: app_ui/pages/findings.py:1963
+#, python-brace-format
+msgid ""
+"{n} rescans queued — they run one after another as soon as the model is "
+"free."
+msgstr ""
+"{n}-mal Neu erstellen eingereiht — sie laufen nacheinander, sobald das "
+"Modell frei ist."
+
+#: app_ui/pages/findings.py:1977
 msgid ""
 "Closed matters. Their findings are done, nothing is sent for them; a new "
 "document of the matter is only noted. Unarchive brings everything back."
@@ -4977,7 +5004,7 @@ msgstr ""
 "gesendet; ein neues Dokument der Sache wird nur vermerkt. "
 "„Wiederherstellen“ holt alles zurück."
 
-#: app_ui/pages/findings.py:1954
+#: app_ui/pages/findings.py:1979
 msgid ""
 "What was deleted, kept as a record: restore it, or reset it — the worker "
 "then reads its documents again as if new."
@@ -4986,61 +5013,61 @@ msgstr ""
 "setze es zurück — dann liest der Worker seine Dokumente neu, als wären "
 "sie neu."
 
-#: app_ui/pages/findings.py:1964
+#: app_ui/pages/findings.py:1989
 #, python-brace-format
 msgid "archived {date}"
 msgstr "archiviert {date}"
 
-#: app_ui/pages/findings.py:1965
+#: app_ui/pages/findings.py:1990
 #, python-brace-format
 msgid "reset {date}"
 msgstr "zurückgesetzt {date}"
 
-#: app_ui/pages/findings.py:1966
+#: app_ui/pages/findings.py:1991
 #, python-brace-format
 msgid "deleted {date}"
 msgstr "gelöscht {date}"
 
-#: app_ui/pages/findings.py:1969
+#: app_ui/pages/findings.py:1994
 #, python-brace-format
 msgid "{n} new since"
 msgstr "{n} neu seitdem"
 
-#: app_ui/pages/findings.py:1975
+#: app_ui/pages/findings.py:2000
 msgid "Unarchive"
 msgstr "Aus dem Archiv holen"
 
-#: app_ui/pages/findings.py:1977 app_ui/pages/findings.py:1982
+#: app_ui/pages/findings.py:2002 app_ui/pages/findings.py:2007
 msgid "Back in your dossiers."
 msgstr "Wieder bei deinen Dossiers."
 
-#: app_ui/pages/findings.py:1980 proactive/notify/__init__.py:38
+#: app_ui/pages/findings.py:2005 proactive/notify/__init__.py:38
 msgid "Restore"
 msgstr "Wiederherstellen"
 
-#: app_ui/pages/findings.py:1986
+#: app_ui/pages/findings.py:2011
 msgid "Reset — read its documents again"
 msgstr "Zurücksetzen — Dokumente neu lesen"
 
-#: app_ui/pages/findings.py:1991
+#: app_ui/pages/findings.py:2016
 msgid "Remove the record for good"
 msgstr "Eintrag endgültig entfernen"
 
-#: app_ui/pages/findings.py:1994
+#: app_ui/pages/findings.py:2019
 msgid "Last state"
 msgstr "Letzter Stand"
 
-#: app_ui/pages/findings.py:2001 app_ui/pages/findings.py:2065
+#: app_ui/pages/findings.py:2026 app_ui/pages/findings.py:2090
 msgid "A dossier of that matter exists already — delete or archive it first."
 msgstr ""
 "Zu dieser Sache gibt es schon ein Dossier — lösche oder archiviere es "
 "zuerst."
 
-#: app_ui/pages/findings.py:2024
+#: app_ui/pages/findings.py:2049
 msgid "Archived. Its findings are done; you find it under Archive."
 msgstr "Archiviert. Seine Funde sind erledigt; du findest es unter Archiv."
 
-#: app_ui/pages/findings.py:2027
+#: app_ui/pages/findings.py:2052
 #, python-brace-format
 msgid ""
 "Archive “{name}”? Its open findings and deadlines are closed and nothing "
@@ -5051,11 +5078,11 @@ msgstr ""
 " und dazu wird nichts mehr gesendet. Ein neues Dokument der Sache wird "
 "nur vermerkt. Du kannst es jederzeit aus dem Archiv holen."
 
-#: app_ui/pages/findings.py:2038
+#: app_ui/pages/findings.py:2063
 msgid "Deleted. A record is kept under “Deleted dossiers”."
 msgstr "Gelöscht. Ein Eintrag bleibt unter „Gelöschte Dossiers“."
 
-#: app_ui/pages/findings.py:2041
+#: app_ui/pages/findings.py:2066
 #, python-brace-format
 msgid ""
 "Delete “{name}”? Its findings stay (they show as not in a dossier), and "
@@ -5067,7 +5094,7 @@ msgstr ""
 "Erkenntnisse — bleibt unter „Gelöschte Dossiers“, damit du es später "
 "wiederherstellen oder zurücksetzen kannst."
 
-#: app_ui/pages/findings.py:2049
+#: app_ui/pages/findings.py:2074
 msgid ""
 "Allow background access first (Settings > Proactive) — the worker reads "
 "the documents in the background, as you."
@@ -5075,7 +5102,7 @@ msgstr ""
 "Erlaube zuerst den Hintergrundzugriff (Einstellungen > Proaktiv) — der "
 "Worker liest die Dokumente im Hintergrund, als du."
 
-#: app_ui/pages/findings.py:2072
+#: app_ui/pages/findings.py:2097
 #, python-brace-format
 msgid ""
 "Reset. {n} documents are queued; the worker reads them as soon as the "
@@ -5084,7 +5111,7 @@ msgstr ""
 "Zurückgesetzt. {n} Dokumente sind eingereiht; der Worker liest sie, "
 "sobald das Modell frei ist, und schreibt Funde — und ein Dossier — neu."
 
-#: app_ui/pages/findings.py:2077
+#: app_ui/pages/findings.py:2102
 #, python-brace-format
 msgid ""
 "Reset “{name}”? The dossier and its {n} findings are deleted — notes and "
@@ -5097,22 +5124,22 @@ msgstr ""
 "Dokumente neu, als wären sie neu. Ein Eintrag des Dossiers bleibt unter "
 "„Gelöschte Dossiers“."
 
-#: app_ui/pages/findings.py:2080
+#: app_ui/pages/findings.py:2105
 msgid "Reset"
 msgstr "Zurücksetzen"
 
-#: app_ui/pages/findings.py:2085
+#: app_ui/pages/findings.py:2110
 msgid "Record removed."
 msgstr "Eintrag entfernt."
 
-#: app_ui/pages/findings.py:2089
+#: app_ui/pages/findings.py:2114
 #, python-brace-format
 msgid "Remove the record of “{name}” for good? This cannot be undone."
 msgstr ""
 "Den Eintrag von „{name}“ endgültig entfernen? Das lässt sich nicht "
 "rückgängig machen."
 
-#: app_ui/pages/findings.py:2126
+#: app_ui/pages/findings.py:2151
 msgid ""
 "A dossier is a binder for one matter. It starts empty: add documents to "
 "it, file findings into it, or save chat answers to it — then “Rescan” has"
@@ -5126,11 +5153,11 @@ msgstr ""
 "und offene Fragen aus diesen Dokumenten. Neue Hinweise, deren Thema zu "
 "seinem Namen passt, landen von selbst darin."
 
-#: app_ui/pages/findings.py:2136
+#: app_ui/pages/findings.py:2161
 msgid "Folder (use / for subfolders)"
 msgstr "Ordner (/ für Unterordner)"
 
-#: app_ui/pages/findings.py:2137
+#: app_ui/pages/findings.py:2162
 msgid ""
 "Folders only sort your dossiers, like folders in Obsidian (they are "
 "folders in your vault). Nothing reads them, and moving a dossier changes "
@@ -5140,11 +5167,11 @@ msgstr ""
 "Ordner in deinem Vault). Nichts liest sie, und das Verschieben eines "
 "Dossiers ändert nichts daran, was darin landet."
 
-#: app_ui/pages/findings.py:2146
+#: app_ui/pages/findings.py:2171
 msgid "Rename dossier"
 msgstr "Dossier umbenennen"
 
-#: app_ui/pages/findings.py:2147
+#: app_ui/pages/findings.py:2172
 msgid ""
 "Only the name changes. The dossier keeps its topic, so new findings and "
 "documents of this matter still land in it."
@@ -5152,24 +5179,24 @@ msgstr ""
 "Nur der Name ändert sich. Das Dossier behält sein Thema, neue Hinweise "
 "und Dokumente dieser Angelegenheit landen also weiter darin."
 
-#: app_ui/pages/findings.py:2154
+#: app_ui/pages/findings.py:2179
 msgid "(top level)"
 msgstr "(oberste Ebene)"
 
-#: app_ui/pages/findings.py:2155
+#: app_ui/pages/findings.py:2180
 msgid "Folder"
 msgstr "Ordner"
 
-#: app_ui/pages/findings.py:2163
+#: app_ui/pages/findings.py:2188
 #, python-brace-format
 msgid "Your default expert ({name})"
 msgstr "Dein Standard-Experte ({name})"
 
-#: app_ui/pages/findings.py:2168
+#: app_ui/pages/findings.py:2193
 msgid "Default expert for this dossier's chat"
 msgstr "Standard-Experte für den Chat dieses Dossiers"
 
-#: app_ui/pages/findings.py:2284
+#: app_ui/pages/findings.py:2309
 msgid "Talk about the selection"
 msgstr "Über die Auswahl sprechen"
 
@@ -6159,16 +6186,16 @@ msgstr "Morgen fällig."
 msgid "Due today."
 msgstr "Heute fällig."
 
-#: proactive/dossiers.py:216
+#: proactive/dossiers.py:220
 msgid "conversation"
 msgstr "Gespräch"
 
-#: proactive/dossiers.py:224
+#: proactive/dossiers.py:228
 #, python-brace-format
 msgid "evidence: {e}"
 msgstr "Belege: {e}"
 
-#: proactive/dossiers.py:226
+#: proactive/dossiers.py:230
 #, python-brace-format
 msgid "merged by {m}"
 msgstr "eingeordnet von {m}"
@@ -6238,6 +6265,10 @@ msgstr "Kritisch"
 #: proactive/notify/__init__.py:31
 msgid "Interesting"
 msgstr "Interessant"
+
+#: proactive/notify/__init__.py:32
+msgid "Later"
+msgstr "Später"
 
 #: proactive/notify/__init__.py:34
 msgid "Not relevant"
@@ -7246,4 +7277,28 @@ msgstr "nicht erfüllt"
 
 #~ msgid "Take out of the dossier"
 #~ msgstr "Aus dem Dossier nehmen"
+
+#~ msgid ""
+#~ "One binder per matter. Folders only "
+#~ "sort them. Findings land in the "
+#~ "dossier of their topic; add documents"
+#~ " or file findings by hand, then "
+#~ "use “Rescan”."
+#~ msgstr ""
+#~ "Ein Ordner je Angelegenheit. Ordner im"
+#~ " Baum sortieren nur. Hinweise landen "
+#~ "im Dossier ihres Themas; Dokumente und"
+#~ " Hinweise kannst du selbst hinzufügen, "
+#~ "dann „Neu erstellen“."
+
+#~ msgid ""
+#~ "The current state, timeline and open "
+#~ "questions still describe the old set "
+#~ "of documents. A rescan rewrites them:"
+#~ " {names}."
+#~ msgstr ""
+#~ "Aktueller Stand, Zeitleiste und offene "
+#~ "Fragen beschreiben noch die alten "
+#~ "Dokumente. „Neu erstellen“ schreibt sie "
+#~ "neu: {names}."
 
