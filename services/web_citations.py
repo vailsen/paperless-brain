@@ -146,15 +146,71 @@ def _rewrite(text: str, sources: list[dict] | None) -> str:
     return _RUN_RE.sub(run, text or "")
 
 
+# A footnote the model defined itself: "[^1]: [Runners World – …](https://…)".
+# Its marker "[^1]" looks like a document citation (#1) — "Document #1 not
+# found" — so a footnote whose definition is a web address is a web source.
+_FOOTDEF_RE = re.compile(r"^[ \t]*\[\^([^\]\n]{1,40})\]:[ \t]*(.+?)[ \t]*$", re.M)
+
+
+def _footnote_defs(text: str) -> dict[str, tuple[str, str]]:
+    out = {}
+    for m in _FOOTDEF_RE.finditer(text):
+        body = m.group(2)
+        md = _MD_LINK_RE.search(body)
+        if md:
+            out[m.group(1).strip()] = (md.group(1).strip(), md.group(2))
+            continue
+        url = _URL_RE.search(body)
+        if url:
+            title = body.replace(url.group(0), "").strip(" -–—:<>()[]")
+            out[m.group(1).strip()] = (title, url.group(0))
+    return out
+
+
+def _web_footnotes(text: str, sources: list[dict] | None) -> str:
+    """Markers of web footnotes → `([title](url))` inline, definitions gone.
+    With `sources` (store time) the link stays only for a page a tool returned
+    this turn; without (render time, an answer stored earlier) the model's own
+    link stays as the definition already showed it."""
+    defs = _footnote_defs(text)
+    if not defs:
+        return text
+    text = _FOOTDEF_RE.sub(lambda m: "" if m.group(1).strip() in defs else m.group(0), text)
+    known = {s["url"].rstrip("/") for s in sources or []}
+
+    def one(label: str) -> str:
+        title, url = defs[label]
+        shown = _label_md(title or _domain(url))
+        if sources is not None and url.rstrip("/") not in known:
+            return shown
+        return f"[{shown}]({url})"
+
+    labels = "|".join(re.escape(k) for k in sorted(defs, key=len, reverse=True))
+    run = re.compile(r"(?:\[\^(?:" + labels + r")\](?!:)(?:[ \t]*,[ \t]*|[ \t]?)?)+")
+
+    def sub(m: re.Match) -> str:
+        seen, parts = set(), []
+        for lab in re.findall(r"\[\^([^\]]+)\]", m.group(0)):
+            if lab not in seen:
+                seen.add(lab)
+                parts.append(one(lab))
+        lead = " " if m.start() and not m.string[m.start() - 1].isspace() else ""
+        tail = " " if m.group(0).endswith(" ") else ""
+        return lead + "(" + ", ".join(parts) + ")" + tail
+
+    return re.sub(r"\n{3,}", "\n\n", run.sub(sub, text)).rstrip() + ("\n" if text.endswith("\n") else "")
+
+
 def link_web_refs(text: str, trace: list[dict]) -> str:
     """Store-time: web markers → links to pages a tool returned this turn."""
     if not text or "[^" not in text:
         return text
-    return _rewrite(text, sources_from_trace(trace))
+    sources = sources_from_trace(trace)
+    return _rewrite(_web_footnotes(text, sources), sources)
 
 
 def plain_web_refs(text: str) -> str:
     """Render-time fallback: leftover web markers → plain `(name)`."""
     if not text or "[^" not in text:
         return text
-    return _rewrite(text, None)
+    return _rewrite(_web_footnotes(text, None), None)

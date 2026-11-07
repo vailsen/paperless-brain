@@ -14,6 +14,9 @@ Zoom: two-finger pinch, double tap, Ctrl+wheel or the +/- buttons. While the
 fingers move, the pages are only scaled with a CSS transform; on release the
 zoom is committed as a width, so native scrolling pans the zoomed pages.
 Back (Android) closes the viewer.
+
+Every page frame also gets a text layer (`/api/doc-words`): the PDF's words,
+invisible, over the picture, so text can be selected and copied.
 """
 
 PAGE_VIEWER_HTML = """<style>
@@ -36,6 +39,12 @@ PAGE_VIEWER_HTML = """<style>
 .pbv-inner .pb-src-page { margin: 0 0 8px 0 !important; cursor: default; }
 .pbv-inner img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .pb-src-page, .dl-thumb { cursor: zoom-in; }
+/* Text layer: the page's own words, invisible, over the picture — so text can
+   be selected and copied. On top of the highlights, which stay visible. */
+.pb-txl { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; cursor: text;
+         user-select: text; -webkit-user-select: text; }
+.pb-txl text, .pb-txl tspan { fill: transparent; white-space: pre; }
+.pb-txl tspan::selection, .pb-txl text::selection { fill: transparent; background: rgba(51, 136, 255, .35); }
 </style>
 <script>
 (function () {
@@ -190,12 +199,70 @@ PAGE_VIEWER_HTML = """<style>
     },
   };
 
-  // A page in the Source tab opens the viewer on that page.
+  // A page in the Source tab opens the viewer on that page — not when the
+  // click ends a text selection on it.
   document.addEventListener('click', function (e) {
     var page = e.target.closest && e.target.closest('.pb-src-scroll .pb-src-page');
     if (!page) return;
+    if (String(window.getSelection ? window.getSelection() : '').trim()) return;
     var all = page.parentNode.querySelectorAll('.pb-src-page');
     window.__pbViewer.open(all, Array.prototype.indexOf.call(all, page));
   });
+  // Text layer (`/api/doc-words`): one invisible <text> per word in an SVG
+  // that stretches with the page, so it fits at every size and zoom without
+  // measuring. Built once per frame; a viewer clone copies it.
+  var NS = 'http://www.w3.org/2000/svg', SRC = /\/api\/doc-image\/(\d+)\/(\d+)(?:$|[?#])/;
+  function layer(frame) {
+    if (frame.__pbTl || frame.querySelector('.pb-txl')) return;
+    var img = frame.querySelector('img'), m = img && SRC.exec(img.getAttribute('src') || '');
+    if (!m) return;
+    frame.__pbTl = true;
+    fetch('/api/doc-words/' + m[1] + '/' + m[2], { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.words || !d.words.length || frame.querySelector('.pb-txl')) return;
+        var svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('class', 'pb-txl');
+        svg.setAttribute('viewBox', '0 0 1000 1000');
+        svg.setAttribute('preserveAspectRatio', 'none');
+        // One <text> per line, a <tspan> per word: a copied line keeps its
+        // spaces, a line break comes only between lines.
+        var line = null, lastY = -1, lastH = 0;
+        d.words.forEach(function (w) {
+          if (!line || Math.abs(w[2] - lastY) > Math.max(w[4], lastH) * 0.5) {
+            line = document.createElementNS(NS, 'text');
+            line.setAttribute('font-size', w[4] * 1000);
+            svg.appendChild(line);
+            lastY = w[2]; lastH = w[4];
+          }
+          var t = document.createElementNS(NS, 'tspan');
+          t.setAttribute('x', w[1] * 1000);
+          t.setAttribute('y', (w[2] + w[4] * 0.82) * 1000);
+          t.setAttribute('font-size', w[4] * 1000);
+          t.setAttribute('textLength', Math.max(w[3] * 1000, 1));
+          t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+          t.textContent = w[0] + ' ';
+          line.appendChild(t);
+        });
+        frame.appendChild(svg);
+      })
+      .catch(function () {});
+  }
+  function scan(root) {
+    if (!root.querySelectorAll) return;
+    // the frame itself, its pages, or the frame it was added to (Vue mounts
+    // the image after its frame)
+    var up = root.closest && root.closest('.pb-src-page');
+    if (up) layer(up);
+    root.querySelectorAll('.pb-src-page').forEach(layer);
+  }
+  new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      if (m.type === 'attributes') { scan(m.target); return; }
+      m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scan(n); });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true,
+                                          attributeFilter: ['src'] });
+  document.addEventListener('DOMContentLoaded', function () { scan(document); });
 })();
 </script>"""

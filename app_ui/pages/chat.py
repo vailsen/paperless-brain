@@ -75,6 +75,9 @@ from services.credential_store import load_credentials, save_credentials
 import services.chat_history_service as _chat_hist
 
 _DOC_ID_RE = re.compile(r"(?<!\]\()(?<![`\w])(#)(\d+)\b")
+# A model links a document by its number: "[Segmentfreigabe L4](#356)" — an
+# anchor in the chat's own page, which did nothing.
+_MD_DOC_LINK_RE = re.compile(r"\[([^\]\n]{1,200})\]\(#(\d{1,7})\)")
 _VAULT_LINK_RE = re.compile(r"\[([^\]]+)\]\(vault:([a-f0-9-]{32,})\)")
 _VAULT_WIKI_RE = re.compile(r"`?\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]`?")
 _PARTIAL_CITE_RE = re.compile(r"\^?\[\^[^\]\s]{0,16}$|\^$")
@@ -171,6 +174,14 @@ def _inject_doc_links(
     text = web_citations.plain_web_refs(text)
     text, sources = number_citations(text, _sup)
 
+    text = _MD_DOC_LINK_RE.sub(
+        lambda m: (
+            f'<a href="#" data-doc-id="{m.group(2)}" '
+            f'style="color:var(--c-accent-text);text-decoration:underline;cursor:pointer;'
+            f'touch-action:manipulation;">{m.group(1)} (&num;{m.group(2)})</a>'  # entity: no '#' for the pass below
+        ),
+        text,
+    )
     text = _DOC_ID_RE.sub(
         lambda m: (
             f'<a href="#" data-doc-id="{m.group(2)}" '
@@ -609,6 +620,8 @@ html, body { overflow: hidden !important; }
     background: var(--c-accent-soft); border: 1px solid var(--c-accent-border);
     border-radius: 12px 12px 3px 12px; padding: 10px 14px; font-size: 0.875rem;
     color: var(--c-text); word-break: break-word; line-height: 1.5;
+    /* The user's line breaks (Shift+Enter) are part of what they wrote. */
+    white-space: pre-wrap;
 }
 .chat-bubble { border: 1px solid var(--c-border); }
 /* Quasar's default track is a pale grey that vanishes on the light surface.
@@ -675,6 +688,11 @@ html, body { overflow: hidden !important; }
     overflow-wrap: anywhere; white-space: pre-wrap;
 }
 .pb-src-page { position: relative; margin: 8px; background: #fff; }
+.chat-src-overlay { position: fixed; inset: 0; z-index: 5000; display: none; flex-direction: column;
+    background: var(--c-bg); }
+.chat-src-overlay.open { display: flex; }
+.chat-src-overlay-bar { flex-shrink: 0; padding: 4px 6px; border-bottom: 1px solid var(--c-border); }
+.chat-src-overlay-body { position: relative; flex: 1; min-height: 0; }
 .pb-src-img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .pb-src-hl {
     position: absolute; pointer-events: none; border-radius: 2px;
@@ -2348,6 +2366,18 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         _placeholder()
                     _drawer["preview_hosts"] = [_desktop_preview, _mobile_preview]
 
+    # The findings dock has no document drawer: a source opens over the chat,
+    # with the way back on top — a reference number in the dock's own answers,
+    # and one tapped on the finding beside it (`pb-open-cite`).
+    _src_overlay = None
+    if _embed:
+        with ui.element("div").classes("chat-src-overlay") as _src_overlay:
+            with ui.row().classes("chat-src-overlay-bar items-center no-wrap"):
+                ui.button(_("Back to the chat"), icon="arrow_back",
+                          on_click=lambda: _src_overlay.classes(remove="open")).props("flat dense no-caps")
+            _embed_preview = ui.element("div").classes("chat-src-overlay-body")
+        _drawer["preview_hosts"].append(_embed_preview)
+
     # ── Enter key handling ────────────────────────────────────────────────────
     ui.add_head_html("""<script>
 (function waitForChatInput() {
@@ -2697,6 +2727,8 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
         _rs["preview"] = {"loading": True}
         _render_preview()
         _show_drawer_tab("preview")
+        if _src_overlay is not None:
+            _src_overlay.classes(add="open")
         if not _s["docs_visible"]:
             _set_docs_visible(True)
         known = _known_result(doc_id)
@@ -2823,6 +2855,21 @@ window.__citeClaim = function(el) {{
     if (claim.length < 30 && sents.length) claim = sents.pop() + ' ' + claim;
     return claim.slice(-400);
 }};
+// The findings page beside the dock: open a source of the finding here.
+window.__pbOpenCiteData = function(c, claim) {{
+    if (!window.socket || !window.did_handshake) {{
+        setTimeout(function() {{ window.__pbOpenCiteData(c, claim); }}, 100);
+        return;
+    }}
+    window.socket.emit('event', {{
+        id: {_cite_handler.id}, client_id: window.clientId, listener_id: '{_cite_listener_id}',
+        args: [JSON.stringify({{c: c, claim: claim || '', others: []}})]
+    }});
+}};
+window.addEventListener('message', function(e) {{
+    if (e.origin !== window.location.origin || !e.data || e.data.type !== 'pb-open-cite') return;
+    window.__pbOpenCiteData(String(e.data.c || ''), String(e.data.claim || ''));
+}});
 window.__openCite = function(el) {{
     if (!window.socket || !window.did_handshake) {{
         setTimeout(function() {{ window.__openCite(el); }}, 100);
