@@ -282,12 +282,24 @@ def _overview(items: list, today, on_pick) -> None:
         rows()
 
 
+def _page_dialog():
+    """A dialog that belongs to the page, not to the element that opened it.
+
+    Opened from inside the navigator or the viewer, a dialog was their child:
+    when they re-rendered — the 20-second watch after the worker wrote a
+    file, or the action itself — its buttons went with them. The dialog stayed
+    on screen and a tap did nothing ("Rename" or "Merge" hung until F5), or
+    the work was done and the dialog never closed."""
+    with ui.context.client.content:
+        return ui.dialog()
+
+
 def _topic_colors_dialog(topics: dict[str, str], refresh) -> None:
     """Pick a colour per topic: the outline of its cards."""
     from app_ui import topic_colors
 
     _ = get_translator()
-    with ui.dialog() as dlg, ui.card().classes("w-full").style("max-width:420px;background:var(--c-surface)"):
+    with _page_dialog() as dlg, ui.card().classes("w-full").style("max-width:420px;background:var(--c-surface)"):
         ui.label(_("Topic colours")).classes("text-base font-semibold")
         ui.label(_("A colour outlines the cards of a topic. No colour is the default.")).classes(
             "text-xs").style("color:var(--c-text-muted)")
@@ -1011,7 +1023,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             _folder_dialog(str(node_id)[2:])
 
     def _folder_dialog(folder: str) -> None:
-        with ui.dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(420px,94vw);"):
+        with _page_dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(420px,94vw);"):
             ui.label(_("Folder “{name}”").format(name=folder)).classes("text-base font-semibold").style(
                 "color:var(--c-text)")
             ui.label(_("Deleting the folder moves its dossiers one level up; nothing else changes.")).classes(
@@ -1485,7 +1497,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
     def _add_docs(d) -> None:
         chosen: dict[int, str] = {}
-        with ui.dialog() as dlg, ui.card().classes("gap-2").style(
+        with _page_dialog() as dlg, ui.card().classes("gap-2").style(
                 "background:var(--c-surface); width:min(560px,96vw); max-height:85vh;"
                 "display:flex; flex-direction:column; flex-wrap:nowrap;"):
             ui.label(_("Add documents to “{name}”").format(name=d.display)).classes(
@@ -1545,7 +1557,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         ds = sorted(dmod.list_dossiers(user), key=lambda x: (x.folder.casefold(), x.display.casefold()))
         opts = {x.topic: (f"{x.folder} / {x.display}" if x.folder else x.display) for x in ds if x.topic != f.topic}
         opts[new_key] = _("New dossier …")
-        with ui.dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(440px,94vw);"):
+        with _page_dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(440px,94vw);"):
             ui.label(_("File in a dossier")).classes("text-base font-semibold").style("color:var(--c-text)")
             ui.label(_("The finding moves to the dossier's topic; its documents join the dossier and are "
                        "read on the next rescan.")).classes("pbm-hint")
@@ -1748,7 +1760,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             return False
 
     def _confirm(text: str, on_ok, ok_label: str | None = None, danger: bool = True) -> None:
-        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:min(440px,94vw);"):
+        with _page_dialog() as dlg, ui.card().style("background:var(--c-surface); width:min(440px,94vw);"):
             ui.label(text).classes("text-sm").style("color:var(--c-text)")
 
             async def _ok() -> None:
@@ -1837,6 +1849,12 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                                     "" if doc.id in read else _("not read yet"))
                                 if tag:
                                     ui.label(tag).classes("pbm-evid")
+                                # Every tag, not the card's four: a document
+                                # tagged for another matter is what to look for.
+                                from app_ui.tag_style import tag_chip
+
+                                for t in sorted(doc.tags or []):
+                                    tag_chip(t)
 
         ui.timer(0.05, _load, once=True)
 
@@ -1858,7 +1876,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if not opts:
             ui.notify(_("There is no other dossier yet — make one first."), type="warning")
             return
-        with ui.dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(460px,94vw);"):
+        with _page_dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(460px,94vw);"):
             ui.label(_("Move {n} documents").format(n=len(ids))).classes(  # TODO i18n-plural
                 "text-base font-semibold").style("color:var(--c-text)")
             ui.label(_("They leave “{name}” for good — a rescan does not bring them back — and join the "
@@ -1902,7 +1920,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if not opts:
             ui.notify(_("There is no other dossier to merge with."), type="warning")
             return
-        with ui.dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(480px,94vw);"):
+        with _page_dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(480px,94vw);"):
             ui.label(_("Merge “{name}” into …").format(name=d.display)).classes(
                 "text-base font-semibold").style("color:var(--c-text)")
             ui.label(_("The dossier you pick takes over its findings, documents, insights, questions and "
@@ -2116,7 +2134,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
     # ── Dossier actions ──────────────────────────────────────────────────────
     def _ask_text(title: str, label: str, value: str, on_ok, options: dict | None = None, hint: str = "") -> None:
-        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:min(420px,94vw);"):
+        with _page_dialog() as dlg, ui.card().style("background:var(--c-surface); width:min(420px,94vw);"):
             ui.label(title).classes("text-base font-semibold").style("color:var(--c-text)")
             if hint:
                 ui.label(hint).classes("pbm-hint")
@@ -2188,7 +2206,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         rows = [("", default.icon or "psychology", _("Your default expert ({name})").format(name=default.name))]
         rows += [(e.expert_id, e.icon or "psychology", e.name) for e in experts.list_experts(user)]
         chosen = {"v": d.expert or ""}
-        with ui.dialog() as dlg, ui.card().classes("gap-1").style(
+        with _page_dialog() as dlg, ui.card().classes("gap-1").style(
                 "background:var(--c-surface); width:min(420px,94vw); max-height:80vh; overflow-y:auto;"):
             ui.label(_("Default expert for this dossier's chat")).classes("text-base font-semibold").style(
                 "color:var(--c-text)")
