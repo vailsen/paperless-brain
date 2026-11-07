@@ -46,7 +46,7 @@ NAV_ITEMS = [
     ("psychology", N_("Experts"), "/experts"),
     ("grid_view", N_("Browser"), "/browser"),
 ]
-FINDINGS_ITEM = ("notifications", N_("Findings"), "/findings")
+FINDINGS_ITEM = ("lightbulb", N_("Findings"), "/findings")
 
 
 def nav_items() -> list[tuple[str, str, str]]:

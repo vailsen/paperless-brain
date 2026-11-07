@@ -170,10 +170,15 @@ async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str,
                        correspondent: int | None = None) -> list[str]:
     """Create/refresh this user's deadline findings for one analysed document.
     The caller has checked the user's access. Returns the outcomes."""
+    from proactive import dossiers
     from proactive.interests import slugify
 
     today = clock.local_now().date()
     outcomes = []
+    # A merged-in or renamed matter files under its dossier, like triage.
+    topic = dossiers.resolve_topic(user, slugify(a.topic_hint))
+    topic_label = findings.topic_label_for(a.topic_hint, topic) if topic == slugify(a.topic_hint) else (
+        next((d.display for d in dossiers.list_dossiers(user) if d.topic == topic), ""))
     for d in a.deadlines:
         if not d.actionable or d.day < today:
             continue
@@ -181,8 +186,8 @@ async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str,
             finding_id="",
             kind="deadline",
             title=title_for(d, lang, doc_title),
-            topic=slugify(a.topic_hint),
-            topic_label=findings.topic_label_for(a.topic_hint, slugify(a.topic_hint)),
+            topic=topic,
+            topic_label=topic_label,
             urgency=urgency(d, today),
             doc_ids=[a.doc_id],
             evidence_hash=findings.evidence_hash([a.doc_id], [d.date, d.kind, d.quote]),

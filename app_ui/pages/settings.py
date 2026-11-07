@@ -289,10 +289,12 @@ def _show_status(
 
 
 _SETTINGS_CSS = """
-.pb-set{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;width:100%;max-width:1100px;
-  margin:0 auto;padding:24px;box-sizing:border-box;align-items:start}
-.pb-set-nav{position:sticky;top:calc(var(--q-header-height,52px) + 16px);display:flex;flex-direction:column;gap:2px;
-  min-width:0}
+/* Below the header, the page itself never scrolls: the menu stands still and
+   only the pane in the middle scrolls (the menu used to move a little with it). */
+.pb-set{position:fixed;top:var(--q-header-height,52px);left:0;right:0;bottom:0;display:grid;
+  grid-template-columns:minmax(220px,1fr) minmax(0,760px) minmax(0,1fr);background:var(--c-bg)}
+.pb-set-nav{grid-column:1;justify-self:end;width:240px;padding:24px 16px;display:flex;flex-direction:column;
+  gap:2px;overflow-y:auto;min-height:0;box-sizing:border-box}
 .pb-set-nav .pb-set-title{font-size:1.25rem;font-weight:700;color:var(--c-text);padding:0 10px 10px}
 .pb-set-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;
   color:var(--c-text-2);font-size:.9rem;min-width:0}
@@ -300,21 +302,28 @@ _SETTINGS_CSS = """
 .pb-set-item.is-active{background:var(--c-accent-soft);color:var(--c-text)}
 .pb-set-item .q-icon{font-size:20px;flex-shrink:0}
 .pb-set-item .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pb-set-main{min-width:0;max-width:760px;width:100%}
+.pb-set-scroll{grid-column:2 / 4;overflow-y:auto;overflow-x:hidden;min-height:0;min-width:0}
+.pb-set-main{max-width:760px;width:100%;padding:24px 24px 48px;box-sizing:border-box;min-width:0}
 .pb-set-sec{display:flex;flex-direction:column;gap:0;width:100%;min-width:0}
 .pb-set-head{margin-bottom:4px}
 .pb-set-head .h{font-size:1.15rem;font-weight:700;color:var(--c-text)}
 .pb-set-head .s{font-size:.8rem;color:var(--c-text-muted)}
 .pb-set-sec > .q-card:first-of-type{margin-top:8px!important}
-/* A phone: the menu becomes a row of chips above the content. */
+/* A phone: the menu is a row of tabs above the pane, underlined when active. */
 @media (max-width:767px){
-  .pb-set{grid-template-columns:minmax(0,1fr);gap:12px;padding:12px}
-  .pb-set-nav{position:static;flex-direction:row;overflow-x:auto;scrollbar-width:none;gap:6px;padding-bottom:2px}
+  .pb-set{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .pb-set-nav{grid-column:1;justify-self:stretch;width:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:none;gap:0;padding:0 8px;border-bottom:1px solid var(--c-border);background:var(--c-bg)}
   .pb-set-nav::-webkit-scrollbar{display:none}
   .pb-set-nav .pb-set-title{display:none}
-  .pb-set-item{flex-shrink:0;border:1px solid var(--c-border);border-radius:999px;padding:5px 12px;font-size:.82rem}
-  .pb-set-item .q-icon{font-size:17px}
+  .pb-set-item{flex-shrink:0;border-radius:0;padding:12px 12px 10px;font-size:.85rem;gap:6px;
+    border-bottom:2px solid transparent;margin-bottom:-1px}
+  .pb-set-item:hover{background:transparent}
+  .pb-set-item.is-active{background:transparent;color:var(--c-text);border-bottom-color:var(--c-accent)}
+  .pb-set-item .q-icon{font-size:18px}
   .pb-set-item .t{overflow:visible}
+  .pb-set-scroll{grid-column:1}
+  .pb-set-main{padding:12px 12px 32px}
 }
 """
 
@@ -349,7 +358,8 @@ async def settings_page(s: str = "") -> None:
         _nav = ui.element("nav").classes("pb-set-nav")
         with _nav:
             ui.label(_("Settings")).classes("pb-set-title")
-        _main = ui.element("div").classes("pb-set-main")
+        with ui.element("div").classes("pb-set-scroll"):
+            _main = ui.element("div").classes("pb-set-main")
     with _main:
 
         # ── Sections ──────────────────────────────────────────────────────────
@@ -371,7 +381,8 @@ async def settings_page(s: str = "") -> None:
                 _items[k].classes(add="is-active") if k == key else _items[k].classes(remove="is-active")
             # On a phone the menu is a chip row: bring the chosen one into view.
             ui.run_javascript(
-                f"history.replaceState(null,'','/settings?s={key}');window.scrollTo(0,0);"
+                f"history.replaceState(null,'','/settings?s={key}');"
+                "var sc=document.querySelector('.pb-set-scroll');if(sc)sc.scrollTop=0;"
                 "setTimeout(function(){var a=document.querySelector('.pb-set-item.is-active');"
                 "if(a)a.scrollIntoView({inline:'center',block:'nearest'});},50)")
 

@@ -513,3 +513,66 @@ def test_delete_folder_moves_its_dossiers_up(env):
             await dossiers.delete_folder("alice", "_Archive")
 
     asyncio.run(go())
+
+
+def test_triage_offers_every_dossier_and_maps_a_renamed_one_back(env):
+    from proactive import dossiers, triage
+
+    async def go():
+        await dossiers.create_manual("alice", "Bauspar")
+        await dossiers.rename("alice", "bauspar", "LBS Vertrag")
+        assert "LBS Vertrag" in triage._labels("alice", [], "en")
+        assert triage._dossier_key("alice", "LBS Vertrag") == "bauspar"   # the dossier's own key
+        assert triage._dossier_key("alice", "Strom") == "strom"
+
+    asyncio.run(go())
+
+
+def test_merge_moves_everything_and_keeps_the_name_as_alias(env):
+    from proactive import dossiers, findings, triage
+
+    async def go():
+        a = await dossiers.create_manual("alice", "Riester")
+        b = await dossiers.create_manual("alice", "Riester-Rente")
+        await dossiers.add_documents("alice", "riester", [11])
+        await dossiers.add_question("alice", "riester", "Zulage 2025?")
+        await findings.create("alice", _finding("riester", "m1", docs=(12,)))
+        out = await dossiers.merge("alice", a.pbrain_id, b.pbrain_id)
+        assert out.topic == "riester-rente" and "riester" in out.aliases
+        assert {11, 12} <= set(dossiers.all_doc_ids("alice", out))
+        assert "Zulage 2025?" in out.open_questions
+        assert findings.get("alice", _fid("m1")).topic == "riester-rente"
+        assert dossiers.load("alice", "riester") is None
+        (rec,) = dossiers.list_shelf("alice", dossiers.TRASH)
+        assert rec.merged_into == "riester-rente"
+        # the old name now leads to the merged dossier
+        assert triage._dossier_key("alice", "Riester") == "riester-rente"
+        await dossiers.restore("alice", rec.pbrain_id)
+        assert "riester" not in dossiers.load("alice", "riester-rente").aliases
+
+    asyncio.run(go())
+
+
+def test_moved_documents_stay_out_and_take_their_findings(env):
+    from proactive import dossiers, findings, triage
+
+    async def go():
+        alt = await dossiers.create_manual("alice", "Altersvorsorge")
+        met = await dossiers.create_manual("alice", "Altersvorsorge Metallrente")
+        await dossiers.add_documents("alice", "altersvorsorge", [10, 11])
+        await findings.create("alice", _finding("altersvorsorge", "x1", docs=(11,)))
+        await findings.create("alice", _finding("altersvorsorge", "x2", docs=(10, 11)))
+        n = await dossiers.move_documents("alice", alt.pbrain_id, [11], met.pbrain_id)
+        assert n == 1 and findings.get("alice", _fid("x1")).topic == "altersvorsorge-metallrente"
+        assert findings.get("alice", _fid("x2")).topic == "altersvorsorge"   # one doc stayed
+        assert dossiers.all_doc_ids("alice", dossiers.load("alice", "altersvorsorge")) == [10]  # x2 can't pull 11 back
+        assert 11 in dossiers.all_doc_ids("alice", dossiers.load("alice", "altersvorsorge-metallrente"))
+        # a rebuild that names 11 again keeps it out
+        d = dossiers.from_result("alice", "altersvorsorge", {"doc_ids": [10, 11]}, lang="de", version=1,
+                                 existing=dossiers.load("alice", "altersvorsorge"))
+        assert 11 not in d.doc_ids
+        # triage sees where a similar document lives; the longer name is not swallowed by the shorter
+        assert triage._doc_dossiers("alice")[11] == "Altersvorsorge Metallrente"
+        assert triage._dossier_key("alice", "Altersvorsorge") == "altersvorsorge"
+
+    asyncio.run(go())
