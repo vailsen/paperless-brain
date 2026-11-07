@@ -78,6 +78,11 @@ _DOC_ID_RE = re.compile(r"(?<!\]\()(?<![`\w])(#)(\d+)\b")
 # A model links a document by its number: "[Segmentfreigabe L4](#356)" — an
 # anchor in the chat's own page, which did nothing.
 _MD_DOC_LINK_RE = re.compile(r"\[([^\]\n]{1,200})\]\(#(\d{1,7})\)")
+# A web source as `services/web_citations` stores it: "([Name](url), [B](url))".
+# Shown as reference numbers like a document's, the links in the source box.
+_WEB_LINK = r"\[[^\]\n]{1,200}\]\(https?://[^)\s]+\)"
+_WEB_CITE_RUN_RE = re.compile(r"[ \t]?\((" + _WEB_LINK + r"(?:, " + _WEB_LINK + r")*)\)")
+_WEB_ONE_RE = re.compile(r"\[([^\]\n]{1,200})\]\((https?://[^)\s]+)\)")
 _VAULT_LINK_RE = re.compile(r"\[([^\]]+)\]\(vault:([a-f0-9-]{32,})\)")
 _VAULT_WIKI_RE = re.compile(r"`?\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]`?")
 _PARTIAL_CITE_RE = re.compile(r"\^?\[\^[^\]\s]{0,16}$|\^$")
@@ -174,6 +179,25 @@ def _inject_doc_links(
     text = web_citations.plain_web_refs(text)
     text, sources = number_citations(text, _sup)
 
+    # Web sources: numbered after the documents, in order of first use; the
+    # number opens the page in a new tab, the box below lists name and link.
+    web: dict[str, tuple[int, str]] = {}
+
+    def _web_run(m: re.Match) -> str:
+        chips = []
+        for name, url in _WEB_ONE_RE.findall(m.group(1)):
+            if url not in web:
+                web[url] = (len(sources) + len(web) + 1, name)
+            n = web[url][0]
+            sups.append(
+                f'<a class="pb-cite pb-web-cite" href="{_html.escape(url, quote=True)}" target="_blank" '
+                f'rel="noopener" title="{_html.escape(name, quote=True)}">{n}</a>'
+            )
+            chips.append(f"\x00{len(sups) - 1}\x00")
+        return "".join(chips)
+
+    text = _WEB_CITE_RUN_RE.sub(_web_run, text)
+
     text = _MD_DOC_LINK_RE.sub(
         lambda m: (
             f'<a href="#" data-doc-id="{m.group(2)}" '
@@ -192,13 +216,14 @@ def _inject_doc_links(
         ),
         text,
     )
-    if not sources:
+    if not sources and not web:
         return text
     text = re.sub("\x00(\\d+)\x00", lambda m: sups[int(m.group(1))], text)
-    return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}) + "\n"
+    return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}, web) + "\n"
 
 
-def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str]) -> str:
+def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str],
+                   web: dict[str, tuple[int, str]] | None = None) -> str:
     """The source box under an answer: one row per document, its cited pages as
     numbered chips that open the page. A title not known yet is filled in by
     the browser once ``_fill_cite_titles`` has it."""
@@ -223,6 +248,23 @@ def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str]) 
             f'<span class="pb-cite-title" data-doc="{doc}">{title}</span>'
             f'<span class="pb-cite-id">#{doc}</span></a>'
             f'<span class="pb-cite-pages">{chips}</span></div>'
+        )
+    for url, (n, name) in sorted((web or {}).items(), key=lambda kv: kv[1][0]):
+        from urllib.parse import urlparse
+
+        host = urlparse(url).hostname or ""
+        host = host[4:] if host.startswith("www.") else host
+        u = _html.escape(url, quote=True)
+        if name.lower().removeprefix("www.") == host.lower():
+            # only the site's name: the address says which page
+            rest = url.split("://", 1)[-1].split("/", 1)[-1].split("?")[0].rstrip("/")
+            name = (rest[:70] + "…") if len(rest) > 70 else (rest or name)
+        rows.append(
+            f'<div class="pb-cite-doc"><a href="{u}" target="_blank" rel="noopener" class="pb-cite-doclink">'
+            f'<span class="pb-cite-title">{_html.escape(name)}</span>'
+            f'<span class="pb-cite-id">{_html.escape(host)}</span></a>'
+            f'<span class="pb-cite-pages"><a class="pb-cite-item is-bare" href="{u}" target="_blank" '
+            f'rel="noopener"><b>{n}</b></a></span></div>'
         )
     head = _html.escape(_("Sources"))
     return f'<div class="pb-cite-list"><div class="pb-cite-head">{head}</div>{"".join(rows)}</div>'
@@ -615,6 +657,7 @@ html, body { overflow: hidden !important; }
     cursor: pointer; user-select: none; touch-action: manipulation;
 }
 .pb-cite:hover, .pb-cite-item:hover { color: var(--c-text); }
+.chat-md a.pb-web-cite, .chat-md a.pb-cite-item { text-decoration: none; color: var(--c-accent-text); }
 /* The user's own message: an accent tint, not a solid slab. */
 .pb-user-bubble {
     background: var(--c-accent-soft); border: 1px solid var(--c-accent-border);

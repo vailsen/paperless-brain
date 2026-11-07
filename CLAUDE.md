@@ -258,6 +258,13 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   document #1. Its markers become inline links, the definitions go; at store
   time only a page a tool returned keeps its link. `[Title](#356)` is a
   document link (`chat._MD_DOC_LINK_RE`), not an anchor in the chat page.
+- **A web source is a reference number like a document's** (`chat._WEB_CITE_RUN_RE`,
+  at render — older answers too): the stored `([Name](url))` becomes a number
+  after the documents' numbers that opens the page in a new tab, and the
+  source box lists name and site as links. A screenshot of the page with the
+  passage marked was built and reverted (2026-11-07): consent walls
+  (Sourcepoint, contentpass, …) covered nearly every news page, and
+  clicking "accept" for the user is not ours to do.
 - **Source pages are pictures with a text layer** (`/api/doc-words`, same access
   check; `page_viewer` lays the PDF's words over the picture as invisible SVG
   text, one `<text>` per line), so text can be selected and copied. A click
