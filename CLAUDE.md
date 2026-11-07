@@ -258,16 +258,6 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   document #1. Its markers become inline links, the definitions go; at store
   time only a page a tool returned keeps its link. `[Title](#356)` is a
   document link (`chat._MD_DOC_LINK_RE`), not an anchor in the chat page.
-- **A cited web page opens as a picture too** (`services/web_snapshot.py`,
-  route `/api/web-shot/{key}`): the links `web_citations` writes,
-  `([Name](url))`, are marked at render (`data-web-cite`) and open in the
-  Source tab, not a new tab. The passage comes from `best_passage` on the
-  page's text; crawl4ai loads the page, marks it (CSS highlight + outline,
-  matched with all whitespace removed — inline elements split sentences),
-  scrolls to it and screenshots the viewport; cached in `data/web_shots/`
-  (newest 300). Only a URL in this conversation's answers and on a public
-  address is fetched. No crawl4ai, a bot wall, a failure → the link opens
-  in a new tab; a passage not found → a picture without a mark, said so.
 - **Source pages are pictures with a text layer** (`/api/doc-words`, same access
   check; `page_viewer` lays the PDF's words over the picture as invisible SVG
   text, one `<text>` per line), so text can be selected and copied. A click
