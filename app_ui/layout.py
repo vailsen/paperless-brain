@@ -136,7 +136,8 @@ _EXTERNAL_LINKS_JS = """<script>
 document.addEventListener('click', function(e) {
   if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
   var a = e.target.closest && e.target.closest('a[href]');
-  if (!a || a.target) return;
+  // a cited web source opens in the chat's Source tab (chat page handler)
+  if (!a || a.target || a.hasAttribute('data-web-cite')) return;
   var href = a.getAttribute('href') || '';
   if (!/^https?:/i.test(href)) return;
   try { if (new URL(href).origin === location.origin) return; } catch (_) { return; }

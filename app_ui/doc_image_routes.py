@@ -80,3 +80,25 @@ async def doc_words(doc_id: int, page: int):
             _WORDS_CACHE.pop(next(iter(_WORDS_CACHE)))
         _WORDS_CACHE[key] = words
     return JSONResponse({"words": words}, headers={"Cache-Control": "private, max-age=86400"})
+
+
+# ── Web sources ──────────────────────────────────────────────────────────────
+# GET /api/web-shot/{key} — the screenshot of a cited web page with its passage
+# marked (`services/web_snapshot.py`), for a signed-in session only. The key is
+# a hash of the URL and the claim; the page itself is public.
+
+@ng_app.get("/api/web-shot/{key}")
+async def web_shot(key: str):
+    from services import web_snapshot
+
+    try:
+        token = get_session_token()
+    except Exception:  # no session context
+        token = ""
+    if not token or not web_snapshot.valid_key(key):
+        return _not_found()
+    path = web_snapshot.shot_dir() / f"{key}.png"
+    if not path.is_file():
+        return _not_found()
+    return Response(content=path.read_bytes(), media_type="image/png",
+                    headers={"Cache-Control": "private, max-age=86400"})
