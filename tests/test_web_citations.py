@@ -90,4 +90,7 @@ def test_web_sources_render_as_numbers_with_links_in_the_box(monkeypatch):
     assert "([srf.ch]" not in out and "(srf.ch)" not in out
     assert 'class="pb-cite pb-web-cite" href="https://www.srf.ch/news/aigner" target="_blank"' in out
     assert ">1</a>" in out and ">2</a>" in out
-    assert 'pb-cite-list' in out and "news/aigner</span>" in out and ">Spiegel</span>" in out
+    assert 'pb-cite-list' in out and ">srf.ch/news/aigner</span>" in out and ">Spiegel</span>" in out
+    long = chat._inject_doc_links("BVB gewinnt. ([msn.com](https://www.msn.com/de-de/nachrichten/other/"
+                                  "live-bvb-mit-drei-startelf-wechseln-gegen-elversberg/ar-AA2gW518))")
+    assert ">msn.com/de-de/nachrichten/" in long and "…" in long and "ar-AA2gW518</span>" in long

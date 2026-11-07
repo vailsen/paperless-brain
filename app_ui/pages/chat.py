@@ -255,14 +255,19 @@ def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str],
         host = urlparse(url).hostname or ""
         host = host[4:] if host.startswith("www.") else host
         u = _html.escape(url, quote=True)
+        site = host
         if name.lower().removeprefix("www.") == host.lower():
-            # only the site's name: the address says which page
-            rest = url.split("://", 1)[-1].split("/", 1)[-1].split("?")[0].rstrip("/")
-            name = (rest[:70] + "…") if len(rest) > 70 else (rest or name)
+            # Only the site's name: the address itself says which page — whole,
+            # site first, shortened in the middle so its end (often the
+            # article's id) stays; the full address on hover.
+            full = url.split("://", 1)[-1].removeprefix("www.").split("?")[0].rstrip("/")
+            name = full if len(full) <= 90 else f"{full[:50]}…{full[-35:]}"
+            site = ""
         rows.append(
-            f'<div class="pb-cite-doc"><a href="{u}" target="_blank" rel="noopener" class="pb-cite-doclink">'
+            f'<div class="pb-cite-doc"><a href="{u}" target="_blank" rel="noopener" class="pb-cite-doclink" '
+            f'title="{u}">'
             f'<span class="pb-cite-title">{_html.escape(name)}</span>'
-            f'<span class="pb-cite-id">{_html.escape(host)}</span></a>'
+            f'<span class="pb-cite-id">{_html.escape(site)}</span></a>'
             f'<span class="pb-cite-pages"><a class="pb-cite-item is-bare" href="{u}" target="_blank" '
             f'rel="noopener"><b>{n}</b></a></span></div>'
         )
