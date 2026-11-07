@@ -36,6 +36,8 @@ _DOC_EVENT = "pb_finding_doc"
 # plain link would replace the app.
 _DOC_CLICK_JS = (
     "<script>document.addEventListener('click',function(e){"
+    "var c=e.target.closest&&e.target.closest('.pb-fcite');"
+    "if(c){e.preventDefault();emitEvent('pb_fcite',{c:c.getAttribute('data-c'),claim:c.getAttribute('data-claim')});return;}"
     "var a=e.target.closest&&e.target.closest('.finding-md a[href]');if(!a)return;"
     "var h=a.getAttribute('href');"
     "if(h.indexOf('#pbdoc-')===0){e.preventDefault();"
@@ -50,6 +52,40 @@ _BARE_URL = re.compile(r"(?<![(<\[\"'=])\bhttps?://[^\s<>()\[\]]+[^\s<>()\[\].,;
 
 
 _BARE_REF = re.compile(r"\[#(\d+)((?: p\d+)?)\](?!\()")
+
+# An evidence quote of a finding (`findings.render_body`): "> quote" and below
+# it "> — [#id](link)". The quote is verbatim from the document.
+_EVIDENCE = re.compile(r"^> (?!— )(.+)\n> — \[#(\d+)\]\(([^)\s]+)\)", re.M)
+
+
+def cite_evidence(body: str, pages_of=None) -> str:
+    """A reference number behind every evidence quote — like a chat answer's:
+    a tap opens the page in the dock with the quote marked. The page is found
+    in code (`citations.page_for`, the quote is verbatim), so findings written
+    before this need no rescan; one that fits no single page opens the
+    document's first match (page 0)."""
+    from services import citations
+
+    pages_of = pages_of or citations._sidecar_pages
+    cache: dict[int, list] = {}
+    numbers: dict[tuple[int, int], int] = {}
+
+    def sub(m: re.Match) -> str:
+        quote, doc = m.group(1).strip(), int(m.group(2))
+        if doc not in cache:
+            try:
+                cache[doc] = pages_of(doc) or []
+            except Exception:  # noqa: BLE001 — no sidecar: no page, still a number
+                cache[doc] = []
+        page = citations.page_for(cache[doc], quote) or 0 if cache[doc] else 0
+        n = numbers.setdefault((doc, page), len(numbers) + 1)
+        import html as _h
+
+        chip = (f' <sup class="pb-cite pb-fcite" data-c="{doc}-{page}" '
+                f'data-claim="{_h.escape(quote[:400], quote=True)}">{n}</sup>')
+        return f"> {m.group(1)}{chip}\n> — [#{doc}]({m.group(3)})"
+
+    return _EVIDENCE.sub(sub, body or "")
 
 
 def _in_app_links(body: str, user: str = "") -> str:
@@ -488,6 +524,11 @@ _MC_CSS = """
 .pbm-fdoc .t{font-size:.86rem;color:var(--c-text);overflow-wrap:anywhere;min-width:0}
 .pbm-fdoc .id{font-size:.72rem;color:var(--c-text-muted);flex-shrink:0}
 .pbm-fdoc .m{font-size:.75rem;color:var(--c-text-muted)}
+.pb-fcite{display:inline-block;min-width:1.35em;padding:0 .35em;margin-left:2px;border-radius:.7em;
+  font-size:.68em;line-height:1.45;text-align:center;vertical-align:super;background:var(--c-accent-soft);
+  color:var(--c-accent-text);box-shadow:inset 0 0 0 1px var(--c-accent-border);cursor:pointer;user-select:none;
+  touch-action:manipulation}
+.pb-fcite:hover{color:var(--c-text)}
 .pbm-mbar{display:none}
 /* Maximized dock: the chat takes the viewer's place; the navigator (desktop)
    and the bottom switch (phone) stay, so the way back is one tap. */
@@ -769,6 +810,25 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         await open_document(DocumentResult(document=doc))
 
     ui.on(_DOC_EVENT, lambda e: _open_doc_id(int(e.args)))
+
+    def _open_fcite(e) -> None:
+        """A reference number on the finding: its page in the dock, the quote
+        marked — the chat's own source viewer, "Back to the chat" above it."""
+        d = e.args or {}
+        c, claim = str(d.get("c") or ""), str(d.get("claim") or "")
+        if not re.fullmatch(r"\d+-\d+", c):
+            return
+        if _is_mobile["v"] and st["zone"] != "chat":
+            _zone("chat")
+        elif not frame_host.default_slot.children:
+            _dock_load()
+        ui.run_javascript(
+            "(function go(n){var f=document.querySelector('.pbm-dock-frame iframe');"
+            "var w=f&&f.contentWindow;if(w&&w.__pbOpenCiteData){w.__pbOpenCiteData("
+            + json.dumps(c) + "," + json.dumps(claim) + ");return;}"
+            "if(n<80)setTimeout(function(){go(n+1);},250);})(0)")
+
+    ui.on("pb_fcite", _open_fcite)
 
     sel0: tuple = ("home", "")
     if finding:
@@ -1341,7 +1401,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 ".pb-tl-head{font-weight:600;font-size:.95rem;color:var(--c-text);margin-bottom:.2rem}"
                 ".pb-tl-item .finding-md h3:first-child{margin-top:.3rem}"
             )
-            entries, original = findings.split_timeline(findings.tidy_sources(f.body, f.lang), f.lang)
+            entries, original = findings.split_timeline(
+                cite_evidence(findings.tidy_sources(f.body, f.lang)), f.lang)
             tl = [(e.split("\n", 1)[0][3:].strip(), e.split("\n", 1)[1] if "\n" in e else "") for e in entries]
             tl.append((findings.original_heading(f), original))
             with ui.element("div").classes("pb-tl w-full min-w-0"):

@@ -253,6 +253,20 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   an answer open in a new tab.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
   link mid-marker.
+- **A footnote the model defines with a web address is a web source**
+  (`web_citations._web_footnotes`): `[^1]` with `[^1]: [Title](url)` was read as
+  document #1. Its markers become inline links, the definitions go; at store
+  time only a page a tool returned keeps its link. `[Title](#356)` is a
+  document link (`chat._MD_DOC_LINK_RE`), not an anchor in the chat page.
+- **Source pages are pictures with a text layer** (`/api/doc-words`, same access
+  check; `page_viewer` lays the PDF's words over the picture as invisible SVG
+  text, one `<text>` per line), so text can be selected and copied. A click
+  that ends a selection does not open the viewer. A scan without a text layer
+  has none.
+- **A finding's evidence carries reference numbers** (`findings.cite_evidence`,
+  page by `page_for` at render time — no rescan): a tap opens the dock chat's
+  own source viewer over the chat (`chat-src-overlay`, "Back to the chat"),
+  which is also where the dock's own reference numbers open.
 
 ### Formulas
 

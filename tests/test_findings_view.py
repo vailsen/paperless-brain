@@ -131,3 +131,16 @@ def test_topic_hex_matches_the_theme_tokens():
         dark_hex = re.search(rf"--topic-{i}: (#[0-9a-f]{{6}})", css).group(1)
         light_hex = re.search(rf"--topic-{i}: (#[0-9a-f]{{6}})", light).group(1)
         assert topic_colors.HEX["dark"][i - 1] == dark_hex and topic_colors.HEX["light"][i - 1] == light_hex
+
+
+def test_evidence_quotes_get_reference_numbers_with_their_page():
+    from app_ui.pages.findings import cite_evidence
+
+    body = ("## Evidence\n\n> Der Beitrag steigt um 4 % jährlich.\n> — [#625](http://p/documents/625/details)\n\n"
+            "> Zulage 175 € pro Jahr.\n> — [#625](http://p/documents/625/details)\n")
+    pages = {625: [(1, "Anschreiben Debeka"), (3, "Der Beitrag steigt um 4 % jährlich ab 2026."),
+                   (5, "Die Zulage beträgt 175 € pro Jahr für Sie.")]}
+    out = cite_evidence(body, pages_of=pages.get)
+    assert 'data-c="625-3"' in out and 'data-c="625-5"' in out
+    assert '>1</sup>' in out and '>2</sup>' in out
+    assert out.count("> — [#625]") == 2   # the document link stays

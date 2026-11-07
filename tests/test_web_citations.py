@@ -57,3 +57,25 @@ def test_render_fallback_for_old_answers():
 
 def test_a_failed_fetch_is_no_source():
     assert "blocked.example" not in link_web_refs("A [^blocked]", TRACE)
+
+
+def test_numbered_web_footnotes_are_links_not_document_one():
+    from services.web_citations import link_web_refs, plain_web_refs
+
+    text = ("Laufen kann es verschlimmern.[^1] Langfristiger Prozess.[^2]\n\n"
+            "[^1]: [Runners World – Piriformis Syndrome](https://www.runnersworld.com/piri)\n"
+            "[^2]: [Temporal Patterns](https://pubmed.ncbi.nlm.nih.gov/123/)\n")
+    out = plain_web_refs(text)
+    assert "[^1]" not in out and "[^2]" not in out and "]:" not in out
+    assert "verschlimmern. ([Runners World – Piriformis Syndrome](https://www.runnersworld.com/piri))" in out
+    # store time: only a page a tool returned keeps its link
+    trace = [{"name": "web_search", "output": "[Runners](https://www.runnersworld.com/piri)"}]
+    stored = link_web_refs(text, trace)
+    assert "(https://www.runnersworld.com/piri)" in stored
+    assert "(Temporal Patterns)" in stored and "pubmed" not in stored
+
+
+def test_document_markers_without_definitions_stay():
+    from services.web_citations import plain_web_refs
+
+    assert plain_web_refs("Beitrag 112,77 €.[^241-p3]") == "Beitrag 112,77 €.[^241-p3]"
