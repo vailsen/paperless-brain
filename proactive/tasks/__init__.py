@@ -27,3 +27,4 @@ def attach(worker: "Worker") -> None:
     # Email is send-only now; drop the reply poller's schedule from older DBs.
     scheduler.remove("imap_poll")
     scheduler.ensure(vault_sync.VAULT_SYNC_CHECK, f"every:{vault_sync.CHECK_SECONDS}")
+    scheduler.ensure(topics.STALE_CHECK, f"every:{topics.STALE_CHECK_SECONDS}")

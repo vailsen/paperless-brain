@@ -48,6 +48,10 @@ async def _build_or_update(user: str, topic: str, seed: int, *, rebuild: bool = 
     llm.record_cloud_doc(user, model)
     lang = prefs.get(user).content_language
     d = dossiers.from_result(user, topic, res, lang=lang, version=analysis.version(), existing=existing)
+    if existing is not None and existing.stale and not doc_ids:
+        # Only a rescan reads every document of the matter; an update for one
+        # new letter leaves the hand changes still unread.
+        d.stale = existing.stale
     await dossiers.write(user, d)
     log.info(
         "%s: dossier %s %s — read %d document(s), %d timeline entries",
@@ -209,3 +213,27 @@ async def schedule_topics(user: str) -> None:
         elif d.revisit_after and d.revisit_after <= today:
             jobs.enqueue("dossier_revisit", user, {"topic": d.topic}, model=model,
                          dedupe_key=f"dossier_revisit:{user}:{d.topic}:{today}")
+
+
+STALE_CHECK = "dossier_stale_check"
+STALE_CHECK_SECONDS = 1800
+
+
+@handler(STALE_CHECK)
+async def dossier_stale_check(job: Job) -> None:
+    """A dossier changed by hand and not rescanned (the user pressed "Later",
+    or nothing) is rescanned in the night: inside a sweep window, every half
+    hour, a `dossier_relook` for each such dossier — the same job as the
+    button, deduplicated by its key, so a queued one is not queued twice."""
+    if windows.current() is None:
+        return
+    for user, tok in users.eligible():
+        model = resolve_model(user, tok)
+        if model is None:
+            continue
+        for d in dossiers.stale_dossiers(user):
+            if not dossiers.all_doc_ids(user, d):
+                continue
+            jobs.enqueue("dossier_relook", user, {"topic": d.topic}, needs_llm=True, model=model,
+                         dedupe_key=dossiers.relook_key(user, d.topic))
+            log.info("%s: dossier %s changed by hand since %s — rescan queued", user, d.topic, d.stale)

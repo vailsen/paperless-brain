@@ -576,3 +576,53 @@ def test_moved_documents_stay_out_and_take_their_findings(env):
         assert triage._dossier_key("alice", "Altersvorsorge") == "altersvorsorge"
 
     asyncio.run(go())
+
+
+def test_hand_changes_mark_rescan_pending_and_only_a_rescan_clears_it(env, remote):
+    from proactive import dossiers
+    from proactive import dossiers, jobs
+
+    async def go():
+        a = await dossiers.create_manual("alice", "Bauspar")
+        assert not dossiers.load("alice", "bauspar").stale
+        await dossiers.add_documents("alice", "bauspar", [10, 11])
+        assert [d.topic for d in dossiers.stale_dossiers("alice")] == ["bauspar"]
+        b = await dossiers.create_manual("alice", "Bauspar Neu")
+        await dossiers.move_documents("alice", a.pbrain_id, [11], b.pbrain_id)
+        assert {d.topic for d in dossiers.stale_dossiers("alice")} == {"bauspar", "bauspar-neu"}
+
+    asyncio.run(go())
+    # an update for one new letter keeps the mark; a rescan clears it
+    from proactive.tasks.topics import _build_or_update
+
+    asyncio.run(_build_or_update("alice", "bauspar", 10))
+    assert dossiers.load("alice", "bauspar").stale
+    asyncio.run(_build_or_update("alice", "bauspar", 0, doc_ids=[10]))
+    assert not dossiers.load("alice", "bauspar").stale
+
+
+def test_night_check_queues_a_rescan_for_each_pending_dossier(env, monkeypatch):
+    from proactive import dossiers, jobs, windows
+    from proactive.tasks import topics
+
+    asyncio.run(dossiers.create_manual("alice", "Bauspar"))
+    asyncio.run(dossiers.add_documents("alice", "bauspar", [10]))
+    monkeypatch.setattr(windows, "current", lambda *a, **k: None)
+    asyncio.run(topics.dossier_stale_check(None))
+    assert not jobs.is_pending(dossiers.relook_key("alice", "bauspar"))   # daytime: nothing
+    monkeypatch.setattr(windows, "current", lambda *a, **k: object())
+    asyncio.run(topics.dossier_stale_check(None))
+    assert jobs.is_pending(dossiers.relook_key("alice", "bauspar"))
+
+
+def test_folder_rename_keeps_its_dossiers(env):
+    from proactive import dossiers
+
+    async def go():
+        await dossiers.create_manual("alice", "Bauspar", "Geld/Spar")
+        assert await dossiers.rename_folder("alice", "Geld/Spar", "Sparen") == "Geld/Sparen"
+        assert dossiers.load("alice", "bauspar").folder == "Geld/Sparen"
+        with pytest.raises(dossiers.DossierError):
+            await dossiers.rename_folder("alice", "Geld", "_Archive")
+
+    asyncio.run(go())
