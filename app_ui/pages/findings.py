@@ -464,6 +464,7 @@ _MC_CSS = """
 .pbm-doc{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--c-border);cursor:pointer;
   min-width:0;box-sizing:border-box}
 .pbm-doc:last-child{border-bottom:0}
+.pbm-docbar{min-height:36px;border-bottom:1px solid var(--c-border)}
 .pbm-doc-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .pbm-doc .t{font-size:.86rem;color:var(--c-text);overflow-wrap:anywhere}
 .pbm-doc .m{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.75rem;color:var(--c-text-muted);
@@ -1398,6 +1399,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                             ui.separator()
                             ui.menu_item(_("Rename"), on_click=lambda: _rename_dossier(d))
                             ui.menu_item(_("Move to folder"), on_click=lambda: _move_dossier(d))
+                            ui.menu_item(_("Merge into another dossier …"), on_click=lambda: _merge_dossier(d))
                             from services import experts as _ex
 
                             if _ex.enabled():
@@ -1755,9 +1757,13 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             _insight(d, ins)
 
     def _tab_documents(d, items) -> None:
+        """The dossier's documents. Tick several to move them into another
+        dossier or take them out — for good: a rescan does not bring them
+        back (`dmod.move_documents`)."""
         host = ui.column().classes("w-full gap-0")
         with host:
             ui.spinner()
+        picked: set[int] = set()
 
         async def _load() -> None:
             ids = dmod.all_doc_ids(user, d)
@@ -1766,6 +1772,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             if not ids:
                 with host:
                     ui.label(_("No documents linked yet.")).classes("pbm-hint")
+                    ui.button(_("Add documents"), icon="add", on_click=lambda: _add_docs(d)).props(
+                        "flat dense no-caps").classes("text-xs")
                 return
             try:
                 docs = await get_session_paperless().list_documents(ids=ids)
@@ -1774,16 +1782,37 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     ui.label(_("Paperless is not reachable.")).classes("pbm-hint")
                 return
             with host:
-                with ui.row().classes("w-full items-center gap-2"):
-                    ui.label(_("{n} documents").format(n=len(docs))).classes("pbm-hint flex-1")  # TODO i18n-plural
-                    ui.button(_("Add documents"), icon="add", on_click=lambda: _add_docs(d)).props(
+                with ui.row().classes("w-full items-center gap-2 no-wrap pbm-docbar"):
+                    count = ui.label("").classes("pbm-hint flex-1 min-w-0")
+                    move_btn = ui.button(_("Move to …"), icon="drive_file_move",
+                                         on_click=lambda: _move_docs(d, sorted(picked))).props(
                         "flat dense no-caps").classes("text-xs")
+                    out_btn = ui.button(_("Take out"), icon="remove_circle_outline",
+                                        on_click=lambda: _take_out(d, sorted(picked))).props(
+                        "flat dense no-caps").classes("text-xs")
+                    add_btn = ui.button(_("Add documents"), icon="add", on_click=lambda: _add_docs(d)).props(
+                        "flat dense no-caps").classes("text-xs")
+
+                def _bar() -> None:
+                    n = len(picked)
+                    count.set_text(_("{n} selected").format(n=n) if n else  # TODO i18n-plural
+                                   _("{n} documents").format(n=len(docs)))  # TODO i18n-plural
+                    move_btn.set_visibility(bool(n))
+                    out_btn.set_visibility(bool(n))
+                    add_btn.set_visibility(not n)
+
+                _bar()
                 for doc in sorted(docs, key=lambda x: x.created, reverse=True):
-                    # Two lines, full width: the name wraps instead of being cut,
-                    # and the remove button can never sit past the screen edge.
+                    # Two lines, full width: the name wraps instead of being cut.
                     el = ui.element("div").classes("pbm-doc w-full")
                     el.on("click", lambda _e, i=doc.id: _open_doc_id(i))
                     with el:
+                        def _tick(e, i=doc.id) -> None:
+                            picked.add(i) if e.value else picked.discard(i)
+                            _bar()
+
+                        ui.checkbox(on_change=_tick).props("dense").classes("flex-shrink-0").on(
+                            "click", js_handler="(e) => e.stopPropagation()")
                         with ui.element("div").classes("pbm-doc-main"):
                             ui.label(f"{doc.title} (#{doc.id})").classes("t")
                             meta = [doc.created.date().isoformat()] + ([doc.correspondent] if doc.correspondent else [])
@@ -1793,19 +1822,117 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                                     "" if doc.id in read else _("not read yet"))
                                 if tag:
                                     ui.label(tag).classes("pbm-evid")
-                        if doc.id in added:
-                            async def _rm(doc_id: int) -> None:
-                                await dmod.remove_document(user, d.topic, doc_id)
-                                ui.notify(_("Taken out of the dossier."), type="positive")
-                                viewer_body.refresh()
-
-                            # The id is bound in the lambda: a handler with a
-                            # parameter of its own is handed the click event.
-                            ui.button(icon="remove_circle_outline").props("flat dense round").classes(
-                                "card-action-btn flex-shrink-0").on("click.stop", lambda _e, i=doc.id: _rm(i)).tooltip(
-                                _("Take out of the dossier"))
 
         ui.timer(0.05, _load, once=True)
+
+    def _other_dossiers(d) -> dict[str, str]:
+        ds = sorted((x for x in dmod.list_dossiers(user) if x.pbrain_id != d.pbrain_id),
+                    key=lambda x: (x.folder.casefold(), x.display.casefold()))
+        return {x.pbrain_id: (f"{x.folder} / {x.display}" if x.folder else x.display) for x in ds}
+
+    def _offer_rescan(ds: list) -> None:
+        """After a merge or a move the state of each dossier is out of date;
+        a rescan rewrites it. Offered, not started: it costs model time."""
+        ds = [x for x in ds if x is not None]
+        # Under the page root: the caller's own element was just refreshed
+        # away, and a dialog inside it never showed.
+        with root, ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:min(440px,94vw);"):
+            ui.label(_("Rescan now?")).classes("text-base font-semibold").style("color:var(--c-text)")
+            ui.label(_("The current state, timeline and open questions still describe the old set of "
+                       "documents. A rescan rewrites them: {names}.").format(
+                names=", ".join(f"“{x.display}”" for x in ds))).classes("pbm-hint")
+
+            def _go() -> None:
+                dlg.close()
+                for x in ds:
+                    _relook(x)
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Later"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("Rescan"), icon="refresh", on_click=_go).props("unelevated no-caps").classes(
+                    "bg-primary text-white")
+        dlg.open()
+
+    def _move_docs(d, ids: list[int]) -> None:
+        if not ids:
+            return
+        opts = _other_dossiers(d)
+        if not opts:
+            ui.notify(_("There is no other dossier yet — make one first."), type="warning")
+            return
+        with ui.dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(460px,94vw);"):
+            ui.label(_("Move {n} documents").format(n=len(ids))).classes(  # TODO i18n-plural
+                "text-base font-semibold").style("color:var(--c-text)")
+            ui.label(_("They leave “{name}” for good — a rescan does not bring them back — and join the "
+                       "dossier you pick. A finding whose documents all move goes along.").format(
+                name=d.display)).classes("pbm-hint")
+            sel = ui.select(opts, value=next(iter(opts)), label=_("Dossier"), with_input=True).props(
+                "outlined dense options-dense").classes("w-full")
+
+            async def _ok() -> None:
+                try:
+                    n = await dmod.move_documents(user, d.pbrain_id, ids, sel.value)
+                except dmod.DossierError:
+                    ui.notify(_("Could not save."), type="warning")
+                    return
+                dlg.close()
+                target = dmod.by_id(user, sel.value)
+                ui.notify(_("Moved. {n} findings went along.").format(n=n) if n else _("Moved."),
+                          type="positive")  # TODO i18n-plural
+                nav_body.refresh()
+                viewer_body.refresh()
+                _offer_rescan([dmod.by_id(user, d.pbrain_id), target])
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("Move"), on_click=_ok).props("unelevated no-caps").classes("bg-primary text-white")
+        dlg.open()
+
+    def _take_out(d, ids: list[int]) -> None:
+        if not ids:
+            return
+
+        async def _ok() -> None:
+            await dmod.move_documents(user, d.pbrain_id, ids)
+            ui.notify(_("Taken out of the dossier."), type="positive")
+            viewer_body.refresh()
+            _offer_rescan([dmod.by_id(user, d.pbrain_id)])
+
+        _confirm(_("Take {n} documents out of “{name}”? A rescan does not bring them back; their findings "
+                   "stay where they are.").format(n=len(ids), name=d.display),  # TODO i18n-plural
+                 _ok, ok_label=_("Take out"))
+
+    def _merge_dossier(d) -> None:
+        opts = _other_dossiers(d)
+        if not opts:
+            ui.notify(_("There is no other dossier to merge with."), type="warning")
+            return
+        with ui.dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(480px,94vw);"):
+            ui.label(_("Merge “{name}” into …").format(name=d.display)).classes(
+                "text-base font-semibold").style("color:var(--c-text)")
+            ui.label(_("The dossier you pick takes over its findings, documents, insights, questions and "
+                       "research, and keeps its name as an alias: a new document the model files under "
+                       "“{name}” lands there too. “{name}” itself is kept as a record under “Deleted "
+                       "dossiers”.").format(name=d.display)).classes("pbm-hint")
+            sel = ui.select(opts, value=next(iter(opts)), label=_("Dossier"), with_input=True).props(
+                "outlined dense options-dense").classes("w-full")
+
+            async def _ok() -> None:
+                try:
+                    target = await dmod.merge(user, d.pbrain_id, sel.value)
+                except dmod.DossierError:
+                    ui.notify(_("Could not save."), type="warning")
+                    return
+                dlg.close()
+                ui.notify(_("Merged into “{name}”.").format(name=target.display), type="positive")
+                select("dossier", target.pbrain_id)
+                _offer_rescan([target])
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("Merge"), icon="merge", on_click=_ok).props("unelevated no-caps").classes(
+                    "bg-primary text-white")
+        dlg.open()
 
     def _tab_research(d, items) -> None:
         if not d.research:

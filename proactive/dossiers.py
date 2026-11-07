@@ -119,6 +119,10 @@ class Dossier:
     new_since_archive: list[int] = field(default_factory=list)
     deleted: str = ""           # date it went into the trash
     reset: str = ""             # … by "Reset": its documents were handed back to the worker
+    #: Merge and move (see "Merge and move" below) — code-owned.
+    aliases: list[str] = field(default_factory=list)      # topic keys merged into this one
+    excluded_docs: list[int] = field(default_factory=list)  # moved or taken out: never back in
+    merged_into: str = ""       # a trash record: the topic it was merged into
     pbrain_id: str = ""
     rel: str = ""
     sha: str = ""
@@ -368,6 +372,9 @@ def parse(text: str, *, rel: str = "") -> Dossier | None:
         new_since_archive=[int(x) for x in m.get("new_since_archive") or [] if str(x).isdigit()],
         deleted=_day(m.get("deleted")),
         reset=_day(m.get("reset")),
+        aliases=[str(x) for x in m.get("aliases") or [] if str(x).strip()],
+        excluded_docs=[int(x) for x in m.get("excluded_docs") or [] if str(x).isdigit()],
+        merged_into=str(m.get("merged_into") or ""),
         pbrain_id=get_id(m),
         rel=rel,
         sha=sha_of(text),
@@ -515,7 +522,8 @@ def _meta(d: Dossier) -> dict:
     return meta
 
 
-_LIFECYCLE = ("archived", "archived_from", "closed_findings", "new_since_archive", "deleted", "reset")
+_LIFECYCLE = ("archived", "archived_from", "closed_findings", "new_since_archive", "deleted", "reset",
+              "aliases", "excluded_docs", "merged_into")
 
 
 def _file_of(user: str, d: Dossier) -> Path:
@@ -572,10 +580,12 @@ async def write(user: str, d: Dossier) -> Dossier:
 
 def from_result(user: str, topic: str, result: dict, *, lang: str, version: int, existing: Dossier | None) -> Dossier:
     ids = {int(x) for x in result.get("doc_ids") or []}
+    if existing is not None:
+        ids -= set(existing.excluded_docs)  # moved or taken out by the user: never back in
     tl, qs = validated(result, ids)
     if existing is not None:
         ids |= set(existing.doc_ids) if existing.origin == "user" else set()
-        ids |= set(existing.added_docs)
+        ids |= set(existing.added_docs) - set(existing.excluded_docs)
         done = {r["question"] for r in existing.resolved} | set(existing.dropped_questions)
         qs = [q for q in qs if q not in done]
     return Dossier(
@@ -597,6 +607,8 @@ def from_result(user: str, topic: str, result: dict, *, lang: str, version: int,
         expert=existing.expert if existing else "",
         added_docs=list(existing.added_docs) if existing else [],
         dropped_questions=list(existing.dropped_questions) if existing else [],
+        aliases=list(existing.aliases) if existing else [],
+        excluded_docs=list(existing.excluded_docs) if existing else [],
         pbrain_id=existing.pbrain_id if existing else "",
     )
 
@@ -829,7 +841,7 @@ def all_doc_ids(user: str, d: Dossier) -> list[int]:
     ids = set(d.doc_ids) | set(d.added_docs)
     for f in findings_of(user, d.topic):
         ids |= set(f.doc_ids)
-    return sorted(ids)
+    return sorted(ids - set(d.excluded_docs))
 
 
 def pending_docs(user: str, d: Dossier) -> list[int]:
@@ -1072,8 +1084,15 @@ async def restore(user: str, pbrain_id: str) -> Dossier:
         raise DossierError("missing")
     if load(user, d.topic) is not None:
         raise DossierError("exists")
+    if d.merged_into:
+        # Brought back after a merge: its name no longer stands for the other one.
+        target = load(user, d.merged_into)
+        if target is not None and d.topic in target.aliases:
+            target.aliases = [a for a in target.aliases if a != d.topic]
+            await write(user, target)
     path = await _move_file(user, d, _root(user))
     out = _load_path(user, path)
+    out.merged_into = ""
     out.deleted = out.reset = out.archived = out.archived_from = ""
     out.closed_findings, out.new_since_archive = {}, []
     return await write(user, out)
@@ -1122,4 +1141,124 @@ async def delete_folder(user: str, folder: str) -> int:
 
     async with get_user_lock(user):
         await asyncio.to_thread(_rm)
+    return moved
+
+
+# ── Merge and move ───────────────────────────────────────────────────────
+#
+# Two dossiers of one matter ("Riester" and "Riester-Rente") are merged: the
+# target takes the other's findings, documents, insights, questions and
+# research, and keeps its key as an alias — so a model that names the old
+# matter again lands in the target (`resolve_topic`), which is what stops the
+# twin from coming back. Names are never matched by similarity:
+# "Altersvorsorge" is part of "Altersvorsorge - Metallrente".
+#
+# One matter split off another (Metallrente letters in "Altersvorsorge"):
+# the user moves documents. They are excluded from the old dossier for good
+# (`excluded_docs` — a rebuild or a finding of the old topic cannot bring them
+# back) and added to the new one; a finding whose documents all moved goes
+# with them.
+
+
+def resolve_topic(user: str, key: str) -> str:
+    """The dossier a topic key belongs to: its own, a merged one's (alias),
+    or a dossier's display name (a renamed dossier keeps its old key). Else
+    the key itself."""
+    if not key:
+        return key
+    try:
+        ds = list_dossiers(user)
+    except Exception:  # noqa: BLE001 — an unreadable folder never stops a finding
+        return key
+    from proactive.interests import slugify
+
+    for d in ds:
+        if key == d.topic or key in d.aliases:
+            return d.topic
+    for d in ds:
+        if slugify(d.display) == key:
+            return d.topic
+    return key
+
+
+async def _retopic(user: str, f, target: Dossier) -> None:
+    from proactive import findings
+
+    await findings.update(user, f.finding_id, lambda x: (
+        None if x.topic == target.topic else {"topic": target.topic, "topic_label": target.display}))
+
+
+async def merge(user: str, source_id: str, target_id: str) -> Dossier:
+    """Merge dossier `source_id` into `target_id`; the source becomes a trash
+    record (`merged_into`). Returns the target."""
+    src, dst = by_id(user, source_id), by_id(user, target_id)
+    if src is None or dst is None:
+        raise DossierError("missing")
+    if src.topic == dst.topic:
+        raise DossierError("same")
+    keys = {src.topic, *src.aliases}
+    for f in [f for f in _all_findings(user) if f.topic in keys]:
+        await _retopic(user, f, dst)
+    docs = set(all_doc_ids(user, src)) | set(src.new_since_archive)
+    dst.added_docs = sorted((set(dst.added_docs) | docs) - set(dst.doc_ids))
+    dst.excluded_docs = [i for i in dst.excluded_docs if i not in docs]
+    have = {i.insight_id for i in dst.insights}
+    dst.insights = sorted(dst.insights + [i for i in src.insights if i.insight_id not in have],
+                          key=lambda i: i.created, reverse=True)
+    for q in src.open_questions:
+        if q not in dst.open_questions:
+            dst.open_questions.append(q)
+    known = {r.get("question") for r in dst.resolved}
+    dst.resolved += [r for r in src.resolved if r.get("question") not in known]
+    dst.dropped_questions = sorted(set(dst.dropped_questions) | set(src.dropped_questions))
+    dst.research += [r for r in src.research if r not in dst.research]
+    from proactive.interests import slugify
+
+    dst.aliases = sorted((set(dst.aliases) | keys | {slugify(src.display)}) - {dst.topic, ""})
+    out = await write(user, dst)
+    path = await _move_file(user, src, _root(user) / TRASH)
+    rec = _load_path(user, path)
+    rec.deleted = clock.local_now().date().isoformat()
+    rec.merged_into = dst.topic
+    await write(user, rec)
+    log.info("%s: dossier %s merged into %s", user, src.topic, dst.topic)
+    return out
+
+
+def _all_findings(user: str) -> list:
+    from proactive import findings
+
+    return findings.list_findings(user)
+
+
+async def move_documents(user: str, source_id: str, doc_ids: list[int], target_id: str = "") -> int:
+    """Take documents out of a dossier for good and, with `target_id`, put
+    them into another. A finding of the source whose documents all moved goes
+    along. Returns how many findings moved."""
+    src = by_id(user, source_id)
+    dst = by_id(user, target_id) if target_id else None
+    if src is None or (target_id and dst is None):
+        raise DossierError("missing")
+    if dst is not None and dst.topic == src.topic:
+        raise DossierError("same")
+    ids = {int(i) for i in doc_ids}
+    moved = 0
+    if dst is not None:
+        for f in findings_of(user, src.topic):
+            if f.doc_ids and set(f.doc_ids) <= ids:
+                await _retopic(user, f, dst)
+                moved += 1
+    src = by_id(user, source_id)  # re-read: nothing else changed it, but stay exact
+    src.excluded_docs = sorted(set(src.excluded_docs) | ids)
+    src.added_docs = [i for i in src.added_docs if i not in ids]
+    src.doc_ids = [i for i in src.doc_ids if i not in ids]
+    src.timeline = [t for t in src.timeline if t["doc_id"] not in ids]
+    await write(user, src)
+    if dst is not None:
+        dst = by_id(user, target_id)
+        dst.excluded_docs = [i for i in dst.excluded_docs if i not in ids]
+        dst.added_docs = sorted((set(dst.added_docs) | ids) - set(dst.doc_ids))
+        await write(user, dst)
+    log.info("%s: %d document(s) out of %s%s, %d finding(s) along", user, len(ids), src.topic,
+             f" into {dst.topic}" if dst else "", moved)
     return moved

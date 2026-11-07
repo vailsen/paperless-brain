@@ -457,3 +457,21 @@ The files are the source of truth; the page reads them on every render.
   its findings.
 - Status, snooze date or topic edited in the frontmatter count from the next
   ledger scan.
+
+
+## Merge and move (2026-11-07)
+
+- **Merge** ("…" menu → "Merge into another dossier"): the target takes over
+  findings, documents, insights, open/answered/removed questions and research;
+  the source's key (and its name's slug) become `aliases` of the target, so a
+  model naming the old matter lands in the target (`resolve_topic`). The
+  source is kept as a record in `_Deleted/` (`merged_into`); restoring it
+  removes the alias again.
+- **Move documents** (Documents tab, tick several): out of the source for good
+  (`excluded_docs`), into the target as added documents; a finding whose
+  documents all moved goes along, one with documents left stays. "Take out"
+  is the same without a target.
+- After either, the page offers "Rescan now?" for the dossiers concerned.
+- Triage is shown every dossier by name, and each similar document with the
+  dossier it is in — so documents added or moved by hand steer the next
+  similar one.

@@ -397,10 +397,18 @@ page `app_ui/pages/experts.py`.
 - **Settings are a menu and one pane** (`settings._group` / `_show`, `?s=<group>`):
   a fixed layout where only the pane scrolls, tabs on a phone — the expansion
   panels had become one long scroll.
-- **Triage is offered every dossier by name** (`triage._labels`), and a name
-  maps back to the dossier's key (`_dossier_key`, a renamed dossier keeps its
-  old key): filing a finding into a dossier otherwise changed nothing for the
-  next similar document.
+- **Triage is offered every dossier by name** (`triage._labels`), similar
+  documents carry the dossier they are in (`_doc_dossiers` — hand-added ones
+  too), and every topic key goes through `dossiers.resolve_topic` (own key,
+  a merged-in alias, a renamed dossier's name) — in triage and for deadlines.
+  Names are never matched by similarity: "Altersvorsorge" is part of
+  "Altersvorsorge - Metallrente".
+- **Merge and move are code-owned**: `dossiers.merge` hands over findings,
+  documents, insights, questions and research and keeps the source key as an
+  alias (the source becomes a `_Deleted/` record with `merged_into`);
+  `move_documents` puts documents into `excluded_docs` of the source for good
+  (a rebuild or a finding cannot bring them back) and takes a finding along
+  when all its documents moved. A rescan is offered after both, never started.
 - **The overview is one row per topic** (`app_ui/findings_chart`), never a
   chart: every chart cut the topic names.
 - **A deadline's title says what to do** (`deadlines.title_for`, the
