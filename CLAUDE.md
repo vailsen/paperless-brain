@@ -394,8 +394,13 @@ page `app_ui/pages/experts.py`.
 - **The chat never offers to change a finding or dossier** (`chat._CTX_READ_ONLY`
   in both context blocks): no tool does it, so "shall I update the finding?"
   ended in nothing. In the dock, "Save to dossier" is a button of its own.
-- **Settings are a menu and one pane** (`settings._group` / `_show`, `?s=<group>`),
-  a chip row on a phone — the expansion panels had become one long scroll.
+- **Settings are a menu and one pane** (`settings._group` / `_show`, `?s=<group>`):
+  a fixed layout where only the pane scrolls, tabs on a phone — the expansion
+  panels had become one long scroll.
+- **Triage is offered every dossier by name** (`triage._labels`), and a name
+  maps back to the dossier's key (`_dossier_key`, a renamed dossier keeps its
+  old key): filing a finding into a dossier otherwise changed nothing for the
+  next similar document.
 - **The overview is one row per topic** (`app_ui/findings_chart`), never a
   chart: every chart cut the topic names.
 - **A deadline's title says what to do** (`deadlines.title_for`, the

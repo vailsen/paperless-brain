@@ -513,3 +513,16 @@ def test_delete_folder_moves_its_dossiers_up(env):
             await dossiers.delete_folder("alice", "_Archive")
 
     asyncio.run(go())
+
+
+def test_triage_offers_every_dossier_and_maps_a_renamed_one_back(env):
+    from proactive import dossiers, triage
+
+    async def go():
+        await dossiers.create_manual("alice", "Bauspar")
+        await dossiers.rename("alice", "bauspar", "LBS Vertrag")
+        assert "LBS Vertrag" in triage._labels("alice", [], "en")
+        assert triage._dossier_key("alice", "LBS Vertrag") == "bauspar"   # the dossier's own key
+        assert triage._dossier_key("alice", "Strom") == "strom"
+
+    asyncio.run(go())

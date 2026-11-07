@@ -146,7 +146,7 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
     if not raw or not raw.get("worth_finding"):
         return True
     label = str(raw.get("topic") or a.topic_hint)
-    topic = slugify(label)
+    topic = _dossier_key(user, label)
     quotes = [q for q in (raw.get("evidence_quotes") or []) if isinstance(q, str)]
     evidence = [{"doc_id": a.doc_id, "quote": q} for q in quotes]
     rec, sources = "", []
@@ -231,9 +231,38 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
 
 def _labels(user: str, topics, lang: str) -> list[str]:
     """The known topics as the model should reuse them: the label a finding
-    carries, else the key made readable. Reusing a label keeps the key."""
+    carries, else the key made readable, and every dossier by its name.
+    Reusing a label keeps the key."""
     seen = {f.topic: f.topic_label for f in findings.list_findings(user) if f.topic_label}
-    return [findings.topic_display(t, seen.get(t, ""), lang) for t in topics]
+    out = {t: findings.topic_display(t, seen.get(t, ""), lang) for t in topics}
+    # Every dossier is a matter the model should file into — also one the user
+    # made or filed a finding into by hand, which no reaction has counted yet.
+    # Without it, a finding moved into a dossier changed nothing for the next
+    # similar document.
+    from proactive import dossiers
+
+    try:
+        for d in dossiers.list_dossiers(user):
+            out[d.topic] = d.display
+    except Exception:  # noqa: BLE001 — an unreadable dossier folder never stops triage
+        pass
+    return list(out.values())
+
+
+def _dossier_key(user: str, label: str) -> str:
+    """The topic key for the label the model chose. A renamed dossier keeps
+    its old key under a new name: the model, reusing the name it was shown,
+    must land in that dossier, not in a new topic spelled like the name."""
+    key = slugify(label)
+    from proactive import dossiers
+
+    try:
+        for d in dossiers.list_dossiers(user):
+            if slugify(d.display) == key:
+                return d.topic
+    except Exception:  # noqa: BLE001
+        pass
+    return key
 
 
 def _is_home_page(url: str) -> bool:
