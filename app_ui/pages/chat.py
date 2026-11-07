@@ -78,9 +78,10 @@ _DOC_ID_RE = re.compile(r"(?<!\]\()(?<![`\w])(#)(\d+)\b")
 # A model links a document by its number: "[Segmentfreigabe L4](#356)" — an
 # anchor in the chat's own page, which did nothing.
 _MD_DOC_LINK_RE = re.compile(r"\[([^\]\n]{1,200})\]\(#(\d{1,7})\)")
-# A web source as `services/web_citations` writes it: "([Name](url), [B](url))".
+# A web source as `services/web_citations` stores it: "([Name](url), [B](url))".
+# Shown as reference numbers like a document's, the links in the source box.
 _WEB_LINK = r"\[[^\]\n]{1,200}\]\(https?://[^)\s]+\)"
-_WEB_CITE_RUN_RE = re.compile(r"\((" + _WEB_LINK + r"(?:, " + _WEB_LINK + r")*)\)")
+_WEB_CITE_RUN_RE = re.compile(r"[ \t]?\((" + _WEB_LINK + r"(?:, " + _WEB_LINK + r")*)\)")
 _WEB_ONE_RE = re.compile(r"\[([^\]\n]{1,200})\]\((https?://[^)\s]+)\)")
 _VAULT_LINK_RE = re.compile(r"\[([^\]]+)\]\(vault:([a-f0-9-]{32,})\)")
 _VAULT_WIKI_RE = re.compile(r"`?\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]`?")
@@ -178,15 +179,25 @@ def _inject_doc_links(
     text = web_citations.plain_web_refs(text)
     text, sources = number_citations(text, _sup)
 
-    # A web source opens in the Source tab as a picture of the page with the
-    # passage marked (`services/web_snapshot`), not in a new tab.
-    text = _WEB_CITE_RUN_RE.sub(
-        lambda m: "(" + _WEB_ONE_RE.sub(
-            lambda w: (f'<a href="{_html.escape(w.group(2), quote=True)}" data-web-cite="1" '
-                       f'class="pb-web-cite">{w.group(1)}</a>'),
-            m.group(1)) + ")",
-        text,
-    )
+    # Web sources: numbered after the documents, in order of first use; the
+    # number opens the page in a new tab, the box below lists name and link.
+    web: dict[str, tuple[int, str]] = {}
+
+    def _web_run(m: re.Match) -> str:
+        chips = []
+        for name, url in _WEB_ONE_RE.findall(m.group(1)):
+            if url not in web:
+                web[url] = (len(sources) + len(web) + 1, name)
+            n = web[url][0]
+            sups.append(
+                f'<a class="pb-cite pb-web-cite" href="{_html.escape(url, quote=True)}" target="_blank" '
+                f'rel="noopener" title="{_html.escape(name, quote=True)}">{n}</a>'
+            )
+            chips.append(f"\x00{len(sups) - 1}\x00")
+        return "".join(chips)
+
+    text = _WEB_CITE_RUN_RE.sub(_web_run, text)
+
     text = _MD_DOC_LINK_RE.sub(
         lambda m: (
             f'<a href="#" data-doc-id="{m.group(2)}" '
@@ -205,13 +216,14 @@ def _inject_doc_links(
         ),
         text,
     )
-    if not sources:
+    if not sources and not web:
         return text
     text = re.sub("\x00(\\d+)\x00", lambda m: sups[int(m.group(1))], text)
-    return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}) + "\n"
+    return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}, web) + "\n"
 
 
-def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str]) -> str:
+def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str],
+                   web: dict[str, tuple[int, str]] | None = None) -> str:
     """The source box under an answer: one row per document, its cited pages as
     numbered chips that open the page. A title not known yet is filled in by
     the browser once ``_fill_cite_titles`` has it."""
@@ -236,6 +248,23 @@ def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str]) 
             f'<span class="pb-cite-title" data-doc="{doc}">{title}</span>'
             f'<span class="pb-cite-id">#{doc}</span></a>'
             f'<span class="pb-cite-pages">{chips}</span></div>'
+        )
+    for url, (n, name) in sorted((web or {}).items(), key=lambda kv: kv[1][0]):
+        from urllib.parse import urlparse
+
+        host = urlparse(url).hostname or ""
+        host = host[4:] if host.startswith("www.") else host
+        u = _html.escape(url, quote=True)
+        if name.lower().removeprefix("www.") == host.lower():
+            # only the site's name: the address says which page
+            rest = url.split("://", 1)[-1].split("/", 1)[-1].split("?")[0].rstrip("/")
+            name = (rest[:70] + "…") if len(rest) > 70 else (rest or name)
+        rows.append(
+            f'<div class="pb-cite-doc"><a href="{u}" target="_blank" rel="noopener" class="pb-cite-doclink">'
+            f'<span class="pb-cite-title">{_html.escape(name)}</span>'
+            f'<span class="pb-cite-id">{_html.escape(host)}</span></a>'
+            f'<span class="pb-cite-pages"><a class="pb-cite-item is-bare" href="{u}" target="_blank" '
+            f'rel="noopener"><b>{n}</b></a></span></div>'
         )
     head = _html.escape(_("Sources"))
     return f'<div class="pb-cite-list"><div class="pb-cite-head">{head}</div>{"".join(rows)}</div>'
@@ -628,6 +657,7 @@ html, body { overflow: hidden !important; }
     cursor: pointer; user-select: none; touch-action: manipulation;
 }
 .pb-cite:hover, .pb-cite-item:hover { color: var(--c-text); }
+.chat-md a.pb-web-cite, .chat-md a.pb-cite-item { text-decoration: none; color: var(--c-accent-text); }
 /* The user's own message: an accent tint, not a solid slab. */
 .pb-user-bubble {
     background: var(--c-accent-soft); border: 1px solid var(--c-accent-border);
@@ -2681,14 +2711,8 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                 ).classes("text-gray-500 text-sm text-center")
             return
         if st.get("loading"):
-            with ui.column().classes("w-full h-full items-center justify-center gap-2"):
+            with ui.column().classes("w-full h-full items-center justify-center"):
                 ui.spinner(size="lg").classes("text-gray-400")
-                if st.get("web"):
-                    ui.label(_("Opening the page and marking the passage — a few seconds …")).classes(
-                        "text-xs text-gray-500 text-center px-4")
-            return
-        if st.get("webshot"):
-            _web_preview(st["webshot"])
             return
         t = st["target"]
         total = max(t.page_count, 1)
@@ -2739,28 +2763,6 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                                     f"left:{x * 100:.2f}%; top:{y * 100:.2f}%;"
                                     f"width:{w * 100:.2f}%; height:{h * 100:.2f}%;"
                                 )
-
-    def _web_preview(w: dict) -> None:
-        """A cited web page: its screenshot with the passage marked, and the
-        way to the live page."""
-        with ui.column().classes("pb-src w-full h-full gap-0 no-wrap").style("min-width:0;"):
-            with ui.row().classes("pb-src-head w-full items-center no-wrap gap-1"):
-                ui.icon("public", size="xs").classes("text-gray-400")
-                ui.label(w.get("title") or w["url"]).classes(
-                    "pb-src-title text-sm text-gray-200 font-semibold").tooltip(w["url"])
-                ui.button(color=None, icon="open_in_new").props("flat dense round size=sm").on(
-                    "click", js_handler=f"() => window.open({json.dumps(w['url'])}, '_blank', 'noopener')"
-                ).tooltip(_("Open the page"))
-            with ui.element("div").classes("pb-src-scroll"):
-                if w.get("passage"):
-                    ui.label(w["passage"]).classes("pb-src-quote")
-                if not w.get("marked"):
-                    ui.label(_("The passage could not be marked on the page — the picture shows where the "
-                               "page opens.")).classes("text-xs text-gray-500 px-3")
-                with ui.element("div").classes("pb-src-page").style("aspect-ratio:1.4222;"):
-                    img = ui.element("img").classes("pb-src-img")
-                    img._props["src"] = f"/api/web-shot/{w['key']}"
-                    img._props["alt"] = w.get("title") or ""
 
     async def _open_citation(
         doc_id: int, page: int, claim: str, other_claims: list[str] = ()
@@ -2818,45 +2820,6 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
     _cite_handler.on("citeOpen", _handle_cite_open)
     _cite_listener_id = list(_cite_handler._event_listeners.keys())[0]
 
-    async def _open_web_citation(url: str, claim: str) -> None:
-        from services import web_snapshot
-
-        # Only an address this conversation's answers contain: the click comes
-        # from the browser, and the server is what fetches it.
-        if not any(url in str(m.get("content") or "") for m in _s["messages"] if m.get("role") == "assistant"):
-            return
-        _rs["preview"] = {"loading": True, "web": True}
-        _render_preview()
-        _show_drawer_tab("preview")
-        if _src_overlay is not None:
-            _src_overlay.classes(add="open")
-        if not _s["docs_visible"]:
-            _set_docs_visible(True)
-        meta = await web_snapshot.snapshot(url, claim)
-        if meta is None:
-            _rs["preview"] = None
-            _render_preview()
-            ui.notify(_("This page cannot be shown here — it opens in a new tab."), type="info")
-            ui.run_javascript(f"window.open({json.dumps(url)}, '_blank', 'noopener')")
-            return
-        _rs["preview"] = {"webshot": meta}
-        _render_preview()
-
-    _web_handler = ui.element("div").style("display:none;")
-
-    async def _handle_web_open(e) -> None:
-        try:
-            args = e.args[0] if isinstance(e.args, (list, tuple)) else e.args
-            data = json.loads(args) if isinstance(args, str) else (args or {})
-            url = str(data.get("url") or "")[:2000]
-            if url.startswith(("http://", "https://")):
-                await _open_web_citation(url, str(data.get("claim") or "")[:500])
-        except (TypeError, ValueError, json.JSONDecodeError):
-            pass
-
-    _web_handler.on("webOpen", _handle_web_open)
-    _web_listener_id = list(_web_handler._event_listeners.keys())[0]
-
     _vault_handler = ui.element("div").style("display:none;")
 
     async def _handle_vault_open(e) -> None:
@@ -2887,9 +2850,6 @@ document.addEventListener('click', function(e) {{
     if (d) {{ e.preventDefault(); window.__openDocById(d.getAttribute('data-doc-id')); return; }}
     var img = e.target.closest('.chat-md img[src^="/api/doc-image/"]');
     if (img) {{ e.preventDefault(); window.open(img.getAttribute('src'), '_blank', 'noopener'); return; }}
-    // A web source cited by the answer: its page as a picture, passage marked.
-    var wc = e.target.closest('a[data-web-cite]');
-    if (wc) {{ e.preventDefault(); window.__openWebCite(wc); return; }}
     // A web source in an answer opens beside the chat, never in its place.
     var ext = e.target.closest('.chat-md a[href^="http"]');
     if (ext) {{ e.preventDefault(); window.open(ext.getAttribute('href'), '_blank', 'noopener'); return; }}
@@ -2937,24 +2897,6 @@ window.__citeClaim = function(el) {{
     var claim = sents.pop() || '';
     if (claim.length < 30 && sents.length) claim = sents.pop() + ' ' + claim;
     return claim.slice(-400);
-}};
-// The claim of a web source: the text of its block before the link, last sentence.
-window.__openWebCite = function(a) {{
-    if (!window.socket || !window.did_handshake) {{
-        setTimeout(function() {{ window.__openWebCite(a); }}, 100);
-        return;
-    }}
-    var block = a.closest('p,li,td,blockquote,h1,h2,h3,h4,dd') || a.parentNode;
-    var r = document.createRange();
-    r.setStart(block, 0); r.setEndBefore(a);
-    var before = r.toString().replace(/[\s(,]+$/, '');
-    var sents = before.split(/(?<=[.!?])\s+/).filter(Boolean);
-    var claim = sents.pop() || '';
-    if (claim.length < 30 && sents.length) claim = sents.pop() + ' ' + claim;
-    window.socket.emit('event', {{
-        id: {_web_handler.id}, client_id: window.clientId, listener_id: '{_web_listener_id}',
-        args: [JSON.stringify({{url: a.getAttribute('href'), claim: claim.slice(-400)}})]
-    }});
 }};
 // The findings page beside the dock: open a source of the finding here.
 window.__pbOpenCiteData = function(c, claim) {{

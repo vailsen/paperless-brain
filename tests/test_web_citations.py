@@ -79,3 +79,15 @@ def test_document_markers_without_definitions_stay():
     from services.web_citations import plain_web_refs
 
     assert plain_web_refs("Beitrag 112,77 €.[^241-p3]") == "Beitrag 112,77 €.[^241-p3]"
+
+
+def test_web_sources_render_as_numbers_with_links_in_the_box(monkeypatch):
+    import app_ui.pages.chat as chat
+
+    monkeypatch.setattr(chat, "get_translator", lambda: (lambda s: s))
+    out = chat._inject_doc_links("Aigner soll es werden. ([srf.ch](https://www.srf.ch/news/aigner)) "
+                                 "Palmer unter Druck. ([Spiegel](https://www.spiegel.de/b))")
+    assert "([srf.ch]" not in out and "(srf.ch)" not in out
+    assert 'class="pb-cite pb-web-cite" href="https://www.srf.ch/news/aigner" target="_blank"' in out
+    assert ">1</a>" in out and ">2</a>" in out
+    assert 'pb-cite-list' in out and "news/aigner</span>" in out and ">Spiegel</span>" in out
