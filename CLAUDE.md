@@ -415,6 +415,10 @@ page `app_ui/pages/experts.py`.
   The navigator lists them under "Rescan pending" with "Rescan all";
   `topics.dossier_stale_check` queues the rest inside a sweep window, so
   nothing waits past the night.
+- **Every findings dialog is a child of the page** (`findings._page_dialog`),
+  never of the navigator or viewer: their re-render (the 20 s watch after a
+  worker write, or the action itself) took the dialog's buttons with them —
+  "Rename" and "Merge" hung until F5.
 - **The overview is one row per topic** (`app_ui/findings_chart`), never a
   chart: every chart cut the topic names.
 - **A deadline's title says what to do** (`deadlines.title_for`, the
