@@ -197,6 +197,11 @@ def _inject_doc_links(
         return "".join(chips)
 
     text = _WEB_CITE_RUN_RE.sub(_web_run, text)
+    # A source list the model wrote at the end anyway: into the box, numbered.
+    text, listed = web_citations.split_source_list(text)
+    for name, url in listed:
+        if url not in web:
+            web[url] = (len(sources) + len(web) + 1, name)
 
     text = _MD_DOC_LINK_RE.sub(
         lambda m: (

@@ -214,3 +214,44 @@ def plain_web_refs(text: str) -> str:
     if not text or "[^" not in text:
         return text
     return _rewrite(_web_footnotes(text, None), None)
+
+
+# A "Sources" list the model writes itself at the end, despite the prompt:
+# "## Quellen" and one link per line. Its pages go into the source box under
+# the answer, numbered like the rest — the list is not repeated in the text.
+_LIST_HEAD_RE = re.compile(
+    r"^[ \t]*(?:#{1,4}[ \t]*|\*\*)?(?:Quellen|Quelle|Sources|Source|Referenzen|References)"
+    r"(?:[ \t]*\([^)\n]*\))?[ \t]*:?(?:\*\*)?[ \t]*:?[ \t]*$", re.I | re.M)
+_LIST_ITEM_RE = re.compile(r"^[ \t]*(?:[-*•]|\d+[.)])[ \t]+.*?\[([^\]\n]{1,200})\]\((https?://[^)\s]+)\)")
+
+
+def split_source_list(text: str) -> tuple[str, list[tuple[str, str]]]:
+    """`(text without the list, [(name, url)])` for a trailing source list —
+    a heading followed only by link items. Anything else is left alone."""
+    if not text:
+        return text, []
+    heads = list(_LIST_HEAD_RE.finditer(text))
+    if not heads:
+        return text, []
+    head = heads[-1]
+    lines = text[head.end():].split("\n")
+    items, used = [], 0
+    for i, line in enumerate(lines):
+        if not line.strip():
+            if items:
+                used = i
+                break
+            continue
+        m = _LIST_ITEM_RE.match(line)
+        if not m:
+            if not items:
+                return text, []
+            used = i
+            break
+        items.append((m.group(1).strip(), m.group(2)))
+        used = i + 1
+    if not items:
+        return text, []
+    rest = "\n".join(lines[used:]).strip("\n")
+    before = text[:head.start()].rstrip()
+    return (before + ("\n\n" + rest if rest else "")).rstrip() + "\n", items

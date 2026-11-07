@@ -258,6 +258,11 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   document #1. Its markers become inline links, the definitions go; at store
   time only a page a tool returned keeps its link. `[Title](#356)` is a
   document link (`chat._MD_DOC_LINK_RE`), not an anchor in the chat page.
+- **The model cites web pages with `[^Site name]` after each sentence** (prompt
+  block `web` in `config/chat_prompts.py`) — it used to be told to write
+  Markdown links, so it wrote a "Quellen" list and no numbers. A trailing
+  source list it writes anyway goes into the source box, numbered
+  (`web_citations.split_source_list`, render time).
 - **A web source is a reference number like a document's** (`chat._WEB_CITE_RUN_RE`,
   at render — older answers too): the stored `([Name](url))` becomes a number
   after the documents' numbers that opens the page in a new tab, and the
