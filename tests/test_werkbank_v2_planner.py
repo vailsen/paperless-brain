@@ -15,7 +15,6 @@ import pytest
 from werkbank.v2 import llm, plan_checks, planner, registry
 from werkbank.v2.models import (
     Brief,
-    CoverageCheck,
     CoverageVerdict,
     DepthBudget,
     Subtask,

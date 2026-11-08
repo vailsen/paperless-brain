@@ -384,8 +384,8 @@ page `app_ui/pages/experts.py`.
   is wider than tall, and orientation rules let the pickers run off screen.
 - **The folder tree under `Dossiers/` is the dossier tree**; a dossier is found
   by its `topic`, never by its path (`dossiers._path` scans).
-- **Dossier sections carry `<!-- pb:… -->` anchors**; a file without them is
-  read by position once. **Insights are code-owned** like `research`: a rebuild
+- **Dossier sections carry `<!-- pb:… -->` anchors** (headings are translated).
+  **Insights are code-owned** like `research`: a rebuild
   never edits or drops them, the rebuild model sees them read-only.
 - **Provenance comes from the tool log** (`dossier_merge.provenance`, stored per
   answer in `chat_turn_meta`), never from a model: cited documents a tool
@@ -405,8 +405,7 @@ page `app_ui/pages/experts.py`.
   `dropped_questions`, both code-owned, so no rebuild brings them back.
   "Ask the chat" only fills the dock's input — the user sends it.
 - **A model's list may arrive as a JSON string** (`dossiers._as_list`); iterating
-  it filed every character as a question. Files already split that way read as
-  no questions (`heal_questions`) until the next rescan.
+  it filed every character as a question.
 - **Archive and trash are shelves, not states**: `Dossiers/_Archive/` and
   `Dossiers/_Deleted/`, outside the tree, `load` and `list_dossiers`. An
   archived topic writes new findings as done and only notes new documents;
@@ -464,17 +463,13 @@ LXC container (see `.deploy.env` for target host), remote path from `DEPLOY_REMO
 Spezifikation (v2, maßgeblich): `docs/werkbank-architecture.md`
 Bauplan + Umsetzungsstand: `docs/werkbank-tasks.md`
 Bestandsaufnahme, Tool-Inventar, Tool→Archetyp-Zuordnung: `docs/werkbank-v2-findings.md`
-Abgelöstes v1: `docs/werkbank-v1-legacy.md`
 
-**v2 ist live.** `/werkbank` ist `werkbank/v2/ui/page.py`, ein Lauf geht durch
-`werkbank/v2/pipeline.py`, die Chat-Übergabe startet einen v2-Lauf. Der
-v1-Ausführungspfad (`orchestrator.py`, `scheduler.py`, `roles/`, `compaction.py`,
-`prechecks.py`, `ui/module_page.py`, `ui/task_dialog.py`) ist aus jedem Live-Pfad
-entfernt, trägt einen `DEPRECATED`-Header und liegt noch **eine Release** auf der
-Platte, bis v2 einen vollständigen Lauf auf echten Daten bestanden hat — danach
-löschen. Weiter in Benutzung und **nicht** deprecated: `repository.py`,
-`models.py`, `archetypes.py`, `settings_store.py`, `export.py`, `llm_lane.py`,
-`ui/archetype_dialog.py`.
+`/werkbank` ist `werkbank/v2/ui/page.py`, ein Lauf geht durch
+`werkbank/v2/pipeline.py`, die Chat-Übergabe startet einen v2-Lauf. v1
+(Orchestrator, Splitter, Kompaktierung, Task-Tabellen) ist gelöscht (0.20.0).
+Außerhalb von `v2/` liegen nur noch geteilte Teile: `repository.py` (Archetypen),
+`models.py`, `archetypes.py`, `settings_store.py`, `export.py` (`upload_pdf` für
+den Chat), `llm_lane.py`, `ui/archetype_dialog.py`.
 
 ### v2 — nicht verhandelbar
 
@@ -550,7 +545,7 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   Jeder Subtask kostet Modellaufrufe, also entscheidet der Nutzer, nicht der
   Prozessstart (`store.reset_stale_runs()`).
 
-### v1 — Prinzipien (gelten unverändert in v2 weiter)
+### Prinzipien aus v1 (gelten in v2 weiter)
 
 - **Der Orchestrator ist deterministischer Python-Code, kein LLM.** Steuerung
   (Reihenfolge, Status, Retries, Fehler) ist Python; kognitive Arbeit nur innerhalb
@@ -564,8 +559,8 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   untergraben. In v2 gehen Berichte gar nicht mehr nach Paperless (kein
   „Save to Paperless"), sondern als Notiz in den Vault (`vault/research.py`,
   siehe *Research notes*).
-- **User-Scoping auf JEDER Repository-Query.** `user_id` liegt auf allen drei
-  Tabellen (auch denormalisiert auf `agent_subtasks` als Defense-in-Depth).
+- **User-Scoping auf JEDER Repository-Query.** `user_id` liegt auf jeder Tabelle
+  (`agent_archetypes`, `wb2_*`, auch denormalisiert als Defense-in-Depth).
 
 ### Architektur-Entscheidungen mit Begründung
 
@@ -573,15 +568,12 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   relationale Daten ohne Ähnlichkeitsbezug. Chroma bleibt für Vektoren.
 - **Nebenläufigkeit = per-Backend-Lanes.** Lokale Ollama-Instanz = `Semaphore(1)`;
   Claude-API = `Semaphore(N)`. Limitierende Ressource ist die GPU, nicht "ein Task
-  global". v1: Nebenläufigkeit nur zwischen Tasks.
+  global".
 - **Sub-Tasks = DAG via `depends_on`.** Subsumiert die lineare Kette. Ready-Set-Walk:
   ausführbar, wenn alle Abhängigkeiten `DONE`.
-- **System-Rollen (Planner/Splitter/Critic/Synthesizer) vs. Worker-Archetypen.**
-  Erstere: Prompts in Settings, fest. Letztere: Nutzer-CRUD in SQLite, Defaults
-  `retriever` + `researcher`.
-- **Splitter-Robustheit = Generierungs-Constraint + Validierung.** Ollama `format`
-  mit JSON-Schema (bzw. Claude Tool-Use) erzwingt valide Struktur; danach 8-stufige
-  semantische Validierung; Retry-mit-Feedback; Einzel-Sub-Task-Fallback.
+- **System-Rollen (Briefer/Planner/Critics/Writer) vs. Worker-Archetypen.**
+  Erstere: Prompts in Settings überschreibbar (`werkbank/v2/prompts.py`). Letztere:
+  Nutzer-CRUD in SQLite, Defaults aus `config/agents.yaml`.
 - **Failed-Policy = weitermachen.** Gescheiterter Sub-Task → Platzhalter, Synthesizer
   vermerkt die Lücke. Kein Gesamt-Abbruch.
 - **Stop/Resume durch Persistenz.** Jedes Sub-Task-Ergebnis wird sofort gespeichert;

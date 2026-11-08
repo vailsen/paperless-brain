@@ -28,7 +28,6 @@ from dataclasses import dataclass, field
 from werkbank.v2.models import (
     MARKER_RE,
     Evidence,
-    Fact,
     SubtaskResult,
     SubtaskStatus,
 )

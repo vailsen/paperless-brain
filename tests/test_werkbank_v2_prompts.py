@@ -11,7 +11,6 @@ modules still sit on disk for one release (see their deprecation headers), which
 is exactly why an import could creep back unnoticed.
 """
 
-import re
 from pathlib import Path
 
 import pytest
@@ -87,42 +86,8 @@ def test_no_prompt_override_can_reach_the_deterministic_checks(db):
     assert "call_structured" not in source
 
 
-# ── The v1 cutover ────────────────────────────────────────────────────────────
-
-V1_EXECUTION = re.compile(
-    r"werkbank\.(orchestrator|scheduler|compaction|prechecks|roles)\b"
-    r"|werkbank\.ui\.(module_page|task_dialog)\b"
-)
-
-LIVE_PATHS = [
-    "main.py",
-    "app_ui/pages/chat.py",
-    "app_ui/pages/settings.py",
-    "app_ui/pages/dashboard.py",
-]
-
-
-@pytest.mark.parametrize("rel", LIVE_PATHS)
-def test_no_live_path_imports_the_v1_execution_path(rel):
-    source = (ROOT / rel).read_text(encoding="utf-8")
-    assert not V1_EXECUTION.search(source), f"{rel} still reaches into werkbank v1"
-
+# ── Routing ──────────────────────────────────────────────────────────────────
 
 def test_v2_owns_the_werkbank_route():
     main = (ROOT / "main.py").read_text(encoding="utf-8")
-
     assert "werkbank.v2.ui.page" in main
-    assert "werkbank.ui.module_page" not in main
-
-
-def test_the_v1_modules_say_they_are_deprecated():
-    """They stay on disk for one release so the cutover is reversible. Anyone
-    opening one has to see that before editing it."""
-    for rel in [
-        "werkbank/orchestrator.py",
-        "werkbank/scheduler.py",
-        "werkbank/ui/module_page.py",
-        "werkbank/ui/task_dialog.py",
-    ]:
-        head = (ROOT / rel).read_text(encoding="utf-8")[:400]
-        assert "DEPRECATED" in head, rel

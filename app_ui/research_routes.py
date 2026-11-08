@@ -73,7 +73,7 @@ async def finding_pdf(id: str = "") -> Response:  # noqa: A002 — the query par
         meta.append(f.topic_display)
     if f.doc_ids:
         meta.append(", ".join(f"#{d}" for d in f.doc_ids))
-    body = "_" + " · ".join(meta) + "_\n\n" + findings.tidy_sources(findings.timeline_markdown(f), f.lang)
+    body = "_" + " · ".join(meta) + "_\n\n" + findings.timeline_markdown(f)
     body = _absolute_links(body)
     from services.pdf_generator import generate_chat_pdf
 

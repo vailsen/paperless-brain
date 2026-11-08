@@ -1,6 +1,6 @@
 """Ledger scan: new findings get a push-or-hold decision (`scoring.decide`:
-priority from urgency × the topic's interest weight, muted topics held, the
-weekly limit), snoozed ones wake up.
+priority from urgency × the topic's interest weight, muted topics held),
+snoozed ones wake up.
 
 Reads the files every time — there is no cached ledger to go stale, so a status
 edited in Obsidian counts from the next scan on. Deadline findings are not
@@ -24,16 +24,8 @@ async def ledger_scan(job: Job) -> None:
     from proactive import scoring
 
     today = clock.local_now().date().isoformat()
-    from proactive import deadlines, series
 
-    for user, tok in users.eligible():
-        try:
-            await series.consolidate(user, tok)  # once per user; a no-op afterwards
-            await series.consolidate_deadlines(user, tok)
-            await deadlines.retitle(user)  # once per user, like the merges
-        except Exception:
-            # Housekeeping: it must never stop new findings from being sent.
-            log.warning("%s: merging split findings failed", user, exc_info=True)
+    for user, _tok in users.eligible():
         known = interests.load(user)
         for f in findings.list_findings(user):
             if f.kind == "deadline":

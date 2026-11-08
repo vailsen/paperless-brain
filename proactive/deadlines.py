@@ -48,7 +48,6 @@ def _kind_label(kind: str, lang: str) -> str:
 
 #: A title is read in a list next to its date; the date is not repeated.
 TITLE_MAX = 90
-TITLES_MARKER = "deadline_titles_v1:{user}"
 
 
 def title_for(d: Deadline, lang: str, doc_title: str = "") -> str:
@@ -65,42 +64,6 @@ def title_for(d: Deadline, lang: str, doc_title: str = "") -> str:
         return text[0].upper() + text[1:]
     label = _kind_label(d.kind, lang)
     return f"{label}: {doc_title}" if doc_title else label
-
-
-def _old_title(f: findings.Finding) -> bool:
-    """A title written by the old rule — "<kind>: <document title> (<date>)"."""
-    return bool(f.deadline) and f.title.endswith(f"({f.deadline})") and ": " in f.title
-
-
-async def retitle(user: str) -> int:
-    """Once per user: deadline findings titled the old way get the title of
-    `title_for`, from the document's analysis. A title that does not look
-    like the old rule is left alone."""
-    from proactive.db import kv_get, kv_set
-
-    marker = TITLES_MARKER.format(user=user)
-    if kv_get(marker):
-        return 0
-    changed = 0
-    for f in findings.list_findings(user):
-        if f.kind != "deadline" or not _old_title(f) or not f.doc_ids:
-            continue
-        new = ""
-        for doc_id in f.doc_ids:
-            a = analysis.get(int(doc_id))
-            d = next((x for x in (a.deadlines if a else []) if x.date == f.deadline
-                      and x.kind == (f.deadline_kind or x.kind) and x.description), None)
-            if d is not None:
-                new = title_for(d, f.lang)
-                break
-        if not new or new == f.title:
-            continue
-        await findings.update(user, f.finding_id, lambda x, t=new: {"title": t} if _old_title(x) else None)
-        changed += 1
-    kv_set(marker, clock.now_iso())
-    if changed:
-        log.info("%s: %d deadline finding(s) retitled", user, changed)
-    return changed
 
 
 def urgency(d: Deadline, today: date) -> str:

@@ -270,7 +270,7 @@ def test_restore_reopens_without_a_push_and_unmutes(push_on, vaults):
 
 
 def test_sources_are_deduplicated_and_capped():
-    from proactive.findings import MAX_SOURCES, dedupe_sources, render_body, tidy_sources
+    from proactive.findings import MAX_SOURCES, dedupe_sources
 
     urls = [
         "https://www.vodafone.de/kabel.html?msockid=aaa",
@@ -283,11 +283,6 @@ def test_sources_are_deduplicated_and_capped():
     assert kept == [urls[0], urls[3], urls[4]]
     many = [{"url": f"https://x.de/{i}", "retrieved": "2026-10-28"} for i in range(30)]
     assert len(dedupe_sources(many)) == MAX_SOURCES
-
-    old = render_body("en", summary="s") + "## Sources\n\n" + "".join(
-        f"- {u} (2026-10-28)\n" for u in urls) + "\n## Recommendation\n\nDo it.\n"
-    shown = tidy_sources(old, "en")
-    assert shown.count("vodafone.de") == 1 and "## Recommendation" in shown and "Do it." in shown
 
 
 def test_status_edited_in_obsidian_is_respected(push_on, vaults):

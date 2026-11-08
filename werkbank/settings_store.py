@@ -1,12 +1,10 @@
 """werkbank/settings_store.py — global admin-tunable settings for the Werkbank.
 
 Stored in the werkbank SQLite DB (werkbank_settings table).
-Not user-scoped: applies to all users (Planner/Splitter/Critic/Synthesizer prompts
-and tag names for Paperless export).
+Not user-scoped: applies to all users (ingestion, tag names, retrieval
+tuning, the v2 role prompt overrides and token limits — see werkbank/v2/prompts.py).
 
-Falls back to:
-  - config/settings.py for tag names (PAPERLESS_* env vars)
-  - Each role's DEFAULT_SYSTEM_PROMPT constant for prompts
+Falls back to config/settings.py (.env) where a key has an env counterpart.
 """
 
 from __future__ import annotations
@@ -18,12 +16,6 @@ from werkbank.repository import _DB_PATH
 
 # ── Known keys ────────────────────────────────────────────────────────────────
 
-PROMPT_PLANNER           = "prompt_planner"
-PROMPT_SPLITTER          = "prompt_splitter"
-PROMPT_SPLITTER_CRITIQUE = "prompt_splitter_critique"
-PROMPT_CRITIC            = "prompt_critic"
-PROMPT_SYNTHESIZER       = "prompt_synthesizer"
-PROMPT_COMPACTION        = "prompt_compaction"
 TAG_INBOX          = "tag_inbox"
 TAG_AI_GENERATED   = "tag_ai_generated"
 TAG_NO_INGEST      = "tag_no_ingest"
@@ -38,27 +30,7 @@ SEARCH_MAX_RESULTS   = "search_max_results"
 BRAIN_HINT_THRESHOLD = "brain_hint_threshold"
 BRAIN_HINT_WINDOW    = "brain_hint_window"
 
-TOKENS_PLANNER           = "tokens_planner"
-TOKENS_SPLITTER          = "tokens_splitter"
-TOKENS_SPLITTER_CRITIQUE = "tokens_splitter_critique"
-TOKENS_CRITIC            = "tokens_critic"
-TOKENS_SYNTHESIZER = "tokens_synthesizer"
-TOKENS_COMPACTION  = "tokens_compaction"
-TOKENS_WORKER      = "tokens_worker"
-
 _DEFAULT_TOKENS = 16_000
-
-_ALL_KEYS = (
-    PROMPT_PLANNER, PROMPT_SPLITTER, PROMPT_SPLITTER_CRITIQUE, PROMPT_CRITIC,
-    PROMPT_SYNTHESIZER, PROMPT_COMPACTION,
-    TAG_INBOX, TAG_AI_GENERATED, TAG_NO_INGEST,
-    INGEST_SERVER, INGEST_MODEL, INGEST_MODEL_NAME,
-    INGEST_CORRESPONDENT, INGEST_DOC_TYPE,
-    EXTRACTION_PROFILE, ARCHIVE_LANGUAGE,
-    SEARCH_MAX_RESULTS, BRAIN_HINT_THRESHOLD, BRAIN_HINT_WINDOW,
-    TOKENS_PLANNER, TOKENS_SPLITTER, TOKENS_SPLITTER_CRITIQUE, TOKENS_CRITIC,
-    TOKENS_SYNTHESIZER, TOKENS_COMPACTION, TOKENS_WORKER,
-)
 
 
 def _now() -> str:
@@ -102,12 +74,6 @@ def get_all() -> dict[str, str]:
 
 
 # ── Typed accessors ───────────────────────────────────────────────────────────
-
-def get_prompt(key: str, default: str) -> str:
-    """Return stored prompt or fall back to the role's DEFAULT_SYSTEM_PROMPT."""
-    stored = get(key)
-    return stored if stored.strip() else default
-
 
 def get_tokens(key: str, default: int = _DEFAULT_TOKENS) -> int:
     """Return stored token limit or `default` (falls back to global 16 000)."""

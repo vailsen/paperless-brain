@@ -338,7 +338,6 @@ async def settings_page(s: str = "") -> None:
     username: str = ng_app.storage.user.get("paperless_user", "")
     token: str = get_session_token()
     creds = load_credentials(username, token)
-    llm_cfg: dict = creds.get("llm", {})
     imap_cfg: dict = creds.get("imap", {})
     cal_cfg: dict = creds.get("calendar", {})
     sender_cfg: dict = creds.get("sender_profile", {})

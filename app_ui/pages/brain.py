@@ -42,7 +42,6 @@ from app_ui.vault_routes import FILE_PATH
 from config.settings import settings
 from i18n import get_translator
 from services.markdown_text import escape_intraword_underscores
-from services.user_prefs import get_pref
 from vault import notes
 from vault.frontmatter import ID_KEY, sanitize_tags
 from vault.note_text import (

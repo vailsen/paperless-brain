@@ -443,29 +443,6 @@ def test_a_merged_deadline_sends_nothing_new_and_keeps_the_status(env, fake_llm)
     assert pay.status == "done" and pay.doc_ids == [100, 101]
 
 
-def test_legacy_deadline_findings_are_merged_once(env, fake_llm, monkeypatch):
-    from proactive import findings, series
-    from proactive.paperless_ro import document as _unused  # noqa: F401
-    import proactive.paperless_ro as pro
-
-    _analyse(env, 100, {"title": "A"})          # written before: no sender, per-document key
-    _analyse(env, 101, {"title": "B"})
-    assert len(findings.list_findings("alice")) == 4
-
-    async def document(tok, doc_id):
-        return {"id": doc_id, "correspondent": 7}
-
-    monkeypatch.setattr(pro, "document", document)
-    assert asyncio.run(series.consolidate_deadlines("alice", "t-alice")) == 2
-    alice = findings.list_findings("alice")
-    assert len(alice) == 2 and all(f.doc_ids == [100, 101] for f in alice)
-    assert all(f.finding_key.startswith("deadline:c7:") for f in alice)
-    assert asyncio.run(series.consolidate_deadlines("alice", "t-alice")) == 0   # once
-    # a later analysis with the sender joins the merged finding, no twin
-    _analyse(env, 100, {"title": "A", "correspondent": 7})
-    assert len(findings.list_findings("alice")) == 2
-
-
 def test_a_legacy_finding_is_adopted_not_duplicated(env, fake_llm):
     from proactive import findings
 

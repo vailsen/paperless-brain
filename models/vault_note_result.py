@@ -1,5 +1,5 @@
 # models/vault_note_result.py
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

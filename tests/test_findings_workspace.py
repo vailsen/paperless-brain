@@ -50,23 +50,6 @@ def test_insights_survive_a_rebuild_and_round_trip(vault):
     assert "saved_insights" in after.existing_payload()
 
 
-def test_old_positional_file_still_reads(vault):
-    from proactive import dossiers
-    from proactive.paths import DOSSIERS, findings_root
-
-    p = findings_root("alice") / DOSSIERS
-    p.mkdir(parents=True)
-    (p / "alt.md").write_text(
-        "---\npbrain_id: x1\ntopic: alt\ndoc_ids: [5]\nlang: de\n---\n"
-        "## Aktueller Stand\n\nläuft\n\n## Zeitachse\n\n- 2020-01-01 — Start — [#5](u)\n\n"
-        "## Offene Fragen\n\n- Wann?\n", encoding="utf-8")
-    d = dossiers.load("alice", "alt")
-    assert d.current_state == "läuft" and d.timeline[0]["doc_id"] == 5 and d.open_questions == ["Wann?"]
-    _run(dossiers.write("alice", d))  # rewritten with anchors
-    assert "<!-- pb:state -->" in (p / "alt.md").read_text()
-    assert dossiers.load("alice", "alt").open_questions == ["Wann?"]
-
-
 def test_tree_moves_keep_identity(vault):
     from proactive import dossiers
 
@@ -207,9 +190,6 @@ def test_open_questions_sent_as_a_json_string_stay_questions(vault):
     tl, qs = dossiers.validated(res, {537})
     assert qs == ["Widersprüchliche HU-Termine prüfen", "BGV kündigen?"] and tl[0]["doc_id"] == 537
     assert dossiers.validated({"open_questions": "- Eins\n- Zwei"}, set())[1] == ["Eins", "Zwei"]
-    # Files already broken that way read as no questions (the next rescan writes them again).
-    assert dossiers.heal_questions(list('["Widersprüchliche')) == []
-    assert dossiers.heal_questions(["Frist?", "Werkstatt?"]) == ["Frist?", "Werkstatt?"]
 
 
 def test_question_actions_survive_a_rebuild(vault):

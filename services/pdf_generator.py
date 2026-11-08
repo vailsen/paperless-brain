@@ -11,7 +11,7 @@ from services.citations import plain_citations
 from services.markdown_text import escape_intraword_underscores
 from weasyprint import CSS, HTML
 
-from config.settings import local_tz, settings
+from config.settings import local_tz
 from i18n import format_datetime
 
 _URL_RE = re.compile(r'https?://[^\s<>"\[\]{}|\\^`]+[^\s<>"\[\]{}|\\^`.,;:!?)>]')

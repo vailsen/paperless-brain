@@ -16,8 +16,8 @@ import pathlib
 
 import pytest
 
-from werkbank.v2 import checks, critic, registry, runner, tools
-from werkbank.v2.llm import LLMContext, PromptLog
+from werkbank.v2 import critic, registry, runner, tools
+from werkbank.v2.llm import LLMContext
 from werkbank.v2.models import (
     CriticDecision,
     Evidence,

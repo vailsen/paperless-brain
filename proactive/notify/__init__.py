@@ -52,8 +52,8 @@ class Notification:
     actions: list[str] = field(default_factory=list)
     link: str = ""
     lang: str = "en"
-    #: Counts against the weekly message limit (Phase 7). Requested deep-dive
-    #: results and critical deadline reminders do not.
+    #: Logged in `push_log`, which the quiet-period digest reads. Requested
+    #: deep-dive results and critical deadline reminders are not.
     counts: bool = True
     #: Push tag: a message with the tag of one still on the phone replaces it.
     #: Defaults to the finding id; a second kind of message about the same
@@ -153,7 +153,7 @@ EVENT_TITLES = {
 
 def enqueue_event(user: str, kind: str, path: str, body: str = "") -> None:
     """An app event ("sync finished", "Werkbank run done") for the user's push
-    devices — push only, never email, no weekly limit; each kind
+    devices — push only, never email; each kind
     has its own switch. Called from the app; never raises into it."""
     try:
         from config.proactive import is_enabled, proactive_settings
