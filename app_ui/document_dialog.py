@@ -831,7 +831,6 @@ def _render_content(
 ) -> None:
     _ = get_translator()
     doc = result.document
-    sidecar = sidecar_service.load_sidecar(doc.id)
 
     with (
         ui.card()

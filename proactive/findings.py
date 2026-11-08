@@ -58,8 +58,8 @@ _RUN_LINK = r"\[([^\]]+)\]\((?:https?://[^)\s]*)?/werkbank\?run={run}\)"
 
 
 def link_research_note(body: str, run_id: str, note_rel: str) -> str:
-    """The "[Full report in deep research](…/werkbank?run=…)" link of an older
-    finding → an Obsidian link to the report's note, keeping its text."""
+    """The "[Full report in deep research](…/werkbank?run=…)" link (written
+    when the note could not be) → an Obsidian link to the report's note."""
     from vault.research import wikilink
 
     if not run_id:
@@ -482,26 +482,6 @@ def dedupe_sources(sources: list[dict]) -> list[dict]:
             seen.add(key)
             out.append(s)
     return out[:MAX_SOURCES]
-
-
-def tidy_sources(body: str, lang: str) -> str:
-    """`body` with its Sources list deduplicated — for findings written before
-    `dedupe_sources` existed. Display only; the file is left as it is."""
-    from i18n import translator_for
-
-    heading = f"## {translator_for(lang)('Sources')}"
-    lines = body.splitlines()
-    try:
-        start = lines.index(heading) + 1
-    except ValueError:
-        return body
-    end = next((i for i in range(start, len(lines)) if lines[i].startswith("## ")), len(lines))
-    entries = [m for m in (_SOURCE_LINE.match(x.strip()) for x in lines[start:end]) if m]
-    kept = dedupe_sources([{"url": m.group(1), "retrieved": m.group(2)} for m in entries])
-    if len(kept) == len(entries):
-        return body
-    new = ["", *(f"- {s['url']} ({s['retrieved']})" for s in kept), ""]
-    return "\n".join(lines[:start] + new + lines[end:])
 
 
 def disclaimer(lang: str) -> str:

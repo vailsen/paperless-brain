@@ -38,13 +38,7 @@ class ProactivePrefs:
         return self.findings_language or self.language or "en"
 
     def channel_list(self) -> list[str]:
-        # "both" is the older "every channel" choice (Telegram + email back
-        # then): it means every channel now — mapping it to email alone sent
-        # mail but no push to users who had chosen both.
-        if self.channels == "both":
-            return list(CHANNELS)
-        raw = self.channels
-        chosen = {c.strip() for c in raw.split(",")}
+        chosen = {c.strip() for c in self.channels.split(",")}
         return [c for c in CHANNELS if c in chosen]
 
 
@@ -53,7 +47,6 @@ def _from_row(r) -> ProactivePrefs:
     return ProactivePrefs(
         user=r["user"],
         optin=bool(r["proactive_optin"]),
-        # Normalized on read, so a stored "push,telegram" saves cleanly again.
         channels=",".join(ProactivePrefs("", channels=r["channels"] or "").channel_list()),
         model=r["model"] or "",
         deadline_offsets=offsets,

@@ -1,5 +1,4 @@
 # app_ui/pages/browser.py
-import re
 
 from nicegui import ui
 

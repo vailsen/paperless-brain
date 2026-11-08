@@ -123,8 +123,8 @@ def _deleted(label: str) -> str:
 
 
 def _dead_run_links(body: str, user: str) -> str:
-    """An older finding links its Werkbank run; a run the user deleted would
-    open "Run not found"."""
+    """A finding whose report note could not be written links its Werkbank
+    run; a run the user deleted would open "Run not found"."""
     from werkbank.v2 import store
 
     def repl(m: re.Match) -> str:
@@ -162,9 +162,9 @@ def _note_exists(user: str, rel: str) -> bool:
 
 
 async def _adopt_research_note(user: str, f) -> None:
-    """A finding researched before reports went to the vault links its
-    Werkbank run. Write the run's note now (while the run still exists) and
-    point the finding at it, so deleting the run no longer loses the report."""
+    """A finding whose report note could not be written links its Werkbank
+    run. Write the run's note now (while the run still exists) and point the
+    finding at it, so deleting the run no longer loses the report."""
     from proactive import findings
     from vault.research import note_for_run, wikilink
 
@@ -1402,7 +1402,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 ".pb-tl-item .finding-md h3:first-child{margin-top:.3rem}"
             )
             entries, original = findings.split_timeline(
-                cite_evidence(findings.tidy_sources(f.body, f.lang)), f.lang)
+                cite_evidence(f.body), f.lang)
             tl = [(e.split("\n", 1)[0][3:].strip(), e.split("\n", 1)[1] if "\n" in e else "") for e in entries]
             tl.append((findings.original_heading(f), original))
             with ui.element("div").classes("pb-tl w-full min-w-0"):
@@ -1953,7 +1953,6 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     ui.notify(_("Could not save."), type="warning")
                     return
                 dlg.close()
-                target = dmod.by_id(user, sel.value)
                 ui.notify(_("Moved. {n} findings went along.").format(n=n) if n else _("Moved."),
                           type="positive")  # TODO i18n-plural
                 _marked()

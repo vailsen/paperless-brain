@@ -2,8 +2,8 @@
 
 > **Maßgebliches Dokument.** Umsetzungsstand und Reihenfolge:
 > `werkbank-tasks.md`. Bestandsaufnahme, Tool-Inventar und die Zuordnung der
-> Tools auf die Archetypen: `werkbank-v2-findings.md`. Das laufende v1 ist in
-> `werkbank-v1-legacy.md` beschrieben und bleibt bis Phase 7 in Betrieb.
+> Tools auf die Archetypen: `werkbank-v2-findings.md`. v1 ist seit 0.20.0
+> gelöscht.
 >
 > Zwei Punkte sind gegenüber dem Erstentwurf präzisiert, beide begründet in den
 > Findings: die Trust-Stufe von Paperless-Ergebnissen hängt vom *Tool* ab (eine

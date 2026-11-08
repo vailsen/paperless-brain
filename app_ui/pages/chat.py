@@ -924,10 +924,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         try:
             # Try vault collection first, then brain (fact) collection
             items = await vault_chroma.get(where={"pbrain_id": {"$eq": pbrain_id}})
-            is_brain = False
             if not items:
                 items = await brain._chroma.get(ids=[pbrain_id])
-                is_brain = bool(items)
             if not items:
                 ui.notify(_("Note not found."), type="warning")
                 return
@@ -3081,7 +3079,7 @@ window.__openVaultNote = function(noteId) {{
 
             f = _findings.get(_username, fid)  # the user's own ledger only
         _s["finding_ctx"] = (
-            {"id": f.finding_id, "title": f.title, "text": _findings.tidy_sources(f.body, f.lang)}
+            {"id": f.finding_id, "title": f.title, "text": f.body}
             if f else None
         )
         if f:
@@ -4504,7 +4502,6 @@ window.__openVaultNote = function(noteId) {{
                                     # chat page import-light — but inside the try, so an
                                     # import failure surfaces in the UI instead of
                                     # killing the handler silently.
-                                    from services.clients import get_session_paperless
                                     from services.doc_image_service import embed_images
                                     from services.session_auth import get_session_token
                                     from werkbank.export import upload_pdf as _upload_pdf

@@ -35,7 +35,6 @@ async def notify_channel(job: Job) -> None:
         mid = await email.send(link["address"], n, full_text=link["full_text"])
         log.info("%s: email sent %s", job.user, mid)
     else:
-        # e.g. a Telegram job queued before that channel was removed
         log.info("%s: channel %r no longer exists — not sent", job.user, channel)
 
 

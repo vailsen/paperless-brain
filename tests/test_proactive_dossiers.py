@@ -580,7 +580,6 @@ def test_moved_documents_stay_out_and_take_their_findings(env):
 
 def test_hand_changes_mark_rescan_pending_and_only_a_rescan_clears_it(env, remote):
     from proactive import dossiers
-    from proactive import dossiers, jobs
 
     async def go():
         a = await dossiers.create_manual("alice", "Bauspar")

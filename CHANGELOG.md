@@ -286,17 +286,14 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **"Save to Paperless" for AI deep research reports.** The report is a note
   in your vault now (see Added); a model's research does not belong in the
   document archive. Download as Markdown or PDF stays.
-- **Replying to notification emails, and with it everything that read the
-  mailbox.** It moved every unread mail of the inbox, not just replies, into
-  `PaperlessBrain/Processed`. Email is now send-only, like push: title,
-  urgency and one link to the finding. `IMAP_*` in `.env` is ignored. Mails
-  it moved are still in that label — move them back to the inbox in Gmail.
-- **The weekly message limit.** Every finding worth a message is sent; the
-  first nights of the archive run are busier, then it settles.
-- **Telegram as a notification channel.** Push in the app does the same
-  without a bot to set up and is end-to-end encrypted. Existing Telegram links
-  are deleted on upgrade; a user who had picked Telegram keeps their other
-  channels. `TELEGRAM_BOT_TOKEN` in `.env` is ignored and can be removed.
+- **The old deep-research engine (Werkbank v1).** It had been switched off
+  since 0.11.0; its code is gone now. Old v1 tasks in `data/papersage.db`
+  (`agent_tasks`, `agent_subtasks`) are no longer read — the tables are left
+  in place, nothing deletes them.
+- **Upgrade shims from the development builds between 0.11.0 and 0.20.0**
+  (findings merges, retitling, dossier layout and question repairs, the
+  pre-release `proactive.db` steps). A `proactive.db` from a build older than
+  quiet hours refuses to open with a clear message; move it aside.
 
 ## [0.11.0] — 2026-10-23
 

@@ -14,8 +14,7 @@ Findings workspace (docs/findings-workspace.md):
 - **The folder tree under `Dossiers/` is the dossier tree.** A dossier may sit
   in a subfolder; it is found by its `topic` key, never by its path.
 - **Sections carry invisible anchors** (`<!-- pb:state -->` …) because the
-  headings are translated; a file without anchors is read by position once and
-  gets anchors on the next write.
+  headings are translated.
 - **Insights are code-owned**, like `research`: saved from a chat answer by
   the user, never edited or dropped by a rebuild. Their provenance comes from
   the turn's tool log (`app_ui/dossier_save.py`), never from a model.
@@ -258,28 +257,17 @@ def render_body(d: Dossier) -> str:
 
 
 def _sections(body: str) -> dict[str, list[str]]:
-    """Anchored sections; a body without anchors is read by position (the
-    pre-anchor layout: state, timeline, questions, research)."""
-    lines = body.splitlines()
-    if any(_ANCHOR_RE.match(ln) for ln in lines):
-        out: dict[str, list[str]] = {}
-        cur = None
-        for ln in lines:
-            m = _ANCHOR_RE.match(ln)
-            if m and m.group(1) in SECTION_KEYS:
-                cur = m.group(1)
-                out[cur] = []
-            elif cur is not None and not (ln.startswith("## ") and not out[cur]):
-                out[cur].append(ln)
-        return out
-    positional: list[list[str]] = []
-    for ln in lines:
-        if ln.startswith("## "):
-            positional.append([])
-        elif positional:
-            positional[-1].append(ln)
-    keys = ("state", "timeline", "questions", "research")
-    return {k: positional[i] for i, k in enumerate(keys) if i < len(positional)}
+    """The body's sections, by their `<!-- pb:… -->` anchors."""
+    out: dict[str, list[str]] = {}
+    cur = None
+    for ln in body.splitlines():
+        m = _ANCHOR_RE.match(ln)
+        if m and m.group(1) in SECTION_KEYS:
+            cur = m.group(1)
+            out[cur] = []
+        elif cur is not None and not (ln.startswith("## ") and not out[cur]):
+            out[cur].append(ln)
+    return out
 
 
 def _parse_insights(lines: list[str]) -> list[Insight]:
@@ -347,7 +335,6 @@ def parse(text: str, *, rel: str = "") -> Dossier | None:
     for ln in sec.get("questions", []):
         if ln.startswith("- ") and ln[2:].strip() and ln[2:].strip() != "-" and not _RESOLVED_RE.match(ln[2:].strip()):
             questions.append(ln[2:].strip())
-    questions = heal_questions(questions)
     research = [ln[2:].strip() for ln in sec.get("research", []) if ln.startswith("- ") and ln[2:].strip()]
     rev = m.get("revisit_after")
     resolved = [r for r in m.get("resolved") or [] if isinstance(r, dict) and r.get("question")]
@@ -468,15 +455,6 @@ def _as_list(value) -> list:
     return []
 
 
-def heal_questions(qs: list[str]) -> list[str]:
-    """Questions already broken into single characters (written before
-    `_as_list`): unrecoverable — the spaces are gone — so they are dropped
-    and the next rescan writes them again."""
-    if len(qs) >= 4 and sum(len(q) <= 1 for q in qs) >= 0.8 * len(qs):
-        return []
-    return qs
-
-
 def validated(result: dict, allowed_ids: set[int]) -> tuple[list[dict], list[str]]:
     """Timeline entries with a real date and a document of this dossier,
     oldest first; non-empty open questions."""
@@ -494,7 +472,7 @@ def validated(result: dict, allowed_ids: set[int]) -> tuple[list[dict], list[str
             tl.append({"date": day.isoformat(), "event": event[:300], "doc_id": doc})
     tl.sort(key=lambda t: (t["date"], t["doc_id"]))
     qs = [" ".join(str(q).split()) for q in _as_list(result.get("open_questions")) if str(q).strip()]
-    return tl, heal_questions(qs)[:20]
+    return tl, qs[:20]
 
 
 def _meta(d: Dossier) -> dict:

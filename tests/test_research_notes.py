@@ -167,7 +167,7 @@ def test_wikilinks_for_the_pdf_and_for_the_findings_page():
                     " and Todo")
 
 
-def test_an_older_findings_werkbank_link_becomes_a_link_to_the_note():
+def test_a_findings_werkbank_link_becomes_a_link_to_the_note():
     from proactive.findings import link_research_note
 
     body = "## Recherche\n\n[Vollständiger Bericht](https://brain.lan/werkbank?run=run1)\n\n### Zusammenfassung\n"

@@ -35,7 +35,6 @@ from services.clients import (
     paperless,
     sidecar_service,
     thumbnail_service,
-    vision,
 )
 from services.credential_store import load_credentials
 from services.ollama_watchdog import on_manual_shutdown
