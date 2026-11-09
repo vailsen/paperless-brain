@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     # Paperless
     paperless_url: str
     paperless_superuser_token: str
+    # Address of Paperless as the user's browser reaches it (links that open
+    # Paperless in a new tab). Empty = PAPERLESS_URL, which is often an
+    # internal address the phone outside the LAN cannot reach.
+    paperless_public_url: str = ""
     # Names a real tag in Paperless — existing installs must pin their own value.
     ignore_inbox_tag_at_sync: str = "Inbox"
 

@@ -27,6 +27,7 @@ from models.result_document import DocumentResult
 from pipelines.delete import delete_document
 from pipelines.ingest import ingest_document
 from pipelines.paperless_db_sync import check_sync_state
+from services import paperless_links
 from services import sync_state
 from services.clients import (
     chroma,
@@ -502,9 +503,15 @@ async def dashboard():
                                     "width:8px;height:8px;border-radius:50%;"
                                     "background:var(--c-border);flex-shrink:0;"
                                 )
-                                ui.label(label_text).classes(
-                                    "text-gray-300 text-sm flex-1"
-                                )
+                                _pl_base = paperless_links.public_base() if key == "paperless" else ""
+                                if _pl_base:
+                                    ui.link(label_text, _pl_base, new_tab=True).classes(
+                                        "text-gray-300 text-sm flex-1 no-underline hover:underline"
+                                    ).style("color:inherit").tooltip(_("Open Paperless-ngx"))
+                                else:
+                                    ui.label(label_text).classes(
+                                        "text-gray-300 text-sm flex-1"
+                                    )
                                 badge = ui.label("…").classes("text-gray-500 text-xs")
                                 if key == "ollama":
                                     ollama_dot = dot

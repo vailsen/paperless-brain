@@ -30,10 +30,19 @@ log = logging.getLogger("skills")
 MAX_NAME_CHARS = 80
 MAX_DESCRIPTION_CHARS = 300
 MAX_BODY_CHARS = 4000
-#: Assigned skills whose bodies together stay below this are inlined into the
-#: prompt; above it the model gets name + description and loads a body with
-#: `use_skill` — an expert with eight skills must not fill an 8k context.
+#: Skill bodies inlined into the prompt when the model's context window is
+#: unknown. Skills that do not fit are listed by name + description and the
+#: model loads a body with `use_skill` — an expert with eight skills must not
+#: fill an 8k context.
 INLINE_BUDGET_CHARS = 2500
+#: A body this short is always inlined: listing it costs nearly as much as
+#: showing it, and a tool round trip for three lines is waste.
+SMALL_SKILL_CHARS = 600
+#: With a known context window, about this share of it (in characters, ~3.5
+#: per token) goes to skill bodies — 8k → ~2 300, 200k → capped.
+_BUDGET_SHARE = 0.08
+_CHARS_PER_TOKEN = 3.5
+_BUDGET_CAP_CHARS = 16_000
 SHARED_PREFIX = "shared:"
 
 
@@ -249,25 +258,70 @@ SKILLS_HEADER = (
 )
 
 
-def prompt_block(assigned: list[Skill]) -> tuple[str, bool]:
-    """(block, needs_use_skill). Small sets are inlined; larger ones list
-    name + description and the model loads a body with `use_skill`."""
+def inline_budget(ctx_window: int = 0) -> int:
+    """Characters of skill bodies the prompt may hold for this model."""
+    if not ctx_window or ctx_window <= 0:
+        return INLINE_BUDGET_CHARS
+    return max(1_000, min(_BUDGET_CAP_CHARS, int(ctx_window * _BUDGET_SHARE * _CHARS_PER_TOKEN)))
+
+
+def prompt_block(assigned: list[Skill], *, ctx_window: int = 0,
+                 loaded: set[str] | frozenset[str] = frozenset()) -> tuple[str, bool]:
+    """(block, needs_use_skill). Decided per skill:
+
+    - a skill the model loaded with `use_skill` earlier in this conversation is
+      inlined — the chat history keeps only answer text, so the tool result
+      that carried the body is gone on the next turn;
+    - a short skill (≤ SMALL_SKILL_CHARS) is always inlined;
+    - the rest are inlined smallest first while the budget for this context
+      window lasts, and whatever does not fit is listed for `use_skill`.
+    """
     if not assigned:
         return "", False
-    total = sum(len(s.body) for s in assigned)
-    if total <= INLINE_BUDGET_CHARS:
-        parts = [SKILLS_HEADER]
-        for s in assigned:
+    loaded_keys = {_key(n) for n in loaded}
+    budget = inline_budget(ctx_window)
+    inline: set[int] = set()
+    used = 0
+    for i, s in enumerate(assigned):
+        if _key(s.name) in loaded_keys or len(s.body) <= SMALL_SKILL_CHARS:
+            inline.add(i)
+            used += len(s.body)
+    for i in sorted((i for i in range(len(assigned)) if i not in inline), key=lambda i: len(assigned[i].body)):
+        if used + len(assigned[i].body) > budget:
+            break
+        inline.add(i)
+        used += len(assigned[i].body)
+    parts = [SKILLS_HEADER]
+    for i, s in enumerate(assigned):
+        if i in inline:
             parts.append(f"### Skill: {s.name}\nUse when: {s.description or '-'}\n{s.body}")
-        return "\n\n".join(parts), False
-    lines = [SKILLS_HEADER,
-             "Before a task one of these skills describes, call use_skill with its exact "
-             "name and follow what it returns. Load a skill once per conversation."]
-    for s in assigned:
-        lines.append(f"- {s.name}: {s.description or '-'}")
-    return "\n".join(lines), True
+    listed = [s for i, s in enumerate(assigned) if i not in inline]
+    if listed:
+        lines = ["More skills, not shown in full. Before a task one of these describes, call "
+                 "use_skill with its exact name and follow what it returns. A skill you load "
+                 "is shown in full above on later turns of this conversation."]
+        lines += [f"- {s.name}: {s.description or '-'}" for s in listed]
+        parts.append("\n".join(lines))
+    return "\n\n".join(parts), bool(listed)
+
+
+def _key(name: str) -> str:
+    return " ".join((name or "").split()).casefold()
+
+
+def loaded_names(trace: list[dict]) -> list[str]:
+    """Skills a turn's tool log shows as loaded (a `use_skill` call that
+    returned a body, not the "no such skill" answer)."""
+    out: list[str] = []
+    for t in trace or []:
+        if t.get("name") != "use_skill" or not str(t.get("output") or "").startswith("Skill '"):
+            continue
+        name = str((t.get("input") or {}).get("name") or "").strip()
+        if name and _key(name) not in {_key(n) for n in out}:
+            out.append(name)
+    return out
 
 
 def lookup(assigned: list[Skill], name: str) -> Skill | None:
-    key = " ".join((name or "").split()).casefold()
-    return next((s for s in assigned if s.name.casefold() == key), None)
+    key = _key(name)
+    return next((s for s in assigned if _key(s.name) == key), None)

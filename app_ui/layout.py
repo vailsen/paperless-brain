@@ -1,13 +1,16 @@
 # app_ui/layout.py
 
+import html as _html
+
 from nicegui import app as ng_app
 from nicegui import ui
 
-from app_ui.brand import head_html, wordmark_html
+from app_ui.brand import head_html, paperless_leaf_svg, wordmark_html
 from app_ui.page_viewer import PAGE_VIEWER_HTML
 from app_ui.theme import apply_theme
 from config.version import __version__
 from i18n import N_, get_translator
+from services import paperless_links
 from services.session_auth import clear_session, get_session_token
 
 # A real <a href> rather than a click handler: that is what makes middle-click
@@ -269,6 +272,7 @@ def page_layout() -> None:
         ui.space()
 
         _here = _current_path()
+        _paperless_base = paperless_links.public_base()
 
         # Desktop nav — hidden on mobile via CSS.
         # color=None matters: ui.button defaults to color='primary', which Quasar
@@ -304,7 +308,31 @@ def page_layout() -> None:
                             ui.label(_(_nl)).style(
                                 "font-size:0.875rem;font-weight:500;letter-spacing:normal;"
                             )
+                if username and _paperless_base:
+                    # Paperless-ngx itself, in a new tab — apart from the modules.
+                    ui.separator().props("dark").classes("my-1")
+                    with ui.element("q-item").props("clickable v-ripple dense").classes(
+                        "text-gray-200 rounded-lg nav-menu-item"
+                    ).style("padding:8px 12px;").on(
+                        "click", lambda: ui.navigate.to(_paperless_base, new_tab=True)
+                    ):
+                        with ui.element("q-item-section").props("avatar").style("min-width:28px;padding-right:8px;"):
+                            ui.html(paperless_leaf_svg(18), sanitize=False)
+                        with ui.element("q-item-section"):
+                            ui.label("Paperless-ngx").style(
+                                "font-size:0.875rem;font-weight:500;letter-spacing:normal;"
+                            )
             _menu_btn.on_click(_nav_menu.open)
+
+        # ── Paperless-ngx in a new tab (desktop; the phone has it in the menu) ──
+        if username and _paperless_base:
+            ui.separator().props("vertical dark").classes("mx-1 h-6 self-center mobile-hidden")
+            with ui.button(color=None).props(
+                f'flat dark dense round href="{_html.escape(_paperless_base)}" target="_blank" '
+                'rel="noopener" aria-label="Paperless-ngx"'
+            ).classes("text-gray-300 nav-btn mobile-hidden"):
+                ui.html(paperless_leaf_svg(20), sanitize=False)
+                ui.tooltip(_("Open Paperless-ngx"))
 
         # ── Voice memo quick capture ─────────────────────────────────────────
         # Reachable from every page on purpose: a memo is not a chat turn, and

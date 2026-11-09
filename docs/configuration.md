@@ -41,6 +41,7 @@ the env value is only the initial fallback).
 |---|---|---|---|
 | `APP_PATH` | ✅ | — | Absolute path to the app root, with trailing slash. In Docker: `/app/` |
 | `PAPERLESS_URL` | ✅ | — | Base URL of your Paperless-ngx instance |
+| `PAPERLESS_PUBLIC_URL` | | `PAPERLESS_URL` | Address of Paperless as the browser reaches it (header button, "open in Paperless" links). Set it when `PAPERLESS_URL` is an internal address |
 | `PAPERLESS_SUPERUSER_TOKEN` | ✅ | — | API token of a Paperless superuser (used for sync; chat requests use each user's own session token) |
 | `IGNORE_INBOX_TAG_AT_SYNC` | | `Inbox` | *UI* — documents carrying this tag are skipped during sync |
 | `EMBEDDING_MODEL` | ✅ | — | Sentence-transformers model id; ships tuned for `intfloat/multilingual-e5-large-instruct` |

@@ -345,8 +345,11 @@ page `app_ui/pages/experts.py`.
   (`vault.router.is_config_path`); identity is `expert_id` / `skill_id`, no
   `pbrain_id`. A shared skill (`common: true`) is read from its owner's folder
   at use time; un-sharing takes it away at once; "Duplicate" is the only copy.
-- **Skills inline below `skills.INLINE_BUDGET_CHARS`, else `use_skill`** loads
-  one on demand. The wizard drafts; only the user saves. Its lint flags tool
+- **Skills are inlined per skill, else listed for `use_skill`**: short ones
+  always, the rest smallest first within a budget scaled to the model's context
+  window (`skills.inline_budget`). A skill loaded with `use_skill` is inlined on
+  every later turn of that conversation (`chat_turn_meta.skills`) — the history
+  keeps only answer text, so the loaded body would otherwise be gone. The wizard drafts; only the user saves. Its lint flags tool
   names that do not exist; its trial runs read-only tools only.
 - **A briefing is a map, not evidence.** Archive map = code; orientation =
   model, checked by `briefings.validate` (studied ids only, numbers must be in
