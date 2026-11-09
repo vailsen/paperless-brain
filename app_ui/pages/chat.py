@@ -70,6 +70,7 @@ from services.chat_service import (
 )
 from services.clients import get_session_paperless
 from services import dossier_merge as _dossier_merge
+from services import skills as _skills_mod
 from services.markdown_text import escape_intraword_underscores
 from services.credential_store import load_credentials, save_credentials
 import services.chat_history_service as _chat_hist
@@ -3763,9 +3764,14 @@ window.__openVaultNote = function(noteId) {{
         # told to use a tool that was filtered out of its tool list.
         _exp = _expert()
         try:
+            # Skills loaded with use_skill in earlier turns: their bodies came
+            # in a tool result, and the history keeps only answer text.
+            _loaded_skills = {n for _m in (_s.get("turn_meta") or {}).values()
+                              for n in (_m.get("skills") or [])}
             _te = await _expert_prompt.for_turn(
                 _username, get_session_token() or "", _exp,
-                ctx_window=int(_s.get("context_window") or _get_model_ctx_win() or 0), _=_,
+                ctx_window=int(_s.get("context_window") or _get_model_ctx_win() or 0),
+                loaded_skills=_loaded_skills, _=_,
             )
         except Exception:  # skills/briefing are extras; the turn still runs
             _log.warning("expert prompt blocks failed", exc_info=True)
@@ -3985,10 +3991,15 @@ window.__openVaultNote = function(noteId) {{
                         accumulated[0], _tool_trace, model=_s.get("chat_model_name", ""),
                         expert="" if _exp.builtin else _exp.name,
                     )
-                    _prov["_unsaved"] = True
-                    _s["turn_meta"][len(_s["messages"]) - 1] = _prov
                 except Exception:
                     _log.warning("provenance failed", exc_info=True)
+                    _prov = {}
+                _loaded_now = _skills_mod.loaded_names(_tool_trace)
+                if _loaded_now:
+                    _prov["skills"] = _loaded_now
+                if _prov:
+                    _prov["_unsaved"] = True
+                    _s["turn_meta"][len(_s["messages"]) - 1] = _prov
                 _update_context_progress()  # re-estimate now that assistant msg is in history
             _md_raw = accumulated[0]
 

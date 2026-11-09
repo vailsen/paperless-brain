@@ -14,11 +14,12 @@ import re
 
 from nicegui import ui
 
+from app_ui.brand import paperless_leaf_svg
 from app_ui.tag_style import tag_chip
 from config.settings import settings
 from i18n import get_translator
 from models.result_document import DocumentResult
-from services import doc_image_service
+from services import doc_image_service, paperless_links
 from services.clients import cross_ref_index, paperless, sidecar_service
 from services.page_images import page_images
 
@@ -919,6 +920,17 @@ def _render_content(
                         "PDF", icon="picture_as_pdf",
                         on_click=lambda: ui.run_javascript(f"window.open('{file_url}', '_blank')"),
                     ).props("flat dark dense").classes("text-gray-400 text-xs")
+
+                # The document in Paperless itself (edit metadata, notes,
+                # permissions) — a real link, so middle-click works too.
+                _pl_url = paperless_links.document_url(doc.id)
+                if _pl_url:
+                    with ui.button(color=None).props(
+                        f'flat dark dense href="{_html.escape(_pl_url)}" target="_blank" rel="noopener" '
+                        'aria-label="Paperless-ngx"'
+                    ).classes("card-action-btn"):
+                        ui.html(paperless_leaf_svg(18), sanitize=False)
+                        ui.tooltip(_("Open in Paperless-ngx"))
 
                 async def _confirm_reingest() -> str | None:
                     """The reading hint to re-ingest with ("" = none), or None on cancel."""
