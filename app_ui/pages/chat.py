@@ -3994,11 +3994,17 @@ window.__openVaultNote = function(noteId) {{
                 elif isinstance(event, OffloadEvent):
                     # Slow because the model does not fit the GPU — not the
                     # connection. Said once per turn, while it still matters.
-                    ui.notify(
-                        _("{model} runs partly on the CPU of its host ({pct} %), which makes it slow. "
-                          "Another model in memory or a large context window takes the GPU's room.").format(
-                            model=event.model, pct=event.cpu_percent),
-                        type="warning", timeout=12000, multi_line=True)
+                    # The turn runs as a background task, which has no UI slot:
+                    # a bare ui.notify raised and ended the answer.
+                    try:
+                        with messages_container:
+                            ui.notify(
+                                _("{model} runs partly on the CPU of its host ({pct} %), which makes it slow. "
+                                  "Another model in memory or a large context window takes the GPU's room.").format(
+                                    model=event.model, pct=event.cpu_percent),
+                                type="warning", timeout=12000, multi_line=True)
+                    except Exception:  # noqa: BLE001 — a hint must never cost the answer
+                        _log.warning("offload notice could not be shown", exc_info=True)
 
                 elif isinstance(event, DoneEvent):
                     status_badge[0].style("display:none;")

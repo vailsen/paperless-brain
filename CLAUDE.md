@@ -307,7 +307,10 @@ host idle while it works. Tracking never fails a request.
 A loaded model partly outside VRAM (`inference_activity.cpu_share`, from
 `/api/ps` `size` vs `size_vram`) is what makes a fast model crawl: the dashboard
 shows the share, the chat yields `OffloadEvent` once per turn, and every local
-request logs `[chat-timing]` (prompt size, first token, tokens/s).
+request logs `[chat-timing]` (prompt size, first token, tokens/s). **A chat turn
+runs as a background task with no UI slot**: anything that creates UI from it
+(`ui.notify` included) goes inside `with messages_container:` — a bare
+`ui.notify` for that warning raised and ended every answer (0.20.x, hotfixed).
 
 **The context ring is an estimate of what the model reads**: system prompt +
 tool schemas of the last turn (`ctx_base_chars`) + the stored messages. Never
