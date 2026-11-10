@@ -868,6 +868,13 @@ _CTX_READ_ONLY = (
 )
 
 
+#: The chat turn each user has running in /chat, by username. A turn runs on in
+#: the background when its page is left for another module; a /chat page opened
+#: meanwhile shows it (live) instead of the stale state, and its answer lands in
+#: the conversation either way. Process-local, like the turn itself.
+_LIVE_TURNS: dict[str, dict] = {}
+
+
 @ui.page("/chat")
 async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = ""):
     if not require_auth():
@@ -1664,6 +1671,16 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 _fill_titles_later(messages)
         _update_context_progress()
         _set_history_visible(False)
+        _scroll_bottom_later()
+
+    def _scroll_bottom_later() -> None:
+        """To the newest message — now and again once markdown, tables and
+        pictures have their height (a switch from the history landed mid-way)."""
+        messages_scroll.scroll_to(percent=1.0)
+        ui.run_javascript(
+            "(function(){var f=function(){var e=document.querySelector("
+            "'.chat-messages-scroll .q-scrollarea__container');if(e){e.scrollTop=e.scrollHeight;}};"
+            "f();[80,250,600,1200,2000].forEach(function(t){setTimeout(f,t);});})()")
 
     def _delete_conv(conv_id: str) -> None:
         _chat_hist.delete_conversation(conv_id, _username)
@@ -2093,17 +2110,26 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         # What acts on the whole conversation sits above it, in
                         # one menu: download and delete — and on a phone also
                         # tools and compression, so the input row is the input.
-                        with ui.button(icon="more_vert").props("flat dark dense").classes(
+                        def _conv_item(icon: str, label: str, on_click, cls: str = ""):
+                            with ui.menu_item(on_click=on_click).classes(cls) as it:
+                                with ui.row().classes("items-center gap-3 no-wrap"):
+                                    ui.icon(icon, size="1.15rem").classes("text-gray-500")
+                                    ui.label(label).classes("text-sm")
+                            return it
+
+                        # color=None: the glyph inherits the text colour; the
+                        # accent is not a "menu" colour.
+                        with ui.button(icon="more_vert", color=None).props("flat dark dense").classes(
                                 "text-gray-400 chat-conv-menu").tooltip(_("Conversation")) as conv_menu_btn:
                             with ui.menu().props("auto-close"):
-                                ui.menu_item(_("Download conversation as Markdown"),
-                                             on_click=lambda: _dl_conversation())
-                                ui.menu_item(_("Configure tools"),
-                                             on_click=lambda: _toggle_tools_panel()).classes("chat-menu-tool")
-                                ui.menu_item(_("Compress chat"), on_click=lambda: asyncio.ensure_future(
-                                    _compact_chat())).classes("chat-menu-tool")
+                                _conv_item("download", _("Download conversation as Markdown"),
+                                           lambda: _dl_conversation())
+                                _conv_item("tune", _("Configure tools"),
+                                           lambda: _toggle_tools_panel(), "chat-menu-tool")
+                                _conv_item("compress", _("Compress chat"),
+                                           lambda: asyncio.ensure_future(_compact_chat()), "chat-menu-tool")
                                 ui.separator()
-                                ui.menu_item(_("Delete conversation"), on_click=lambda: _clear_chat())
+                                _conv_item("delete_sweep", _("Delete conversation"), lambda: _clear_chat())
                         if _embed:
                             # The findings dock: maximize / back, in this row. A
                             # message to the page around it — no server round trip,
@@ -2416,7 +2442,11 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
 </script>""")
 
                             def _handle_send_or_stop() -> None:
-                                if _s["running"]:
+                                _live = _s.get("adopted")
+                                if _live and not _live["done"]:
+                                    # A turn from before the user left /chat.
+                                    _live["state"]["stop_requested"] = True
+                                elif _s["running"]:
                                     _s["stop_requested"] = True
                                 else:
                                     asyncio.ensure_future(do_send())
@@ -3574,7 +3604,74 @@ window.__openVaultNote = function(noteId) {{
         await asyncio.sleep(0.05)
         messages_scroll.scroll_to(percent=1.0)
 
+    def _persist_turn(turn: dict) -> None:
+        """Store what this turn added — once, and even when the page that ran
+        it is gone (the user went to another module): the answer must land in
+        the conversation whatever happens to its bubble."""
+        if turn.get("persisted") or turn.get("save_start") is None:
+            return
+        turn["persisted"] = True
+        start = turn["save_start"]
+        try:
+            # Only while this browser still has this conversation open: a page
+            # opened meanwhile may have switched to another one.
+            if _cstore.get("chat_conv_id") in (None, _s.get("conv_id")):
+                _cstore["chat_history"] = list(_s["messages"])
+                _cstore.pop("chat_fresh", None)
+                _cstore["chat_token_count"] = _s["total_tokens"]
+                _cstore["chat_context_window"] = _s["context_window"]
+                _cstore["chat_ctx_base"] = _s.get("ctx_base_chars") or 0
+        except Exception:
+            _log.warning("could not update the browser's chat state", exc_info=True)
+        new_msgs = _s["messages"][start:]
+        if not (new_msgs and _username):
+            return
+        if not _s.get("conv_id"):
+            first_user = next(
+                (m["content"] for m in _s["messages"] if m["role"] == "user"),
+                _("New conversation"),
+            )
+            _s["conv_id"] = _chat_hist.create_conversation(
+                _username, first_user[:60], expert_id=_s.get("expert_id"),
+                context=_conv_context(),
+            )
+            _cstore["chat_conv_id"] = _s["conv_id"]
+            try:
+                _refresh_history_list()
+            except Exception:
+                pass  # the page is gone; the conversation is stored
+        _chat_hist.append_messages(_s["conv_id"], _username, new_msgs)
+        for _mi, _meta in list(_s["turn_meta"].items()):
+            if _mi >= start and _meta.get("_unsaved"):
+                _meta.pop("_unsaved", None)
+                try:
+                    _chat_hist.set_turn_meta(_s["conv_id"], _username, _mi, _meta)
+                except Exception:
+                    _log.warning("could not store turn provenance", exc_info=True)
+
     async def do_send() -> None:
+        live = _s.get("adopted")
+        if live and not live["done"]:
+            ui.notify(_("The previous answer is still being written."), type="info")
+            return
+        turn: dict = {"save_start": None, "persisted": False}
+        try:
+            await _do_send_inner(turn)
+        finally:
+            try:
+                _persist_turn(turn)
+            except Exception:
+                _log.warning("could not store the chat turn", exc_info=True)
+            # A refused send (empty, or a turn already running) touches nothing.
+            if turn.get("started"):
+                _s["running"] = False
+                _s["stop_requested"] = False
+                entry = _LIVE_TURNS.get(_username)
+                if entry is not None and entry.get("state") is _s:
+                    entry["done"] = True
+                    _LIVE_TURNS.pop(_username, None)
+
+    async def _do_send_inner(_turn: dict) -> None:
         text = input_field.value.strip()
         if not text or _s["running"]:
             return
@@ -3591,6 +3688,7 @@ window.__openVaultNote = function(noteId) {{
             ui.notify(_("Sync is currently running — please wait"), type="warning")
             return
         _s["running"] = True
+        _turn["started"] = True
         _s["stop_requested"] = False
         _rs["vault_index"] = {}    # reset per-turn vault link index
         _rs["brain_results"] = []  # reset brain fact cards
@@ -3617,6 +3715,28 @@ window.__openVaultNote = function(noteId) {{
         _s["messages"].append({"role": "user", "content": text})
         await _scroll_bottom()
         await asyncio.sleep(0)
+
+        # The prompt is stored before the model is asked: a user who goes to
+        # another module and comes back finds it — and the answer once it lands.
+        # (`_username` is re-bound further down in this function, so here it is
+        # read from the session.)
+        _u = ng_app.storage.user.get("paperless_user") or ""
+        if _u:
+            try:
+                if not _s.get("conv_id"):
+                    _s["conv_id"] = _chat_hist.create_conversation(
+                        _u, text[:60], expert_id=_s.get("expert_id"),
+                        context=_conv_context(),
+                    )
+                    _refresh_history_list()
+                _chat_hist.append_messages(_s["conv_id"], _u, _s["messages"][_msg_save_start:])
+                _msg_save_start = len(_s["messages"])
+                _cstore["chat_conv_id"] = _s["conv_id"]
+                _cstore["chat_history"] = list(_s["messages"])
+                _cstore.pop("chat_fresh", None)
+            except Exception:
+                _log.warning("could not store the prompt before the turn", exc_info=True)
+        _turn["save_start"] = _msg_save_start
 
         # Sync vault before any brain/vault retrieval this turn — but only AFTER
         # the user bubble is rendered and the input is cleared, so a slow sync
@@ -3731,6 +3851,9 @@ window.__openVaultNote = function(noteId) {{
         await asyncio.sleep(0)
 
         accumulated = [""]
+        if _u and not _embed and _s.get("conv_id"):
+            _LIVE_TURNS[_u] = {"conv_id": _s["conv_id"], "acc": accumulated,
+                                      "state": _s, "done": False}
         thinking_chunks: list = [[]]  # list of {"text": str, "iter_label": str}
         _STRIP_THINK = re.compile(r"</?think(?:ing)?>", re.IGNORECASE)
 
@@ -4770,35 +4893,51 @@ window.__openVaultNote = function(noteId) {{
             send_btn.props(add="icon=send color=primary")
             _s["running"] = False
             _s["stop_requested"] = False
-            _cstore["chat_history"] = list(_s["messages"])
-            _cstore.pop("chat_fresh", None)
-            _cstore["chat_token_count"] = _s["total_tokens"]
-            _cstore["chat_context_window"] = _s["context_window"]
-            _cstore["chat_ctx_base"] = _s.get("ctx_base_chars") or 0
+            _persist_turn(_turn)
             messages_scroll.scroll_to(percent=1.0)
 
-            # Auto-save new messages to DB
-            new_msgs = _s["messages"][_msg_save_start:]
-            if new_msgs and _username:
-                if not _s.get("conv_id"):
-                    first_user = next(
-                        (m["content"] for m in _s["messages"] if m["role"] == "user"),
-                        _("New conversation"),
-                    )
-                    _s["conv_id"] = _chat_hist.create_conversation(
-                        _username, first_user[:60], expert_id=_s.get("expert_id"),
-                        context=_conv_context(),
-                    )
-                    _cstore["chat_conv_id"] = _s["conv_id"]
-                    _refresh_history_list()
-                _chat_hist.append_messages(_s["conv_id"], _username, new_msgs)
-                for _mi, _meta in list(_s["turn_meta"].items()):
-                    if _mi >= _msg_save_start and _meta.get("_unsaved"):
-                        _meta.pop("_unsaved", None)
-                        try:
-                            _chat_hist.set_turn_meta(_s["conv_id"], _username, _mi, _meta)
-                        except Exception:
-                            _log.warning("could not store turn provenance", exc_info=True)
+    def _adopt_live(live: dict) -> None:
+        """Show a turn another (left) /chat page is still running: its
+        conversation, plus the answer as it streams. When it is done, the
+        conversation is reloaded from the store — the answer with its sources."""
+        _load_conv(live["conv_id"])
+        _s["adopted"] = live
+        send_btn.props(add="icon=stop color=red")
+        with messages_container:
+            with ui.row().classes("justify-start w-full"):
+                with ui.element("div").classes("chat-bubble").style(
+                    "background:var(--c-surface-3); border-radius:0 12px 12px 12px;"
+                    "padding:10px 14px; max-width:85%;min-width:0; font-size:0.875rem; color:var(--c-text-2);"
+                    "display:flex; flex-direction:column; gap:6px;"
+                ):
+                    with ui.row().classes("items-center gap-2"):
+                        ui.spinner(size="xs").classes("pb-accent-text")
+                        ui.label(_("The answer is still being written …")).classes("text-xs pb-accent-text")
+                    live_md = ui.markdown("", sanitize=False, extras=_MD_EXTRAS).classes("chat-md")
+        _scroll_bottom_later()
+        seen = [""]
+
+        def _tick() -> None:
+            text = live["acc"][0] or ""
+            if text != seen[0] and not live_md.is_deleted:
+                seen[0] = text
+                live_md.set_content(escape_intraword_underscores(text))
+                messages_scroll.scroll_to(percent=1.0)
+            if not live["done"]:
+                return
+            live_timer.deactivate()
+            _s.pop("adopted", None)
+            send_btn.props(remove="icon=stop color=red")
+            send_btn.props(add="icon=send color=primary")
+            if _s.get("conv_id") == live["conv_id"]:
+                _load_conv(live["conv_id"])
+                try:
+                    _cstore["chat_history"] = list(_s["messages"])
+                except Exception:
+                    pass
+            _refresh_history_list()
+
+        live_timer = ui.timer(0.5, _tick)
 
     # ── Restore or initialize chat ────────────────────────────────────────────
     # Per-user setting: open the last conversation (default) or a fresh one.
@@ -4826,47 +4965,56 @@ window.__openVaultNote = function(noteId) {{
             _apply_expert(_want_expert)
         if _s.get("dossier_ctx") is None:
             _set_dossier_ctx(dossier)
-    if get_pref("chat_on_open", "last") == "new" and not _embed:
-        for _k in ("chat_history", "chat_token_count", "chat_context_window", "chat_conv_id", "chat_fresh"):
-            _cstore.pop(_k, None)
-    _saved = _cstore.get("chat_history") or []
-    _latest = None
-    if (
-        not _saved
-        and _username
-        and get_pref("chat_on_open", "last") == "last"
-        and not _cstore.get("chat_fresh")
-        and not _embed
-    ):
-        _convs = _chat_hist.list_conversations(_username)
-        _latest = _convs[0]["id"] if _convs else None
-    if _latest:
-        _load_conv(_latest)
-        messages_scroll.scroll_to(percent=1.0)
-    elif _saved:
-        _s["messages"] = list(_saved)
-        _s["total_tokens"] = _cstore.get("chat_token_count", 0)
-        _s["context_window"] = _cstore.get("chat_context_window", 0)
-        _s["ctx_base_chars"] = _cstore.get("chat_ctx_base", 0)
-        _s["current_ctx_tokens"] = _s["total_tokens"]
-        # Restore conv_id so messages are linked to existing conversation, not new
-        _stored_conv_id = _cstore.get("chat_conv_id")
-        if _stored_conv_id and _username:
-            _known_ids = {c["id"] for c in _chat_hist.list_conversations(_username)}
-            if _stored_conv_id in _known_ids:
-                _s["conv_id"] = _stored_conv_id
-                _s["turn_meta"] = _chat_hist.load_turn_meta(_stored_conv_id, _username)
-                _apply_expert((_chat_hist.get_conversation(_stored_conv_id, _username) or {}).get("expert_id")
-                              or _experts_mod.UNIVERSAL_ID)
-        with messages_container:
-            for _mi, _msg in enumerate(_s["messages"]):
-                _render_stored_msg(_msg, _mi)
-            _fill_titles_later(_s["messages"])
-        _update_context_progress()
-        messages_scroll.scroll_to(percent=1.0)
-    elif not (_embed and _s["messages"]):
-        with messages_container:
-            _welcome_msg()
+    # A turn still running from before the user left /chat comes first,
+    # whatever "open with" says: the user should see the answer arrive.
+    _live = (_LIVE_TURNS.get(_username) if _username and not _embed
+             and not (conv or dossier or expert or finding) else None)
+    if _live is not None and (_live["done"] or _live.get("state") is _s):
+        _live = None
+    if _live is not None:
+        _adopt_live(_live)
+    else:
+        if get_pref("chat_on_open", "last") == "new" and not _embed:
+            for _k in ("chat_history", "chat_token_count", "chat_context_window", "chat_conv_id", "chat_fresh"):
+                _cstore.pop(_k, None)
+        _saved = _cstore.get("chat_history") or []
+        _latest = None
+        if (
+            not _saved
+            and _username
+            and get_pref("chat_on_open", "last") == "last"
+            and not _cstore.get("chat_fresh")
+            and not _embed
+        ):
+            _convs = _chat_hist.list_conversations(_username)
+            _latest = _convs[0]["id"] if _convs else None
+        if _latest:
+            _load_conv(_latest)
+            messages_scroll.scroll_to(percent=1.0)
+        elif _saved:
+            _s["messages"] = list(_saved)
+            _s["total_tokens"] = _cstore.get("chat_token_count", 0)
+            _s["context_window"] = _cstore.get("chat_context_window", 0)
+            _s["ctx_base_chars"] = _cstore.get("chat_ctx_base", 0)
+            _s["current_ctx_tokens"] = _s["total_tokens"]
+            # Restore conv_id so messages are linked to existing conversation, not new
+            _stored_conv_id = _cstore.get("chat_conv_id")
+            if _stored_conv_id and _username:
+                _known_ids = {c["id"] for c in _chat_hist.list_conversations(_username)}
+                if _stored_conv_id in _known_ids:
+                    _s["conv_id"] = _stored_conv_id
+                    _s["turn_meta"] = _chat_hist.load_turn_meta(_stored_conv_id, _username)
+                    _apply_expert((_chat_hist.get_conversation(_stored_conv_id, _username) or {}).get("expert_id")
+                                  or _experts_mod.UNIVERSAL_ID)
+            with messages_container:
+                for _mi, _msg in enumerate(_s["messages"]):
+                    _render_stored_msg(_msg, _mi)
+                _fill_titles_later(_s["messages"])
+            _update_context_progress()
+            messages_scroll.scroll_to(percent=1.0)
+        elif not (_embed and _s["messages"]):
+            with messages_container:
+                _welcome_msg()
     if conv and not _embed and _username:
         # "Continue in the full chat" from the findings dock: that conversation.
         if conv != _s.get("conv_id") and any(c["id"] == conv for c in _chat_hist.list_conversations(_username)):
