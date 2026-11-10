@@ -9,6 +9,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **Every chat answer failed** with "The current slot cannot be determined"
+  when the local model ran partly on the CPU: the new warning was shown from
+  the background task that runs the turn. It is shown in the chat's context
+  now, and a hint can no longer end an answer.
+
 - **The findings chat came back empty after the phone slept.** On a weak
   connection the chat frame reloads itself; it had rewritten its own address
   to the full chat, and a finding's chat always started a new conversation.
