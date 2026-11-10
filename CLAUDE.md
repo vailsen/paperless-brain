@@ -110,6 +110,11 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 - Dialogs: `app_ui/document_dialog.py`, `app_ui/cluster_dialog.py`
 - **NiceGUI pattern**: use `@ui.refreshable` for dynamic content in plain columns. `QTabPanels`/`element.clear()` silently fails.
 - Chat events stream via `AsyncGenerator[ChatEvent, None]` — UI iterates with `async for` and updates reactively.
+- **A chat turn outlives its page.** The prompt is stored before the model is asked, the answer
+  in `do_send`'s `finally` (`_persist_turn`) — leaving /chat for another module mid-answer must
+  not lose either; past `reconnect_timeout` the page is deleted and creating UI raises. A /chat
+  page opened while a turn runs (`_LIVE_TURNS`, per user, process-local) shows that conversation
+  and the answer as it streams, whatever "open with" says, then reloads it from the store.
 
 ### Reconnecting after the app was in the background
 
