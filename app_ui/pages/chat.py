@@ -48,6 +48,7 @@ from services.chat_service import (
     DocsRetrievedEvent,
     DocxRequestEvent,
     DoneEvent,
+    OffloadEvent,
     DownloadRequestEvent,
     EmailRequestEvent,
     ImageDisplayEvent,
@@ -320,6 +321,9 @@ async def _resolve_vault_wiki_links(text: str, index: dict, username: str) -> No
 
 
 _TABS_H = "48px"
+#: German prose and JSON tool schemas run 3–4 characters a token in the
+#: tokenizers in use; the meter is an estimate either way.
+_CHARS_PER_TOKEN = 3.5
 
 # ── Tool groups (display name, icon, [tool names in TOOL_DEFINITIONS]) ────────
 _TOOL_GROUPS: list[tuple[str, str, list[str]]] = [
@@ -609,6 +613,14 @@ html, body { overflow: hidden !important; }
 .chat-input-tool { flex-shrink: 0; min-width: 36px; width: 36px; height: 36px;
     color: var(--c-text-muted); border-radius: 10px; }
 .chat-input-tool:hover { color: var(--c-text); }
+/* A phone: tools and compression move from the input row into the
+   conversation menu above the chat — the row is the input, mic and send. */
+.chat-menu-tool { display: none !important; }
+@media (max-width: 767px) {
+    .chat-input-row .chat-input-tool { display: none !important; }
+    body:not(.pb-compact) .chat-menu-tool { display: flex !important; }
+    .chat-input-row { padding: 8px 10px !important; }
+}
 .chat-send-btn { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; }
 .chat-send-btn .q-icon { font-size: 20px; }
 /* Mic button active state */
@@ -827,6 +839,16 @@ body.pb-compact .chat-splitter > .q-splitter__before{width:100%!important;}
 body.pb-compact .chat-input-row{padding:6px 10px!important;}
 .chat-head{padding:0 8px!important;gap:6px!important;}
 body.pb-compact .chat-dock-min, body:not(.pb-compact) .chat-dock-max{display:none!important;}
+/* A phone-width dock: a reference number opens the document drawer on its
+   Source tab, as in the full chat — the full-screen source layer read as a
+   viewer, and tapping a page opens the viewer anyway. The layer stays for a
+   wide compact dock, which has no drawer. No app header in the frame. */
+@media (max-width: 767px) {
+  body.pb-compact div.chat-docs-mobile{display:block!important;}
+  body.pb-compact .chat-docs-scrim.open{display:block!important;}
+  .chat-src-overlay.open{display:none!important;}
+  .chat-docs-mobile, .chat-docs-scrim{top:0!important;}
+}
 </style>
 <script>
 // The findings page says whether its dock is maximized (pb-dock-mode).
@@ -1464,8 +1486,14 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
     # ── History drawer helpers ────────────────────────────────────────────────
 
     def _est_tokens() -> int:
-        """Rough token estimate from current messages (1 token ≈ 4 chars)."""
-        return max(0, sum(len(str(m.get("content", ""))) for m in _s["messages"]) // 4)
+        """What the model reads at the start of the next turn: the system
+        prompt and tool definitions of the last turn (`ctx_base_chars`) plus
+        the conversation. Counting only the messages left out the part that
+        is there on every turn — a long chat read 2 % of a 141k window.
+        Ollama's own count is no help: it reports only the tokens it had to
+        evaluate, not those reused from its cache."""
+        chars = sum(len(str(m.get("content", ""))) for m in _s["messages"])
+        return max(0, int((chars + int(_s.get("ctx_base_chars") or 0)) / _CHARS_PER_TOKEN))
 
     def _get_model_ctx_win() -> int:
         """Context window from model config — used before first API response."""
@@ -1585,6 +1613,11 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 remove="text-gray-600 text-amber-500",
                 add="text-amber-500" if ratio >= 0.75 else "text-gray-600",
             )
+            # On a phone compression lives in this menu: the hint goes with it.
+            conv_menu_btn.classes(
+                remove="text-gray-400 text-amber-500",
+                add="text-amber-500" if ratio >= 0.75 else "text-gray-400",
+            )
         else:
             # No window size known yet (before the first answer). An empty chat
             # still uses exactly 0 % of any window — say so instead of an empty
@@ -1594,6 +1627,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             ctx_pct_label.set_text("0%" if ct == 0 else "–")
             ctx_tt.set_text(_("Context: –"))
             compact_btn.classes(remove="text-amber-500", add="text-gray-600")
+            conv_menu_btn.classes(remove="text-amber-500", add="text-gray-400")
 
     def _load_conv(conv_id: str) -> None:
         if conv_id != _s.get("conv_id"):
@@ -1912,6 +1946,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         else:
             mobile_docs.classes(remove="open")
             scrim.classes(remove="open")
+            if _drawer.get("src_overlay") is not None:  # the dock's source layer goes too
+                _drawer["src_overlay"].classes(remove="open")
             docs_edge_handle.classes(remove="open")
             docs_handle_icon.set_name("chevron_left")
 
@@ -2054,12 +2090,20 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         else:
                             ui.label(_("No models configured")).classes("text-xs text-red-400 self-center")
 
-                        ui.button(
-                            icon="delete_sweep",
-                            on_click=lambda: _clear_chat(),
-                        ).props("flat dark dense").classes("text-gray-400").tooltip(
-                            _("Delete conversation")
-                        )
+                        # What acts on the whole conversation sits above it, in
+                        # one menu: download and delete — and on a phone also
+                        # tools and compression, so the input row is the input.
+                        with ui.button(icon="more_vert").props("flat dark dense").classes(
+                                "text-gray-400 chat-conv-menu").tooltip(_("Conversation")) as conv_menu_btn:
+                            with ui.menu().props("auto-close"):
+                                ui.menu_item(_("Download conversation as Markdown"),
+                                             on_click=lambda: _dl_conversation())
+                                ui.menu_item(_("Configure tools"),
+                                             on_click=lambda: _toggle_tools_panel()).classes("chat-menu-tool")
+                                ui.menu_item(_("Compress chat"), on_click=lambda: asyncio.ensure_future(
+                                    _compact_chat())).classes("chat-menu-tool")
+                                ui.separator()
+                                ui.menu_item(_("Delete conversation"), on_click=lambda: _clear_chat())
                         if _embed:
                             # The findings dock: maximize / back, in this row. A
                             # message to the page around it — no server round trip,
@@ -2344,20 +2388,6 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             )
                             compact_btn.on_click(lambda: asyncio.ensure_future(_compact_chat()))
 
-                            def _dl_conversation() -> None:
-                                from app_ui.chat_export import conversation_markdown
-
-                                md = conversation_markdown(
-                                    _s["messages"], you=_("You"), assistant=_expert().name or "PaperlessBrain")
-                                if not md:
-                                    ui.notify(_("Nothing to download yet."), type="info")
-                                    return
-                                ui.download(md.encode("utf-8"), _("conversation.md"), media_type="text/markdown")
-
-                            (ui.button(icon="download", color=None, on_click=_dl_conversation)
-                             .props("flat dark").classes("chat-input-tool")
-                             .tooltip(_("Download conversation as Markdown")))
-
                             input_field = (
                                 ui.textarea(placeholder=_("Message …"))
                                 .classes("flex-1 chat-main-input")
@@ -2429,6 +2459,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                           on_click=lambda: _src_overlay.classes(remove="open")).props("flat dense no-caps")
             _embed_preview = ui.element("div").classes("chat-src-overlay-body")
         _drawer["preview_hosts"].append(_embed_preview)
+        _drawer["src_overlay"] = _src_overlay
 
     # ── Enter key handling ────────────────────────────────────────────────────
     ui.add_head_html("""<script>
@@ -2950,9 +2981,19 @@ window.__openCite = function(el) {{
     }});
 }};
 // The Source tab: bring the cited passage into view, track and step pages.
+// The Source pane on screen. There is one per host (desktop panel, phone
+// drawer, dock overlay) and the hidden ones still have an offsetParent: the
+// phone drawer waits off-screen, the desktop panel has no width. Picking the
+// first one scrolled a pane nobody saw, and the passage never came into view.
 window.__pbSrcHost = function() {{
-    return Array.prototype.find.call(
-        document.querySelectorAll('.pb-src-scroll'), function(x) {{ return x.offsetParent; }});
+    var best = null, area = 0, vw = window.innerWidth, vh = window.innerHeight;
+    document.querySelectorAll('.pb-src-scroll').forEach(function(x) {{
+        var r = x.getBoundingClientRect();
+        var w = Math.min(r.right, vw) - Math.max(r.left, 0);
+        var h = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+        if (w > 0 && h > 0 && w * h > area) {{ area = w * h; best = x; }}
+    }});
+    return best;
 }};
 window.__pbScrollToHighlight = function(page, tries) {{
     tries = tries || 0;
@@ -3518,6 +3559,16 @@ window.__openVaultNote = function(noteId) {{
             _chat_hist.delete_conversation(_s["conv_id"], _username)
         _new_conv()
 
+    def _dl_conversation() -> None:
+        from app_ui.chat_export import conversation_markdown
+
+        md = conversation_markdown(
+            _s["messages"], you=_("You"), assistant=_expert().name or "PaperlessBrain")
+        if not md:
+            ui.notify(_("Nothing to download yet."), type="info")
+            return
+        ui.download(md.encode("utf-8"), _("conversation.md"), media_type="text/markdown")
+
     async def _scroll_bottom() -> None:
         messages_scroll.scroll_to(percent=1.0)
         await asyncio.sleep(0.05)
@@ -3816,6 +3867,14 @@ window.__openVaultNote = function(noteId) {{
                          "Please send your message again in a moment.").format(s=_settings.ollama_wake_timeout_s)
             return ""
 
+        _turn_tools = _active_tools(use_skill=_te.needs_use_skill)
+        # The part of every request that is not the stored conversation: the
+        # system prompt, the tool definitions and this turn's context prefixes.
+        _s["ctx_base_chars"] = (
+            len(_system) + len(json.dumps(_turn_tools, ensure_ascii=False))
+            + max(0, sum(len(str(m.get("content", ""))) for m in llm_messages)
+                  - sum(len(str(m.get("content", ""))) for m in _s["messages"])))
+        _update_context_progress()
         try:
             _wake_err = await _wake_local_host()
             if _wake_err and _wake_err != "stopped":
@@ -3824,7 +3883,7 @@ window.__openVaultNote = function(noteId) {{
                 llm_messages,
                 _system,
                 _s["temperature"],
-                tools=_active_tools(use_skill=_te.needs_use_skill),
+                tools=_turn_tools,
                 max_iterations=_s["max_iterations"],
                 answer_language=_lang,
             )):
@@ -3931,6 +3990,15 @@ window.__openVaultNote = function(noteId) {{
                     if _key not in {(e.doc_id, e.page, e.index) for e in _shown_images}:
                         _shown_images.append(event)
                         streaming_label[0].set_content(_build_display())
+
+                elif isinstance(event, OffloadEvent):
+                    # Slow because the model does not fit the GPU — not the
+                    # connection. Said once per turn, while it still matters.
+                    ui.notify(
+                        _("{model} runs partly on the CPU of its host ({pct} %), which makes it slow. "
+                          "Another model in memory or a large context window takes the GPU's room.").format(
+                            model=event.model, pct=event.cpu_percent),
+                        type="warning", timeout=12000, multi_line=True)
 
                 elif isinstance(event, DoneEvent):
                     status_badge[0].style("display:none;")
@@ -4700,6 +4768,7 @@ window.__openVaultNote = function(noteId) {{
             _cstore.pop("chat_fresh", None)
             _cstore["chat_token_count"] = _s["total_tokens"]
             _cstore["chat_context_window"] = _s["context_window"]
+            _cstore["chat_ctx_base"] = _s.get("ctx_base_chars") or 0
             messages_scroll.scroll_to(percent=1.0)
 
             # Auto-save new messages to DB
@@ -4772,6 +4841,7 @@ window.__openVaultNote = function(noteId) {{
         _s["messages"] = list(_saved)
         _s["total_tokens"] = _cstore.get("chat_token_count", 0)
         _s["context_window"] = _cstore.get("chat_context_window", 0)
+        _s["ctx_base_chars"] = _cstore.get("chat_ctx_base", 0)
         _s["current_ctx_tokens"] = _s["total_tokens"]
         # Restore conv_id so messages are linked to existing conversation, not new
         _stored_conv_id = _cstore.get("chat_conv_id")
@@ -4814,11 +4884,26 @@ window.__openVaultNote = function(noteId) {{
 
         _f = _findings.get(_username, finding)
         if _f is not None and _embed:
-            # The dock: a fresh conversation per finding. Its documents are not
-            # pinned — pins are the user's, kept across every chat, and each
-            # finding of the inbox left its documents behind. The finding's
-            # text (with its document references) is the context.
-            _new_conv()
+            # The dock: the finding's own conversation — its latest one, if it
+            # is with the expert the dock opens with — else a fresh one. A
+            # reload of the frame must come back to it: NiceGUI reloads a page
+            # whose socket timed out on reconnect (a phone back from standby on
+            # a train), and a fresh conversation there was an empty dock.
+            # Its documents are not pinned — pins are the user's, kept across
+            # every chat, and each finding of the inbox left its documents
+            # behind. The finding's text (with its document references) is the
+            # context.
+            _want = _s.get("dock_expert") or _experts_mod.default_id(_username)
+            if not _experts_on:
+                _want = _experts_mod.UNIVERSAL_ID
+            _fconv = next((c for c in _chat_hist.list_conversations(_username)
+                           if c.get("context") == f"finding:{finding}"), None) if _username else None
+            if _fconv and (_fconv.get("expert_id") or _experts_mod.UNIVERSAL_ID) == _want:
+                _cstore["chat_conv_id"] = _fconv["id"]
+                _load_conv(_fconv["id"])
+                messages_scroll.scroll_to(percent=1.0)
+            else:
+                _new_conv()
         elif _f is not None:
             _new_conv()
             async def _title(d: int) -> str:
@@ -4833,8 +4918,11 @@ window.__openVaultNote = function(noteId) {{
                     _s["pinned_docs"].append({"id": _d, "title": _t})
             _sync_pin_storage()
         _set_finding_ctx(finding)
-        # A reload must not start yet another conversation.
-        ui.run_javascript("history.replaceState(null, '', '/chat')")
+        if not _embed:
+            # A reload must not start yet another conversation. Never in the
+            # dock: its frame reloads to its own URL, and `/chat` there was the
+            # full chat with the app header, in a frame the findings page sized.
+            ui.run_javascript("history.replaceState(null, '', '/chat')")
     else:
         _set_finding_ctx(_cstore.get("chat_finding"))
     _refresh_pinned_chips()

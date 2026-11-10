@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timezone
 
 from i18n import N_
+from services.inference_activity import cpu_share
 
 PURPOSE_LABELS = {
     "chat": N_("Chat"),
@@ -59,6 +60,10 @@ def lines(_, models: list[dict] | None, snap: dict, now_ts: float) -> list[tuple
             vram = m.get("size_vram") or 0
             if vram:
                 p += " · " + _("{gb} GB").format(gb=f"{vram / 1e9:.1f}")
+            # Partly in system RAM: the usual reason a fast model crawls.
+            cpu = cpu_share(m)
+            if cpu >= 5:
+                p += " · " + _("CPU share: {pct} %").format(pct=cpu)
             left = _expires(str(m.get("expires_at") or ""), now)
             if left is not None and not running:
                 p += " · " + _("unloads in {min} min").format(min=max(1, round(left / 60)))

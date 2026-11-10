@@ -608,6 +608,27 @@ _MC_JS = """<script>
     if(f&&f.contentWindow){f.contentWindow.postMessage({type:'pb-dock-mode',full:full},window.location.origin);}};
   document.addEventListener('load',function(e){
     if(e.target&&e.target.tagName==='IFRAME'&&e.target.closest('.pbm-dock-frame'))window.pbmDockMode();},true);
+  // Back from standby: a dock frame that did not come back is reloaded. The
+  // frame's own socket revive runs first; a frame without the chat (a reload
+  // that failed on a bad connection) or still without a socket after a few
+  // seconds is dead — what it showed was an empty surface. Its URL reopens
+  // the same conversation. A half-typed message is never thrown away.
+  var hiddenAt=0;
+  window.pbmDockHeal=function(again){var f=document.querySelector('.pbm-dock-frame iframe');if(!f)return;
+    var d=null,w=null;try{d=f.contentDocument;w=f.contentWindow;}catch(e){}
+    var ta=d&&d.querySelector('.chat-main-input textarea');
+    if(ta&&w.socket&&w.socket.connected)return;
+    if(ta&&ta.value.trim())return;
+    // An answer was running: one more wait before its live view goes.
+    var b=d&&d.querySelector('.chat-send-btn i');
+    if(ta&&!again&&b&&b.textContent.trim()==='stop'){setTimeout(function(){window.pbmDockHeal(true);},8000);return;}
+    f.setAttribute('src',f.getAttribute('src'));};
+  function heal(){setTimeout(function(){window.pbmDockHeal(false);},8000);}
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden){hiddenAt=Date.now();}
+    else if(hiddenAt&&Date.now()-hiddenAt>1000){heal();}});
+  window.addEventListener('pageshow',function(e){if(e.persisted)heal();});
+  window.addEventListener('online',heal);
   // "Ask the chat" on an open question: into the dock's input, once the
   // frame is there (it may be loading the dossier's conversation).
   window.pbmPrefill=function(text){var tries=0;(function go(){

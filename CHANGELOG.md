@@ -7,6 +7,36 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The findings chat came back empty after the phone slept.** On a weak
+  connection the chat frame reloads itself; it had rewritten its own address
+  to the full chat, and a finding's chat always started a new conversation.
+  It now reloads into the same conversation, and the findings page reloads a
+  frame that did not come back on its own (never one with a half-typed
+  message).
+- **A reference number in the findings chat on a phone** opens the document
+  drawer on its Source tab with the passage marked, as in the full chat. The
+  maximized chat opened a full-screen page view on top of the drawer, at the
+  wrong place.
+- **The context ring counts what the model reads**: the system prompt and the
+  tool definitions, not only the messages (a long chat showed 2 % of 141k).
+  The prompt size a local model reports no longer undercounts either: Ollama
+  leaves out what it reused from its cache.
+
+### Changed
+
+- **Conversation menu above the chat** (⋮ next to the pickers): download and
+  delete the conversation. On a phone, tools and compression moved there too,
+  so the input row is the input, the mic and send.
+
+### Added
+
+- **Slow local model, explained**: the dashboard shows when a model in memory
+  runs partly on the CPU, and the chat says so once in a turn. The log has a
+  `[chat-timing]` line per request: prompt size, time to the first token,
+  tokens per second.
+
 ## [0.20.0] — 2026-11-08
 
 ### Added

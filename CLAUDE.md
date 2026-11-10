@@ -304,6 +304,16 @@ model)` (shared file `data/inference_activity.json`, `flock`, written at start a
 only). A new call path to a model goes through `track` too, or the dashboard calls the
 host idle while it works. Tracking never fails a request.
 
+A loaded model partly outside VRAM (`inference_activity.cpu_share`, from
+`/api/ps` `size` vs `size_vram`) is what makes a fast model crawl: the dashboard
+shows the share, the chat yields `OffloadEvent` once per turn, and every local
+request logs `[chat-timing]` (prompt size, first token, tokens/s).
+
+**The context ring is an estimate of what the model reads**: system prompt +
+tool schemas of the last turn (`ctx_base_chars`) + the stored messages. Never
+Ollama's `prompt_tokens` alone — it counts only the tokens it evaluated, not a
+prefix reused from its cache (`chat_service.reported_or_estimate`).
+
 ## Experts
 
 `docs/experts.md`. Code: `services/experts.py`, `services/expert_scope.py`,
@@ -395,6 +405,16 @@ page `app_ui/pages/experts.py`.
   returned, web pages a tool returned or read. Nothing is written to a dossier
   before the user saw the preview; the merge output passes `numbers_missing`.
 - `/findings/{id}?action=` deep links still never apply on load.
+- **The dock frame keeps its own URL.** NiceGUI reloads a page whose socket
+  timed out on reconnect (a phone back from standby on a train); the embedded
+  chat never `replaceState`s, and a finding's dock reopens that finding's
+  latest conversation (`context = finding:<id>`), as a dossier's does. The
+  findings page reloads a frame that is still dead 8 s after the page comes
+  back (`pbmDockHeal`) — never one with text in the input.
+- **A source in the dock opens in the chat's drawer below 768 px**, Source tab
+  (`_EMBED_CSS`); the full-screen `chat-src-overlay` is only for a wide compact
+  dock, which has no drawer. `__pbSrcHost` picks the Source pane by its area on
+  screen — the hidden ones still have an `offsetParent`.
 - **Hand-added documents (`added_docs`) are code-owned** like insights: a
   rebuild reads them and never drops them. "Rescan" (job `dossier_relook`) is
   user-requested, so it may run outside the sweep windows and wake the host.

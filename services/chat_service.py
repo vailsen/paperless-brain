@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import time
 import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -195,6 +196,15 @@ class DoneEvent:
 
 
 @dataclass
+class OffloadEvent:
+    """The local model runs partly on the CPU (Ollama `/api/ps`: less of it
+    in VRAM than its size). That, not the network, is what makes a chat with
+    a normally fast model crawl — the page says so once per turn."""
+    model: str
+    cpu_percent: int
+
+
+@dataclass
 class DocxRequestEvent:
     params: dict  # all inputs from trigger_docx_generation call
 
@@ -255,6 +265,7 @@ ChatEvent = (
     | WebResultsRetrievedEvent
     | IterationEvent
     | DoneEvent
+    | OffloadEvent
     | DocxRequestEvent
     | EmailRequestEvent
     | PdfSaveRequestEvent
@@ -3639,6 +3650,49 @@ async def _fetch_ollama_ctx(base_url: str, model: str) -> tuple[int, bool]:
     return ceiling, False
 
 
+#: Characters per token for an estimate of a request's size (German prose and
+#: JSON schemas run 3–4 in the tokenizers in use).
+_CHARS_PER_TOKEN = 3.5
+
+
+def estimate_prompt_tokens(messages: list[dict], tools: list | None = None) -> int:
+    """Rough size of a request: every message as sent, plus the tool schemas."""
+    chars = sum(len(json.dumps(m, ensure_ascii=False)) for m in messages)
+    if tools:
+        chars += len(json.dumps(tools, ensure_ascii=False))
+    return int(chars / _CHARS_PER_TOKEN)
+
+
+def reported_or_estimate(reported: int, estimate: int) -> int:
+    """The prompt size of a request. Ollama reports only the tokens it had to
+    evaluate — a prefix reused from its cache is not counted, so a long
+    conversation reads as a few thousand tokens. A count far below the
+    estimate is that, not a smaller prompt."""
+    return estimate if reported < estimate * 0.6 else reported
+
+
+async def _ollama_cpu_share(base_url: str, model: str) -> int | None:
+    """`cpu_share` of `model` as `/api/ps` reports it; 0 when unknown, None
+    when the server is no Ollama (a cloud API or gateway): don't ask again."""
+    server = re.sub(r"/v1/?$", "", base_url.rstrip("/"))
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(f"{server}/api/ps")
+        if resp.status_code != 200:
+            return None
+        models = resp.json().get("models")
+        if not isinstance(models, list):
+            return None
+        for entry in models:
+            if entry.get("name") == model or entry.get("model") == model:
+                from services.inference_activity import cpu_share
+
+                return cpu_share(entry)
+    except Exception:  # noqa: BLE001 — not reachable: nothing to say this time
+        pass
+    return 0
+
+
 def _is_thinking_model(model: str) -> bool:
     """Heuristic: detect models that have extended-thinking enabled by default."""
     _lower = model.lower()
@@ -3769,6 +3823,7 @@ class OpenAICompatibleChatBackend:
         self.force_tool_first_turn = force_tool_first_turn
         self.context_window = 0
         self._ctx_authoritative = False
+        self._no_ps = False  # the server answered /api/ps as no Ollama would
 
     async def _ensure_ctx(self) -> None:
         """Probe Ollama for the context window, keep retrying until authoritative.
@@ -3813,6 +3868,7 @@ class OpenAICompatibleChatBackend:
         empty_retried = False
 
         prompt_tokens = 0
+        offload_checked = False
         for _i in range(max_iterations):
             yield IterationEvent(_i + 1)
             _wol_touch()
@@ -3847,6 +3903,8 @@ class OpenAICompatibleChatBackend:
 
             from services import inference_activity
 
+            _est_prompt = estimate_prompt_tokens(working, active_tools)
+            _t0 = time.monotonic()
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
             ) as client, inference_activity.track(self.base_url, self.model, "chat") as activity:
@@ -3963,6 +4021,27 @@ class OpenAICompatibleChatBackend:
                     # Flush remaining thinking buffer
                     if think_yield_buf:
                         yield ThinkingEvent(text="".join(think_yield_buf))
+
+            # Where a slow turn's time went: reading the prompt (time to the
+            # first token) or writing (tokens per second after it).
+            _t_end = time.monotonic()
+            _first = activity.first or _t_end
+            _gen_s = max(_t_end - _first, 1e-6)
+            _log.info(
+                "[chat-timing] %s iter %d: prompt ≈%d tok (reported %d), first token %.1f s, "
+                "%d tok in %.1f s (%.0f tok/s)",
+                self.model, _i + 1, _est_prompt, prompt_tokens, _first - _t0,
+                activity.tokens, _gen_s, activity.tokens / _gen_s if activity.tokens else 0.0,
+            )
+            prompt_tokens = reported_or_estimate(prompt_tokens, _est_prompt)
+            if not offload_checked and not self._no_ps:
+                offload_checked = True
+                _cpu = await _ollama_cpu_share(self.base_url, self.model)
+                if _cpu is None:
+                    self._no_ps = True
+                elif _cpu >= 5:
+                    _log.warning("[chat-timing] %s runs %d %% on the CPU", self.model, _cpu)
+                    yield OffloadEvent(model=self.model, cpu_percent=_cpu)
 
             # Model is now loaded — re-probe /api/ps for the real runtime context
             # (the start-of-turn probe ran before load and may only have the
