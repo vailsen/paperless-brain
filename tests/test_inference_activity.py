@@ -96,3 +96,22 @@ def test_the_compute_lines():
     assert idle[1][1].endswith("unloads in 3 min") and idle[2][1].startswith("Last: ≈ 41")
     assert lines(_, [], {"running": [], "last": None}, now) == [
         ("hourglass_empty", "Idle"), ("memory", "No model in memory")]
+
+
+def test_a_model_partly_in_system_ram_says_so():
+    """`/api/ps` reports `size` and `size_vram`; the difference runs on the
+    CPU — the usual reason a normally fast model crawls."""
+    from app_ui.inference_status import lines
+    from services import inference_activity as ia
+
+    assert ia.cpu_share({"size": 20_000_000_000, "size_vram": 20_000_000_000}) == 0
+    assert ia.cpu_share({"size": 20_000_000_000, "size_vram": 15_000_000_000}) == 25
+    assert ia.cpu_share({"size": 0, "size_vram": 0}) == 0
+    assert ia.cpu_share({"size": "x"}) == 0  # whatever a server sends: no crash
+
+    now = 1_800_000_000.0
+    models = [{"name": "qwen3.8:30b", "size": 20_000_000_000, "size_vram": 15_000_000_000}]
+    row = lines(lambda s: s, models, {"running": [], "last": None}, now)[1]
+    assert row == ("memory", "In memory: qwen3.8:30b · 15.0 GB · CPU share: 25 %")
+    full = [{"name": "qwen3.8:30b", "size": 20_000_000_000, "size_vram": 20_000_000_000}]
+    assert "CPU" not in lines(lambda s: s, full, {"running": [], "last": None}, now)[1][1]
