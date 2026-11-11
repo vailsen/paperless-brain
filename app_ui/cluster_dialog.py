@@ -26,12 +26,22 @@ def create_cluster_dialog(
     _active_refs: list = [[]]   # _active_refs[0] = current sorted ref list
     _current_doc_id: list[int] = [0]
     _loading: list[bool] = [False]
+    # Stepped aside for a document: the hide must not drop the history, and
+    # closing the document brings the cluster back as it was.
+    _aside: list[bool] = [False]
 
     async def _open_doc(res) -> None:
-        # Close the cluster dialog first — the document dialog would otherwise
-        # open underneath it and stay hidden.
+        # The document dialog would open underneath this one when it is already
+        # open (the cluster was opened from it), so this one steps aside and
+        # comes back when the document is closed.
+        _aside[0] = True
         cluster_dlg.close()
-        await open_document_fn(res)
+        await open_document_fn(res, on_close=_come_back)
+
+    def _come_back() -> None:
+        if _aside[0]:
+            _aside[0] = False
+            cluster_dlg.open()
 
     # ── Tab content (refreshable) ─────────────────────────────────────────────
 
@@ -205,7 +215,7 @@ def create_cluster_dialog(
         _karten_col.set_visibility(e.value == "karten"),
         _zeitachse_col.set_visibility(e.value == "zeitachse"),
     ))
-    cluster_dlg.on("hide", lambda *_: _cluster_history.clear())
+    cluster_dlg.on("hide", lambda *_: None if _aside[0] else _cluster_history.clear())
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -269,6 +279,9 @@ def create_cluster_dialog(
     ref_select.on_value_change(_on_ref_change)
 
     async def open_cluster(doc_id: int) -> None:
+        if _aside[0]:  # a fresh cluster from the document: the old one is over
+            _aside[0] = False
+            _cluster_history.clear()
         _cluster_history.append(doc_id)
         cluster_title_lbl.set_text(_("Loading…"))
         cluster_dlg.open()

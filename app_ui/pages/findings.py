@@ -765,8 +765,8 @@ _TREE_NODE = """
 
 
 @ui.page("/findings")
-async def findings_page(d: str = "", f: str = "", tab: str = "", view: str = "") -> None:
-    await _workspace(dossier=d, finding=f, tab=tab, view=view, action="")
+async def findings_page(d: str = "", f: str = "", tab: str = "", view: str = "", folder: str = "") -> None:
+    await _workspace(dossier=d, finding=f, tab=tab, view=view, action="", folder=folder)
 
 
 @ui.page("/findings/{finding_id}")
@@ -774,7 +774,7 @@ async def finding_detail_page(finding_id: str, action: str = "") -> None:
     await _workspace(dossier="", finding=finding_id, tab="", view="", action=action)
 
 
-async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action: str) -> None:
+async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action: str, folder: str = "") -> None:
     if not require_auth():
         return
     page_layout()
@@ -860,6 +860,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         sel0 = ("list", view)
     elif view in dmod.SHELVES or view == "stale":
         sel0 = ("shelf", view)
+    elif folder:
+        sel0 = ("folder", folder)
     st: dict = {
         "sel": sel0,
         "tab": tab or "overview",
@@ -882,6 +884,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             return f"/findings?view={quote(key)}"
         if kind == "shelf":
             return f"/findings?view={quote(key)}"
+        if kind == "folder":
+            return f"/findings?folder={quote(key)}"
         return "/findings"
 
     def select(kind: str, key: str = "", *, tab_: str | None = None) -> None:
@@ -1076,6 +1080,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         tree.expand()
         if cur[0] == "dossier":
             tree._props["selected"] = f"d:{cur[1]}"
+        elif cur[0] == "folder":
+            tree._props["selected"] = f"f:{cur[1]}"
         _shelf_rows(cur)
 
     def _shelf_rows(cur) -> None:
@@ -1101,50 +1107,144 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if node_id and str(node_id).startswith("d:"):
             select("dossier", str(node_id)[2:])
         elif node_id and str(node_id).startswith("f:"):
-            _folder_dialog(str(node_id)[2:])
+            select("folder", str(node_id)[2:])
 
-    def _folder_dialog(folder: str) -> None:
-        with _page_dialog() as dlg, ui.card().classes("gap-2").style("background:var(--c-surface); width:min(420px,94vw);"):
-            ui.label(_("Folder “{name}”").format(name=folder)).classes("text-base font-semibold").style(
-                "color:var(--c-text)")
-            ui.label(_("Deleting the folder moves its dossiers one level up; nothing else changes.")).classes(
-                "pbm-hint")
+    # ── A folder: its overview, links to what is inside, its actions ────────
+    def _folder_view(folder: str) -> None:
+        from proactive import folder_overview as fo
 
-            async def _del() -> None:
-                try:
-                    n = await dmod.delete_folder(user, folder)
-                except dmod.DossierError as err:
-                    ui.notify(_("The folder holds notes that are not dossiers — it stays. Remove them in your "
-                                "vault first.") if str(err) == "not_empty" else _("Not a valid folder."),
-                              type="warning")
-                    return
-                dlg.close()
-                ui.notify(_("Folder deleted.") + (" " + _("{n} dossiers moved up.").format(n=n) if n else ""),
-                          type="positive")  # TODO i18n-plural
-                nav_body.refresh()
-                viewer_body.refresh()
+        if folder not in dmod.folders(user):
+            with ui.column().classes("pbm-panel"):
+                ui.label(_("This folder no longer exists.")).classes("pbm-hint")
+            return
+        ds = sorted(fo.dossiers_in(user, folder), key=lambda x: (x.folder != folder, x.display.casefold()))
+        subs = [f for f in dmod.folders(user) if f.rpartition("/")[0] == folder]
+        ov = fo.load(user, folder)
+        with ui.column().classes("pbm-panel gap-3"):
+            with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                ui.icon("folder", size="md").classes("text-gray-300")
+                with ui.column().classes("gap-0 flex-1").style("min-width:0;"):
+                    ui.label(folder.rsplit("/", 1)[-1]).classes("text-xl font-bold w-full").style(
+                        "color:var(--c-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;")
+                    sub = [_("{n} dossiers").format(n=len(ds))]  # TODO i18n-plural
+                    if subs:
+                        sub.append(_("{n} folders").format(n=len(subs)))  # TODO i18n-plural
+                    if "/" in folder:
+                        sub.append(folder.rpartition("/")[0])
+                    ui.label(" · ".join(sub)).classes("pbm-hint w-full")
+                with ui.button(icon="more_vert").props("flat dense round").classes("card-action-btn"):
+                    with ui.menu():
+                        ui.menu_item(_("New dossier here"), on_click=lambda: _new_dossier(folder))
+                        ui.menu_item(_("Rename folder"), on_click=lambda: _rename_folder(folder))
+                        ui.separator()
+                        ui.menu_item(_("Delete folder"), on_click=lambda: _delete_folder(folder))
+            _overview_banner(folder, ds, ov)
+            if ov and ov.text:
+                ui.label(ov.text).classes("text-sm w-full").style(
+                    "color:var(--c-text); white-space:pre-wrap; overflow-wrap:anywhere;")
+            if not ds and not subs:
+                ui.label(_("Empty. Move dossiers here, or make a new one.")).classes("pbm-hint")
+            for sf in subs:
+                el = ui.element("div").classes("pbm-card").style("cursor:pointer;")
+                el.on("click", lambda _e, x=sf: select("folder", x))
+                with el, ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    ui.icon("folder", size="sm").classes("text-gray-400")
+                    ui.label(sf.rsplit("/", 1)[-1]).classes("text-sm font-semibold flex-1 min-w-0").style(
+                        "color:var(--c-text)")
+                    ui.icon("chevron_right", size="xs").classes("text-gray-400")
+            for d in ds:
+                el = ui.element("div").classes("pbm-card").style("cursor:pointer;")
+                el.on("click", lambda _e, i=d.pbrain_id: select("dossier", i))
+                with el, ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    ui.icon("folder_open", size="sm").classes("text-gray-400")
+                    with ui.column().classes("gap-0 flex-1").style("min-width:0;"):
+                        ui.label(d.display).classes("text-sm font-semibold w-full").style(
+                            "color:var(--c-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;")
+                        line = (ov.lines.get(d.topic) if ov else "") or ""
+                        meta = [d.folder[len(folder) + 1:]] if d.folder != folder else []
+                        if line:
+                            meta.append(line)
+                        if meta:
+                            ui.label(" · ".join(meta)).classes("pbm-hint w-full")
+                    ui.icon("chevron_right", size="xs").classes("text-gray-400")
 
-            def _new_here() -> None:
-                dlg.close()
-                _new_dossier(folder)
+    def _overview_state(folder: str) -> str:
+        from proactive import folder_overview as fo
+        from proactive import jobs as _jobs
 
-            def _rename() -> None:
-                dlg.close()
+        try:
+            return "queued" if _jobs.is_pending(fo.job_key(user, folder)) else ""
+        except Exception:  # proactive.db unreadable: no state, not an error page
+            return ""
 
-                async def _ok(name: str) -> None:
-                    await dmod.rename_folder(user, folder, name)
+    def _overview_banner(folder: str, ds, ov) -> None:
+        from proactive import folder_overview as fo
 
-                _ask_text(_("Rename folder"), _("Name"), folder.rsplit("/", 1)[-1], _ok, hint=_(
-                    "Only the folder's name changes; the dossiers in it stay as they are."))
+        if not ds:
+            return
+        state = _overview_state(folder)
+        stale = ov is None or ov.built_from != fo.fingerprint(ds)
+        with ui.element("div").classes("pbm-pending w-full"):
+            if state:
+                ui.spinner(size="xs").props("color=grey")
+                ui.label(_("Overview queued — the model writes it from the dossiers' current state; it gives way "
+                           "while you chat.")).classes("flex-1 min-w-0")
+                return
+            ui.icon("summarize" if not stale else "update", size="xs")
+            if ov is None:
+                msg = _("No overview yet. It is written in the night, or now.")
+            elif stale:
+                msg = _("The dossiers inside changed since the overview of {date} — it is rewritten in the "
+                        "night, or now.").format(date=ov.built)
+            else:
+                msg = _("Overview of {date}, from the dossiers' state. Their own pages are the source.").format(
+                    date=ov.built)
+            ui.label(msg).classes("flex-1 min-w-0")
+            if stale:
+                ui.button(_("Write now") if ov is None else _("Rewrite now"), icon="refresh",
+                          on_click=lambda: _build_overview(folder)).props("flat dense no-caps")
 
-            with ui.row().classes("w-full justify-end gap-2"):
-                ui.button(_("Rename"), icon="edit", on_click=_rename).props("flat no-caps")
-                ui.button(_("New dossier here"), icon="add", on_click=_new_here).props("flat no-caps")
-                ui.button(_("Delete folder"), icon="folder_delete", on_click=_del).props(
-                    "unelevated no-caps").classes("bg-negative text-white")
-        # The tree keeps a folder selected; a second tap would only unselect it.
-        dlg.on("hide", lambda: nav_body.refresh())
-        dlg.open()
+    def _build_overview(folder: str) -> None:
+        from proactive import folder_overview as fo
+        from proactive import jobs as _jobs
+        from proactive.models import resolve_model
+        from services.background_access import token_for
+
+        tok = token_for(user)
+        if not tok:
+            ui.notify(_("Allow background access first (Settings > Proactive) — the overview is written in the "
+                        "background, as you."), type="warning")
+            return
+        _jobs.enqueue("folder_overview", user, {"folder": folder}, needs_llm=True,
+                      model=resolve_model(user, tok), dedupe_key=fo.job_key(user, folder))
+        ui.notify(_("Overview queued."), type="positive")
+        viewer_body.refresh()
+
+    def _delete_folder(folder: str) -> None:
+        async def _ok() -> None:
+            try:
+                n = await dmod.delete_folder(user, folder)
+            except dmod.DossierError as err:
+                ui.notify(_("The folder holds notes that are not dossiers — it stays. Remove them in your "
+                            "vault first.") if str(err) == "not_empty" else _("Not a valid folder."),
+                          type="warning")
+                return
+            ui.notify(_("Folder deleted.") + (" " + _("{n} dossiers moved up.").format(n=n) if n else ""),
+                      type="positive")  # TODO i18n-plural
+            parent = folder.rpartition("/")[0]
+            select("folder", parent) if parent else select("home")
+
+        _confirm(_("Delete the folder “{name}”? Its dossiers move one level up; nothing else changes.").format(
+            name=folder.rsplit("/", 1)[-1]), _ok, ok_label=_("Delete folder"))
+
+    def _rename_folder(folder: str) -> None:
+        async def _ok(name: str) -> None:
+            new = await dmod.rename_folder(user, folder, name)
+            st["sel"] = ("folder", new)
+            ui.run_javascript(f"history.replaceState(null,'',{json.dumps(_url())})")
+
+        _ask_text(_("Rename folder"), _("Name"), folder.rsplit("/", 1)[-1], _ok, hint=_(
+            "Only the folder's name changes; the dossiers in it stay as they are."))
 
     # ── Viewer ───────────────────────────────────────────────────────────────
     @ui.refreshable
@@ -1158,6 +1258,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             _list_view(key)
         elif kind == "shelf":
             _shelf_view(key)
+        elif kind == "folder":
+            _folder_view(key)
         else:
             _home_view()
 
@@ -2466,6 +2568,11 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if kind == "dossier":
             d = dmod.by_id(user, key)
             return (kind, key, d.sha if d else "")
+        if kind == "folder":  # the worker wrote its overview
+            from proactive import folder_overview as fo
+
+            ov = fo.load(user, key)
+            return (kind, key, ov.built_from if ov else "", _overview_state(key))
         return (kind, key)
 
     seen = {"k": _key(), "sel": _sel_key()}

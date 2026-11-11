@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from proactive import analysis, clock, dossiers, jobs, llm, prefs, users, windows
+from proactive import analysis, clock, dossiers, folder_overview, jobs, llm, prefs, users, windows
 from proactive.jobs import Defer, Job, handler
 from proactive.models import resolve_model
 from proactive.tasks import daily
@@ -237,3 +237,44 @@ async def dossier_stale_check(job: Job) -> None:
             jobs.enqueue("dossier_relook", user, {"topic": d.topic}, needs_llm=True, model=model,
                          dedupe_key=dossiers.relook_key(user, d.topic))
             log.info("%s: dossier %s changed by hand since %s — rescan queued", user, d.topic, d.stale)
+        # A folder's overview after its dossiers changed — after their own
+        # rescans, which change them again (the job waits for those).
+        for folder in folder_overview.stale_folders(user):
+            jobs.enqueue("folder_overview", user, {"folder": folder}, needs_llm=True, model=model,
+                         dedupe_key=folder_overview.job_key(user, folder))
+
+
+@handler("folder_overview", needs_llm=True)
+async def folder_overview_job(job: Job) -> None:
+    """Write a folder's overview (`proactive/folder_overview.py`). Queued in
+    the sweep window for a stale folder, or by the user's "Build now"
+    (`windows.USER_REQUESTED_KINDS`)."""
+    from i18n import language_name
+
+    user, folder = job.user, str(job.payload.get("folder") or "")
+    tok = users.token(user)
+    if not tok or folder not in dossiers.folders(user):
+        return
+    ds = folder_overview.dossiers_in(user, folder)
+    if not ds or not folder_overview.is_stale(user, folder):
+        return
+    if any(jobs.is_pending(dossiers.relook_key(user, d.topic)) for d in ds):
+        raise Defer("a dossier of the folder is being rescanned", 900)
+    model = resolve_model(user, tok)
+    if model is None:
+        raise Defer("no allowed model", 3600)
+    llm.check_cloud_cap(user, model)
+    lang = prefs.get(user).content_language
+    given = folder_overview.prompt(ds)
+    raw = await llm.structured(
+        model, user, tok,
+        system=folder_overview.SYSTEM.format(language=language_name(lang)),
+        messages=[{"role": "user", "content": f"Folder: {folder}\n\n{given}\n\nWrite in {language_name(lang)}."}],
+        json_schema=folder_overview.SCHEMA, tool_name="folder_overview",
+    )
+    llm.record_cloud_doc(user, model)
+    text, lines = folder_overview.validated(raw, ds, given)
+    await folder_overview.write(user, folder, folder_overview.Overview(
+        built=clock.local_now().date().isoformat(), built_from=folder_overview.fingerprint(ds),
+        lang=lang, text=text, lines=lines))
+    log.info("%s: folder overview %s — %d dossier(s), %d line(s)", user, folder, len(ds), len(lines))

@@ -1128,6 +1128,9 @@ async def delete_folder(user: str, folder: str) -> int:
         # that is not a dossier, an attachment) is the user's and stays.
         if not target.is_dir():
             return
+        from proactive.folder_overview import remove_files
+
+        remove_files(target)  # the folder's overviews are ours
         for p in sorted((x for x in target.rglob("*") if x.is_dir()), key=lambda x: -len(x.parts)) + [target]:
             try:
                 p.rmdir()

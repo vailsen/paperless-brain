@@ -276,8 +276,9 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   (Sourcepoint, contentpass, …) covered nearly every news page, and
   clicking "accept" for the user is not ours to do.
 - **Source pages are pictures with a text layer** (`/api/doc-words`, same access
-  check; `page_viewer` lays the PDF's words over the picture as invisible SVG
-  text, one `<text>` per line), so text can be selected and copied. A click
+  check; `page_viewer` lays the PDF's words over the picture as transparent
+  HTML spans, each stretched to the next word), so text can be selected and
+  copied. Not SVG text: Chrome painted selected SVG text white over the page. A click
   that ends a selection does not open the viewer. A scan without a text layer
   has none.
 - **A finding's evidence carries reference numbers** (`findings.cite_evidence`,
@@ -405,6 +406,13 @@ page `app_ui/pages/experts.py`.
   is wider than tall, and orientation rules let the pickers run off screen.
 - **The folder tree under `Dossiers/` is the dossier tree**; a dossier is found
   by its `topic`, never by its path (`dossiers._path` scans).
+- **A folder opens its overview** (`proactive/folder_overview.py`, `_Overview.md`
+  in the folder): links come from code, the model writes only the text and one
+  line per dossier (numbers not in its input are dropped). Out of date is
+  computed — a fingerprint of the inner dossiers' name, state and questions —
+  never marked; `dossier_stale_check` queues `folder_overview` for stale ones
+  in the sweep window, after their dossiers' rescans. The file has no `topic`:
+  never a dossier, never indexed.
 - **Dossier sections carry `<!-- pb:… -->` anchors** (headings are translated).
   **Insights are code-owned** like `research`: a rebuild
   never edits or drops them, the rebuild model sees them read-only.
