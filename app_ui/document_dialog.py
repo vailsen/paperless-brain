@@ -152,6 +152,9 @@ def create_document_dialog(
     """
     _ = get_translator()
     _active: list = [None]  # (DocumentResult, file_url, related_refs, related_docs)
+    # Where closing the dialog leads back to: the cluster or similar dialog the
+    # document was opened from steps aside and returns, timeline tab and all.
+    _return_to: list = [None]
 
     def _on_ref_click(doc_id: int) -> None:
         asyncio.ensure_future(_fetch_and_navigate(doc_id))
@@ -259,7 +262,9 @@ def create_document_dialog(
                 is_pinned=_is_pinned,
             )
 
-    async def open_document(result: DocumentResult) -> None:
+    async def open_document(result: DocumentResult, on_close=None) -> None:
+        if on_close is not None:
+            _return_to[0] = on_close
         doc_id = result.document.id
         cached = os.path.join(_PDF_CACHE, f"{doc_id}.pdf")
         if not os.path.exists(cached):
@@ -305,6 +310,13 @@ def create_document_dialog(
             """)
         except Exception:
             pass
+
+    def _on_hide(*_args) -> None:
+        back, _return_to[0] = _return_to[0], None
+        if back is not None:
+            back()
+
+    dlg.on("hide", _on_hide)
 
     return open_document, dlg
 

@@ -40,11 +40,16 @@ PAGE_VIEWER_HTML = """<style>
 .pbv-inner img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .pb-src-page, .dl-thumb { cursor: zoom-in; }
 /* Text layer: the page's own words, invisible, over the picture — so text can
-   be selected and copied. On top of the highlights, which stay visible. */
-.pb-txl { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; cursor: text;
-         user-select: text; -webkit-user-select: text; }
-.pb-txl text, .pb-txl tspan { fill: transparent; white-space: pre; }
-.pb-txl tspan::selection, .pb-txl text::selection { fill: transparent; background: rgba(51, 136, 255, .35); }
+   be selected and copied. HTML spans, not SVG text: Chrome paints selected SVG
+   text in its own selection colour (white letters over the page) and gives a
+   stretched glyph next to no hit area. Each word is stretched to reach the next
+   one, so a line is one strip the mouse can drag along. */
+.pb-txl { position: absolute; inset: 0; overflow: hidden; line-height: 1; cursor: text;
+         font-family: sans-serif; user-select: text; -webkit-user-select: text; }
+.pb-txl span { position: absolute; color: transparent; white-space: pre; line-height: 1;
+              transform-origin: 0 0; }
+.pb-txl span::selection { color: transparent; background: rgba(51, 136, 255, .35); }
+.pb-txl br::selection { background: transparent; }
 </style>
 <script>
 (function () {
@@ -208,12 +213,38 @@ PAGE_VIEWER_HTML = """<style>
     var all = page.parentNode.querySelectorAll('.pb-src-page');
     window.__pbViewer.open(all, Array.prototype.indexOf.call(all, page));
   });
-  // Text layer (`/api/doc-words`): one invisible <text> per word in an SVG
-  // that stretches with the page, so it fits at every size and zoom without
-  // measuring. Built once per frame; a viewer clone copies it.
-  var NS = 'http://www.w3.org/2000/svg', SRC = /\/api\/doc-image\/(\d+)\/(\d+)(?:$|[?#])/;
+  // Text layer (`/api/doc-words`): one transparent span per word, placed in
+  // page fractions. Font size follows the frame's height (a ResizeObserver,
+  // so zoom and drawer width need no re-layout); the horizontal stretch is
+  // size-independent — computed once from the page's aspect ratio.
+  var SRC = /\\/api\\/doc-image\\/(\\d+)\\/(\\d+)(?:$|[?#])/, ctx = null;
+  function measure(text) {
+    ctx = ctx || document.createElement('canvas').getContext('2d');
+    ctx.font = '100px sans-serif';
+    return ctx.measureText(text).width || 1;
+  }
+  function fit(frame, tl) {
+    var W = frame.clientWidth, H = frame.clientHeight;
+    if (!W || !H) return;
+    tl.style.fontSize = H + 'px';
+    if (tl.__pbFit) return;
+    tl.__pbFit = true;
+    tl.querySelectorAll('span').forEach(function (sp) {
+      var w = +sp.getAttribute('data-w'), h = +sp.getAttribute('data-h');
+      sp.style.transform = 'scaleX(' + (w / h) * (W / H) * 100 / measure(sp.textContent) + ')';
+    });
+  }
+  function watch(frame) {
+    var tl = frame.querySelector('.pb-txl');
+    if (!tl || frame.__pbTlObs) return;
+    frame.__pbTlObs = true;
+    tl.__pbFit = false;  // a viewer clone: the copy carries the old stretch
+    if (window.ResizeObserver) new ResizeObserver(function () { fit(frame, tl); }).observe(frame);
+    fit(frame, tl);
+  }
   function layer(frame) {
-    if (frame.__pbTl || frame.querySelector('.pb-txl')) return;
+    if (frame.querySelector('.pb-txl')) { watch(frame); return; }
+    if (frame.__pbTl) return;
     var img = frame.querySelector('img'), m = img && SRC.exec(img.getAttribute('src') || '');
     if (!m) return;
     frame.__pbTl = true;
@@ -221,30 +252,35 @@ PAGE_VIEWER_HTML = """<style>
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d || !d.words || !d.words.length || frame.querySelector('.pb-txl')) return;
-        var svg = document.createElementNS(NS, 'svg');
-        svg.setAttribute('class', 'pb-txl');
-        svg.setAttribute('viewBox', '0 0 1000 1000');
-        svg.setAttribute('preserveAspectRatio', 'none');
-        // One <text> per line, a <tspan> per word: a copied line keeps its
+        var tl = document.createElement('div');
+        tl.className = 'pb-txl';
+        // Lines in reading order, a <br> between them: a copied line keeps its
         // spaces, a line break comes only between lines.
-        var line = null, lastY = -1, lastH = 0;
+        var lines = [], line = null, lastY = -1, lastH = 0;
         d.words.forEach(function (w) {
           if (!line || Math.abs(w[2] - lastY) > Math.max(w[4], lastH) * 0.5) {
-            line = document.createElementNS(NS, 'text');
-            line.setAttribute('font-size', w[4] * 1000);
-            svg.appendChild(line);
-            lastY = w[2]; lastH = w[4];
+            line = []; lines.push(line); lastY = w[2]; lastH = w[4];
           }
-          var t = document.createElementNS(NS, 'tspan');
-          t.setAttribute('x', w[1] * 1000);
-          t.setAttribute('y', (w[2] + w[4] * 0.82) * 1000);
-          t.setAttribute('font-size', w[4] * 1000);
-          t.setAttribute('textLength', Math.max(w[3] * 1000, 1));
-          t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
-          t.textContent = w[0] + ' ';
-          line.appendChild(t);
+          line.push(w);
         });
-        frame.appendChild(svg);
+        lines.forEach(function (ws, li) {
+          if (li) tl.appendChild(document.createElement('br'));
+          ws.forEach(function (w, i) {
+            var next = ws[i + 1], h = Math.max(w[4], 0.001);
+            // up to the next word of the line, so the gap belongs to the text
+            var width = next && next[1] > w[1] ? next[1] - w[1] : w[3];
+            var sp = document.createElement('span');
+            sp.textContent = next ? w[0] + ' ' : w[0];
+            sp.setAttribute('data-w', Math.max(width, 0.001));
+            sp.setAttribute('data-h', h);
+            sp.style.left = w[1] * 100 + '%';
+            sp.style.top = w[2] * 100 + '%';
+            sp.style.fontSize = h + 'em';
+            tl.appendChild(sp);
+          });
+        });
+        frame.appendChild(tl);
+        watch(frame);
       })
       .catch(function () {});
   }

@@ -839,6 +839,10 @@ body.pb-compact .chat-splitter > .q-splitter__before{width:100%!important;}
 body.pb-compact .chat-input-row{padding:6px 10px!important;}
 .chat-head{padding:0 8px!important;gap:6px!important;}
 body.pb-compact .chat-dock-min, body:not(.pb-compact) .chat-dock-max{display:none!important;}
+/* The full-screen source layer is only for the compact dock, which has no
+   drawer. Maximized, the drawer on the right shows the source — the layer
+   covered it until "Back to the chat" revealed it. */
+body:not(.pb-compact) .chat-src-overlay.open{display:none!important;}
 /* A phone-width dock: a reference number opens the document drawer on its
    Source tab, as in the full chat — the full-screen source layer read as a
    viewer, and tapping a page opens the viewer anyway. The layer stays for a
