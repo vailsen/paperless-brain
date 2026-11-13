@@ -382,7 +382,10 @@ compare), page `app_ui/pages/admin.py`, `services/admin.py`.
   holds them, plus the global max. search results.
 - **The admin page leads through a change** (`admin._next_step`): build (remotely
   when an endpoint is set) → check local against remote → switch to this server →
-  compare, thresholds, make active. "Dormant" means *was* active (`was_active`).
+  compare, thresholds, make active — or "Keep it remote" (`stay_remote`), which skips
+  the check and the move. "Dormant" means *was* active (`was_active`). The card counts
+  documents *and* chunks (`embedding_index.counts`): ~500 documents are ~2 600 chunks,
+  and a bare chunk count read as the number of documents.
 
 ## Experts
 

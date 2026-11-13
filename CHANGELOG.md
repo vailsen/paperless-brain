@@ -46,7 +46,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   Search.
 - **The admin page says what to do next** with a model: build (remotely when
   an endpoint is set), check against this server, switch over, compare, set
-  thresholds, make active — one step and its button at a time.
+  thresholds, make active — one step and its button at a time. An index
+  built remotely may also stay remote. The card counts documents and their
+  chunks separately.
 - **The header collapses its modules into the ☰ menu** whenever they would
   wrap into a second row (a half-width window), not only on a phone.
 
