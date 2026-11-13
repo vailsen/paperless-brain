@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-11 22:22+0100\n"
+"POT-Creation-Date: 2026-11-13 09:39+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -38,7 +38,7 @@ msgstr "Dienst hinzufügen"
 msgid "Backend"
 msgstr "Backend"
 
-#: app_ui/ai_models_settings.py:99
+#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:340
 msgid "Base URL"
 msgstr "Base URL"
 
@@ -50,7 +50,7 @@ msgstr "Anzeigename"
 msgid "e.g. Ollama local, OpenRouter, Claude"
 msgstr "z. B. Ollama lokal, OpenRouter, Claude"
 
-#: app_ui/ai_models_settings.py:106
+#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:344
 msgid "API key"
 msgstr "API-Schlüssel"
 
@@ -101,6 +101,8 @@ msgstr "Dienst gespeichert."
 
 #: app_ui/ai_models_settings.py:172 app_ui/ai_models_settings.py:325
 #: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:980
+#: app_ui/pages/admin.py:258 app_ui/pages/admin.py:276
+#: app_ui/pages/admin.py:375 app_ui/pages/admin.py:405
 #: app_ui/pages/brain.py:277 app_ui/pages/brain.py:291
 #: app_ui/pages/brain.py:772 app_ui/pages/chat.py:1711
 #: app_ui/pages/chat.py:3370 app_ui/pages/chat.py:4487
@@ -120,6 +122,7 @@ msgstr "Abbrechen"
 
 #: app_ui/ai_models_settings.py:173 app_ui/ai_models_settings.py:326
 #: app_ui/dossier_save.py:102 app_ui/memo_dialog.py:323
+#: app_ui/pages/admin.py:376 app_ui/pages/admin.py:406
 #: app_ui/pages/chat.py:1718 app_ui/pages/experts.py:375
 #: app_ui/pages/experts.py:516 app_ui/pages/experts.py:578
 #: app_ui/pages/experts.py:821 app_ui/pages/settings.py:231
@@ -294,10 +297,10 @@ msgid "Service deleted."
 msgstr "Dienst gelöscht."
 
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
-#: app_ui/ai_models_settings.py:500 app_ui/pages/brain.py:292
-#: app_ui/pages/brain.py:1100 app_ui/pages/experts.py:819
-#: app_ui/pages/experts.py:898 app_ui/pages/findings.py:2269
-#: werkbank/v2/ui/page.py:264
+#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:288
+#: app_ui/pages/brain.py:292 app_ui/pages/brain.py:1100
+#: app_ui/pages/experts.py:819 app_ui/pages/experts.py:898
+#: app_ui/pages/findings.py:2269 werkbank/v2/ui/page.py:264
 msgid "Delete"
 msgstr "Löschen"
 
@@ -521,7 +524,8 @@ msgstr "1 Seite"
 msgid "{n} pages"
 msgstr "{n} Seiten"
 
-#: app_ui/document_dialog.py:543 app_ui/pages/chat.py:3457
+#: app_ui/document_dialog.py:543 app_ui/pages/admin.py:78
+#: app_ui/pages/chat.py:3457
 msgid "Notes"
 msgstr "Notizen"
 
@@ -957,7 +961,7 @@ msgstr "wörtlich gespeichert"
 msgid "From the chat"
 msgstr "Aus dem Chat"
 
-#: app_ui/help_dialog.py:16 app_ui/layout.py:45 app_ui/pages/dashboard.py:395
+#: app_ui/help_dialog.py:16 app_ui/layout.py:46 app_ui/pages/dashboard.py:395
 #: tests/test_i18n.py:119
 msgid "Dashboard"
 msgstr "Dashboard"
@@ -975,7 +979,7 @@ msgstr ""
 "Paperless oder den Vault von Hand synchronisieren und mit „Träumen“ das "
 "Gedächtnis des Assistenten aufräumen lassen."
 
-#: app_ui/help_dialog.py:20 app_ui/inference_status.py:14 app_ui/layout.py:46
+#: app_ui/help_dialog.py:20 app_ui/inference_status.py:14 app_ui/layout.py:47
 #: app_ui/pages/chat.py:2032 app_ui/pages/experts.py:261
 #: app_ui/pages/findings.py:920 app_ui/pages/settings.py:468
 msgid "Chat"
@@ -996,7 +1000,7 @@ msgstr ""
 " wählst du oben; Werkzeugschalter und Schnellaktionen liegen unter der "
 "Eingabe."
 
-#: app_ui/help_dialog.py:27 app_ui/layout.py:52 app_ui/pages/findings.py:1005
+#: app_ui/help_dialog.py:27 app_ui/layout.py:53 app_ui/pages/findings.py:1005
 #: app_ui/pages/findings.py:1284 app_ui/pages/findings.py:1622
 msgid "Findings"
 msgstr "Hinweise"
@@ -1016,7 +1020,7 @@ msgstr ""
 "Antworten, die du gespeichert hast. Der Chat rechts (auf dem Handy "
 "darunter) spricht über das, was du gerade ansiehst."
 
-#: app_ui/help_dialog.py:33 app_ui/layout.py:47
+#: app_ui/help_dialog.py:33 app_ui/layout.py:48
 msgid "Note vault"
 msgstr "Notizspeicher"
 
@@ -1033,7 +1037,7 @@ msgstr ""
 "gespeichert hat. Sprachmemos, Rechercheberichte und Funde landen "
 "ebenfalls hier."
 
-#: app_ui/help_dialog.py:37 app_ui/inference_status.py:16 app_ui/layout.py:48
+#: app_ui/help_dialog.py:37 app_ui/inference_status.py:16 app_ui/layout.py:49
 #: app_ui/pages/chat.py:908 app_ui/pages/experts.py:129
 msgid "Deep research"
 msgstr "Tiefenrecherche"
@@ -1051,7 +1055,7 @@ msgstr ""
 "offen gesagt wird, was er nicht finden konnte. Der Bericht wird als Notiz"
 " gespeichert."
 
-#: app_ui/help_dialog.py:43 app_ui/layout.py:49 app_ui/pages/experts.py:168
+#: app_ui/help_dialog.py:43 app_ui/layout.py:50 app_ui/pages/experts.py:168
 msgid "Experts"
 msgstr "Experten"
 
@@ -1067,7 +1071,7 @@ msgstr ""
 "Arztbriefe sieht. „Dokumente studieren“ gibt einem Experten ein Briefing "
 "seines Archivs. Der Universal-Experte sieht alles."
 
-#: app_ui/help_dialog.py:47 app_ui/layout.py:50
+#: app_ui/help_dialog.py:47 app_ui/layout.py:51
 msgid "Browser"
 msgstr "Browser"
 
@@ -1162,19 +1166,23 @@ msgstr "vor {n} Std."
 msgid "Last: {rate} tokens/s · {what} · {when}"
 msgstr "Zuletzt: {rate} Tokens/s · {what} · {when}"
 
-#: app_ui/layout.py:335 app_ui/pages/dashboard.py:510
+#: app_ui/layout.py:338 app_ui/pages/dashboard.py:510
 msgid "Open Paperless-ngx"
 msgstr "Paperless-ngx öffnen"
 
-#: app_ui/layout.py:350
+#: app_ui/layout.py:353
 msgid "Help"
 msgstr "Hilfe"
 
-#: app_ui/layout.py:390 app_ui/pages/settings.py:359
+#: app_ui/layout.py:393 app_ui/pages/settings.py:359
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: app_ui/layout.py:399
+#: app_ui/layout.py:403 app_ui/pages/admin.py:84
+msgid "Admin"
+msgstr "Admin"
+
+#: app_ui/layout.py:412
 msgid "Sign out"
 msgstr "Abmelden"
 
@@ -1462,10 +1470,11 @@ msgstr "Proaktive Erinnerungen und Hinweise"
 msgid "Needs background access."
 msgstr "Benötigt Hintergrundzugriff."
 
-#: app_ui/pages/chat.py:4798 app_ui/pages/experts.py:629
-#: app_ui/proactive_settings.py:131 app_ui/proactive_settings.py:133
-#: app_ui/skill_wizard_dialog.py:46 app_ui/skill_wizard_dialog.py:60
-#: werkbank/v2/ui/page.py:517 werkbank/v2/ui/page.py:519
+#: app_ui/pages/admin.py:96 app_ui/pages/chat.py:4798
+#: app_ui/pages/experts.py:629 app_ui/proactive_settings.py:131
+#: app_ui/proactive_settings.py:133 app_ui/skill_wizard_dialog.py:46
+#: app_ui/skill_wizard_dialog.py:60 werkbank/v2/ui/page.py:517
+#: werkbank/v2/ui/page.py:519
 msgid "Model"
 msgstr "Modell"
 
@@ -1696,6 +1705,7 @@ msgstr "Alle Dokumente sind analysiert."
 msgid "{n} documents still to go in this run."
 msgstr "Noch {n} Dokumente in diesem Durchlauf."
 
+#: app_ui/pages/admin.py:151 app_ui/pages/admin.py:184
 #: app_ui/pages/experts.py:617 app_ui/proactive_settings.py:479
 #: app_ui/title_rename_settings.py:263
 msgid "Stop"
@@ -2208,6 +2218,391 @@ msgstr ""
 msgid "Every analysed document has already been renamed."
 msgstr "Alle analysierten Dokumente wurden bereits umbenannt."
 
+#: app_ui/pages/admin.py:67
+msgid "Admins only"
+msgstr "Nur für Admins"
+
+#: app_ui/pages/admin.py:68
+msgid "The admin area is open to the users named in ADMIN_USERS on the server."
+msgstr ""
+"Der Admin-Bereich ist für die Benutzer offen, die auf dem Server in "
+"ADMIN_USERS stehen."
+
+#: app_ui/pages/admin.py:73
+msgid "No index"
+msgstr "Kein Index"
+
+#: app_ui/pages/admin.py:74
+msgid "Building"
+msgstr "Wird aufgebaut"
+
+#: app_ui/pages/admin.py:75
+msgid "Incomplete"
+msgstr "Unvollständig"
+
+#: app_ui/pages/admin.py:76
+msgid "Ready"
+msgstr "Bereit"
+
+#: app_ui/pages/admin.py:78 app_ui/pages/chat.py:900 app_ui/pages/chat.py:3455
+#: app_ui/pages/dashboard.py:415 app_ui/pages/experts.py:127
+#: app_ui/pages/findings.py:1017 app_ui/pages/findings.py:1623
+#: app_ui/pages/settings.py:412
+msgid "Documents"
+msgstr "Dokumente"
+
+#: app_ui/pages/admin.py:78 app_ui/pages/chat.py:906 app_ui/pages/chat.py:1053
+#: app_ui/pages/chat.py:3456 app_ui/pages/experts.py:128
+msgid "Memory"
+msgstr "Gedächtnis"
+
+#: app_ui/pages/admin.py:79
+msgid "archive hint"
+msgstr "Archiv-Hinweis"
+
+#: app_ui/pages/admin.py:79
+msgid "similar fact"
+msgstr "ähnlicher Fakt"
+
+#: app_ui/pages/admin.py:80
+msgid "memory hint"
+msgstr "Gedächtnis-Hinweis"
+
+#: app_ui/pages/admin.py:85
+msgid "Settings for every user. Admins are named in ADMIN_USERS on the server."
+msgstr ""
+"Einstellungen für alle Benutzer. Admins stehen auf dem Server in "
+"ADMIN_USERS."
+
+#: app_ui/pages/admin.py:93
+msgid "Embedding models"
+msgstr "Embedding-Modelle"
+
+#: app_ui/pages/admin.py:94
+msgid "Search reads the active model's index, for every user"
+msgstr "Die Suche liest den Index des aktiven Modells, für alle Benutzer"
+
+#: app_ui/pages/admin.py:136
+msgid "Active"
+msgstr "Aktiv"
+
+#: app_ui/pages/admin.py:138
+msgid "Dormant"
+msgstr "Ruhend"
+
+#: app_ui/pages/admin.py:141
+msgid "on this server"
+msgstr "auf diesem Server"
+
+#: app_ui/pages/admin.py:141
+msgid "remote"
+msgstr "entfernt"
+
+#: app_ui/pages/admin.py:144
+msgid "in RAM"
+msgstr "im RAM"
+
+#: app_ui/pages/admin.py:146 app_ui/pages/brain.py:1070
+#: app_ui/pages/brain.py:1162 app_ui/pages/chat.py:4656
+#: app_ui/pages/chat.py:4698
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: app_ui/pages/admin.py:148
+msgid "Continue building"
+msgstr "Aufbau fortsetzen"
+
+#: app_ui/pages/admin.py:149
+msgid "Catch up"
+msgstr "Nachziehen"
+
+#: app_ui/pages/admin.py:149
+msgid "Build index"
+msgstr "Index aufbauen"
+
+#: app_ui/pages/admin.py:152 app_ui/pages/admin.py:264
+msgid "Make active"
+msgstr "Aktiv schalten"
+
+#: app_ui/pages/admin.py:155
+msgid "Embed remotely"
+msgstr "Entfernt einbetten"
+
+#: app_ui/pages/admin.py:155
+msgid "Embed on this server"
+msgstr "Auf diesem Server einbetten"
+
+#: app_ui/pages/admin.py:157
+msgid "Check local against remote"
+msgstr "Lokal gegen entfernt prüfen"
+
+#: app_ui/pages/admin.py:159
+msgid "Distance thresholds"
+msgstr "Distanz-Schwellen"
+
+#: app_ui/pages/admin.py:160
+msgid "Delete index"
+msgstr "Index löschen"
+
+#: app_ui/pages/admin.py:162
+msgid "Remove model"
+msgstr "Modell entfernen"
+
+#: app_ui/pages/admin.py:179
+#, python-brace-format
+msgid "{part}: {done} of {total} · {n} embedded"
+msgstr "{part}: {done} von {total} · {n} eingebettet"
+
+#: app_ui/pages/admin.py:185
+msgid "Stops after this batch."
+msgstr "Hält nach diesem Durchgang an."
+
+#: app_ui/pages/admin.py:195
+#, python-brace-format
+msgid "Caught up with the active index: {when}"
+msgstr "Auf Stand des aktiven Index: {when}"
+
+#: app_ui/pages/admin.py:198
+#, python-brace-format
+msgid "Last run: {n} embedded in {t}"
+msgstr "Letzter Lauf: {n} eingebettet in {t}"
+
+#: app_ui/pages/admin.py:205
+#, python-brace-format
+msgid "Local against remote: cosine {mean} (lowest {min}) — {verdict}"
+msgstr "Lokal gegen entfernt: Kosinus {mean} (niedrigster {min}) — {verdict}"
+
+#: app_ui/pages/admin.py:207
+msgid "the same model"
+msgstr "dasselbe Modell"
+
+#: app_ui/pages/admin.py:207
+msgid "not the same vectors"
+msgstr "nicht dieselben Vektoren"
+
+#: app_ui/pages/admin.py:210
+msgid "Every search asks this endpoint; while it is off, search finds nothing."
+msgstr ""
+"Jede Suche fragt diesen Endpunkt; solange er aus ist, findet die Suche "
+"nichts."
+
+#: app_ui/pages/admin.py:214
+#, python-brace-format
+msgid "Thresholds: {values}"
+msgstr "Schwellen: {values}"
+
+#: app_ui/pages/admin.py:251
+#, python-brace-format
+msgid "Make \"{name}\" active?"
+msgstr "„{name}“ aktiv schalten?"
+
+#: app_ui/pages/admin.py:254
+msgid ""
+"Its index is first brought up to date with the active one, then every "
+"search of every user reads it. The current index stays as it is, dormant:"
+" it is no longer updated until it is made active again."
+msgstr ""
+"Sein Index wird zuerst auf den Stand des aktiven gebracht, dann liest "
+"jede Suche aller Benutzer ihn. Der bisherige Index bleibt, wie er ist, "
+"ruhend: Er wird nicht mehr aktualisiert, bis er wieder aktiv geschaltet "
+"wird."
+
+#: app_ui/pages/admin.py:269
+#, python-brace-format
+msgid "Delete the index of \"{name}\"?"
+msgstr "Index von „{name}“ löschen?"
+
+#: app_ui/pages/admin.py:272
+msgid ""
+"Its vectors for documents, notes and memory are deleted. The documents, "
+"notes and extractions themselves stay; the index can be built again from "
+"the active one."
+msgstr ""
+"Seine Vektoren für Dokumente, Notizen und Gedächtnis werden gelöscht. Die"
+" Dokumente, Notizen und Extraktionen selbst bleiben; der Index lässt sich"
+" aus dem aktiven wieder aufbauen."
+
+#: app_ui/pages/admin.py:303
+msgid ""
+"Run \"Check local against remote\" first: an index must not mix vectors "
+"of two different models."
+msgstr ""
+"Zuerst „Lokal gegen entfernt prüfen“ ausführen: Ein Index darf keine "
+"Vektoren zweier verschiedener Modelle mischen."
+
+#: app_ui/pages/admin.py:304
+msgid "No remote endpoint set."
+msgstr "Kein entfernter Endpunkt eingetragen."
+
+#: app_ui/pages/admin.py:311
+msgid "Embedding the same texts locally and remotely …"
+msgstr "Bette dieselben Texte lokal und entfernt ein …"
+
+#: app_ui/pages/admin.py:324
+msgid "Edit embedding model"
+msgstr "Embedding-Modell bearbeiten"
+
+#: app_ui/pages/admin.py:324
+msgid "Add embedding model"
+msgstr "Embedding-Modell hinzufügen"
+
+#: app_ui/pages/admin.py:326
+msgid "Model (Hugging Face id)"
+msgstr "Modell (Hugging-Face-ID)"
+
+#: app_ui/pages/admin.py:331
+msgid ""
+"Runs on this server with sentence-transformers; the first use downloads "
+"it. The index belongs to the model, so the id cannot change."
+msgstr ""
+"Läuft auf diesem Server mit sentence-transformers; die erste Nutzung lädt"
+" es herunter. Der Index gehört zum Modell, daher lässt sich die ID nicht "
+"ändern."
+
+#: app_ui/pages/admin.py:334
+msgid "Query instruction"
+msgstr "Anweisung für Suchanfragen"
+
+#: app_ui/pages/admin.py:337
+msgid ""
+"Put before every search query, never before stored text. Empty = filled "
+"in for known models (e5-instruct, Qwen3-Embedding)."
+msgstr ""
+"Steht vor jeder Suchanfrage, nie vor gespeichertem Text. Leer = für "
+"bekannte Modelle (e5-instruct, Qwen3-Embedding) ausgefüllt."
+
+#: app_ui/pages/admin.py:339
+msgid "Remote endpoint (optional)"
+msgstr "Entfernter Endpunkt (optional)"
+
+#: app_ui/pages/admin.py:342
+msgid "Model name there"
+msgstr "Modellname dort"
+
+#: app_ui/pages/admin.py:350
+msgid "stored — empty keeps it"
+msgstr "gespeichert — leer lässt ihn"
+
+#: app_ui/pages/admin.py:351
+msgid ""
+"Any OpenAI-compatible /v1/embeddings (Ollama, TEI, vLLM). The same model "
+"remotely, e.g. to build a large index on a GPU and search it on this "
+"server afterwards."
+msgstr ""
+"Jedes OpenAI-kompatible /v1/embeddings (Ollama, TEI, vLLM). Dasselbe "
+"Modell entfernt, z. B. um einen großen Index auf einer GPU aufzubauen und"
+" danach auf diesem Server darin zu suchen."
+
+#: app_ui/pages/admin.py:367
+msgid "This model is already in the list."
+msgstr "Dieses Modell steht schon in der Liste."
+
+#: app_ui/pages/admin.py:382
+#, python-brace-format
+msgid "Distance thresholds — {name}"
+msgstr "Distanz-Schwellen — {name}"
+
+#: app_ui/pages/admin.py:384
+msgid ""
+"Each model spreads distances differently. Empty = the value tuned for "
+"multilingual-e5-large-instruct. The comparison below shows this model's "
+"distances."
+msgstr ""
+"Jedes Modell verteilt Distanzen anders. Leer = der für multilingual-e5"
+"-large-instruct abgestimmte Wert. Der Vergleich unten zeigt die Distanzen"
+" dieses Modells."
+
+#: app_ui/pages/admin.py:387
+msgid "Archive hint on web search: max. distance (e5: 0.15)"
+msgstr "Archiv-Hinweis bei der Websuche: max. Distanz (e5: 0,15)"
+
+#: app_ui/pages/admin.py:390
+msgid "\"Similar fact exists\": max. distance (e5: 0.15)"
+msgstr "„Ähnlicher Fakt existiert“: max. Distanz (e5: 0,15)"
+
+#: app_ui/pages/admin.py:393
+msgid "Memory hint: min. similarity (empty = Settings > Documents)"
+msgstr "Gedächtnis-Hinweis: min. Ähnlichkeit (leer = Einstellungen > Dokumente)"
+
+#: app_ui/pages/admin.py:415
+msgid "Compare indexes"
+msgstr "Indizes vergleichen"
+
+#: app_ui/pages/admin.py:416
+msgid ""
+"Semantic search only, no language model: which documents each index "
+"finds, and how fast. One model after the other, each alone in RAM."
+msgstr ""
+"Nur semantische Suche, kein Sprachmodell: welche Dokumente jeder Index "
+"findet und wie schnell. Ein Modell nach dem anderen, jedes allein im RAM."
+
+#: app_ui/pages/admin.py:424
+msgid "Two models with an index are needed. Add a model and build its index."
+msgstr ""
+"Dafür braucht es zwei Modelle mit Index. Ein Modell hinzufügen und seinen"
+" Index aufbauen."
+
+#: app_ui/pages/admin.py:434
+msgid "Questions, one per line"
+msgstr "Fragen, eine pro Zeile"
+
+#: app_ui/pages/admin.py:436
+msgid "Documents per question"
+msgstr "Dokumente pro Frage"
+
+#: app_ui/pages/admin.py:438
+msgid "Compare"
+msgstr "Vergleichen"
+
+#: app_ui/pages/admin.py:444
+msgid "Enter questions and pick two different models."
+msgstr "Fragen eingeben und zwei verschiedene Modelle wählen."
+
+#: app_ui/pages/admin.py:449
+msgid "Running — loading a model can take a minute …"
+msgstr "Läuft — ein Modell zu laden kann eine Minute dauern …"
+
+#: app_ui/pages/admin.py:483
+msgid "One of the two indexes could not be searched."
+msgstr "Einer der beiden Indizes ließ sich nicht durchsuchen."
+
+#: app_ui/pages/admin.py:501
+#, python-brace-format
+msgid "Load {s} s · query embedding {e} ms · vector search {v} ms (median)"
+msgstr "Laden {s} s · Anfrage einbetten {e} ms · Vektorsuche {v} ms (Median)"
+
+#: app_ui/pages/admin.py:505
+#, python-brace-format
+msgid "Distance of the best document {f}, of the last {l} (median) · {n} chunks"
+msgstr ""
+"Distanz des besten Dokuments {f}, des letzten {l} (Median) · {n} "
+"Abschnitte"
+
+#: app_ui/pages/admin.py:509
+#, python-brace-format
+msgid "Same documents in both lists, on average: {pct} %"
+msgstr "Gleiche Dokumente in beiden Listen, im Schnitt: {pct} %"
+
+#: app_ui/pages/admin.py:512
+msgid "Documents you cannot see in Paperless are shown by number only."
+msgstr ""
+"Dokumente, die du in Paperless nicht sehen kannst, stehen nur mit Nummer "
+"da."
+
+#: app_ui/pages/admin.py:523
+#, python-brace-format
+msgid "{e} ms + {v} ms"
+msgstr "{e} ms + {v} ms"
+
+#: app_ui/pages/admin.py:528
+#, python-brace-format
+msgid "Document #{id}"
+msgstr "Dokument #{id}"
+
+#: app_ui/pages/admin.py:533
+msgid "only here"
+msgstr "nur hier"
+
 #: app_ui/pages/brain.py:278 app_ui/pages/findings.py:2343
 #: app_ui/pages/findings.py:2421
 msgid "OK"
@@ -2405,11 +2800,6 @@ msgstr "Vault indiziert."
 #: app_ui/pages/brain.py:1059
 msgid "Select a note first."
 msgstr "Zuerst eine Notiz auswählen."
-
-#: app_ui/pages/brain.py:1070 app_ui/pages/brain.py:1162
-#: app_ui/pages/chat.py:4656 app_ui/pages/chat.py:4698
-msgid "Edit"
-msgstr "Bearbeiten"
 
 #: app_ui/pages/brain.py:1070 app_ui/pages/chat.py:4688
 msgid "Preview"
@@ -2610,13 +3000,6 @@ msgstr "Quellen"
 msgid ": Doc #{id}"
 msgstr ": Dok. #{id}"
 
-#: app_ui/pages/chat.py:900 app_ui/pages/chat.py:3455
-#: app_ui/pages/dashboard.py:415 app_ui/pages/experts.py:127
-#: app_ui/pages/findings.py:1017 app_ui/pages/findings.py:1623
-#: app_ui/pages/settings.py:412
-msgid "Documents"
-msgstr "Dokumente"
-
 #: app_ui/pages/chat.py:902 app_ui/pages/dashboard.py:590
 #: app_ui/pages/experts.py:127 app_ui/pages/settings.py:838
 msgid "Calendar"
@@ -2634,11 +3017,6 @@ msgstr "Rechnen"
 #: app_ui/pages/chat.py:905 app_ui/pages/experts.py:128
 msgid "Visual"
 msgstr "Visuell"
-
-#: app_ui/pages/chat.py:906 app_ui/pages/chat.py:1053 app_ui/pages/chat.py:3456
-#: app_ui/pages/experts.py:128
-msgid "Memory"
-msgstr "Gedächtnis"
 
 #: app_ui/pages/chat.py:909 app_ui/pages/experts.py:129
 #: app_ui/pages/experts.py:878 app_ui/pages/experts.py:919
@@ -6970,4 +7348,7 @@ msgstr "nicht erfüllt"
 
 #~ msgid "Folder “{name}”"
 #~ msgstr "Ordner „{name}“"
+
+#~ msgid "Same documents in both lists: {pct} % on average"
+#~ msgstr ""
 

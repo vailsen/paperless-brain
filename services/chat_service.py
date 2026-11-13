@@ -2152,7 +2152,14 @@ async def _tool_show_document_image(
 
 # e5 cosine distance, measured on live data: on-topic hits ≈ 0.10–0.13,
 # off-topic floor ≈ 0.16+ (same calibration as the werkbank splitter hint).
+# Another embedding model carries its own value (`embedding_registry.threshold`).
 _ARCHIVE_HINT_MAX_DIST = 0.15
+
+
+def _emb_threshold(key: str, default: float) -> float:
+    from services.embedding_registry import threshold
+
+    return threshold(key, default)
 
 
 async def _web_search_archive_hint(query: str) -> str:
@@ -2166,7 +2173,7 @@ async def _web_search_archive_hint(query: str) -> str:
         hits = await chroma.query(query_texts=[query], n_results=4)
         close = [
             h for h in (hits[0] if hits else [])
-            if h.get("distance", 1.0) <= _ARCHIVE_HINT_MAX_DIST
+            if h.get("distance", 1.0) <= _emb_threshold("archive_hint", _ARCHIVE_HINT_MAX_DIST)
         ]
         if not close:
             return ""
@@ -2828,7 +2835,8 @@ async def _tool_remember_fact(inputs: dict) -> tuple[str, list]:
 
     if not inputs.get("force"):
         hits = await brain.search_hints(text, user, max_results=3)
-        similar = [(fid, ftxt, dist) for fid, ftxt, dist in hits if dist < 0.15]
+        dup = _emb_threshold("fact_duplicate", 0.15)
+        similar = [(fid, ftxt, dist) for fid, ftxt, dist in hits if dist < dup]
         if similar:
             lines = ["⚠️ Very similar facts already exist:"]
             for fid, ftxt, dist in similar:

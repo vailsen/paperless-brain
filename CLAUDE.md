@@ -55,6 +55,12 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
 - `PAPERLESS_URL`, `PAPERLESS_SUPERUSER_TOKEN` — Paperless-ngx API
 - `IGNORE_INBOX_TAG_AT_SYNC` — tag name to skip during sync
 - `EMBEDDING_MODEL`, `CHROMA_PATH`, `CHROMA_COLLECTION`, `EXTRACTION_SIDECAR_PATH`, `THUMB_PATH`
+  (`EMBEDDING_MODEL` only seeds the admin's model list on the first start)
+- `ADMIN_USERS` — *optional*, Paperless usernames with `/admin`. Never settable in the UI.
+- **What stays in `.env`**: anything needed before anyone logs in, secrets,
+  access to other machines, the file layout, and the addresses of the services
+  the server depends on (`PAPERLESS_URL`, `SEARXNG_HOST`, `WHISPER_URL`, …).
+  The admin area holds what is *administered* — the embedding models.
 - `OLLAMA_SERVER`, `OLLAMA_INGEST_MODEL` — *optional*, vision LLM for ingestion
   (both also settable in Settings > Processing, which wins). Chat and Werkbank
   never read them — those use per-user models with their own `base_url`.
@@ -322,6 +328,44 @@ runs as a background task with no UI slot**: anything that creates UI from it
 tool schemas of the last turn (`ctx_base_chars`) + the stored messages. Never
 Ollama's `prompt_tokens` alone — it counts only the tokens it evaluated, not a
 prefix reused from its cache (`chat_service.reported_or_estimate`).
+
+## Embedding models and indexes (admin)
+
+`docs/embedding-models.md`. Code: `services/embeddings.py` (text → vectors),
+`services/embedding_registry.py` (the admin's models, which is active),
+`services/vector_index.py` (collections per model, `ActiveCollection`),
+`services/embedding_index.py` (build, catch up, activate, delete, parity,
+compare), page `app_ui/pages/admin.py`, `services/admin.py`.
+
+- **Chroma never embeds.** Collections are opened with `embedding_function=None`
+  and `ChromaClient` passes vectors on every write and query. Text without
+  vectors would silently fall back to Chroma's own default model (MiniLM, 384
+  dimensions) — a new Chroma call path goes through `ChromaClient`, never
+  `collection.add/upsert/update/query` with text alone.
+- **`services.clients.chroma` / `brain._chroma` / `vault_chroma` are
+  `ActiveCollection`s**: each access resolves the active model's collection.
+  Switching the model needs no restart.
+- **Each model has its own three collections** (`<base>` for the first model,
+  `<base>__<model id>` after). One index belongs to one model; local and
+  remote are two ways to run it. Moving an index between them needs a passed
+  parity check (`PARITY_MIN_MEAN`): Ollama's GGUF copy is not bit-identical.
+- **A new index is the stored text embedded again** — never a re-ingest.
+  Document chunks store exactly what was embedded; brain and vault entries
+  get their context header back from `path` / `heading_path`
+  (`embedding_index.embed_text_for` — keep it equal to what the writers embed).
+- **One mechanism: make index B equal to index A** (`sync_role`), for the
+  first build, a dormant index's catch-up and the pass before activation.
+  **Activation always catches up first** — a stale active index makes Paperless
+  sync re-ingest the missing documents with the vision model.
+- **Exactly one index is active; it cannot be deleted.** A dormant index is not
+  updated. A build interrupted by a restart is paused, never resumed on its own.
+- **As few local models in RAM as needed** (`embeddings.set_pinned`): the
+  active one, plus one being built locally. The comparison loads each model
+  exclusively, one after the other, and reloads the active one after.
+- **The comparison is semantic search only** — documents, distances, timings;
+  never an LLM answer. Titles come from Paperless as the admin.
+- **Distance thresholds are per model** (`embedding_registry.threshold`): the
+  0.15 / 0.70 values were measured on e5's distances.
 
 ## Experts
 
@@ -620,9 +664,10 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
 
 ### Projektspezifische Fakten (gelten ggf. projektweit)
 
-- Embedding-Modell: `intfloat/multilingual-e5-large-instruct` — **immer mit
-  Instruct-Prefixes** verwenden (Query- vs. Passage-Prefix), sonst sinkt die
-  Retrieval-Qualität und Distanzen werden untrennscharf.
+- Embedding-Modell: vom Admin gewählt (`services/embedding_registry.py`),
+  Start mit `intfloat/multilingual-e5-large-instruct`. Die Anfrage bekommt die
+  Instruktion des Modells (`query_prompt`), gespeicherter Text nie — sonst
+  sinkt die Retrieval-Qualität und Distanzen werden untrennscharf.
 - Lokale Inferenz über Ollama; per-User Claude-API-Key liegt verschlüsselt pro User
   (vorhandene Datei), nie Klartext in SQLite.
 - Bestehende Komponenten anbinden, nicht neu bauen: LLM-Client, Tool-Registry,
@@ -874,9 +919,9 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
 
 ## Embedding
 
-- Reuse the existing `multilingual-e5-large-instruct` helper; it already handles the instruct
-  prefixes. Passages embedded as-is; `*_search` queries use the instruct query prefix. Do not
-  reinvent the embedding path.
+- Reuse the existing embedding path (`ChromaClient` → `services/embeddings.py`); it handles the
+  active model's query instruction. Passages embedded as-is; `*_search` queries get the
+  instruction. Do not reinvent the embedding path.
 
 ## Do-not list
 

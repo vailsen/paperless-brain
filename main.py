@@ -8,6 +8,7 @@ os.umask(0o077)
 from fastapi.responses import FileResponse
 from nicegui import app, core, ui
 
+import app_ui.pages.admin  # noqa: F401
 import app_ui.pages.brain  # noqa: F401
 import app_ui.pages.browser  # noqa: F401
 import app_ui.pages.chat  # noqa: F401
@@ -26,6 +27,7 @@ from app_ui.tag_style import refresh_tag_colors
 from config.settings import settings
 from config.version import __version__
 from services.clients import cross_ref_index
+from services.embedding_registry import invalidate as invalidate_embedding_registry
 from services.ollama_watchdog import idle_watchdog
 from werkbank.repository import init_db as _werkbank_init_db
 from werkbank.v2.store import reset_stale_runs as _werkbank_reset_runs
@@ -97,6 +99,14 @@ async def _start_watchdog() -> None:
     # A run interrupted by a restart is resumable, never auto-resumed:
     # each subtask costs model calls, so restarting one is the user's call.
     _werkbank_reset_runs()
+    # Embedding indexes: an interrupted build is paused, never resumed on its
+    # own; the active model is loaded off the event loop (Chroma used to load
+    # it at import — now nothing does until the first search otherwise).
+    from services import embedding_index as _emb_index
+
+    invalidate_embedding_registry()  # read after init_db created the table
+    _emb_index.startup()
+    asyncio.get_running_loop().run_in_executor(None, _emb_index._warm_active)
     if settings.ollama_ssh_user:  # idle-shutdown watchdog only with remote-shutdown config
         asyncio.create_task(idle_watchdog())
     # Card renderers read the tag colour map synchronously, so it has to be warm
