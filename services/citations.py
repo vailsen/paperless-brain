@@ -31,9 +31,10 @@ _log = logging.getLogger(__name__)
 
 # [^241-p3], [^241] — and the variants models write when they half-remember
 # the format: [^#241 p.3], [^241, S. 3], [^241:p3]. A caret doubled in front
-# ("cbm)^[^577-p1]", seen live) goes with the marker.
+# ("cbm)^[^577-p1]", seen live) goes with the marker, and so does a caret
+# written only outside — Pandoc's inline footnote "^[435-p1]", also seen live.
 CITE_RE = re.compile(
-    r"\^?\[\^\s*#?(\d{1,7})(?:\s*[-,:]?\s*(?:p|S|page|Seite)\.?\s*(\d{1,4}))?\s*\]",
+    r"(?:\^?\[\^|\^\[)\s*#?(\d{1,7})(?:\s*[-,:]?\s*(?:p|S|page|Seite)\.?\s*(\d{1,4}))?\s*\]",
     re.IGNORECASE,
 )
 

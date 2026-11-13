@@ -87,7 +87,7 @@ _WEB_CITE_RUN_RE = re.compile(r"[ \t]?\((" + _WEB_LINK + r"(?:, " + _WEB_LINK + 
 _WEB_ONE_RE = re.compile(r"\[([^\]\n]{1,200})\]\((https?://[^)\s]+)\)")
 _VAULT_LINK_RE = re.compile(r"\[([^\]]+)\]\(vault:([a-f0-9-]{32,})\)")
 _VAULT_WIKI_RE = re.compile(r"`?\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]`?")
-_PARTIAL_CITE_RE = re.compile(r"\^?\[\^[^\]\s]{0,16}$|\^$")
+_PARTIAL_CITE_RE = re.compile(r"\^?\[\^[^\]\s]{0,16}$|\^\[(?:#?\d[^\]\s]{0,15})?$|\^$")
 _MD_TABLE_RE = re.compile(r"^\|.+\|[ \t]*\n\|[-: |]+\|", re.MULTILINE)
 
 
