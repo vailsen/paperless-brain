@@ -340,11 +340,14 @@ def test_counts_tell_documents_from_chunks(registry):
     asyncio.run(go())
 
 
-def test_choosing_remote_for_a_built_index_means_staying_there(registry):
+def test_where_a_model_embeds_stays_reversible(registry):
     q = reg.add_model("Qwen/Qwen3-Embedding-0.6B", remote_url="http://gpu:11434",
                       remote_model="qwen3-embedding:0.6b")
-    assert reg.set_use(q["id"], "remote")["stay_remote"] is False  # only how to build
-    reg.update(q["id"], index="ready", use="local",
-               parity={"endpoint": "http://gpu:11434/v1|qwen3-embedding:0.6b", "mean": 0.999})
-    assert reg.set_use(q["id"], "remote")["stay_remote"] is True
-    assert reg.set_use(q["id"], "local")["stay_remote"] is False
+    assert reg.set_use(q["id"], "remote")["use"] == "remote"   # before a build: free
+    assert reg.set_use(q["id"], "local")["use"] == "local"
+    reg.update(q["id"], index="ready", use="remote")
+    with pytest.raises(ValueError):
+        reg.set_use(q["id"], "local")                            # with an index: check first
+    reg.update(q["id"], parity={"endpoint": "http://gpu:11434/v1|qwen3-embedding:0.6b", "mean": 0.999})
+    assert reg.set_use(q["id"], "local")["use"] == "local"
+    assert reg.set_use(q["id"], "remote")["use"] == "remote"    # and back again
