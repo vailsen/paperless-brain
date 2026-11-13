@@ -11,7 +11,8 @@ Stored in `werkbank_settings` (key `embedding_registry`, global, not per user):
         "suffix",                # collection names: <base> or <base>__<suffix>
         "index": "none" | "building" | "paused" | "ready",
         "progress": {...}, "synced_at": iso, "parity": {...},
-        "thresholds": {"archive_hint": float, "fact_duplicate": float, "brain_hint": float},
+        "thresholds": {"memory_hint": float, "memory_window": float,
+                       "archive_hint": float, "fact_duplicate": float},
      }]}
 
 **One model, one index, local or remote.** Local and remote are two ways to
@@ -45,13 +46,17 @@ KEY = "embedding_registry"
 ROLES = ("documents", "brain", "vault")
 _BASE = {"brain": "brain", "vault": "vault"}  # documents: CHROMA_COLLECTION
 
-# Distances tuned on e5-large-instruct; another model spreads distances
-# differently, so each model carries its own (set from the comparison page).
+# Every threshold is a cosine *distance* (0 = same, lower = closer) — the
+# number the tool log prints as [0.XX]. Except the window, a factor on the best
+# hit's distance. Tuned on e5-large-instruct; another model spreads distances
+# differently, so each model carries its own (admin area, from the comparison).
 DEFAULT_THRESHOLDS = {
+    "memory_hint": 0.30,     # memory / note hints next to search results: max. distance
+    "memory_window": 1.5,    # … and at most this factor above the best hint
     "archive_hint": 0.15,    # web_search: the archive covers this topic
     "fact_duplicate": 0.15,  # remember_fact: "a very similar fact exists"
 }
-THRESHOLD_KEYS = ("archive_hint", "fact_duplicate", "brain_hint")
+THRESHOLD_KEYS = tuple(DEFAULT_THRESHOLDS)
 
 PARITY_MIN_MEAN = 0.99  # cosine local↔remote on the same texts
 
@@ -293,6 +298,7 @@ def set_use(model_id: str, use: str) -> dict:
 
 
 def set_thresholds(model_id: str, values: dict) -> dict:
+    """Store the given keys; a None drops the key (back to the default)."""
     clean = {k: float(v) for k, v in values.items() if k in THRESHOLD_KEYS and v is not None}
     return update(model_id, thresholds=clean)
 
@@ -330,12 +336,60 @@ def embedder(m: dict, use: str | None = None):
     return _embedders[key]
 
 
-def threshold(key: str, default: float | None = None) -> float | None:
-    """The active model's value for `key`; `default` (or the e5 value) when unset."""
+def _legacy_defaults() -> dict:
+    """The values every install ran with before thresholds were per model:
+    the global memory-hint similarity and window (once in Settings > Documents),
+    as a distance. Never a stored per-model value."""
+    out = dict(DEFAULT_THRESHOLDS)
     try:
-        v = active_model().get("thresholds", {}).get(key)
+        from werkbank import settings_store as ws
+
+        sim = ws.get(ws.BRAIN_HINT_THRESHOLD)
+        if sim:
+            out["memory_hint"] = round(1.0 - max(0.0, min(1.0, float(sim))), 4)
+        else:
+            from config.settings import settings
+
+            out["memory_hint"] = round(1.0 - settings.brain_hint_similarity_threshold, 4)
+        win = ws.get(ws.BRAIN_HINT_WINDOW)
+        if win and float(win) >= 1.0:
+            out["memory_window"] = float(win)
+        else:
+            from config.settings import settings
+
+            out["memory_window"] = settings.brain_hint_window_factor
+    except (ValueError, TypeError):
+        pass
+    return out
+
+
+def thresholds(m: dict) -> dict:
+    """All four values for model `m`: its own where set, else the defaults.
+    An old per-model `brain_hint` (a similarity) counts as `memory_hint`."""
+    own = dict(m.get("thresholds") or {})
+    if "brain_hint" in own and "memory_hint" not in own:
+        own["memory_hint"] = round(1.0 - float(own["brain_hint"]), 4)
+    out = _legacy_defaults()
+    out.update({k: float(v) for k, v in own.items() if k in THRESHOLD_KEYS and v is not None})
+    return out
+
+
+def own_thresholds(m: dict) -> set[str]:
+    """Keys the admin set for this model (the rest are defaults)."""
+    own = set((m.get("thresholds") or {}))
+    if "brain_hint" in own:
+        own.add("memory_hint")
+    return own & set(THRESHOLD_KEYS)
+
+
+def threshold(key: str, default: float | None = None) -> float:
+    """The active model's value for `key`."""
+    try:
+        return thresholds(active_model())[key]
     except Exception:  # noqa: BLE001
-        v = None
-    if v is not None:
-        return float(v)
-    return DEFAULT_THRESHOLDS.get(key, default) if default is None else default
+        return DEFAULT_THRESHOLDS.get(key, default) if default is None else default
+
+
+def memory_hint_limits() -> tuple[float, float]:
+    """(max distance, window factor) for memory and note hints."""
+    return threshold("memory_hint"), threshold("memory_window")

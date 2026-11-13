@@ -5,6 +5,9 @@ text into vectors for search — documents, notes and the agent's memory alike.
 
 ## Changing the model
 
+The admin page shows the next step on each model's card; this is the path it
+takes.
+
 1. **Add the model.** Its Hugging Face id (e.g. `Qwen/Qwen3-Embedding-0.6B`),
    run by sentence-transformers on the server. Optionally the same model
    behind an OpenAI-compatible endpoint (Ollama: `http://gpu:11434`, model
@@ -22,9 +25,11 @@ text into vectors for search — documents, notes and the agent's memory alike.
    model alone in RAM: the documents it finds (best chunk per document),
    distances, load time, query-embedding and vector-search time. The overlap
    says how much changes for users.
-4. **Set thresholds** for the new model from its distances (the archive hint
-   on web search, "similar fact exists", the memory hint). Empty = the values
-   tuned for e5.
+4. **Set thresholds** for the new model from its distances — all four are
+   distances (0 = identical): memory and note hints (max. distance and a
+   window factor over the best hint), the archive hint on web search, "a very
+   similar fact exists". Until set, the values every install ran with apply
+   (the old memory-hint similarity 0.82 = distance 0.18).
 5. **Make it active.** It is caught up with the active index first, then every
    search reads it. The old index stays dormant (not updated) — delete it, or
    keep it to switch back; switching back catches it up first. Deleting an

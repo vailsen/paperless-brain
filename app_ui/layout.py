@@ -30,6 +30,11 @@ _MOBILE_HEADER_CSS = (
     # Nav icon colour lives in theme.py — icons inherit the label's colour and the
     # active item is the only differentiated one.
     ".nav-btn .q-btn__content{font-size:0.875rem!important;font-weight:500!important;gap:5px!important;}"
+    # The modules go into the menu whenever they do not fit in one row
+    # (NAV_FIT_JS), not only below 768 px — a half-width desktop window wrapped
+    # the header into two rows.
+    "body.pb-nav-compact .desktop-nav-btn{display:none!important;}"
+    "body.pb-nav-compact .mobile-nav-btn{display:inline-flex!important;}"
     "@media(max-width:767px){"
     ".desktop-nav-btn{display:none!important;}"
     ".mobile-nav-btn{display:inline-flex!important;}"
@@ -40,6 +45,30 @@ _MOBILE_HEADER_CSS = (
     "}"
     "</style>"
 )
+
+# Collapse the module buttons into the menu when the header would wrap: take
+# the class off, see whether the header's visible children still share one
+# row, put it back if not. Synchronous, so the browser never paints the
+# two-row state. Re-checked on resize and once the fonts are in.
+NAV_FIT_JS = """<script>(function(){
+function fit(){
+  var h=document.querySelector('.app-header');if(!h)return false;
+  var b=document.body;b.classList.remove('pb-nav-compact');
+  var kids=[].filter.call(h.children,function(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0;});
+  if(!kids.length)return true;
+  var top=kids[0].getBoundingClientRect().top,wrapped=false;
+  for(var i=1;i<kids.length;i++){if(Math.abs(kids[i].getBoundingClientRect().top-top)>8){wrapped=true;break;}}
+  if(!wrapped&&h.scrollWidth>h.clientWidth+2)wrapped=true;
+  if(wrapped)b.classList.add('pb-nav-compact');
+  return true;
+}
+var t=null;function later(){clearTimeout(t);t=setTimeout(fit,60);}
+window.addEventListener('resize',later);
+var n=0,iv=setInterval(function(){if(fit()||++n>100){clearInterval(iv);}},50);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);
+window.addEventListener('load',fit);
+window.__pbNavFit=fit;
+})();</script>"""
 
 # N_() marks the labels for pybabel extraction; translation happens at render via _(label).
 NAV_ITEMS = [
@@ -255,6 +284,7 @@ def page_layout() -> None:
         "m.content=c;document.head.appendChild(m);}})();</script>"
     )
     ui.add_head_html(_MOBILE_HEADER_CSS)
+    ui.add_head_html(NAV_FIT_JS)
     ui.add_head_html(_NO_SPELLCHECK_JS)
     ui.add_head_html(_EXTERNAL_LINKS_JS)
     ui.add_head_html(SOCKET_REVIVE_JS)

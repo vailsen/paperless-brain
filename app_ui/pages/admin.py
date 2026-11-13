@@ -20,6 +20,7 @@ from services import embedding_index as ei
 from services import embedding_registry as reg
 from services import embeddings as emb
 from services.admin import is_admin
+from werkbank import settings_store as ws
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ _CSS = """<style>
 .adm-badge.is-active { color: var(--c-accent-text); border-color: var(--c-accent-border);
                        background: var(--c-accent-soft); }
 .adm-warn { color: var(--c-warn); background: var(--c-warn-bg); border-radius: 6px; }
+.adm-next { background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px; }
 .adm-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
 @media (max-width: 767px) { .adm-cmp { grid-template-columns: 1fr; } }
 .adm-doc { width: 100%; display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; align-items: baseline;
@@ -76,8 +78,7 @@ async def admin_page():
         "ready": _("Ready"),
     }
     role_label = {"documents": _("Documents"), "brain": _("Memory"), "vault": _("Notes")}
-    th_label = {"archive_hint": _("archive hint"), "fact_duplicate": _("similar fact"),
-                "brain_hint": _("memory hint")}
+    _cmp_pref: dict = {}
 
     with ui.column().classes("adm-wrap p-3 gap-3"):
         with ui.column().classes("gap-0"):
@@ -97,12 +98,15 @@ async def admin_page():
                 "unelevated dark dense").classes("bg-primary text-white flex-shrink-0")
 
         counts: dict[str, dict] = {}
+        _refs: dict = {}
 
         async def _load_counts() -> None:
             for m in reg.models():
                 if m.get("index") != "none":
                     counts[m["id"]] = await ei.counts(m)
             model_list.refresh()
+            if "compare_box" in _refs:  # a finished build makes a second index to compare
+                _refs["compare_box"].refresh()
 
         def _menu(entries) -> None:
             with ui.button(icon="more_vert", color=None).props("flat dense round").classes(
@@ -115,6 +119,92 @@ async def admin_page():
                             ui.label(label)
 
         _progress_views: list = []
+
+        def _step(text: str, buttons: list, warn: bool = False) -> None:
+            """What to do next with this model: one sentence, one or two buttons."""
+            with ui.column().classes("w-full gap-1 mt-1 px-2 py-2 rounded " + ("adm-warn" if warn else "adm-next")):
+                ui.label(text).classes("w-full text-xs" + ("" if warn else " text-gray-300"))
+                with ui.row().classes("gap-2"):
+                    for i, (label, icon, handler) in enumerate(buttons):
+                        b = ui.button(label, icon=icon, on_click=handler, color=None).props(
+                            "dense no-caps " + ("unelevated" if i == 0 else "flat"))
+                        if i == 0:
+                            b.classes("bg-primary text-white px-2")
+                        else:
+                            b.style("color:var(--c-text-2)")
+
+        def _next_step(m: dict, busy: bool) -> None:
+            mid, idx, use = m["id"], m.get("index", "none"), m.get("use", "local")
+            remote = reg.has_remote(m)
+            if busy:
+                return
+            if idx == "none":
+                if remote:
+                    _step(_("Next: build the index. On the remote endpoint it is fast (GPU); afterwards it is "
+                            "checked against this server and moved here. Search keeps using the active index "
+                            "meanwhile."),
+                          [(_("Build remotely"), "cloud_upload", lambda: _build(mid, "remote")),
+                           (_("Build on this server"), "dns", lambda: _build(mid, "local"))])
+                else:
+                    _step(_("Next: build the index on this server. Search keeps using the active index "
+                            "meanwhile. To build on a GPU instead, add its endpoint under Edit."),
+                          [(_("Build index"), "construction", lambda: _build(mid, "local"))])
+            elif idx in ("paused", "building"):
+                _step(_("The build stopped before the end. It continues where it stopped."),
+                      [(_("Continue building"), "construction", lambda: _start(mid, "build"))])
+            elif use == "remote" and remote and not reg.parity_ok(m):
+                par = m.get("parity") or {}
+                if par and par.get("endpoint") == f"{m['remote_url']}|{m['remote_model']}":
+                    _step(_("This server's copy gives different vectors (cosine {mean}), so the index cannot "
+                            "move here. Keep embedding remotely, or rebuild the index on this server.").format(
+                              mean=par.get("mean")),
+                          [(_("Rebuild on this server"), "dns", lambda: _rebuild_here(mid)),
+                           (_("Check again"), "compare_arrows", lambda: _parity(mid))], warn=True)
+                else:
+                    _step(_("Built remotely. Next: check that this server gives the same vectors — it downloads "
+                            "the model here (about 1–2 GB) and embeds some stored chunks both ways."),
+                          [(_("Check local against remote"), "compare_arrows", lambda: _parity(mid))])
+            elif use == "remote":
+                _step(_("Same vectors here and remotely. Next: switch to this server — from now on it embeds "
+                        "here; the index stays as it is."),
+                      [(_("Switch to this server"), "dns", lambda: _set_use(mid, "local"))])
+            else:
+                _step(_("Ready. Next: compare it with the active index, set its distance thresholds from the "
+                        "distances you see, then make it active."),
+                      [(_("Compare"), "compare_arrows", lambda: _goto_compare(mid)),
+                       (_("Distance thresholds"), "tune", lambda: _thresholds_dialog(reg.get(mid))),
+                       (_("Make active"), "check_circle", lambda: _confirm_activate(reg.get(mid)))])
+
+        def _build(mid: str, use: str) -> None:
+            m = reg.get(mid)
+            if m.get("use") != use:
+                ok, why = reg.can_switch_use(m, use)
+                if not ok:
+                    ui.notify(_("No remote endpoint set.") if why == "no_remote" else why, type="warning")
+                    return
+                reg.set_use(mid, use)
+            _start(mid, "build")
+
+        def _set_use(mid: str, use: str) -> None:
+            try:
+                reg.set_use(mid, use)
+            except ValueError as exc:
+                ui.notify(str(exc), type="warning")
+            model_list.refresh()
+
+        async def _rebuild_here(mid: str) -> None:
+            try:
+                await ei.rebuild_here(mid)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(str(exc), type="warning")
+            _was["job"] = True
+            counts.pop(mid, None)
+            model_list.refresh()
+
+        def _goto_compare(mid: str) -> None:
+            _cmp_pref["b"] = mid
+            compare_box.refresh()
+            ui.run_javascript("document.querySelector('.adm-compare')?.scrollIntoView({behavior:'smooth'})")
 
         @ui.refreshable
         def model_list() -> None:
@@ -134,8 +224,9 @@ async def admin_page():
                             with ui.row().classes("items-center gap-1 mt-0.5"):
                                 if is_active:
                                     ui.label(_("Active")).classes("adm-badge is-active")
-                                elif idx == "ready":
-                                    ui.label(_("Dormant")).classes("adm-badge")
+                                elif idx == "ready" and m.get("was_active"):
+                                    ui.label(_("Dormant")).classes("adm-badge").tooltip(
+                                        _("Was active; not updated until it is active again"))
                                 else:
                                     ui.label(state_label.get(idx, idx)).classes("adm-badge")
                                 ui.label(_("on this server") if m.get("use") == "local" else _("remote")).classes(
@@ -152,7 +243,7 @@ async def admin_page():
                             ("check_circle", _("Make active"), lambda x=m: _confirm_activate(x),
                              not is_active and job is None and idx in ("ready", "paused")),
                             ("swap_horiz",
-                             _("Embed remotely") if m.get("use") == "local" else _("Embed on this server"),
+                             _("Use the remote endpoint") if m.get("use") == "local" else _("Use this server"),
                              lambda x=m: _switch_use(x), reg.has_remote(m) and not running),
                             ("compare_arrows", _("Check local against remote"), lambda x=mid: _parity(x),
                              reg.has_remote(m) and job is None),
@@ -209,11 +300,13 @@ async def admin_page():
                     if is_active and m.get("use") == "remote":
                         ui.label(_("Every search asks this endpoint; while it is off, search finds nothing.")).classes(
                             "text-xs text-gray-500")
-                    th = m.get("thresholds") or {}
-                    if th:
-                        ui.label(_("Thresholds: {values}").format(
-                            values=", ".join(f"{th_label.get(k, k)} {v:g}" for k, v in th.items()))).classes(
-                            "text-xs text-gray-500")
+                    th, own = reg.thresholds(m), reg.own_thresholds(m)
+                    ui.label(_("Distances: memory hint ≤ {mh} (× {mw}) · archive hint ≤ {ah} · similar fact ≤ {fd}").format(
+                        mh=f"{th['memory_hint']:.2f}", mw=f"{th['memory_window']:.1f}",
+                        ah=f"{th['archive_hint']:.2f}", fd=f"{th['fact_duplicate']:.2f}")
+                        + ("" if own else " — " + _("defaults"))).classes("text-xs text-gray-500")
+                    if not is_active and not running:
+                        _next_step(m, job is not None)
 
         model_list()
         def _tick() -> None:
@@ -384,34 +477,85 @@ async def admin_page():
             dlg.open()
 
         def _thresholds_dialog(m: dict) -> None:
-            th = m.get("thresholds") or {}
-            with ui.dialog() as dlg, ui.card().classes("bg-gray-900").style("width:min(94vw,480px)"):
+            th, own = reg.thresholds(m), reg.own_thresholds(m)
+            with ui.dialog() as dlg, ui.card().classes("bg-gray-900").style("width:min(94vw,500px)"):
                 ui.label(_("Distance thresholds — {name}").format(name=m["name"])).classes(
-                    "text-base font-semibold text-gray-100")
-                ui.label(_("Each model spreads distances differently. Empty = the value tuned for "
-                           "multilingual-e5-large-instruct. The comparison below shows this model's "
-                           "distances.")).classes("text-xs text-gray-500")
-                f_arch = ui.number(_("Archive hint on web search: max. distance (e5: 0.15)"),
-                                   value=th.get("archive_hint"), step=0.01, format="%.2f").props(
-                    "outlined dark dense clearable").classes("w-full mt-2")
-                f_dup = ui.number(_("\"Similar fact exists\": max. distance (e5: 0.15)"),
-                                  value=th.get("fact_duplicate"), step=0.01, format="%.2f").props(
-                    "outlined dark dense clearable").classes("w-full mt-2")
-                f_hint = ui.number(_("Memory hint: min. similarity (empty = Settings > Documents)"),
-                                   value=th.get("brain_hint"), step=0.05, format="%.2f").props(
-                    "outlined dark dense clearable").classes("w-full mt-2")
+                    "w-full text-base font-semibold text-gray-100 adm-ellipsis")
+                ui.label(_("All values are distances, as the tool log prints them: 0 = identical, lower = "
+                           "closer. Each model spreads distances differently — the comparison below shows "
+                           "this model's. Values marked \"default\" are the ones every install ran with.")).classes(
+                    "text-xs text-gray-500")
+
+                def field(key: str, label: str, step: float, fmt: str, lo: float, hi: float):
+                    lab = label + ("" if key in own else " · " + _("default"))
+                    return ui.number(lab, value=th[key], min=lo, max=hi, step=step, format=fmt).props(
+                        "outlined dark dense").classes("w-full mt-2")
+
+                f_mh = field("memory_hint", _("Memory and note hints: max. distance"), 0.01, "%.2f", 0.0, 2.0)
+                f_mw = field("memory_window", _("… and at most this factor above the best hint (≥ 1)"),
+                             0.1, "%.1f", 1.0, 3.0)
+                hint = _("Hints from memory and notes shown next to search results.")
+                old = ws.get(ws.BRAIN_HINT_THRESHOLD)
+                if old:
+                    try:
+                        hint += " " + _("The old setting \"similarity {sim}\" is the distance {dist}.").format(
+                            sim=f"{float(old):.2f}", dist=f"{1 - float(old):.2f}")
+                    except ValueError:
+                        pass
+                ui.label(hint).classes("text-xs text-gray-500")
+                f_ah = field("archive_hint", _("Archive hint on web search: max. distance"), 0.01, "%.2f", 0.0, 2.0)
+                f_fd = field("fact_duplicate", _("\"A very similar fact exists\": max. distance"), 0.01,
+                             "%.2f", 0.0, 2.0)
 
                 def _save() -> None:
-                    reg.set_thresholds(m["id"], {"archive_hint": f_arch.value,
-                                                 "fact_duplicate": f_dup.value,
-                                                 "brain_hint": f_hint.value})
+                    try:
+                        vals = {"memory_hint": float(f_mh.value), "memory_window": max(1.0, float(f_mw.value)),
+                                "archive_hint": float(f_ah.value), "fact_duplicate": float(f_fd.value)}
+                    except (TypeError, ValueError):
+                        ui.notify(_("Enter a number in every field."), type="warning")
+                        return
+                    # Store only what differs from the default, so a later default change still applies.
+                    base = reg.thresholds({**m, "thresholds": {}})
+                    reg.set_thresholds(m["id"], {k: v for k, v in vals.items()
+                                                 if k in own or abs(v - base[k]) > 1e-9})
                     dlg.close()
                     model_list.refresh()
 
-                with ui.row().classes("w-full justify-end gap-2 mt-4"):
-                    ui.button(_("Cancel"), on_click=dlg.close).props("flat dark").classes("text-gray-400")
-                    ui.button(_("Save"), on_click=_save).props("unelevated dark").classes("bg-primary text-white")
+                def _reset() -> None:
+                    reg.set_thresholds(m["id"], {})
+                    dlg.close()
+                    model_list.refresh()
+
+                with ui.row().classes("w-full justify-between gap-2 mt-4"):
+                    ui.button(_("Reset to defaults"), on_click=_reset).props("flat dark no-caps").classes(
+                        "text-gray-400")
+                    with ui.row().classes("gap-2"):
+                        ui.button(_("Cancel"), on_click=dlg.close).props("flat dark").classes("text-gray-400")
+                        ui.button(_("Save"), on_click=_save).props("unelevated dark").classes(
+                            "bg-primary text-white")
             dlg.open()
+
+        # ── Search (every user) ──────────────────────────────────────────────
+
+        ui.separator().classes("mt-2")
+        with ui.row().classes("items-center gap-3 no-wrap"):
+            ui.icon("search", size="sm").classes("text-gray-400")
+            with ui.column().classes("gap-0 min-w-0"):
+                ui.label(_("Search settings")).classes("text-base font-semibold text-gray-100")
+                ui.label(_("For every user. The distance thresholds belong to each model, above.")).classes(
+                    "text-xs text-gray-500")
+        with ui.row().classes("w-full items-center gap-2"):
+            f_max = ui.number(_("Max. search results"), value=ws.get_search_max_results(), min=1, max=100,
+                              step=1, format="%d").props("outlined dark dense").classes("w-48")
+
+            def _save_max() -> None:
+                try:
+                    ws.set_value(ws.SEARCH_MAX_RESULTS, str(max(1, min(100, int(float(f_max.value))))))
+                    ui.notify(_("Saved."), type="positive")
+                except (TypeError, ValueError):
+                    ui.notify(_("Enter a number."), type="warning")
+
+            ui.button(_("Save"), on_click=_save_max).props("unelevated dark dense").classes("bg-primary text-white")
 
         # ── Comparison ───────────────────────────────────────────────────────
 
@@ -424,6 +568,8 @@ async def admin_page():
                            "and how fast. One model after the other, each alone in RAM.")).classes(
                     "text-xs text-gray-500")
 
+        ui.element("div").classes("adm-compare")
+
         @ui.refreshable
         def compare_box() -> None:
             opts = {m["id"]: m["name"] for m in reg.models() if m.get("index") != "none"}
@@ -434,7 +580,8 @@ async def admin_page():
             ids = list(opts)
             active = reg.active_id()
             a = active if active in opts else ids[0]
-            b = next(x for x in ids if x != a)
+            pref = _cmp_pref.get("b")
+            b = pref if pref in opts and pref != a else next(x for x in ids if x != a)
             with ui.row().classes("w-full gap-2"):
                 f_a = ui.select(opts, value=a, label="A").props("outlined dark dense").classes("flex-1 min-w-[200px]")
                 f_b = ui.select(opts, value=b, label="B").props("outlined dark dense").classes("flex-1 min-w-[200px]")
@@ -469,6 +616,7 @@ async def admin_page():
             btn.on_click(_run)
 
         compare_box()
+        _refs["compare_box"] = compare_box
         results = ui.column().classes("w-full gap-2")
 
         async def _titles(ids: set[int]) -> dict[int, str]:

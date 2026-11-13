@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-13 11:15+0000\n"
+"POT-Creation-Date: 2026-11-13 11:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,7 +37,7 @@ msgstr ""
 msgid "Backend"
 msgstr ""
 
-#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:347
+#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:437
 msgid "Base URL"
 msgstr ""
 
@@ -49,7 +49,7 @@ msgstr ""
 msgid "e.g. Ollama local, OpenRouter, Claude"
 msgstr ""
 
-#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:351
+#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:441
 msgid "API key"
 msgstr ""
 
@@ -98,8 +98,8 @@ msgstr ""
 
 #: app_ui/ai_models_settings.py:172 app_ui/ai_models_settings.py:325
 #: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:980
-#: app_ui/pages/admin.py:258 app_ui/pages/admin.py:277
-#: app_ui/pages/admin.py:382 app_ui/pages/admin.py:412
+#: app_ui/pages/admin.py:348 app_ui/pages/admin.py:367
+#: app_ui/pages/admin.py:472 app_ui/pages/admin.py:530
 #: app_ui/pages/brain.py:277 app_ui/pages/brain.py:291
 #: app_ui/pages/brain.py:772 app_ui/pages/chat.py:1711
 #: app_ui/pages/chat.py:3370 app_ui/pages/chat.py:4487
@@ -110,7 +110,7 @@ msgstr ""
 #: app_ui/pages/findings.py:1734 app_ui/pages/findings.py:1772
 #: app_ui/pages/findings.py:1955 app_ui/pages/findings.py:2084
 #: app_ui/pages/findings.py:2127 app_ui/pages/findings.py:2342
-#: app_ui/pages/findings.py:2420 app_ui/pages/settings.py:1258
+#: app_ui/pages/findings.py:2420 app_ui/pages/settings.py:1205
 #: app_ui/title_rename_settings.py:79 app_ui/title_rename_settings.py:186
 #: app_ui/title_rename_settings.py:245 werkbank/v2/ui/brief_dialog.py:158
 #: werkbank/v2/ui/page.py:522
@@ -119,14 +119,14 @@ msgstr ""
 
 #: app_ui/ai_models_settings.py:173 app_ui/ai_models_settings.py:326
 #: app_ui/dossier_save.py:102 app_ui/memo_dialog.py:323
-#: app_ui/pages/admin.py:383 app_ui/pages/admin.py:413
-#: app_ui/pages/chat.py:1718 app_ui/pages/experts.py:375
-#: app_ui/pages/experts.py:516 app_ui/pages/experts.py:578
-#: app_ui/pages/experts.py:821 app_ui/pages/settings.py:231
-#: app_ui/pages/settings.py:647 app_ui/pages/settings.py:703
-#: app_ui/pages/settings.py:753 app_ui/pages/settings.py:830
-#: app_ui/pages/settings.py:935 app_ui/pages/settings.py:986
-#: app_ui/pages/settings.py:1031 app_ui/pages/settings.py:1147
+#: app_ui/pages/admin.py:473 app_ui/pages/admin.py:531
+#: app_ui/pages/admin.py:555 app_ui/pages/chat.py:1718
+#: app_ui/pages/experts.py:375 app_ui/pages/experts.py:516
+#: app_ui/pages/experts.py:578 app_ui/pages/experts.py:821
+#: app_ui/pages/settings.py:231 app_ui/pages/settings.py:647
+#: app_ui/pages/settings.py:700 app_ui/pages/settings.py:777
+#: app_ui/pages/settings.py:882 app_ui/pages/settings.py:933
+#: app_ui/pages/settings.py:978 app_ui/pages/settings.py:1094
 #: app_ui/proactive_settings.py:532 app_ui/proactive_settings.py:558
 #: werkbank/ui/archetype_dialog.py:183
 msgid "Save"
@@ -281,7 +281,7 @@ msgid "Service deleted."
 msgstr ""
 
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
-#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:292
+#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:382
 #: app_ui/pages/brain.py:292 app_ui/pages/brain.py:1100
 #: app_ui/pages/experts.py:819 app_ui/pages/experts.py:898
 #: app_ui/pages/findings.py:2269 werkbank/v2/ui/page.py:264
@@ -409,7 +409,7 @@ msgstr ""
 
 #: app_ui/doc_library.py:99 app_ui/pages/browser.py:317
 #: app_ui/pages/browser.py:377 app_ui/pages/browser.py:484
-#: app_ui/pages/settings.py:1013
+#: app_ui/pages/settings.py:960
 msgid "Correspondent"
 msgstr ""
 
@@ -498,7 +498,7 @@ msgstr ""
 msgid "{n} pages"
 msgstr ""
 
-#: app_ui/document_dialog.py:543 app_ui/pages/admin.py:78
+#: app_ui/document_dialog.py:543 app_ui/pages/admin.py:80
 #: app_ui/pages/chat.py:3457
 msgid "Notes"
 msgstr ""
@@ -916,7 +916,7 @@ msgstr ""
 msgid "From the chat"
 msgstr ""
 
-#: app_ui/help_dialog.py:16 app_ui/layout.py:46 app_ui/pages/dashboard.py:395
+#: app_ui/help_dialog.py:16 app_ui/layout.py:75 app_ui/pages/dashboard.py:395
 #: tests/test_i18n.py:119
 msgid "Dashboard"
 msgstr ""
@@ -929,7 +929,7 @@ msgid ""
 "hand, and let 'Dreaming' tidy up the assistant's memory."
 msgstr ""
 
-#: app_ui/help_dialog.py:20 app_ui/inference_status.py:14 app_ui/layout.py:47
+#: app_ui/help_dialog.py:20 app_ui/inference_status.py:14 app_ui/layout.py:76
 #: app_ui/pages/chat.py:2032 app_ui/pages/experts.py:261
 #: app_ui/pages/findings.py:920 app_ui/pages/settings.py:468
 msgid "Chat"
@@ -944,7 +944,7 @@ msgid ""
 "switches and quick actions are below the input."
 msgstr ""
 
-#: app_ui/help_dialog.py:27 app_ui/layout.py:53 app_ui/pages/findings.py:1005
+#: app_ui/help_dialog.py:27 app_ui/layout.py:82 app_ui/pages/findings.py:1005
 #: app_ui/pages/findings.py:1284 app_ui/pages/findings.py:1622
 msgid "Findings"
 msgstr ""
@@ -958,7 +958,7 @@ msgid ""
 "right (below on a phone) talks about what you are looking at."
 msgstr ""
 
-#: app_ui/help_dialog.py:33 app_ui/layout.py:48
+#: app_ui/help_dialog.py:33 app_ui/layout.py:77
 msgid "Note vault"
 msgstr ""
 
@@ -970,7 +970,7 @@ msgid ""
 "research reports and findings land here too."
 msgstr ""
 
-#: app_ui/help_dialog.py:37 app_ui/inference_status.py:16 app_ui/layout.py:49
+#: app_ui/help_dialog.py:37 app_ui/inference_status.py:16 app_ui/layout.py:78
 #: app_ui/pages/chat.py:908 app_ui/pages/experts.py:129
 msgid "Deep research"
 msgstr ""
@@ -983,7 +983,7 @@ msgid ""
 "not find is said plainly. The report is saved as a note."
 msgstr ""
 
-#: app_ui/help_dialog.py:43 app_ui/layout.py:50 app_ui/pages/experts.py:168
+#: app_ui/help_dialog.py:43 app_ui/layout.py:79 app_ui/pages/experts.py:168
 msgid "Experts"
 msgstr ""
 
@@ -995,7 +995,7 @@ msgid ""
 "The Universal expert sees everything."
 msgstr ""
 
-#: app_ui/help_dialog.py:47 app_ui/layout.py:51
+#: app_ui/help_dialog.py:47 app_ui/layout.py:80
 msgid "Browser"
 msgstr ""
 
@@ -1085,23 +1085,23 @@ msgstr ""
 msgid "Last: {rate} tokens/s · {what} · {when}"
 msgstr ""
 
-#: app_ui/layout.py:338 app_ui/pages/dashboard.py:510
+#: app_ui/layout.py:368 app_ui/pages/dashboard.py:510
 msgid "Open Paperless-ngx"
 msgstr ""
 
-#: app_ui/layout.py:353
+#: app_ui/layout.py:383
 msgid "Help"
 msgstr ""
 
-#: app_ui/layout.py:393 app_ui/pages/settings.py:359
+#: app_ui/layout.py:423 app_ui/pages/settings.py:359
 msgid "Settings"
 msgstr ""
 
-#: app_ui/layout.py:403 app_ui/pages/admin.py:84
+#: app_ui/layout.py:433 app_ui/pages/admin.py:85
 msgid "Admin"
 msgstr ""
 
-#: app_ui/layout.py:412
+#: app_ui/layout.py:442
 msgid "Sign out"
 msgstr ""
 
@@ -1191,7 +1191,7 @@ msgstr ""
 msgid "The memo is empty."
 msgstr ""
 
-#: app_ui/memo_dialog.py:463 app_ui/pages/settings.py:1333
+#: app_ui/memo_dialog.py:463 app_ui/pages/settings.py:1280
 #: app_ui/proactive_settings.py:61
 msgid "Not signed in."
 msgstr ""
@@ -1374,7 +1374,7 @@ msgstr ""
 msgid "Needs background access."
 msgstr ""
 
-#: app_ui/pages/admin.py:96 app_ui/pages/chat.py:4798
+#: app_ui/pages/admin.py:97 app_ui/pages/chat.py:4798
 #: app_ui/pages/experts.py:629 app_ui/proactive_settings.py:131
 #: app_ui/proactive_settings.py:133 app_ui/skill_wizard_dialog.py:46
 #: app_ui/skill_wizard_dialog.py:60 werkbank/v2/ui/page.py:517
@@ -1589,7 +1589,7 @@ msgstr ""
 msgid "{n} documents still to go in this run."
 msgstr ""
 
-#: app_ui/pages/admin.py:151 app_ui/pages/admin.py:184
+#: app_ui/pages/admin.py:239 app_ui/pages/admin.py:272
 #: app_ui/pages/experts.py:617 app_ui/proactive_settings.py:479
 #: app_ui/title_rename_settings.py:263
 msgid "Stop"
@@ -1953,7 +1953,7 @@ msgstr ""
 msgid "(empty — the template produces no text)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1126 app_ui/title_rename_settings.py:135
+#: app_ui/pages/settings.py:1073 app_ui/title_rename_settings.py:135
 msgid "Reset to default"
 msgstr ""
 
@@ -2058,191 +2058,262 @@ msgstr ""
 msgid "Every analysed document has already been renamed."
 msgstr ""
 
-#: app_ui/pages/admin.py:67
+#: app_ui/pages/admin.py:69
 msgid "Admins only"
 msgstr ""
 
-#: app_ui/pages/admin.py:68
+#: app_ui/pages/admin.py:70
 msgid "The admin area is open to the users named in ADMIN_USERS on the server."
 msgstr ""
 
-#: app_ui/pages/admin.py:73
+#: app_ui/pages/admin.py:75
 msgid "No index"
 msgstr ""
 
-#: app_ui/pages/admin.py:74
+#: app_ui/pages/admin.py:76
 msgid "Building"
 msgstr ""
 
-#: app_ui/pages/admin.py:75
+#: app_ui/pages/admin.py:77
 msgid "Incomplete"
 msgstr ""
 
-#: app_ui/pages/admin.py:76
+#: app_ui/pages/admin.py:78
 msgid "Ready"
 msgstr ""
 
-#: app_ui/pages/admin.py:78 app_ui/pages/chat.py:900 app_ui/pages/chat.py:3455
+#: app_ui/pages/admin.py:80 app_ui/pages/chat.py:900 app_ui/pages/chat.py:3455
 #: app_ui/pages/dashboard.py:415 app_ui/pages/experts.py:127
 #: app_ui/pages/findings.py:1017 app_ui/pages/findings.py:1623
 #: app_ui/pages/settings.py:412
 msgid "Documents"
 msgstr ""
 
-#: app_ui/pages/admin.py:78 app_ui/pages/chat.py:906 app_ui/pages/chat.py:1053
+#: app_ui/pages/admin.py:80 app_ui/pages/chat.py:906 app_ui/pages/chat.py:1053
 #: app_ui/pages/chat.py:3456 app_ui/pages/experts.py:128
 msgid "Memory"
 msgstr ""
 
-#: app_ui/pages/admin.py:79
-msgid "archive hint"
-msgstr ""
-
-#: app_ui/pages/admin.py:79
-msgid "similar fact"
-msgstr ""
-
-#: app_ui/pages/admin.py:80
-msgid "memory hint"
-msgstr ""
-
-#: app_ui/pages/admin.py:85
+#: app_ui/pages/admin.py:86
 msgid "Settings for every user. Admins are named in ADMIN_USERS on the server."
 msgstr ""
 
-#: app_ui/pages/admin.py:93
+#: app_ui/pages/admin.py:94
 msgid "Embedding models"
 msgstr ""
 
-#: app_ui/pages/admin.py:94
+#: app_ui/pages/admin.py:95
 msgid "Search reads the active model's index, for every user"
 msgstr ""
 
-#: app_ui/pages/admin.py:136
-msgid "Active"
+#: app_ui/pages/admin.py:140
+msgid ""
+"Next: build the index. On the remote endpoint it is fast (GPU); "
+"afterwards it is checked against this server and moved here. Search keeps"
+" using the active index meanwhile."
 msgstr ""
 
-#: app_ui/pages/admin.py:138
-msgid "Dormant"
-msgstr ""
-
-#: app_ui/pages/admin.py:141
-msgid "on this server"
-msgstr ""
-
-#: app_ui/pages/admin.py:141
-msgid "remote"
+#: app_ui/pages/admin.py:143
+msgid "Build remotely"
 msgstr ""
 
 #: app_ui/pages/admin.py:144
+msgid "Build on this server"
+msgstr ""
+
+#: app_ui/pages/admin.py:146
+msgid ""
+"Next: build the index on this server. Search keeps using the active index"
+" meanwhile. To build on a GPU instead, add its endpoint under Edit."
+msgstr ""
+
+#: app_ui/pages/admin.py:148 app_ui/pages/admin.py:237
+msgid "Build index"
+msgstr ""
+
+#: app_ui/pages/admin.py:150
+msgid "The build stopped before the end. It continues where it stopped."
+msgstr ""
+
+#: app_ui/pages/admin.py:151 app_ui/pages/admin.py:236
+msgid "Continue building"
+msgstr ""
+
+#: app_ui/pages/admin.py:155
+#, python-brace-format
+msgid ""
+"This server's copy gives different vectors (cosine {mean}), so the index "
+"cannot move here. Keep embedding remotely, or rebuild the index on this "
+"server."
+msgstr ""
+
+#: app_ui/pages/admin.py:158
+msgid "Rebuild on this server"
+msgstr ""
+
+#: app_ui/pages/admin.py:159
+msgid "Check again"
+msgstr ""
+
+#: app_ui/pages/admin.py:161
+msgid ""
+"Built remotely. Next: check that this server gives the same vectors — it "
+"downloads the model here (about 1–2 GB) and embeds some stored chunks "
+"both ways."
+msgstr ""
+
+#: app_ui/pages/admin.py:163 app_ui/pages/admin.py:245
+msgid "Check local against remote"
+msgstr ""
+
+#: app_ui/pages/admin.py:165
+msgid ""
+"Same vectors here and remotely. Next: switch to this server — from now on"
+" it embeds here; the index stays as it is."
+msgstr ""
+
+#: app_ui/pages/admin.py:167
+msgid "Switch to this server"
+msgstr ""
+
+#: app_ui/pages/admin.py:169
+msgid ""
+"Ready. Next: compare it with the active index, set its distance "
+"thresholds from the distances you see, then make it active."
+msgstr ""
+
+#: app_ui/pages/admin.py:171 app_ui/pages/admin.py:589
+msgid "Compare"
+msgstr ""
+
+#: app_ui/pages/admin.py:172 app_ui/pages/admin.py:247
+msgid "Distance thresholds"
+msgstr ""
+
+#: app_ui/pages/admin.py:173 app_ui/pages/admin.py:240
+#: app_ui/pages/admin.py:354
+msgid "Make active"
+msgstr ""
+
+#: app_ui/pages/admin.py:180 app_ui/pages/admin.py:401
+msgid "No remote endpoint set."
+msgstr ""
+
+#: app_ui/pages/admin.py:223
+msgid "Active"
+msgstr ""
+
+#: app_ui/pages/admin.py:225
+msgid "Dormant"
+msgstr ""
+
+#: app_ui/pages/admin.py:226
+msgid "Was active; not updated until it is active again"
+msgstr ""
+
+#: app_ui/pages/admin.py:229
+msgid "on this server"
+msgstr ""
+
+#: app_ui/pages/admin.py:229
+msgid "remote"
+msgstr ""
+
+#: app_ui/pages/admin.py:232
 msgid "in RAM"
 msgstr ""
 
-#: app_ui/pages/admin.py:146 app_ui/pages/brain.py:1070
+#: app_ui/pages/admin.py:234 app_ui/pages/brain.py:1070
 #: app_ui/pages/brain.py:1162 app_ui/pages/chat.py:4656
 #: app_ui/pages/chat.py:4698
 msgid "Edit"
 msgstr ""
 
-#: app_ui/pages/admin.py:148
-msgid "Continue building"
-msgstr ""
-
-#: app_ui/pages/admin.py:149
+#: app_ui/pages/admin.py:237
 msgid "Catch up"
 msgstr ""
 
-#: app_ui/pages/admin.py:149
-msgid "Build index"
+#: app_ui/pages/admin.py:243
+msgid "Use the remote endpoint"
 msgstr ""
 
-#: app_ui/pages/admin.py:152 app_ui/pages/admin.py:264
-msgid "Make active"
+#: app_ui/pages/admin.py:243
+msgid "Use this server"
 msgstr ""
 
-#: app_ui/pages/admin.py:155
-msgid "Embed remotely"
-msgstr ""
-
-#: app_ui/pages/admin.py:155
-msgid "Embed on this server"
-msgstr ""
-
-#: app_ui/pages/admin.py:157
-msgid "Check local against remote"
-msgstr ""
-
-#: app_ui/pages/admin.py:159
-msgid "Distance thresholds"
-msgstr ""
-
-#: app_ui/pages/admin.py:160
+#: app_ui/pages/admin.py:248
 msgid "Delete index"
 msgstr ""
 
-#: app_ui/pages/admin.py:162
+#: app_ui/pages/admin.py:250
 msgid "Remove model"
 msgstr ""
 
-#: app_ui/pages/admin.py:179
+#: app_ui/pages/admin.py:267
 #, python-brace-format
 msgid "{part}: {done} of {total} · {n} embedded"
 msgstr ""
 
-#: app_ui/pages/admin.py:185
+#: app_ui/pages/admin.py:273
 msgid "Stops after this batch."
 msgstr ""
 
-#: app_ui/pages/admin.py:195
+#: app_ui/pages/admin.py:283
 #, python-brace-format
 msgid "Caught up with the active index: {when}"
 msgstr ""
 
-#: app_ui/pages/admin.py:198
+#: app_ui/pages/admin.py:286
 #, python-brace-format
 msgid "Last run: {n} embedded in {t}"
 msgstr ""
 
-#: app_ui/pages/admin.py:205
+#: app_ui/pages/admin.py:293
 #, python-brace-format
 msgid "Local against remote: cosine {mean} (lowest {min}) — {verdict}"
 msgstr ""
 
-#: app_ui/pages/admin.py:207
+#: app_ui/pages/admin.py:295
 msgid "the same model"
 msgstr ""
 
-#: app_ui/pages/admin.py:207
+#: app_ui/pages/admin.py:295
 msgid "not the same vectors"
 msgstr ""
 
-#: app_ui/pages/admin.py:210
+#: app_ui/pages/admin.py:298
 msgid "Every search asks this endpoint; while it is off, search finds nothing."
 msgstr ""
 
-#: app_ui/pages/admin.py:214
+#: app_ui/pages/admin.py:301
 #, python-brace-format
-msgid "Thresholds: {values}"
+msgid ""
+"Distances: memory hint ≤ {mh} (× {mw}) · archive hint ≤ {ah} · similar "
+"fact ≤ {fd}"
 msgstr ""
 
-#: app_ui/pages/admin.py:251
+#: app_ui/pages/admin.py:304
+msgid "defaults"
+msgstr ""
+
+#: app_ui/pages/admin.py:341
 #, python-brace-format
 msgid "Make \"{name}\" active?"
 msgstr ""
 
-#: app_ui/pages/admin.py:254
+#: app_ui/pages/admin.py:344
 msgid ""
 "Its index is first brought up to date with the active one, then every "
 "search of every user reads it. The current index stays as it is, dormant:"
 " it is no longer updated until it is made active again."
 msgstr ""
 
-#: app_ui/pages/admin.py:269
+#: app_ui/pages/admin.py:359
 #, python-brace-format
 msgid "Delete the index of \"{name}\"?"
 msgstr ""
 
-#: app_ui/pages/admin.py:272
+#: app_ui/pages/admin.py:362
 msgid ""
 "Its vectors for documents, notes and memory are deleted, and the model's "
 "files on this server — a remote endpoint is not touched. The documents, "
@@ -2250,173 +2321,214 @@ msgid ""
 "the active one."
 msgstr ""
 
-#: app_ui/pages/admin.py:284
+#: app_ui/pages/admin.py:374
 #, python-brace-format
 msgid "Index deleted, and the model's files on this server ({gb} GB)."
 msgstr ""
 
-#: app_ui/pages/admin.py:299
+#: app_ui/pages/admin.py:389
 #, python-brace-format
 msgid "Model removed, and its files on this server ({gb} GB)."
 msgstr ""
 
-#: app_ui/pages/admin.py:310
+#: app_ui/pages/admin.py:400
 msgid ""
 "Run \"Check local against remote\" first: an index must not mix vectors "
 "of two different models."
 msgstr ""
 
-#: app_ui/pages/admin.py:311
-msgid "No remote endpoint set."
-msgstr ""
-
-#: app_ui/pages/admin.py:318
+#: app_ui/pages/admin.py:408
 msgid "Embedding the same texts locally and remotely …"
 msgstr ""
 
-#: app_ui/pages/admin.py:331
+#: app_ui/pages/admin.py:421
 msgid "Edit embedding model"
 msgstr ""
 
-#: app_ui/pages/admin.py:331
+#: app_ui/pages/admin.py:421
 msgid "Add embedding model"
 msgstr ""
 
-#: app_ui/pages/admin.py:333
+#: app_ui/pages/admin.py:423
 msgid "Model (Hugging Face id)"
 msgstr ""
 
-#: app_ui/pages/admin.py:338
+#: app_ui/pages/admin.py:428
 msgid ""
 "Runs on this server with sentence-transformers; the first use downloads "
 "it. The index belongs to the model, so the id cannot change."
 msgstr ""
 
-#: app_ui/pages/admin.py:341
+#: app_ui/pages/admin.py:431
 msgid "Query instruction"
 msgstr ""
 
-#: app_ui/pages/admin.py:344
+#: app_ui/pages/admin.py:434
 msgid ""
 "Put before every search query, never before stored text. Empty = filled "
 "in for known models (e5-instruct, Qwen3-Embedding)."
 msgstr ""
 
-#: app_ui/pages/admin.py:346
+#: app_ui/pages/admin.py:436
 msgid "Remote endpoint (optional)"
 msgstr ""
 
-#: app_ui/pages/admin.py:349
+#: app_ui/pages/admin.py:439
 msgid "Model name there"
 msgstr ""
 
-#: app_ui/pages/admin.py:357
+#: app_ui/pages/admin.py:447
 msgid "stored — empty keeps it"
 msgstr ""
 
-#: app_ui/pages/admin.py:358
+#: app_ui/pages/admin.py:448
 msgid ""
 "Any OpenAI-compatible /v1/embeddings (Ollama, TEI, vLLM). The same model "
 "remotely, e.g. to build a large index on a GPU and search it on this "
 "server afterwards."
 msgstr ""
 
-#: app_ui/pages/admin.py:374
+#: app_ui/pages/admin.py:464
 msgid "This model is already in the list."
 msgstr ""
 
-#: app_ui/pages/admin.py:389
+#: app_ui/pages/admin.py:479
 #, python-brace-format
 msgid "Distance thresholds — {name}"
 msgstr ""
 
-#: app_ui/pages/admin.py:391
+#: app_ui/pages/admin.py:481
 msgid ""
-"Each model spreads distances differently. Empty = the value tuned for "
-"multilingual-e5-large-instruct. The comparison below shows this model's "
-"distances."
+"All values are distances, as the tool log prints them: 0 = identical, "
+"lower = closer. Each model spreads distances differently — the comparison"
+" below shows this model's. Values marked \"default\" are the ones every "
+"install ran with."
 msgstr ""
 
-#: app_ui/pages/admin.py:394
-msgid "Archive hint on web search: max. distance (e5: 0.15)"
+#: app_ui/pages/admin.py:487 app_ui/pages/experts.py:192
+msgid "default"
 msgstr ""
 
-#: app_ui/pages/admin.py:397
-msgid "\"Similar fact exists\": max. distance (e5: 0.15)"
+#: app_ui/pages/admin.py:491
+msgid "Memory and note hints: max. distance"
 msgstr ""
 
-#: app_ui/pages/admin.py:400
-msgid "Memory hint: min. similarity (empty = Settings > Documents)"
+#: app_ui/pages/admin.py:492
+msgid "… and at most this factor above the best hint (≥ 1)"
 msgstr ""
 
-#: app_ui/pages/admin.py:422
+#: app_ui/pages/admin.py:494
+msgid "Hints from memory and notes shown next to search results."
+msgstr ""
+
+#: app_ui/pages/admin.py:498
+#, python-brace-format
+msgid "The old setting \"similarity {sim}\" is the distance {dist}."
+msgstr ""
+
+#: app_ui/pages/admin.py:503
+msgid "Archive hint on web search: max. distance"
+msgstr ""
+
+#: app_ui/pages/admin.py:504
+msgid "\"A very similar fact exists\": max. distance"
+msgstr ""
+
+#: app_ui/pages/admin.py:512
+msgid "Enter a number in every field."
+msgstr ""
+
+#: app_ui/pages/admin.py:527
+msgid "Reset to defaults"
+msgstr ""
+
+#: app_ui/pages/admin.py:541
+msgid "Search settings"
+msgstr ""
+
+#: app_ui/pages/admin.py:542
+msgid "For every user. The distance thresholds belong to each model, above."
+msgstr ""
+
+#: app_ui/pages/admin.py:545
+msgid "Max. search results"
+msgstr ""
+
+#: app_ui/pages/admin.py:551 app_ui/pages/experts.py:371
+#: app_ui/pages/experts.py:513 app_ui/pages/experts.py:575
+#: app_ui/pages/experts.py:808 app_ui/pages/settings.py:229
+#: app_ui/pages/settings.py:692
+msgid "Saved."
+msgstr ""
+
+#: app_ui/pages/admin.py:553
+msgid "Enter a number."
+msgstr ""
+
+#: app_ui/pages/admin.py:563
 msgid "Compare indexes"
 msgstr ""
 
-#: app_ui/pages/admin.py:423
+#: app_ui/pages/admin.py:564
 msgid ""
 "Semantic search only, no language model: which documents each index "
 "finds, and how fast. One model after the other, each alone in RAM."
 msgstr ""
 
-#: app_ui/pages/admin.py:431
+#: app_ui/pages/admin.py:574
 msgid "Two models with an index are needed. Add a model and build its index."
 msgstr ""
 
-#: app_ui/pages/admin.py:441
+#: app_ui/pages/admin.py:585
 msgid "Questions, one per line"
 msgstr ""
 
-#: app_ui/pages/admin.py:443
+#: app_ui/pages/admin.py:587
 msgid "Documents per question"
 msgstr ""
 
-#: app_ui/pages/admin.py:445
-msgid "Compare"
-msgstr ""
-
-#: app_ui/pages/admin.py:451
+#: app_ui/pages/admin.py:595
 msgid "Enter questions and pick two different models."
 msgstr ""
 
-#: app_ui/pages/admin.py:456
+#: app_ui/pages/admin.py:600
 msgid "Running — loading a model can take a minute …"
 msgstr ""
 
-#: app_ui/pages/admin.py:490
+#: app_ui/pages/admin.py:634
 msgid "One of the two indexes could not be searched."
 msgstr ""
 
-#: app_ui/pages/admin.py:508
+#: app_ui/pages/admin.py:652
 #, python-brace-format
 msgid "Load {s} s · query embedding {e} ms · vector search {v} ms (median)"
 msgstr ""
 
-#: app_ui/pages/admin.py:512
+#: app_ui/pages/admin.py:656
 #, python-brace-format
 msgid "Distance of the best document {f}, of the last {l} (median) · {n} chunks"
 msgstr ""
 
-#: app_ui/pages/admin.py:516
+#: app_ui/pages/admin.py:660
 #, python-brace-format
 msgid "Same documents in both lists, on average: {pct} %"
 msgstr ""
 
-#: app_ui/pages/admin.py:519
+#: app_ui/pages/admin.py:663
 msgid "Documents you cannot see in Paperless are shown by number only."
 msgstr ""
 
-#: app_ui/pages/admin.py:530
+#: app_ui/pages/admin.py:674
 #, python-brace-format
 msgid "{e} ms + {v} ms"
 msgstr ""
 
-#: app_ui/pages/admin.py:535
+#: app_ui/pages/admin.py:679
 #, python-brace-format
 msgid "Document #{id}"
 msgstr ""
 
-#: app_ui/pages/admin.py:540
+#: app_ui/pages/admin.py:684
 msgid "only here"
 msgstr ""
 
@@ -2524,7 +2636,7 @@ msgstr ""
 msgid "{key} is managed by PaperlessBrain and stays unchanged."
 msgstr ""
 
-#: app_ui/pages/brain.py:773 app_ui/pages/settings.py:1261
+#: app_ui/pages/brain.py:773 app_ui/pages/settings.py:1208
 msgid "Apply"
 msgstr ""
 
@@ -2729,7 +2841,7 @@ msgid "Created"
 msgstr ""
 
 #: app_ui/pages/browser.py:318 app_ui/pages/browser.py:389
-#: app_ui/pages/browser.py:492 app_ui/pages/settings.py:1015
+#: app_ui/pages/browser.py:492 app_ui/pages/settings.py:962
 msgid "Document type"
 msgstr ""
 
@@ -2812,7 +2924,7 @@ msgid ": Doc #{id}"
 msgstr ""
 
 #: app_ui/pages/chat.py:902 app_ui/pages/dashboard.py:590
-#: app_ui/pages/experts.py:127 app_ui/pages/settings.py:838
+#: app_ui/pages/experts.py:127 app_ui/pages/settings.py:785
 msgid "Calendar"
 msgstr ""
 
@@ -3333,12 +3445,12 @@ msgid "Street"
 msgstr ""
 
 #: app_ui/pages/chat.py:4315 app_ui/pages/chat.py:4356
-#: app_ui/pages/settings.py:957
+#: app_ui/pages/settings.py:904
 msgid "Postcode"
 msgstr ""
 
 #: app_ui/pages/chat.py:4320 app_ui/pages/chat.py:4362
-#: app_ui/pages/settings.py:959
+#: app_ui/pages/settings.py:906
 msgid "City"
 msgstr ""
 
@@ -3581,7 +3693,7 @@ msgstr ""
 msgid "Optional services"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:581 app_ui/pages/settings.py:761
+#: app_ui/pages/dashboard.py:581 app_ui/pages/settings.py:708
 msgid "Email (IMAP)"
 msgstr ""
 
@@ -3836,7 +3948,7 @@ msgid "Shut down server"
 msgstr ""
 
 #: app_ui/pages/dashboard.py:1414 app_ui/pages/login.py:90
-#: app_ui/pages/settings.py:875
+#: app_ui/pages/settings.py:822
 msgid "Password"
 msgstr ""
 
@@ -3973,12 +4085,8 @@ msgstr ""
 msgid "Narrowed access"
 msgstr ""
 
-#: app_ui/pages/experts.py:192
-msgid "default"
-msgstr ""
-
 #: app_ui/pages/experts.py:201 app_ui/pages/experts.py:267
-#: app_ui/pages/settings.py:1088
+#: app_ui/pages/settings.py:1035
 msgid "Briefing"
 msgstr ""
 
@@ -4087,12 +4195,6 @@ msgstr ""
 #: app_ui/pages/experts.py:368
 #, python-brace-format
 msgid "Saved, but only the first {max} characters are used."
-msgstr ""
-
-#: app_ui/pages/experts.py:371 app_ui/pages/experts.py:513
-#: app_ui/pages/experts.py:575 app_ui/pages/experts.py:808
-#: app_ui/pages/settings.py:229 app_ui/pages/settings.py:745
-msgid "Saved."
 msgstr ""
 
 #: app_ui/pages/experts.py:386 app_ui/pages/findings.py:1709
@@ -5332,7 +5434,7 @@ msgid ""
 "PAPERLESS_SUPERUSER_TOKEN in your .env, then restart the container."
 msgstr ""
 
-#: app_ui/pages/login.py:87 app_ui/pages/settings.py:872
+#: app_ui/pages/login.py:87 app_ui/pages/settings.py:819
 msgid "Username"
 msgstr ""
 
@@ -5673,62 +5775,19 @@ msgstr ""
 msgid "Applies to newly ingested documents; existing ones keep their extraction."
 msgstr ""
 
-#: app_ui/pages/settings.py:657
-msgid "Search & memory thresholds"
-msgstr ""
-
 #: app_ui/pages/settings.py:658
-msgid "Number of search results, relevance threshold and window for memory hints"
-msgstr ""
-
-#: app_ui/pages/settings.py:662
-msgid "Max. search results"
-msgstr ""
-
-#: app_ui/pages/settings.py:667
-msgid "Memory hint similarity threshold (0–1)"
-msgstr ""
-
-#: app_ui/pages/settings.py:673
-msgid ""
-"Cosine similarity: higher value = stricter filter. Distances are shown in"
-" the tool log as <code>[0.XX]</code> — a hint appears only when distance "
-"≤ <code>1 − threshold</code>."
-msgstr ""
-
-#: app_ui/pages/settings.py:678
-msgid "Memory hint window factor (≥ 1.0)"
-msgstr ""
-
-#: app_ui/pages/settings.py:684
-#, python-format
-msgid ""
-"Maximum distance relative to the best match. 1.0 = best match only; 1.5 ="
-" up to 50 % short of the best."
-msgstr ""
-
-#: app_ui/pages/settings.py:699
-msgid "Search settings saved."
-msgstr ""
-
-#: app_ui/pages/settings.py:701
-#, python-brace-format
-msgid "Invalid value: {err}"
-msgstr ""
-
-#: app_ui/pages/settings.py:711
 msgid "Memory maintenance (dreaming)"
 msgstr ""
 
-#: app_ui/pages/settings.py:712
+#: app_ui/pages/settings.py:659
 msgid "Model for memory cleanup and for reviewing extracted deadlines"
 msgstr ""
 
-#: app_ui/pages/settings.py:725
+#: app_ui/pages/settings.py:672
 msgid "Model for memory cleanup"
 msgstr ""
 
-#: app_ui/pages/settings.py:734
+#: app_ui/pages/settings.py:681
 msgid ""
 "Used for two things: tidying up memory entries, and reviewing the "
 "deadlines found during sync — junk and duplicates are dropped before they"
@@ -5736,31 +5795,31 @@ msgid ""
 " here, deadline review is skipped.</b>"
 msgstr ""
 
-#: app_ui/pages/settings.py:749
+#: app_ui/pages/settings.py:696
 msgid "Applies to newly found deadlines; existing verdicts are kept."
 msgstr ""
 
-#: app_ui/pages/settings.py:762
+#: app_ui/pages/settings.py:709
 msgid "Read-only — no emails are sent or modified"
 msgstr ""
 
-#: app_ui/pages/settings.py:765
+#: app_ui/pages/settings.py:712
 msgid "IMAP server"
 msgstr ""
 
-#: app_ui/pages/settings.py:771
+#: app_ui/pages/settings.py:718
 msgid "Port"
 msgstr ""
 
-#: app_ui/pages/settings.py:784
+#: app_ui/pages/settings.py:731
 msgid "Username / email address"
 msgstr ""
 
-#: app_ui/pages/settings.py:787
+#: app_ui/pages/settings.py:734
 msgid "Password / app password"
 msgstr ""
 
-#: app_ui/pages/settings.py:792
+#: app_ui/pages/settings.py:739
 msgid ""
 "<b style='color:var(--c-accent-text)'>Gmail:</b> IMAP must be enabled "
 "(Gmail → Settings → Forwarding and POP/IMAP). Password = Google <b>app "
@@ -5768,43 +5827,43 @@ msgid ""
 "passwords."
 msgstr ""
 
-#: app_ui/pages/settings.py:814 app_ui/pages/settings.py:917
+#: app_ui/pages/settings.py:761 app_ui/pages/settings.py:864
 msgid "Test connection"
 msgstr ""
 
-#: app_ui/pages/settings.py:828
+#: app_ui/pages/settings.py:775
 msgid "IMAP settings saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:839
+#: app_ui/pages/settings.py:786
 msgid "Read-only — no events are created or modified"
 msgstr ""
 
-#: app_ui/pages/settings.py:844
+#: app_ui/pages/settings.py:791
 msgid "Google Calendar (iCal URL)"
 msgstr ""
 
-#: app_ui/pages/settings.py:844
+#: app_ui/pages/settings.py:791
 msgid "CalDAV (Nextcloud, iCloud, …)"
 msgstr ""
 
-#: app_ui/pages/settings.py:846
+#: app_ui/pages/settings.py:793
 msgid "Connection type"
 msgstr ""
 
-#: app_ui/pages/settings.py:851
+#: app_ui/pages/settings.py:798
 msgid "Calendar 1 – iCal URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:853
+#: app_ui/pages/settings.py:800
 msgid "Calendar 2 – iCal URL (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:855
+#: app_ui/pages/settings.py:802
 msgid "Calendar 3 – iCal URL (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:860
+#: app_ui/pages/settings.py:807
 msgid ""
 "<b style='color:var(--c-accent-text)'>Google Calendar:</b> Calendar "
 "settings &rarr; [select calendar] &rarr; <i>Secret address in iCal "
@@ -5812,11 +5871,11 @@ msgid ""
 " without a password.<br>Up to 3 calendars are searched in parallel."
 msgstr ""
 
-#: app_ui/pages/settings.py:867
+#: app_ui/pages/settings.py:814
 msgid "CalDAV URL"
 msgstr ""
 
-#: app_ui/pages/settings.py:880
+#: app_ui/pages/settings.py:827
 msgid ""
 "<b style='color:var(--c-accent-text)'>iCloud:</b> "
 "<code>https://caldav.icloud.com/</code>, app-specific password.<br><b "
@@ -5824,183 +5883,183 @@ msgid ""
 "from the calendar app."
 msgstr ""
 
-#: app_ui/pages/settings.py:903
+#: app_ui/pages/settings.py:850
 msgid "No URL entered"
 msgstr ""
 
-#: app_ui/pages/settings.py:907
+#: app_ui/pages/settings.py:854
 #, python-brace-format
 msgid "{n} calendars reachable"
 msgstr ""
 
-#: app_ui/pages/settings.py:933
+#: app_ui/pages/settings.py:880
 msgid "Calendar settings saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:943
+#: app_ui/pages/settings.py:890
 msgid "Sender profile"
 msgstr ""
 
-#: app_ui/pages/settings.py:944
+#: app_ui/pages/settings.py:891
 msgid "Used for letter generation (DOCX)"
 msgstr ""
 
-#: app_ui/pages/settings.py:947
+#: app_ui/pages/settings.py:894
 msgid "Full name"
 msgstr ""
 
-#: app_ui/pages/settings.py:950
+#: app_ui/pages/settings.py:897
 msgid "Company / organization (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:953
+#: app_ui/pages/settings.py:900
 msgid "Street and number"
 msgstr ""
 
-#: app_ui/pages/settings.py:962
+#: app_ui/pages/settings.py:909
 msgid "Phone (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:965
+#: app_ui/pages/settings.py:912
 msgid "Email (optional)"
 msgstr ""
 
-#: app_ui/pages/settings.py:968
+#: app_ui/pages/settings.py:915
 msgid "Default closing"
 msgstr ""
 
-#: app_ui/pages/settings.py:984
+#: app_ui/pages/settings.py:931
 msgid "Sender profile saved"
 msgstr ""
 
-#: app_ui/pages/settings.py:1002
+#: app_ui/pages/settings.py:949
 msgid "PDF → Paperless: default tags"
 msgstr ""
 
-#: app_ui/pages/settings.py:1003
+#: app_ui/pages/settings.py:950
 msgid "Tags, correspondent and document type for AI-generated documents"
 msgstr ""
 
-#: app_ui/pages/settings.py:1007
+#: app_ui/pages/settings.py:954
 msgid "Tag: Inbox"
 msgstr ""
 
-#: app_ui/pages/settings.py:1009
+#: app_ui/pages/settings.py:956
 msgid "Tag: AI-generated"
 msgstr ""
 
-#: app_ui/pages/settings.py:1020
+#: app_ui/pages/settings.py:967
 msgid ""
 "Tags must exist in Paperless. Correspondent and document type are created"
 " automatically if missing."
 msgstr ""
 
-#: app_ui/pages/settings.py:1029
+#: app_ui/pages/settings.py:976
 msgid "Tags saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:1041
+#: app_ui/pages/settings.py:988
 msgid "Chat instructions"
 msgstr ""
 
-#: app_ui/pages/settings.py:1042
+#: app_ui/pages/settings.py:989
 msgid "Personality and standing instructions now live in Experts"
 msgstr ""
 
-#: app_ui/pages/settings.py:1046
+#: app_ui/pages/settings.py:993
 msgid ""
 "Your standing instructions are the personality of the Universal expert "
 "now. Edit them there — and create experts for single topics, with their "
 "own instructions, skills and document access."
 msgstr ""
 
-#: app_ui/pages/settings.py:1058
+#: app_ui/pages/settings.py:1005
 msgid "Use experts"
 msgstr ""
 
-#: app_ui/pages/settings.py:1061
+#: app_ui/pages/settings.py:1008
 msgid ""
 "Off: every chat is the Universal expert — all documents, all tools, your "
 "standing instructions — and the expert picker and the Experts menu item "
 "are gone. Your experts stay saved and come back when you switch this on."
 msgstr ""
 
-#: app_ui/pages/settings.py:1067
+#: app_ui/pages/settings.py:1014
 msgid "Open Experts"
 msgstr ""
 
-#: app_ui/pages/settings.py:1075 werkbank/v2/ui/page.py:545
+#: app_ui/pages/settings.py:1022 werkbank/v2/ui/page.py:545
 msgid "AI deep research"
 msgstr ""
 
-#: app_ui/pages/settings.py:1076
+#: app_ui/pages/settings.py:1023
 msgid "System prompts and token limits for the pipeline roles"
 msgstr ""
 
-#: app_ui/pages/settings.py:1082
+#: app_ui/pages/settings.py:1029
 msgid ""
 "These prompts change what a role is asked. They cannot change what is "
 "verified — the evidence checks run in code after the model has answered."
 msgstr ""
 
-#: app_ui/pages/settings.py:1089
+#: app_ui/pages/settings.py:1036
 msgid "Planner"
 msgstr ""
 
-#: app_ui/pages/settings.py:1090
+#: app_ui/pages/settings.py:1037
 msgid "Plan critic"
 msgstr ""
 
-#: app_ui/pages/settings.py:1091
+#: app_ui/pages/settings.py:1038
 msgid "Fact critic"
 msgstr ""
 
-#: app_ui/pages/settings.py:1092
+#: app_ui/pages/settings.py:1039
 msgid "Contradiction checker"
 msgstr ""
 
-#: app_ui/pages/settings.py:1093
+#: app_ui/pages/settings.py:1040
 msgid "Writer"
 msgstr ""
 
-#: app_ui/pages/settings.py:1096
+#: app_ui/pages/settings.py:1043
 msgid "Token limits per role"
 msgstr ""
 
-#: app_ui/pages/settings.py:1113
+#: app_ui/pages/settings.py:1060
 #, python-brace-format
 msgid "System prompt: {role}"
 msgstr ""
 
-#: app_ui/pages/settings.py:1124
+#: app_ui/pages/settings.py:1071
 msgid "Prompt reset."
 msgstr ""
 
-#: app_ui/pages/settings.py:1135
+#: app_ui/pages/settings.py:1082
 msgid "Deep research settings saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:1142
+#: app_ui/pages/settings.py:1089
 msgid "All prompts reset."
 msgstr ""
 
-#: app_ui/pages/settings.py:1144
+#: app_ui/pages/settings.py:1091
 msgid "Reset all"
 msgstr ""
 
-#: app_ui/pages/settings.py:1157
+#: app_ui/pages/settings.py:1104
 msgid "Import / export settings"
 msgstr ""
 
-#: app_ui/pages/settings.py:1158
+#: app_ui/pages/settings.py:1105
 msgid "Move your personal settings to another installation"
 msgstr ""
 
-#: app_ui/pages/settings.py:1168
+#: app_ui/pages/settings.py:1115
 msgid "Include passwords and API keys"
 msgstr ""
 
-#: app_ui/pages/settings.py:1172
+#: app_ui/pages/settings.py:1119
 msgid ""
 "Without this option the export contains no secrets; on import the "
 "existing passwords and keys are kept. <b style='color:#f87171'>With it, "
@@ -6008,81 +6067,81 @@ msgid ""
 " plain text</b> — treat it like a password."
 msgstr ""
 
-#: app_ui/pages/settings.py:1180
+#: app_ui/pages/settings.py:1127
 msgid "Export string"
 msgstr ""
 
-#: app_ui/pages/settings.py:1208
+#: app_ui/pages/settings.py:1155
 msgid "Copied to clipboard."
 msgstr ""
 
-#: app_ui/pages/settings.py:1211
+#: app_ui/pages/settings.py:1158
 msgid "Create export"
 msgstr ""
 
-#: app_ui/pages/settings.py:1214
+#: app_ui/pages/settings.py:1161
 msgid "Copy"
 msgstr ""
 
-#: app_ui/pages/settings.py:1220
+#: app_ui/pages/settings.py:1167
 msgid ""
 "The copy button needs HTTPS or localhost. Otherwise select the text in "
 "the field and copy it manually."
 msgstr ""
 
-#: app_ui/pages/settings.py:1228
+#: app_ui/pages/settings.py:1175
 msgid "Paste export string here"
 msgstr ""
 
-#: app_ui/pages/settings.py:1238 app_ui/pages/settings.py:1273
+#: app_ui/pages/settings.py:1185 app_ui/pages/settings.py:1220
 #, python-brace-format
 msgid "Import failed: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:1243
+#: app_ui/pages/settings.py:1190
 msgid "The string contains no importable settings."
 msgstr ""
 
-#: app_ui/pages/settings.py:1247
+#: app_ui/pages/settings.py:1194
 msgid "Apply these settings?"
 msgstr ""
 
-#: app_ui/pages/settings.py:1255
+#: app_ui/pages/settings.py:1202
 msgid "The export contains no secrets — existing passwords and API keys are kept."
 msgstr ""
 
-#: app_ui/pages/settings.py:1278
+#: app_ui/pages/settings.py:1225
 msgid "Settings imported."
 msgstr ""
 
-#: app_ui/pages/settings.py:1286
+#: app_ui/pages/settings.py:1233
 msgid "Import"
 msgstr ""
 
-#: app_ui/pages/settings.py:1292
+#: app_ui/pages/settings.py:1239
 msgid ""
 "Import overwrites the sections contained in the string. Global settings "
 "(processing, tags, search, deep research) are <b>not</b> part of the "
 "export — they apply to all users."
 msgstr ""
 
-#: app_ui/pages/settings.py:1304
+#: app_ui/pages/settings.py:1251
 msgid "Vault / Obsidian synchronization"
 msgstr ""
 
-#: app_ui/pages/settings.py:1305
+#: app_ui/pages/settings.py:1252
 msgid "Where PaperlessBrain expects memory files and your notes"
 msgstr ""
 
-#: app_ui/pages/settings.py:1314
+#: app_ui/pages/settings.py:1261
 msgid "Vault directory (Obsidian vault root)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1317
+#: app_ui/pages/settings.py:1264
 msgid "Memory subfolder (Brain)"
 msgstr ""
 
-#: app_ui/pages/settings.py:1322
+#: app_ui/pages/settings.py:1269
 msgid ""
 "<b>Obsidian / Remotely Save:</b> point synchronization at the vault "
 "directory above.<br>Exclude <code>.git/</code> client-side in Remotely "
@@ -6090,41 +6149,41 @@ msgid ""
 "server-side Git repo is not propagated to devices."
 msgstr ""
 
-#: app_ui/pages/settings.py:1338
+#: app_ui/pages/settings.py:1285
 msgid "Reindexing vault …"
 msgstr ""
 
-#: app_ui/pages/settings.py:1342
+#: app_ui/pages/settings.py:1289
 #, python-brace-format
 msgid "Reindexing vault … {done} of {total} files"
 msgstr ""
 
-#: app_ui/pages/settings.py:1352
+#: app_ui/pages/settings.py:1299
 #, python-brace-format
 msgid "Reindexing failed: {err}"
 msgstr ""
 
-#: app_ui/pages/settings.py:1359
+#: app_ui/pages/settings.py:1306
 #, python-brace-format
 msgid "{n} files reindexed."
 msgstr ""
 
-#: app_ui/pages/settings.py:1361
+#: app_ui/pages/settings.py:1308
 msgid "Vault reindexed."
 msgstr ""
 
-#: app_ui/pages/settings.py:1365
+#: app_ui/pages/settings.py:1312
 msgid "Reindex vault"
 msgstr ""
 
-#: app_ui/pages/settings.py:1369
+#: app_ui/pages/settings.py:1316
 msgid ""
 "Deletes this user's entries in both collections and embeds every Markdown"
 " file again. Runs automatically after an update that changes the "
 "embedding format; use it manually when search results look wrong."
 msgstr ""
 
-#: app_ui/pages/settings.py:1378
+#: app_ui/pages/settings.py:1325
 msgid ""
 "Credentials are stored encrypted and are accessible only to your "
 "Paperless user account. The key is your current Paperless token — if you "

@@ -1297,18 +1297,13 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
             return []
         try:
             from services.clients import brain
-            from werkbank.settings_store import (
-                get_brain_hint_threshold,
-                get_brain_hint_window,
-            )
+            from services.embedding_registry import memory_hint_limits
 
             hits = await brain.search_hints(effective_semantic, username, max_results=5)
             if not hits:
                 return []
             best_dist = hits[0][2]
-            threshold = get_brain_hint_threshold()
-            window = get_brain_hint_window()
-            max_dist = 1.0 - threshold
+            max_dist, window = memory_hint_limits()
             return [
                 f"[{dist:.2f}] {text}"
                 for _, text, dist in hits
@@ -1325,10 +1320,7 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
             return []
         try:
             from services.clients import vault_chroma
-            from werkbank.settings_store import (
-                get_brain_hint_threshold,
-                get_brain_hint_window,
-            )
+            from services.embedding_registry import memory_hint_limits
 
             total = await vault_chroma.count()
             if total == 0:
@@ -1342,9 +1334,7 @@ async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
             if not results:
                 return []
             best_dist = results[0].get("distance", 1.0)
-            threshold = get_brain_hint_threshold()
-            window = get_brain_hint_window()
-            max_dist = 1.0 - threshold
+            max_dist, window = memory_hint_limits()
             lines = []
             for h in results:
                 dist = h.get("distance", 1.0)
@@ -2913,7 +2903,7 @@ async def _tool_search_memory(inputs: dict) -> tuple[str, list, list]:
         return "No active user — please sign in again.", []
     from services.brain_service import _parse_fact
     from services.clients import brain, vault_chroma
-    from werkbank.settings_store import get_brain_hint_threshold, get_brain_hint_window
+    from services.embedding_registry import memory_hint_limits
 
     query = inputs["query"]
     k = int(inputs.get("max_results") or 5)
@@ -2968,9 +2958,7 @@ async def _tool_search_memory(inputs: dict) -> tuple[str, list, list]:
     # Vault cross-preview
     vault_notes: list[VaultNoteResult] = []
     try:
-        threshold = get_brain_hint_threshold()
-        window = get_brain_hint_window()
-        max_dist = 1.0 - threshold
+        max_dist, window = memory_hint_limits()
         vtotal = await vault_chroma.count()
         if vtotal > 0:
             vhits = await vault_chroma.query(
@@ -3223,14 +3211,9 @@ async def _tool_vault_search(inputs: dict) -> tuple[str, list]:
     # Brain cross-preview
     try:
         from services.clients import brain
-        from werkbank.settings_store import (
-            get_brain_hint_threshold,
-            get_brain_hint_window,
-        )
+        from services.embedding_registry import memory_hint_limits
 
-        threshold = get_brain_hint_threshold()
-        window = get_brain_hint_window()
-        max_dist = 1.0 - threshold
+        max_dist, window = memory_hint_limits()
         bhits = await brain.search_hints(query, user, max_results=3)
         if bhits:
             best = bhits[0][2]
