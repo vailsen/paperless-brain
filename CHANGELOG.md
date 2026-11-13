@@ -34,6 +34,10 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **Conversation menu above the chat** (⋮ next to the pickers): download and
   delete the conversation. On a phone, tools and compression moved there too,
   so the input row is the input, the mic and send.
+- **Chroma no longer embeds.** The app computes every vector itself and opens
+  the collections without an embedding function, so Chroma never loads a
+  second copy of the model. `EMBEDDING_MODEL` only seeds the model list on the
+  first start; after that, the admin area decides.
 
 ### Added
 
@@ -41,6 +45,20 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   runs partly on the CPU, and the chat says so once in a turn. The log has a
   `[chat-timing]` line per request: prompt size, time to the first token,
   tokens per second.
+- **Admin area** (`/admin`, for the Paperless users named in the new
+  `ADMIN_USERS` in `.env`). It manages the embedding models and their indexes:
+  - add a model (e.g. `Qwen/Qwen3-Embedding-0.6B`), running on the server or
+    behind an OpenAI-compatible `/v1/embeddings` endpoint (Ollama, TEI, vLLM);
+  - build its index from the chunks already stored — no vision model, no
+    re-ingest, and the documents, notes and memory keep working meanwhile;
+  - compare two indexes by semantic search: which documents each finds per
+    question, the query-embedding and vector-search times, distances. One
+    model in RAM at a time, the active one loaded again afterwards;
+  - make one active for every user (it is brought up to date first), keep the
+    other dormant or delete it. The active index cannot be deleted;
+  - move an index between remote and local embedding only after a check that
+    both give the same vectors;
+  - distance thresholds per model (archive hint, similar fact, memory hint).
 
 ## [0.20.0] — 2026-11-08
 

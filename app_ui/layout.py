@@ -11,6 +11,7 @@ from app_ui.theme import apply_theme
 from config.version import __version__
 from i18n import N_, get_translator
 from services import paperless_links
+from services.admin import is_admin
 from services.session_auth import clear_session, get_session_token
 
 # A real <a href> rather than a click handler: that is what makes middle-click
@@ -79,7 +80,9 @@ def user_icon(username: str) -> str:
     three unrelated roles has stopped being an accent. The admin still reads as
     admin because the glyph differs, which also survives a greyscale screenshot.
     """
-    return "admin_panel_settings" if username == "Superuser" else "person"
+    from services.admin import is_admin
+
+    return "admin_panel_settings" if username == "Superuser" or is_admin(username) else "person"
 
 
 def _current_path() -> str:
@@ -388,6 +391,16 @@ def page_layout() -> None:
                             ui.icon("settings", size="xs").classes("text-gray-400")
                         with ui.element("q-item-section"):
                             ui.label(_("Settings")).style("font-size:0.875rem;font-weight:500;")
+                    if is_admin(username):
+                        with ui.element("q-item").props("clickable v-ripple dense").classes(
+                            "text-gray-200 rounded-lg"
+                        ).style("padding:8px 12px;").on("click", lambda: ui.navigate.to("/admin")):
+                            with ui.element("q-item-section").props("avatar").style(
+                                "min-width:28px;padding-right:8px;"
+                            ):
+                                ui.icon("admin_panel_settings", size="xs").classes("text-gray-400")
+                            with ui.element("q-item-section"):
+                                ui.label(_("Admin")).style("font-size:0.875rem;font-weight:500;")
                     with ui.element("q-item").props("clickable v-ripple dense").classes(
                         "text-gray-200 rounded-lg"
                     ).style("padding:8px 12px;").on("click", _logout):

@@ -195,6 +195,16 @@ def get_search_max_results() -> int:
 
 
 def get_brain_hint_threshold() -> float:
+    # The active embedding model's own value wins: a similarity tuned on one
+    # model's distances means something else on another's.
+    try:
+        from services.embedding_registry import active_model
+
+        own = active_model().get("thresholds", {}).get("brain_hint")
+        if own is not None:
+            return max(0.0, min(1.0, float(own)))
+    except Exception:  # noqa: BLE001
+        pass
     stored = get(BRAIN_HINT_THRESHOLD)
     try:
         v = float(stored)

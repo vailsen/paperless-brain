@@ -17,7 +17,14 @@ class Settings(BaseSettings):
     # Names a real tag in Paperless — existing installs must pin their own value.
     ignore_inbox_tag_at_sync: str = "Inbox"
 
+    # Comma-separated Paperless usernames with the admin area (/admin): the
+    # embedding models and their indexes. Only here, never in the UI, so no
+    # one can make themselves admin. Empty = no admin area.
+    admin_users: str = ""
+
     # ChromaDB
+    # The first embedding model; after the first start the admin area's model
+    # list decides (services/embedding_registry.py) and this is ignored.
     embedding_model: str
     chroma_path: str
     chroma_collection: str

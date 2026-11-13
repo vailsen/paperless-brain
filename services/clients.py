@@ -1,11 +1,11 @@
 # services/clients.py
 from config.settings import settings
 from services.brain_service import BrainService
-from services.chroma import ChromaClient
 from services.cross_ref_index import CrossRefIndex
 from services.paperless import PaperlessClient
 from services.sidecar_service import SidecarService
 from services.thumbnail_service import ThumbnailService
+from services.vector_index import ActiveCollection
 from services.vision import OllamaVisionClient
 from vault.brain_writer import VaultBrainWriter
 from vault.memo_writer import VaultMemoWriter
@@ -16,11 +16,9 @@ paperless = PaperlessClient(
     settings.paperless_superuser_token,
 )
 
-chroma = ChromaClient(
-    collection_name=settings.chroma_collection,
-    persist_directory=str(settings.app_path / settings.chroma_path),
-    embedding_function=settings.embedding_model,
-)
+# The active embedding model's collections (`services/vector_index.py`): an
+# admin switching the model changes what these resolve to, without a restart.
+chroma = ActiveCollection("documents")
 vision = OllamaVisionClient()  # reads base_url/model from settings_store on each call
 
 sidecar_service = SidecarService(
@@ -29,32 +27,19 @@ sidecar_service = SidecarService(
 
 cross_ref_index = CrossRefIndex()
 
-brain = BrainService(
-    chroma=ChromaClient(
-        collection_name="brain",
-        persist_directory=str(settings.app_path / settings.chroma_path),
-        embedding_function=settings.embedding_model,
-    )
-)
+brain = BrainService(chroma=ActiveCollection("brain"))
 
 # One-time migration: wipe Chroma-direct brain entries (they have no file backing).
 # Vault sync will repopulate from .md files on the first sync_user() call.
 _migration_flag = settings.app_path / "data" / "vault_migrated_v1.flag"
 if not _migration_flag.exists():
-    brain._chroma.client.delete_collection("brain")
-    brain._chroma.collection = brain._chroma.client.get_or_create_collection(
-        name="brain",
-        embedding_function=brain._chroma.ef,
-        configuration={"hnsw": {"space": "cosine", "ef_construction": 100, "max_neighbors": 16}},
-    )
+    _name = brain._chroma.collection.name
+    brain._chroma.client.delete_collection(_name)
+    brain._chroma.collection = brain._chroma._open(_name)
     _migration_flag.parent.mkdir(parents=True, exist_ok=True)
     _migration_flag.touch()
 
-vault_chroma = ChromaClient(
-    collection_name="vault",
-    persist_directory=str(settings.app_path / settings.chroma_path),
-    embedding_function=settings.embedding_model,
-)
+vault_chroma = ActiveCollection("vault")
 
 vault_brain_writer = VaultBrainWriter(brain_chroma=brain._chroma)
 vault_memo_writer = VaultMemoWriter(vault_chroma=vault_chroma)
