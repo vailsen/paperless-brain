@@ -9,6 +9,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- **Reference numbers showed as raw text** (`^[435-p1]`) when the model
+  wrote the caret outside the bracket, Pandoc-style. That form counts as a
+  reference now, in stored answers too.
 - **Every chat answer failed** with "The current slot cannot be determined"
   when the local model ran partly on the CPU: the new warning was shown from
   the background task that runs the turn. It is shown in the chat's context
