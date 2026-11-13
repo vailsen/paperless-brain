@@ -286,8 +286,9 @@ def stop() -> None:
         _job.stop = True
 
 
-async def delete_index(model_id: str) -> None:
-    """Drop a model's collections. Never the active one's."""
+async def delete_index(model_id: str) -> int:
+    """Drop a model's collections, and its downloaded files on this server.
+    Never the active one's. Returns the bytes of model files freed."""
     if current_job() and current_job().model_id == model_id:
         raise RuntimeError("busy")
     if model_id == reg.active_id():
@@ -301,8 +302,30 @@ async def delete_index(model_id: str) -> None:
             log.debug("delete %s", role, exc_info=True)
     forget(model_id)
     reg.update(model_id, index="none", progress={}, synced_at="")
-    if m.get("use") == "local":
-        await asyncio.to_thread(emb.unload, m["name"])
+    return await delete_model_files(model_id)
+
+
+async def delete_model_files(model_id: str) -> int:
+    """The model's files in this server's cache — also there when it embedded
+    remotely (the parity check loads it here). Never the active model's."""
+    m = reg.get(model_id)
+    if m is None or model_id == reg.active_id():
+        return 0
+    try:
+        return await asyncio.to_thread(emb.delete_local_files, m["name"])
+    except Exception:  # noqa: BLE001 — the index is gone either way
+        log.warning("[embedding-index] could not delete the files of %s", m["name"], exc_info=True)
+        return 0
+
+
+async def remove_model(model_id: str) -> int:
+    """Take a model off the list (no index left) and delete its files here."""
+    m = reg.get(model_id)
+    if m is None or model_id == reg.active_id() or m.get("index") != "none":
+        reg.remove_model(model_id)  # raises with the reason
+    freed = await delete_model_files(model_id)
+    reg.remove_model(model_id)
+    return freed
 
 
 async def counts(m: dict) -> dict[str, int]:

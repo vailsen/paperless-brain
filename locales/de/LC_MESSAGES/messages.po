@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-13 09:39+0000\n"
+"POT-Creation-Date: 2026-11-13 11:15+0000\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -38,7 +38,7 @@ msgstr "Dienst hinzufügen"
 msgid "Backend"
 msgstr "Backend"
 
-#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:340
+#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:347
 msgid "Base URL"
 msgstr "Base URL"
 
@@ -50,7 +50,7 @@ msgstr "Anzeigename"
 msgid "e.g. Ollama local, OpenRouter, Claude"
 msgstr "z. B. Ollama lokal, OpenRouter, Claude"
 
-#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:344
+#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:351
 msgid "API key"
 msgstr "API-Schlüssel"
 
@@ -101,8 +101,8 @@ msgstr "Dienst gespeichert."
 
 #: app_ui/ai_models_settings.py:172 app_ui/ai_models_settings.py:325
 #: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:980
-#: app_ui/pages/admin.py:258 app_ui/pages/admin.py:276
-#: app_ui/pages/admin.py:375 app_ui/pages/admin.py:405
+#: app_ui/pages/admin.py:258 app_ui/pages/admin.py:277
+#: app_ui/pages/admin.py:382 app_ui/pages/admin.py:412
 #: app_ui/pages/brain.py:277 app_ui/pages/brain.py:291
 #: app_ui/pages/brain.py:772 app_ui/pages/chat.py:1711
 #: app_ui/pages/chat.py:3370 app_ui/pages/chat.py:4487
@@ -122,7 +122,7 @@ msgstr "Abbrechen"
 
 #: app_ui/ai_models_settings.py:173 app_ui/ai_models_settings.py:326
 #: app_ui/dossier_save.py:102 app_ui/memo_dialog.py:323
-#: app_ui/pages/admin.py:376 app_ui/pages/admin.py:406
+#: app_ui/pages/admin.py:383 app_ui/pages/admin.py:413
 #: app_ui/pages/chat.py:1718 app_ui/pages/experts.py:375
 #: app_ui/pages/experts.py:516 app_ui/pages/experts.py:578
 #: app_ui/pages/experts.py:821 app_ui/pages/settings.py:231
@@ -297,7 +297,7 @@ msgid "Service deleted."
 msgstr "Dienst gelöscht."
 
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
-#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:288
+#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:292
 #: app_ui/pages/brain.py:292 app_ui/pages/brain.py:1100
 #: app_ui/pages/experts.py:819 app_ui/pages/experts.py:898
 #: app_ui/pages/findings.py:2269 werkbank/v2/ui/page.py:264
@@ -2414,15 +2414,27 @@ msgstr "Index von „{name}“ löschen?"
 
 #: app_ui/pages/admin.py:272
 msgid ""
-"Its vectors for documents, notes and memory are deleted. The documents, "
+"Its vectors for documents, notes and memory are deleted, and the model's "
+"files on this server — a remote endpoint is not touched. The documents, "
 "notes and extractions themselves stay; the index can be built again from "
 "the active one."
 msgstr ""
-"Seine Vektoren für Dokumente, Notizen und Gedächtnis werden gelöscht. Die"
-" Dokumente, Notizen und Extraktionen selbst bleiben; der Index lässt sich"
-" aus dem aktiven wieder aufbauen."
+"Seine Vektoren für Dokumente, Notizen und Gedächtnis werden gelöscht, "
+"dazu die Dateien des Modells auf diesem Server — ein entfernter Endpunkt "
+"bleibt unberührt. Die Dokumente, Notizen und Extraktionen selbst bleiben;"
+" der Index lässt sich aus dem aktiven wieder aufbauen."
 
-#: app_ui/pages/admin.py:303
+#: app_ui/pages/admin.py:284
+#, python-brace-format
+msgid "Index deleted, and the model's files on this server ({gb} GB)."
+msgstr "Index gelöscht, dazu die Dateien des Modells auf diesem Server ({gb} GB)."
+
+#: app_ui/pages/admin.py:299
+#, python-brace-format
+msgid "Model removed, and its files on this server ({gb} GB)."
+msgstr "Modell entfernt, dazu seine Dateien auf diesem Server ({gb} GB)."
+
+#: app_ui/pages/admin.py:310
 msgid ""
 "Run \"Check local against remote\" first: an index must not mix vectors "
 "of two different models."
@@ -2430,27 +2442,27 @@ msgstr ""
 "Zuerst „Lokal gegen entfernt prüfen“ ausführen: Ein Index darf keine "
 "Vektoren zweier verschiedener Modelle mischen."
 
-#: app_ui/pages/admin.py:304
+#: app_ui/pages/admin.py:311
 msgid "No remote endpoint set."
 msgstr "Kein entfernter Endpunkt eingetragen."
 
-#: app_ui/pages/admin.py:311
+#: app_ui/pages/admin.py:318
 msgid "Embedding the same texts locally and remotely …"
 msgstr "Bette dieselben Texte lokal und entfernt ein …"
 
-#: app_ui/pages/admin.py:324
+#: app_ui/pages/admin.py:331
 msgid "Edit embedding model"
 msgstr "Embedding-Modell bearbeiten"
 
-#: app_ui/pages/admin.py:324
+#: app_ui/pages/admin.py:331
 msgid "Add embedding model"
 msgstr "Embedding-Modell hinzufügen"
 
-#: app_ui/pages/admin.py:326
+#: app_ui/pages/admin.py:333
 msgid "Model (Hugging Face id)"
 msgstr "Modell (Hugging-Face-ID)"
 
-#: app_ui/pages/admin.py:331
+#: app_ui/pages/admin.py:338
 msgid ""
 "Runs on this server with sentence-transformers; the first use downloads "
 "it. The index belongs to the model, so the id cannot change."
@@ -2459,11 +2471,11 @@ msgstr ""
 " es herunter. Der Index gehört zum Modell, daher lässt sich die ID nicht "
 "ändern."
 
-#: app_ui/pages/admin.py:334
+#: app_ui/pages/admin.py:341
 msgid "Query instruction"
 msgstr "Anweisung für Suchanfragen"
 
-#: app_ui/pages/admin.py:337
+#: app_ui/pages/admin.py:344
 msgid ""
 "Put before every search query, never before stored text. Empty = filled "
 "in for known models (e5-instruct, Qwen3-Embedding)."
@@ -2471,19 +2483,19 @@ msgstr ""
 "Steht vor jeder Suchanfrage, nie vor gespeichertem Text. Leer = für "
 "bekannte Modelle (e5-instruct, Qwen3-Embedding) ausgefüllt."
 
-#: app_ui/pages/admin.py:339
+#: app_ui/pages/admin.py:346
 msgid "Remote endpoint (optional)"
 msgstr "Entfernter Endpunkt (optional)"
 
-#: app_ui/pages/admin.py:342
+#: app_ui/pages/admin.py:349
 msgid "Model name there"
 msgstr "Modellname dort"
 
-#: app_ui/pages/admin.py:350
+#: app_ui/pages/admin.py:357
 msgid "stored — empty keeps it"
 msgstr "gespeichert — leer lässt ihn"
 
-#: app_ui/pages/admin.py:351
+#: app_ui/pages/admin.py:358
 msgid ""
 "Any OpenAI-compatible /v1/embeddings (Ollama, TEI, vLLM). The same model "
 "remotely, e.g. to build a large index on a GPU and search it on this "
@@ -2493,16 +2505,16 @@ msgstr ""
 "Modell entfernt, z. B. um einen großen Index auf einer GPU aufzubauen und"
 " danach auf diesem Server darin zu suchen."
 
-#: app_ui/pages/admin.py:367
+#: app_ui/pages/admin.py:374
 msgid "This model is already in the list."
 msgstr "Dieses Modell steht schon in der Liste."
 
-#: app_ui/pages/admin.py:382
+#: app_ui/pages/admin.py:389
 #, python-brace-format
 msgid "Distance thresholds — {name}"
 msgstr "Distanz-Schwellen — {name}"
 
-#: app_ui/pages/admin.py:384
+#: app_ui/pages/admin.py:391
 msgid ""
 "Each model spreads distances differently. Empty = the value tuned for "
 "multilingual-e5-large-instruct. The comparison below shows this model's "
@@ -2512,23 +2524,23 @@ msgstr ""
 "-large-instruct abgestimmte Wert. Der Vergleich unten zeigt die Distanzen"
 " dieses Modells."
 
-#: app_ui/pages/admin.py:387
+#: app_ui/pages/admin.py:394
 msgid "Archive hint on web search: max. distance (e5: 0.15)"
 msgstr "Archiv-Hinweis bei der Websuche: max. Distanz (e5: 0,15)"
 
-#: app_ui/pages/admin.py:390
+#: app_ui/pages/admin.py:397
 msgid "\"Similar fact exists\": max. distance (e5: 0.15)"
 msgstr "„Ähnlicher Fakt existiert“: max. Distanz (e5: 0,15)"
 
-#: app_ui/pages/admin.py:393
+#: app_ui/pages/admin.py:400
 msgid "Memory hint: min. similarity (empty = Settings > Documents)"
 msgstr "Gedächtnis-Hinweis: min. Ähnlichkeit (leer = Einstellungen > Dokumente)"
 
-#: app_ui/pages/admin.py:415
+#: app_ui/pages/admin.py:422
 msgid "Compare indexes"
 msgstr "Indizes vergleichen"
 
-#: app_ui/pages/admin.py:416
+#: app_ui/pages/admin.py:423
 msgid ""
 "Semantic search only, no language model: which documents each index "
 "finds, and how fast. One model after the other, each alone in RAM."
@@ -2536,70 +2548,70 @@ msgstr ""
 "Nur semantische Suche, kein Sprachmodell: welche Dokumente jeder Index "
 "findet und wie schnell. Ein Modell nach dem anderen, jedes allein im RAM."
 
-#: app_ui/pages/admin.py:424
+#: app_ui/pages/admin.py:431
 msgid "Two models with an index are needed. Add a model and build its index."
 msgstr ""
 "Dafür braucht es zwei Modelle mit Index. Ein Modell hinzufügen und seinen"
 " Index aufbauen."
 
-#: app_ui/pages/admin.py:434
+#: app_ui/pages/admin.py:441
 msgid "Questions, one per line"
 msgstr "Fragen, eine pro Zeile"
 
-#: app_ui/pages/admin.py:436
+#: app_ui/pages/admin.py:443
 msgid "Documents per question"
 msgstr "Dokumente pro Frage"
 
-#: app_ui/pages/admin.py:438
+#: app_ui/pages/admin.py:445
 msgid "Compare"
 msgstr "Vergleichen"
 
-#: app_ui/pages/admin.py:444
+#: app_ui/pages/admin.py:451
 msgid "Enter questions and pick two different models."
 msgstr "Fragen eingeben und zwei verschiedene Modelle wählen."
 
-#: app_ui/pages/admin.py:449
+#: app_ui/pages/admin.py:456
 msgid "Running — loading a model can take a minute …"
 msgstr "Läuft — ein Modell zu laden kann eine Minute dauern …"
 
-#: app_ui/pages/admin.py:483
+#: app_ui/pages/admin.py:490
 msgid "One of the two indexes could not be searched."
 msgstr "Einer der beiden Indizes ließ sich nicht durchsuchen."
 
-#: app_ui/pages/admin.py:501
+#: app_ui/pages/admin.py:508
 #, python-brace-format
 msgid "Load {s} s · query embedding {e} ms · vector search {v} ms (median)"
 msgstr "Laden {s} s · Anfrage einbetten {e} ms · Vektorsuche {v} ms (Median)"
 
-#: app_ui/pages/admin.py:505
+#: app_ui/pages/admin.py:512
 #, python-brace-format
 msgid "Distance of the best document {f}, of the last {l} (median) · {n} chunks"
 msgstr ""
 "Distanz des besten Dokuments {f}, des letzten {l} (Median) · {n} "
 "Abschnitte"
 
-#: app_ui/pages/admin.py:509
+#: app_ui/pages/admin.py:516
 #, python-brace-format
 msgid "Same documents in both lists, on average: {pct} %"
 msgstr "Gleiche Dokumente in beiden Listen, im Schnitt: {pct} %"
 
-#: app_ui/pages/admin.py:512
+#: app_ui/pages/admin.py:519
 msgid "Documents you cannot see in Paperless are shown by number only."
 msgstr ""
 "Dokumente, die du in Paperless nicht sehen kannst, stehen nur mit Nummer "
 "da."
 
-#: app_ui/pages/admin.py:523
+#: app_ui/pages/admin.py:530
 #, python-brace-format
 msgid "{e} ms + {v} ms"
 msgstr "{e} ms + {v} ms"
 
-#: app_ui/pages/admin.py:528
+#: app_ui/pages/admin.py:535
 #, python-brace-format
 msgid "Document #{id}"
 msgstr "Dokument #{id}"
 
-#: app_ui/pages/admin.py:533
+#: app_ui/pages/admin.py:540
 msgid "only here"
 msgstr "nur hier"
 

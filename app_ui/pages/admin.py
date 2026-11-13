@@ -269,8 +269,9 @@ async def admin_page():
                 ui.label(_("Delete the index of \"{name}\"?").format(name=m["name"])).classes(
                     "text-base font-semibold text-gray-100")
                 ui.label(_(
-                    "Its vectors for documents, notes and memory are deleted. The documents, notes "
-                    "and extractions themselves stay; the index can be built again from the active one.")).classes(
+                    "Its vectors for documents, notes and memory are deleted, and the model's files on "
+                    "this server — a remote endpoint is not touched. The documents, notes and "
+                    "extractions themselves stay; the index can be built again from the active one.")).classes(
                     "text-sm text-gray-400")
                 with ui.row().classes("w-full justify-end gap-2 mt-3"):
                     ui.button(_("Cancel"), on_click=dlg.close).props("flat dense")
@@ -278,7 +279,10 @@ async def admin_page():
                     async def _go() -> None:
                         dlg.close()
                         try:
-                            await ei.delete_index(m["id"])
+                            freed = await ei.delete_index(m["id"])
+                            if freed:
+                                ui.notify(_("Index deleted, and the model's files on this server ({gb} GB).").format(
+                                    gb=f"{freed / 1e9:.1f}"), type="info")
                         except Exception as exc:  # noqa: BLE001
                             ui.notify(str(exc), type="warning")
                         counts.pop(m["id"], None)
@@ -288,9 +292,12 @@ async def admin_page():
                     ui.button(_("Delete"), on_click=_go).props("unelevated dense color=red")
             dlg.open()
 
-        def _remove(mid: str) -> None:
+        async def _remove(mid: str) -> None:
             try:
-                reg.remove_model(mid)
+                freed = await ei.remove_model(mid)
+                if freed:
+                    ui.notify(_("Model removed, and its files on this server ({gb} GB).").format(
+                        gb=f"{freed / 1e9:.1f}"), type="info")
             except ValueError as exc:
                 ui.notify(str(exc), type="warning")
             model_list.refresh()
