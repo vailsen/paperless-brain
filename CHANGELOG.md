@@ -58,7 +58,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
     other dormant or delete it. The active index cannot be deleted;
   - move an index between remote and local embedding only after a check that
     both give the same vectors;
-  - distance thresholds per model (archive hint, similar fact, memory hint).
+  - distance thresholds per model (archive hint, similar fact, memory hint);
+  - deleting an index also deletes that model's downloaded files on the
+    server (a remote endpoint is not touched).
 
 ## [0.20.0] — 2026-11-08
 

@@ -248,3 +248,55 @@ def test_after_a_comparison_only_the_active_model_stays(monkeypatch):
     assert emb.loaded_models() == ["active"]
     emb.unload()
     emb.set_pinned(set())
+
+
+def test_deleting_model_files_touches_only_that_hugging_face_model(monkeypatch, tmp_path):
+    import huggingface_hub
+
+    executed = []
+
+    class Strategy:
+        expected_freed_size = 1_200_000_000
+
+        def execute(self):
+            executed.append(True)
+
+    class Info:
+        repos = [
+            types.SimpleNamespace(repo_type="model", repo_id="Qwen/Qwen3-Embedding-0.6B",
+                                  revisions=[types.SimpleNamespace(commit_hash="abc")]),
+            types.SimpleNamespace(repo_type="model", repo_id="intfloat/multilingual-e5-large-instruct",
+                                  revisions=[types.SimpleNamespace(commit_hash="e5")]),
+        ]
+
+        def delete_revisions(self, *hashes):
+            assert hashes == ("abc",)
+            return Strategy()
+
+    monkeypatch.setattr(huggingface_hub, "scan_cache_dir", lambda: Info())
+    assert emb.delete_local_files("Qwen/Qwen3-Embedding-0.6B") == 1_200_000_000
+    assert executed == [True]
+    assert emb.delete_local_files("someone/not-downloaded") == 0
+    # A model given as a folder on disk is the admin's own: never deleted.
+    assert emb.delete_local_files(str(tmp_path)) == 0
+    assert emb.delete_local_files("./models/x") == 0
+    assert executed == [True]
+
+
+def test_deleting_an_index_deletes_its_model_files_never_the_active_ones(registry, monkeypatch):
+    deleted = []
+    monkeypatch.setattr(emb, "delete_local_files", lambda name: deleted.append(name) or 7)
+    q = reg.add_model("Qwen/Qwen3-Embedding-0.6B")
+    reg.update(q["id"], index="ready")
+
+    async def go():
+        assert await ei.delete_index(q["id"]) == 7
+        assert deleted == ["Qwen/Qwen3-Embedding-0.6B"]
+        assert await ei.delete_model_files(reg.active_id()) == 0
+        assert deleted == ["Qwen/Qwen3-Embedding-0.6B"]
+        with pytest.raises(ValueError):
+            await ei.remove_model(reg.active_id())
+        assert await ei.remove_model(q["id"]) == 7
+        assert reg.get(q["id"]) is None
+
+    asyncio.run(go())

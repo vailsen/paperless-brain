@@ -124,6 +124,35 @@ def drop_unpinned() -> None:
             _free()
 
 
+def delete_local_files(name: str) -> int:
+    """Delete a model's downloaded files from this server's Hugging Face cache.
+    Returns the bytes freed (0 when nothing was there).
+
+    Only a Hugging Face id is touched — a name that is a path on disk is the
+    admin's own folder and stays. A remote endpoint is never touched."""
+    import os
+
+    if not name or name.startswith((".", "/", "~")) or os.path.exists(name):
+        return 0
+    unload(name)
+    try:
+        from huggingface_hub import scan_cache_dir
+
+        info = scan_cache_dir()
+    except Exception:  # noqa: BLE001 — no cache yet, or one it cannot read
+        log.warning("[embeddings] model cache not readable, %s not deleted", name, exc_info=True)
+        return 0
+    revs = [r.commit_hash for repo in info.repos
+            if repo.repo_type == "model" and repo.repo_id == name for r in repo.revisions]
+    if not revs:
+        return 0
+    strategy = info.delete_revisions(*revs)
+    freed = int(strategy.expected_freed_size or 0)
+    strategy.execute()
+    log.info("[embeddings] deleted %s from the model cache (%.1f GB)", name, freed / 1e9)
+    return freed
+
+
 def unload(name: str | None = None) -> None:
     """Drop `name` (every model when None) from RAM."""
     with _slot_lock:
@@ -148,7 +177,10 @@ class LocalEmbedder:
         if not texts:
             return []
         model = _load(self.name, self.exclusive)
-        vecs = model.encode(list(texts), batch_size=16, normalize_embeddings=True,
+        # prompt="": our `query_prompt` is the only instruction. A model whose
+        # sentence-transformers config names a default prompt would otherwise
+        # get it on every passage too, and on queries twice.
+        vecs = model.encode(list(texts), prompt="", batch_size=16, normalize_embeddings=True,
                             convert_to_numpy=True, show_progress_bar=False)
         return [v.tolist() for v in vecs]
 

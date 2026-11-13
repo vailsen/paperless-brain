@@ -358,10 +358,16 @@ compare), page `app_ui/pages/admin.py`, `services/admin.py`.
   **Activation always catches up first** — a stale active index makes Paperless
   sync re-ingest the missing documents with the vision model.
 - **Exactly one index is active; it cannot be deleted.** A dormant index is not
-  updated. A build interrupted by a restart is paused, never resumed on its own.
+  updated. Deleting an index (or removing a model) also deletes the model's
+  files from this server's Hugging Face cache (`embeddings.delete_local_files`)
+  — only a Hugging Face id, never a folder path, never the active model's,
+  never anything on a remote endpoint. A build interrupted by a restart is paused, never resumed on its own.
 - **As few local models in RAM as needed** (`embeddings.set_pinned`): the
   active one, plus one being built locally. The comparison loads each model
   exclusively, one after the other, and reloads the active one after.
+- **Every query instruction comes from `query_prompt`**: `encode(prompt="")`, so a
+  model's own sentence-transformers default prompt never lands on passages, nor
+  twice on queries. e5-instruct and Qwen3 both instruct the query only.
 - **The comparison is semantic search only** — documents, distances, timings;
   never an LLM answer. Titles come from Paperless as the admin.
 - **Distance thresholds are per model** (`embedding_registry.threshold`): the

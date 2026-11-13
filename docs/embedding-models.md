@@ -27,7 +27,24 @@ text into vectors for search — documents, notes and the agent's memory alike.
    tuned for e5.
 5. **Make it active.** It is caught up with the active index first, then every
    search reads it. The old index stays dormant (not updated) — delete it, or
-   keep it to switch back; switching back catches it up first.
+   keep it to switch back; switching back catches it up first. Deleting an
+   index also deletes the model's downloaded files on this server (about
+   1–2 GB); a remote endpoint is not touched.
+
+## The query instruction
+
+Both models are *asymmetric*: a search query gets an instruction in front,
+stored text gets nothing. The field "Query instruction" holds it, filled in
+for known models:
+
+- e5-instruct: `Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: `
+- Qwen3-Embedding: `Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:`
+  (the model's own default; Qwen recommends an English task description
+  fitted to the use, which may help by a few percent — run the comparison
+  before and after changing it).
+
+Changing it on a model with an index is safe: only queries carry it, so the
+stored vectors stay valid.
 
 ## What it costs
 
