@@ -294,9 +294,7 @@ def set_use(model_id: str, use: str) -> dict:
     ok, why = can_switch_use(m, use)
     if not ok:
         raise ValueError(why)
-    # Choosing remote for a built index is choosing to stay there (the admin
-    # guide stops offering the move); before a build it is just how to build.
-    return update(model_id, use=use, stay_remote=use == "remote" and m.get("index") != "none")
+    return update(model_id, use=use)
 
 
 def set_thresholds(model_id: str, values: dict) -> dict:

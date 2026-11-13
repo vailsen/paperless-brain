@@ -34,6 +34,7 @@ _CSS = """<style>
 .adm-badge.is-active { color: var(--c-accent-text); border-color: var(--c-accent-border);
                        background: var(--c-accent-soft); }
 .adm-warn { color: var(--c-warn); background: var(--c-warn-bg); border-radius: 6px; }
+.adm-use.q-btn-group { border: 1px solid var(--c-border); border-radius: 6px; }
 .adm-next { background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px; }
 .adm-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
 @media (max-width: 767px) { .adm-cmp { grid-template-columns: 1fr; } }
@@ -135,75 +136,67 @@ async def admin_page():
                             b.style("color:var(--c-text-2)")
 
         def _next_step(m: dict, busy: bool) -> None:
+            """The index's next step. Where it embeds is not a step: that is the
+            switch on the card, reversible at any time."""
             mid, idx, use = m["id"], m.get("index", "none"), m.get("use", "local")
             remote = reg.has_remote(m)
             if busy:
                 return
+            par = m.get("parity") or {}
+            if (use == "remote" and par and not reg.parity_ok(m)
+                    and par.get("endpoint") == f"{m['remote_url']}|{m['remote_model']}"):
+                _step(_("This server's copy gives different vectors (cosine {mean}), so this index cannot "
+                        "embed here. Rebuild it on this server if search should not depend on the "
+                        "endpoint.").format(mean=par.get("mean")),
+                      [(_("Rebuild on this server"), "dns", lambda: _rebuild_here(mid))], warn=True)
             if idx == "none":
-                if remote:
-                    _step(_("Next: build the index. On the remote endpoint it is fast (GPU); afterwards it is "
-                            "checked against this server and moved here. Search keeps using the active index "
-                            "meanwhile."),
-                          [(_("Build remotely"), "cloud_upload", lambda: _build(mid, "remote")),
-                           (_("Build on this server"), "dns", lambda: _build(mid, "local"))])
-                else:
-                    _step(_("Next: build the index on this server. Search keeps using the active index "
-                            "meanwhile. To build on a GPU instead, add its endpoint under Edit."),
-                          [(_("Build index"), "construction", lambda: _build(mid, "local"))])
+                where = _("on the remote endpoint") if use == "remote" else _("on this server")
+                text = _("Next: build the index {where}. Search keeps using the active index meanwhile.").format(
+                    where=where)
+                if not remote:
+                    text += " " + _("To build on a GPU instead, add its endpoint under Edit.")
+                _step(text, [(_("Build index"), "construction", lambda: _start(mid, "build"))])
             elif idx in ("paused", "building"):
                 _step(_("The build stopped before the end. It continues where it stopped."),
                       [(_("Continue building"), "construction", lambda: _start(mid, "build"))])
-            elif use == "remote" and remote and not m.get("stay_remote"):
-                par = m.get("parity") or {}
-                keep = (_("Keep it remote"), "cloud", lambda: _stay_remote(mid))
-                if reg.parity_ok(m):
-                    _step(_("Same vectors here and remotely. Next: either switch to this server — from now on "
-                            "it embeds here, the index stays as it is — or keep embedding remotely."),
-                          [(_("Switch to this server"), "dns", lambda: _set_use(mid, "local")), keep])
-                elif par and par.get("endpoint") == f"{m['remote_url']}|{m['remote_model']}":
-                    _step(_("This server's copy gives different vectors (cosine {mean}), so the index cannot "
-                            "move here. Keep embedding remotely, or rebuild the index on this server.").format(
-                              mean=par.get("mean")),
-                          [keep, (_("Rebuild on this server"), "dns", lambda: _rebuild_here(mid)),
-                           (_("Check again"), "compare_arrows", lambda: _parity(mid))], warn=True)
-                else:
-                    _step(_("Built remotely. Next: keep embedding remotely, or move to this server — a check "
-                            "first makes sure this server gives the same vectors (it downloads the model here, "
-                            "about 1–2 GB, and embeds some stored chunks both ways)."),
-                          [(_("Check local against remote"), "compare_arrows", lambda: _parity(mid)), keep])
-            elif use == "remote":
-                _step(_("Embedding remotely. Next: compare it with the active index, set its distance "
-                        "thresholds, then make it active. Once it is active, every search asks the endpoint — "
-                        "while it is off, search finds nothing."),
-                      [(_("Compare"), "compare_arrows", lambda: _goto_compare(mid)),
-                       (_("Distance thresholds"), "tune", lambda: _thresholds_dialog(reg.get(mid))),
-                       (_("Make active"), "check_circle", lambda: _confirm_activate(reg.get(mid)))])
             else:
-                _step(_("Ready. Next: compare it with the active index, set its distance thresholds from the "
-                        "distances you see, then make it active."),
-                      [(_("Compare"), "compare_arrows", lambda: _goto_compare(mid)),
-                       (_("Distance thresholds"), "tune", lambda: _thresholds_dialog(reg.get(mid))),
-                       (_("Make active"), "check_circle", lambda: _confirm_activate(reg.get(mid)))])
+                text = _("Ready. Next: compare it with the active index, set its distance thresholds from the "
+                         "distances you see, then make it active.")
+                if use == "remote":
+                    text += " " + _("It embeds remotely: once active, every search asks the endpoint — while "
+                                    "it is off, search finds nothing. Switch to this server above at any time.")
+                _step(text, [(_("Compare"), "compare_arrows", lambda: _goto_compare(mid)),
+                             (_("Distance thresholds"), "tune", lambda: _thresholds_dialog(reg.get(mid))),
+                             (_("Make active"), "check_circle", lambda: _confirm_activate(reg.get(mid)))])
 
-        def _build(mid: str, use: str) -> None:
+        async def _choose_use(mid: str, use: str) -> None:
+            """Where the model embeds. Before a build that is free; with an index,
+            both ways must give the same vectors, so the check runs first."""
             m = reg.get(mid)
-            if m.get("use") != use:
-                ok, why = reg.can_switch_use(m, use)
-                if not ok:
-                    ui.notify(_("No remote endpoint set.") if why == "no_remote" else why, type="warning")
-                    return
+            if m is None or use == m.get("use", "local"):
+                return
+            if m.get("index") == "none" or reg.parity_ok(m):
                 reg.set_use(mid, use)
-            _start(mid, "build")
-
-        def _stay_remote(mid: str) -> None:
-            reg.update(mid, stay_remote=True)
-            model_list.refresh()
-
-        def _set_use(mid: str, use: str) -> None:
+                model_list.refresh()
+                return
+            n = ui.notification(_("Checking that this server and the endpoint give the same vectors — the first "
+                                  "time this downloads the model here (about 1–2 GB) …"), spinner=True,
+                                timeout=None, multi_line=True)
             try:
+                await ei.parity(mid)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(str(exc), type="warning", multi_line=True)
+                model_list.refresh()
+                return
+            finally:
+                n.dismiss()
+            m = reg.get(mid)
+            if reg.parity_ok(m):
                 reg.set_use(mid, use)
-            except ValueError as exc:
-                ui.notify(str(exc), type="warning")
+                ui.notify(_("Same vectors both ways — switched."), type="positive")
+            else:
+                ui.notify(_("Different vectors (cosine {mean}) — it stays as it was.").format(
+                    mean=(m.get("parity") or {}).get("mean")), type="warning")
             model_list.refresh()
 
         async def _rebuild_here(mid: str) -> None:
@@ -243,8 +236,8 @@ async def admin_page():
                                         _("Was active; not updated until it is active again"))
                                 else:
                                     ui.label(state_label.get(idx, idx)).classes("adm-badge")
-                                ui.label(_("on this server") if m.get("use") == "local" else _("remote")).classes(
-                                    "adm-badge")
+                                if not reg.has_remote(m):
+                                    ui.label(_("on this server")).classes("adm-badge")
                                 if m["name"] in loaded:
                                     ui.label(_("in RAM")).classes("adm-badge")
                         _menu([
@@ -256,19 +249,22 @@ async def admin_page():
                             ("stop_circle", _("Stop"), lambda: (ei.stop(), model_list.refresh()), running),
                             ("check_circle", _("Make active"), lambda x=m: _confirm_activate(x),
                              not is_active and job is None and idx in ("ready", "paused")),
-                            ("swap_horiz",
-                             _("Use the remote endpoint") if m.get("use") == "local" else _("Use this server"),
-                             lambda x=m: _switch_use(x), reg.has_remote(m) and not running),
-                            ("compare_arrows", _("Check local against remote"), lambda x=mid: _parity(x),
-                             reg.has_remote(m) and job is None),
                             ("tune", _("Distance thresholds"), lambda x=m: _thresholds_dialog(x), True),
                             ("delete_sweep", _("Delete index"), lambda x=m: _confirm_delete_index(x),
                              not is_active and idx != "none" and not running),
                             ("delete", _("Remove model"), lambda x=mid: _remove(x),
                              not is_active and idx == "none"),
                         ])
-                    if m.get("use") == "remote":
-                        ui.label(f"{m['remote_url']} · {m['remote_model']}").classes("w-full text-xs text-gray-500 adm-mono")
+                    if reg.has_remote(m):
+                        with ui.row().classes("w-full items-center gap-2 mt-1"):
+                            ui.label(_("Embeds on")).classes("text-xs text-gray-400")
+                            ui.toggle({"local": _("This server"), "remote": _("Remote endpoint")},
+                                      value=m.get("use", "local"),
+                                      on_change=lambda e, x=mid: _choose_use(x, e.value)).props(
+                                "dense no-caps unelevated toggle-color=primary" + (" disable" if running else "")
+                            ).classes("adm-use")
+                        ui.label(f"{m['remote_url']} · {m['remote_model']}").classes(
+                            "w-full text-xs text-gray-500 adm-mono")
                     c = counts.get(mid)
                     if c and idx != "none":
                         ui.label(_("{docs} documents ({dc} chunks) · {notes} notes ({nc} chunks) · {facts} memory facts").format(
@@ -412,28 +408,6 @@ async def admin_page():
                 ui.notify(str(exc), type="warning")
             model_list.refresh()
             compare_box.refresh()
-
-        def _switch_use(m: dict) -> None:
-            use = "remote" if m.get("use") == "local" else "local"
-            ok, why = reg.can_switch_use(m, use)
-            if not ok:
-                ui.notify(_("Run \"Check local against remote\" first: an index must not mix vectors of "
-                            "two different models.") if why == "parity" else _("No remote endpoint set."),
-                          type="warning", multi_line=True)
-                return
-            reg.set_use(m["id"], use)
-            model_list.refresh()
-
-        async def _parity(mid: str) -> None:
-            n = ui.notification(_("Embedding the same texts locally and remotely …"), spinner=True,
-                                timeout=None)
-            try:
-                await ei.parity(mid)
-            except Exception as exc:  # noqa: BLE001
-                ui.notify(str(exc), type="warning", multi_line=True)
-            finally:
-                n.dismiss()
-            model_list.refresh()
 
         def _model_dialog(edit: dict | None) -> None:
             with ui.dialog().props("persistent") as dlg, ui.card().classes("bg-gray-900").style(

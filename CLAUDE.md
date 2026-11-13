@@ -380,10 +380,12 @@ compare), page `app_ui/pages/admin.py`, `services/admin.py`.
   (`BRAIN_HINT_THRESHOLD`, converted `1 − s`) or `.env`. They are no longer in
   Settings (a per-user page editing a global, model-bound value); the admin area
   holds them, plus the global max. search results.
-- **The admin page leads through a change** (`admin._next_step`): build (remotely
-  when an endpoint is set) → check local against remote → switch to this server →
-  compare, thresholds, make active — or "Keep it remote" (`stay_remote`), which skips
-  the check and the move. "Dormant" means *was* active (`was_active`). The card counts
+- **Where a model embeds is a switch on its card** ("Embeds on: This server / Remote
+  endpoint", `admin._choose_use`), reversible at any time: before a build it is free;
+  with an index the parity check runs first and the switch happens only if it passes.
+  The guide (`admin._next_step`) is about the index alone — build, continue, then
+  compare / thresholds / make active. An earlier "keep it remote" step made the
+  choice look final. "Dormant" means *was* active (`was_active`). The card counts
   documents *and* chunks (`embedding_index.counts`): ~500 documents are ~2 600 chunks,
   and a bare chunk count read as the number of documents.
 

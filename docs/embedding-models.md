@@ -15,11 +15,12 @@ takes.
 2. **Build its index.** Every stored chunk is embedded again: no vision model,
    no download from Paperless, no re-chunking. Search keeps using the active
    index meanwhile; new documents go there and are caught up later.
-   - On a large archive, build remotely on a GPU: switch the model to
-     "Embed remotely" before building. Afterwards run "Check local against
-     remote"; when both give the same vectors (mean cosine ≥ 0.99), switch to
-     "Embed on this server" — queries are then embedded on the CPU against the
-     index built on the GPU.
+   - On a large archive, build remotely on a GPU: set "Embeds on" to
+     "Remote endpoint" before building. Afterwards set it back to "This
+     server" whenever you like — the check that both give the same vectors
+     (mean cosine ≥ 0.99) runs on its own first, and the switch happens only
+     if it passes. Staying remote is fine too: then every search needs the
+     endpoint to be up.
    - A local build keeps the new model and the active one in RAM.
 3. **Compare.** Questions, one per line. Each index is searched in turn, its
    model alone in RAM: the documents it finds (best chunk per document),
