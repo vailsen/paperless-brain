@@ -648,61 +648,8 @@ async def settings_page(s: str = "") -> None:
                 "unelevated dark dense"
             ).classes("bg-primary text-white")
 
-        # ── Suche & Gedächtnis-Schwellenwerte ─────────────────────────────────
-        with _card("memory"):
-            from werkbank import settings_store as _ws_search
-
-            _section_header(
-                "tune",
-                _("Search & memory thresholds"),
-                _("Number of search results, relevance threshold and window for memory hints"),
-            )
-
-            _max_results_field = ui.number(
-                _("Max. search results"), value=_ws_search.get_search_max_results(),
-                min=1, max=100, step=1, format="%d",
-            ).props("outlined dark dense").classes("w-full mb-2")
-
-            _hint_threshold_field = ui.number(
-                _("Memory hint similarity threshold (0–1)"),
-                value=_ws_search.get_brain_hint_threshold(),
-                min=0.0, max=1.0, step=0.05, format="%.2f",
-            ).props("outlined dark dense").classes("w-full mb-2")
-            _hint(
-                _(
-                    "Cosine similarity: higher value = stricter filter. Distances are shown in the tool log as <code>[0.XX]</code> — a hint appears only when distance ≤ <code>1 − threshold</code>."
-                )
-            )
-
-            _hint_window_field = ui.number(
-                _("Memory hint window factor (≥ 1.0)"),
-                value=_ws_search.get_brain_hint_window(),
-                min=1.0, max=3.0, step=0.1, format="%.1f",
-            ).props("outlined dark dense").classes("w-full mb-2")
-            _hint(
-                _(
-                    "Maximum distance relative to the best match. 1.0 = best match only; 1.5 = up to 50 % short of the best."
-                )
-            )
-
-            def _parse_float(val, default: float) -> float:
-                try:
-                    return float(str(val).replace(",", "."))
-                except (ValueError, TypeError):
-                    return default
-
-            def _save_search_cfg():
-                try:
-                    _ws_search.set_value(_ws_search.SEARCH_MAX_RESULTS, str(max(1, int(_parse_float(_max_results_field.value, 20)))))
-                    _ws_search.set_value(_ws_search.BRAIN_HINT_THRESHOLD, str(max(0.0, min(1.0, _parse_float(_hint_threshold_field.value, 0.70)))))
-                    _ws_search.set_value(_ws_search.BRAIN_HINT_WINDOW, str(max(1.0, _parse_float(_hint_window_field.value, 1.3))))
-                    ui.notify(_("Search settings saved."), type="positive")
-                except Exception as e:
-                    ui.notify(_("Invalid value: {err}").format(err=e), type="negative")
-
-            ui.button(_("Save"), icon="save", on_click=_save_search_cfg).props(
-                "unelevated dark dense"
-            ).classes("bg-primary text-white")
+        # Search & memory thresholds moved to the admin area (/admin): they
+        # apply to every user, and the hint distances belong to the embedding model.
 
         # ── Gedächtnis-Pflege (Träumen) ───────────────────────────────────────
         with _card("memory"):

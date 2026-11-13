@@ -300,3 +300,27 @@ def test_deleting_an_index_deletes_its_model_files_never_the_active_ones(registr
         assert reg.get(q["id"]) is None
 
     asyncio.run(go())
+
+
+def test_thresholds_are_distances_with_the_old_global_setting_as_default(registry):
+    from werkbank import settings_store as ws
+
+    ws.set_value(ws.BRAIN_HINT_THRESHOLD, "0.82")  # the old similarity in Settings
+    ws.set_value(ws.BRAIN_HINT_WINDOW, "1.3")
+    try:
+        a = reg.active_model()
+        th = reg.thresholds(a)
+        assert th["memory_hint"] == pytest.approx(0.18)  # similarity 0.82 = distance 0.18
+        assert th["memory_window"] == 1.3
+        assert th["archive_hint"] == 0.15 and th["fact_duplicate"] == 0.15
+        assert reg.own_thresholds(a) == set()
+        assert reg.memory_hint_limits() == (pytest.approx(0.18), 1.3)
+        reg.set_thresholds(a["id"], {"memory_hint": 0.25, "archive_hint": None})
+        assert reg.memory_hint_limits()[0] == 0.25
+        assert reg.own_thresholds(reg.active_model()) == {"memory_hint"}
+        # A per-model similarity stored by the first version counts as a distance.
+        reg.update(a["id"], thresholds={"brain_hint": 0.8})
+        assert reg.thresholds(reg.active_model())["memory_hint"] == pytest.approx(0.2)
+    finally:
+        ws.set_value(ws.BRAIN_HINT_THRESHOLD, "")
+        ws.set_value(ws.BRAIN_HINT_WINDOW, "")

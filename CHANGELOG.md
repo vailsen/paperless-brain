@@ -38,6 +38,17 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
   the collections without an embedding function, so Chroma never loads a
   second copy of the model. `EMBEDDING_MODEL` only seeds the model list on the
   first start; after that, the admin area decides.
+- **Search thresholds moved to the admin area** and are distances
+  everywhere, per embedding model: memory and note hints (max. distance and
+  window), archive hint, similar fact. Settings no longer shows them — they
+  apply to every user and belong to the model. Your old setting carries over
+  (similarity 0.82 = distance 0.18). Max. search results is under Admin >
+  Search.
+- **The admin page says what to do next** with a model: build (remotely when
+  an endpoint is set), check against this server, switch over, compare, set
+  thresholds, make active — one step and its button at a time.
+- **The header collapses its modules into the ☰ menu** whenever they would
+  wrap into a second row (a half-width window), not only on a phone.
 
 ### Added
 

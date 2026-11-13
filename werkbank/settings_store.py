@@ -194,34 +194,6 @@ def get_search_max_results() -> int:
     return settings.chroma_max_results
 
 
-def get_brain_hint_threshold() -> float:
-    # The active embedding model's own value wins: a similarity tuned on one
-    # model's distances means something else on another's.
-    try:
-        from services.embedding_registry import active_model
-
-        own = active_model().get("thresholds", {}).get("brain_hint")
-        if own is not None:
-            return max(0.0, min(1.0, float(own)))
-    except Exception:  # noqa: BLE001
-        pass
-    stored = get(BRAIN_HINT_THRESHOLD)
-    try:
-        v = float(stored)
-        return max(0.0, min(1.0, v))
-    except (ValueError, TypeError):
-        pass
-    from config.settings import settings
-    return settings.brain_hint_similarity_threshold
-
-
-def get_brain_hint_window() -> float:
-    stored = get(BRAIN_HINT_WINDOW)
-    try:
-        v = float(stored)
-        if v >= 1.0:
-            return v
-    except (ValueError, TypeError):
-        pass
-    from config.settings import settings
-    return settings.brain_hint_window_factor
+# The memory-hint similarity and window used to be set here (BRAIN_HINT_*).
+# They are per embedding model now (`services.embedding_registry.thresholds`,
+# admin area); the stored values are read only as that model's defaults.

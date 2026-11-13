@@ -112,7 +112,10 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 ### UI
 
 - NiceGUI 3.x, pages in `app_ui/pages/` (each imports `page_layout` + `require_auth` from `app_ui/layout.py`)
-- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `findings` (workspace, proactive only)
+- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `admin`, `findings` (workspace, proactive only)
+- **The module buttons go into the ☰ menu whenever they would wrap** (`layout.NAV_FIT_JS`,
+  `body.pb-nav-compact`), not only below 768 px: the check measures the header, so it
+  holds for any number of modules and any language.
 - Dialogs: `app_ui/document_dialog.py`, `app_ui/cluster_dialog.py`
 - **NiceGUI pattern**: use `@ui.refreshable` for dynamic content in plain columns. `QTabPanels`/`element.clear()` silently fails.
 - Chat events stream via `AsyncGenerator[ChatEvent, None]` — UI iterates with `async for` and updates reactively.
@@ -370,8 +373,16 @@ compare), page `app_ui/pages/admin.py`, `services/admin.py`.
   twice on queries. e5-instruct and Qwen3 both instruct the query only.
 - **The comparison is semantic search only** — documents, distances, timings;
   never an LLM answer. Titles come from Paperless as the admin.
-- **Distance thresholds are per model** (`embedding_registry.threshold`): the
-  0.15 / 0.70 values were measured on e5's distances.
+- **Distance thresholds are per model and always distances** (`embedding_registry.thresholds`,
+  `memory_hint_limits`): memory/note hint max. distance and window, archive hint,
+  similar fact — the number the tool log prints. Unset keys fall back to what every
+  install ran with: the old global similarity in `werkbank_settings`
+  (`BRAIN_HINT_THRESHOLD`, converted `1 − s`) or `.env`. They are no longer in
+  Settings (a per-user page editing a global, model-bound value); the admin area
+  holds them, plus the global max. search results.
+- **The admin page leads through a change** (`admin._next_step`): build (remotely
+  when an endpoint is set) → check local against remote → switch to this server →
+  compare, thresholds, make active. "Dormant" means *was* active (`was_active`).
 
 ## Experts
 

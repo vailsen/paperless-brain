@@ -246,6 +246,8 @@ async def _switch(old: dict, new: dict, job: Job) -> None:
     for x in r["models"]:
         if x["id"] in (old["id"], new["id"]):
             x["synced_at"] = reg.now_iso()
+        if x["id"] == old["id"]:
+            x["was_active"] = True  # "dormant" from now on, not just "ready"
     reg.save(r)
     log.info("[embedding-index] active index: %s (was %s)", new["id"], old["id"])
     # Anything written to the old index between the catch-up and the switch.
@@ -286,9 +288,10 @@ def stop() -> None:
         _job.stop = True
 
 
-async def delete_index(model_id: str) -> int:
-    """Drop a model's collections, and its downloaded files on this server.
-    Never the active one's. Returns the bytes of model files freed."""
+async def delete_index(model_id: str, keep_files: bool = False) -> int:
+    """Drop a model's collections, and its downloaded files on this server
+    (not with `keep_files`: a rebuild here needs them). Never the active one's.
+    Returns the bytes of model files freed."""
     if current_job() and current_job().model_id == model_id:
         raise RuntimeError("busy")
     if model_id == reg.active_id():
@@ -302,7 +305,17 @@ async def delete_index(model_id: str) -> int:
             log.debug("delete %s", role, exc_info=True)
     forget(model_id)
     reg.update(model_id, index="none", progress={}, synced_at="")
+    if keep_files:
+        return 0
     return await delete_model_files(model_id)
+
+
+async def rebuild_here(model_id: str) -> Job:
+    """The remote copy gave other vectors: drop the index, embed on this server,
+    build again."""
+    await delete_index(model_id, keep_files=True)
+    reg.update(model_id, use="local", parity={})
+    return start(model_id, "build")
 
 
 async def delete_model_files(model_id: str) -> int:
