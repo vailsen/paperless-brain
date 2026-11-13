@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-13 11:34+0000\n"
+"POT-Creation-Date: 2026-11-13 12:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,7 +37,7 @@ msgstr ""
 msgid "Backend"
 msgstr ""
 
-#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:437
+#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:457
 msgid "Base URL"
 msgstr ""
 
@@ -49,7 +49,7 @@ msgstr ""
 msgid "e.g. Ollama local, OpenRouter, Claude"
 msgstr ""
 
-#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:441
+#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:461
 msgid "API key"
 msgstr ""
 
@@ -98,8 +98,8 @@ msgstr ""
 
 #: app_ui/ai_models_settings.py:172 app_ui/ai_models_settings.py:325
 #: app_ui/ai_models_settings.py:372 app_ui/document_dialog.py:980
-#: app_ui/pages/admin.py:348 app_ui/pages/admin.py:367
-#: app_ui/pages/admin.py:472 app_ui/pages/admin.py:530
+#: app_ui/pages/admin.py:368 app_ui/pages/admin.py:387
+#: app_ui/pages/admin.py:492 app_ui/pages/admin.py:550
 #: app_ui/pages/brain.py:277 app_ui/pages/brain.py:291
 #: app_ui/pages/brain.py:772 app_ui/pages/chat.py:1711
 #: app_ui/pages/chat.py:3370 app_ui/pages/chat.py:4487
@@ -119,8 +119,8 @@ msgstr ""
 
 #: app_ui/ai_models_settings.py:173 app_ui/ai_models_settings.py:326
 #: app_ui/dossier_save.py:102 app_ui/memo_dialog.py:323
-#: app_ui/pages/admin.py:473 app_ui/pages/admin.py:531
-#: app_ui/pages/admin.py:555 app_ui/pages/chat.py:1718
+#: app_ui/pages/admin.py:493 app_ui/pages/admin.py:551
+#: app_ui/pages/admin.py:575 app_ui/pages/chat.py:1718
 #: app_ui/pages/experts.py:375 app_ui/pages/experts.py:516
 #: app_ui/pages/experts.py:578 app_ui/pages/experts.py:821
 #: app_ui/pages/settings.py:231 app_ui/pages/settings.py:647
@@ -281,7 +281,7 @@ msgid "Service deleted."
 msgstr ""
 
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
-#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:382
+#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:402
 #: app_ui/pages/brain.py:292 app_ui/pages/brain.py:1100
 #: app_ui/pages/experts.py:819 app_ui/pages/experts.py:898
 #: app_ui/pages/findings.py:2269 werkbank/v2/ui/page.py:264
@@ -498,8 +498,7 @@ msgstr ""
 msgid "{n} pages"
 msgstr ""
 
-#: app_ui/document_dialog.py:543 app_ui/pages/admin.py:80
-#: app_ui/pages/chat.py:3457
+#: app_ui/document_dialog.py:543 app_ui/pages/chat.py:3457
 msgid "Notes"
 msgstr ""
 
@@ -1097,7 +1096,7 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: app_ui/layout.py:433 app_ui/pages/admin.py:85
+#: app_ui/layout.py:433 app_ui/pages/admin.py:86
 msgid "Admin"
 msgstr ""
 
@@ -1374,7 +1373,7 @@ msgstr ""
 msgid "Needs background access."
 msgstr ""
 
-#: app_ui/pages/admin.py:97 app_ui/pages/chat.py:4798
+#: app_ui/pages/admin.py:98 app_ui/pages/chat.py:4798
 #: app_ui/pages/experts.py:629 app_ui/proactive_settings.py:131
 #: app_ui/proactive_settings.py:133 app_ui/skill_wizard_dialog.py:46
 #: app_ui/skill_wizard_dialog.py:60 werkbank/v2/ui/page.py:517
@@ -1589,7 +1588,7 @@ msgstr ""
 msgid "{n} documents still to go in this run."
 msgstr ""
 
-#: app_ui/pages/admin.py:239 app_ui/pages/admin.py:272
+#: app_ui/pages/admin.py:256 app_ui/pages/admin.py:292
 #: app_ui/pages/experts.py:617 app_ui/proactive_settings.py:479
 #: app_ui/title_rename_settings.py:263
 msgid "Stop"
@@ -2082,64 +2081,79 @@ msgstr ""
 msgid "Ready"
 msgstr ""
 
-#: app_ui/pages/admin.py:80 app_ui/pages/chat.py:900 app_ui/pages/chat.py:3455
-#: app_ui/pages/dashboard.py:415 app_ui/pages/experts.py:127
-#: app_ui/pages/findings.py:1017 app_ui/pages/findings.py:1623
-#: app_ui/pages/settings.py:412
-msgid "Documents"
+#: app_ui/pages/admin.py:81
+msgid "Document chunks"
 msgstr ""
 
-#: app_ui/pages/admin.py:80 app_ui/pages/chat.py:906 app_ui/pages/chat.py:1053
-#: app_ui/pages/chat.py:3456 app_ui/pages/experts.py:128
-msgid "Memory"
+#: app_ui/pages/admin.py:81
+msgid "Memory facts"
 msgstr ""
 
-#: app_ui/pages/admin.py:86
+#: app_ui/pages/admin.py:81
+msgid "Note chunks"
+msgstr ""
+
+#: app_ui/pages/admin.py:87
 msgid "Settings for every user. Admins are named in ADMIN_USERS on the server."
 msgstr ""
 
-#: app_ui/pages/admin.py:94
+#: app_ui/pages/admin.py:95
 msgid "Embedding models"
 msgstr ""
 
-#: app_ui/pages/admin.py:95
+#: app_ui/pages/admin.py:96
 msgid "Search reads the active model's index, for every user"
 msgstr ""
 
-#: app_ui/pages/admin.py:140
+#: app_ui/pages/admin.py:144
 msgid ""
 "Next: build the index. On the remote endpoint it is fast (GPU); "
 "afterwards it is checked against this server and moved here. Search keeps"
 " using the active index meanwhile."
 msgstr ""
 
-#: app_ui/pages/admin.py:143
+#: app_ui/pages/admin.py:147
 msgid "Build remotely"
 msgstr ""
 
-#: app_ui/pages/admin.py:144
+#: app_ui/pages/admin.py:148
 msgid "Build on this server"
 msgstr ""
 
-#: app_ui/pages/admin.py:146
+#: app_ui/pages/admin.py:150
 msgid ""
 "Next: build the index on this server. Search keeps using the active index"
 " meanwhile. To build on a GPU instead, add its endpoint under Edit."
 msgstr ""
 
-#: app_ui/pages/admin.py:148 app_ui/pages/admin.py:237
+#: app_ui/pages/admin.py:152 app_ui/pages/admin.py:254
 msgid "Build index"
 msgstr ""
 
-#: app_ui/pages/admin.py:150
+#: app_ui/pages/admin.py:154
 msgid "The build stopped before the end. It continues where it stopped."
 msgstr ""
 
-#: app_ui/pages/admin.py:151 app_ui/pages/admin.py:236
+#: app_ui/pages/admin.py:155 app_ui/pages/admin.py:253
 msgid "Continue building"
 msgstr ""
 
-#: app_ui/pages/admin.py:155
+#: app_ui/pages/admin.py:158
+msgid "Keep it remote"
+msgstr ""
+
+#: app_ui/pages/admin.py:160
+msgid ""
+"Same vectors here and remotely. Next: either switch to this server — from"
+" now on it embeds here, the index stays as it is — or keep embedding "
+"remotely."
+msgstr ""
+
+#: app_ui/pages/admin.py:162
+msgid "Switch to this server"
+msgstr ""
+
+#: app_ui/pages/admin.py:164
 #, python-brace-format
 msgid ""
 "This server's copy gives different vectors (cosine {mean}), so the index "
@@ -2147,173 +2161,183 @@ msgid ""
 "server."
 msgstr ""
 
-#: app_ui/pages/admin.py:158
+#: app_ui/pages/admin.py:167
 msgid "Rebuild on this server"
 msgstr ""
 
-#: app_ui/pages/admin.py:159
+#: app_ui/pages/admin.py:168
 msgid "Check again"
 msgstr ""
 
-#: app_ui/pages/admin.py:161
+#: app_ui/pages/admin.py:170
 msgid ""
-"Built remotely. Next: check that this server gives the same vectors — it "
-"downloads the model here (about 1–2 GB) and embeds some stored chunks "
-"both ways."
+"Built remotely. Next: keep embedding remotely, or move to this server — a"
+" check first makes sure this server gives the same vectors (it downloads "
+"the model here, about 1–2 GB, and embeds some stored chunks both ways)."
 msgstr ""
 
-#: app_ui/pages/admin.py:163 app_ui/pages/admin.py:245
+#: app_ui/pages/admin.py:173 app_ui/pages/admin.py:262
 msgid "Check local against remote"
 msgstr ""
 
-#: app_ui/pages/admin.py:165
+#: app_ui/pages/admin.py:175
 msgid ""
-"Same vectors here and remotely. Next: switch to this server — from now on"
-" it embeds here; the index stays as it is."
+"Embedding remotely. Next: compare it with the active index, set its "
+"distance thresholds, then make it active. Once it is active, every search"
+" asks the endpoint — while it is off, search finds nothing."
 msgstr ""
 
-#: app_ui/pages/admin.py:167
-msgid "Switch to this server"
+#: app_ui/pages/admin.py:178 app_ui/pages/admin.py:184
+#: app_ui/pages/admin.py:609
+msgid "Compare"
 msgstr ""
 
-#: app_ui/pages/admin.py:169
+#: app_ui/pages/admin.py:179 app_ui/pages/admin.py:185
+#: app_ui/pages/admin.py:264
+msgid "Distance thresholds"
+msgstr ""
+
+#: app_ui/pages/admin.py:180 app_ui/pages/admin.py:186
+#: app_ui/pages/admin.py:257 app_ui/pages/admin.py:374
+msgid "Make active"
+msgstr ""
+
+#: app_ui/pages/admin.py:182
 msgid ""
 "Ready. Next: compare it with the active index, set its distance "
 "thresholds from the distances you see, then make it active."
 msgstr ""
 
-#: app_ui/pages/admin.py:171 app_ui/pages/admin.py:589
-msgid "Compare"
-msgstr ""
-
-#: app_ui/pages/admin.py:172 app_ui/pages/admin.py:247
-msgid "Distance thresholds"
-msgstr ""
-
-#: app_ui/pages/admin.py:173 app_ui/pages/admin.py:240
-#: app_ui/pages/admin.py:354
-msgid "Make active"
-msgstr ""
-
-#: app_ui/pages/admin.py:180 app_ui/pages/admin.py:401
+#: app_ui/pages/admin.py:193 app_ui/pages/admin.py:421
 msgid "No remote endpoint set."
 msgstr ""
 
-#: app_ui/pages/admin.py:223
+#: app_ui/pages/admin.py:240
 msgid "Active"
 msgstr ""
 
-#: app_ui/pages/admin.py:225
+#: app_ui/pages/admin.py:242
 msgid "Dormant"
 msgstr ""
 
-#: app_ui/pages/admin.py:226
+#: app_ui/pages/admin.py:243
 msgid "Was active; not updated until it is active again"
 msgstr ""
 
-#: app_ui/pages/admin.py:229
+#: app_ui/pages/admin.py:246
 msgid "on this server"
 msgstr ""
 
-#: app_ui/pages/admin.py:229
+#: app_ui/pages/admin.py:246
 msgid "remote"
 msgstr ""
 
-#: app_ui/pages/admin.py:232
+#: app_ui/pages/admin.py:249
 msgid "in RAM"
 msgstr ""
 
-#: app_ui/pages/admin.py:234 app_ui/pages/brain.py:1070
+#: app_ui/pages/admin.py:251 app_ui/pages/brain.py:1070
 #: app_ui/pages/brain.py:1162 app_ui/pages/chat.py:4656
 #: app_ui/pages/chat.py:4698
 msgid "Edit"
 msgstr ""
 
-#: app_ui/pages/admin.py:237
+#: app_ui/pages/admin.py:254
 msgid "Catch up"
 msgstr ""
 
-#: app_ui/pages/admin.py:243
+#: app_ui/pages/admin.py:260
 msgid "Use the remote endpoint"
 msgstr ""
 
-#: app_ui/pages/admin.py:243
+#: app_ui/pages/admin.py:260
 msgid "Use this server"
 msgstr ""
 
-#: app_ui/pages/admin.py:248
+#: app_ui/pages/admin.py:265
 msgid "Delete index"
 msgstr ""
 
-#: app_ui/pages/admin.py:250
+#: app_ui/pages/admin.py:267
 msgid "Remove model"
 msgstr ""
 
-#: app_ui/pages/admin.py:267
+#: app_ui/pages/admin.py:274
 #, python-brace-format
-msgid "{part}: {done} of {total} · {n} embedded"
-msgstr ""
-
-#: app_ui/pages/admin.py:273
-msgid "Stops after this batch."
-msgstr ""
-
-#: app_ui/pages/admin.py:283
-#, python-brace-format
-msgid "Caught up with the active index: {when}"
+msgid ""
+"{docs} documents ({dc} chunks) · {notes} notes ({nc} chunks) · {facts} "
+"memory facts"
 msgstr ""
 
 #: app_ui/pages/admin.py:286
 #, python-brace-format
-msgid "Last run: {n} embedded in {t}"
+msgid "{part}: {done} of {total} · {n} embedded"
+msgstr ""
+
+#: app_ui/pages/admin.py:289
+msgid "Starting … (a remote host may need to wake up first)"
 msgstr ""
 
 #: app_ui/pages/admin.py:293
+msgid "Stops after this batch."
+msgstr ""
+
+#: app_ui/pages/admin.py:303
+#, python-brace-format
+msgid "Caught up with the active index: {when}"
+msgstr ""
+
+#: app_ui/pages/admin.py:306
+#, python-brace-format
+msgid "Last run: {n} embedded in {t}"
+msgstr ""
+
+#: app_ui/pages/admin.py:313
 #, python-brace-format
 msgid "Local against remote: cosine {mean} (lowest {min}) — {verdict}"
 msgstr ""
 
-#: app_ui/pages/admin.py:295
+#: app_ui/pages/admin.py:315
 msgid "the same model"
 msgstr ""
 
-#: app_ui/pages/admin.py:295
+#: app_ui/pages/admin.py:315
 msgid "not the same vectors"
 msgstr ""
 
-#: app_ui/pages/admin.py:298
+#: app_ui/pages/admin.py:318
 msgid "Every search asks this endpoint; while it is off, search finds nothing."
 msgstr ""
 
-#: app_ui/pages/admin.py:301
+#: app_ui/pages/admin.py:321
 #, python-brace-format
 msgid ""
 "Distances: memory hint ≤ {mh} (× {mw}) · archive hint ≤ {ah} · similar "
 "fact ≤ {fd}"
 msgstr ""
 
-#: app_ui/pages/admin.py:304
+#: app_ui/pages/admin.py:324
 msgid "defaults"
 msgstr ""
 
-#: app_ui/pages/admin.py:341
+#: app_ui/pages/admin.py:361
 #, python-brace-format
 msgid "Make \"{name}\" active?"
 msgstr ""
 
-#: app_ui/pages/admin.py:344
+#: app_ui/pages/admin.py:364
 msgid ""
 "Its index is first brought up to date with the active one, then every "
 "search of every user reads it. The current index stays as it is, dormant:"
 " it is no longer updated until it is made active again."
 msgstr ""
 
-#: app_ui/pages/admin.py:359
+#: app_ui/pages/admin.py:379
 #, python-brace-format
 msgid "Delete the index of \"{name}\"?"
 msgstr ""
 
-#: app_ui/pages/admin.py:362
+#: app_ui/pages/admin.py:382
 msgid ""
 "Its vectors for documents, notes and memory are deleted, and the model's "
 "files on this server — a remote endpoint is not touched. The documents, "
@@ -2321,83 +2345,83 @@ msgid ""
 "the active one."
 msgstr ""
 
-#: app_ui/pages/admin.py:374
+#: app_ui/pages/admin.py:394
 #, python-brace-format
 msgid "Index deleted, and the model's files on this server ({gb} GB)."
 msgstr ""
 
-#: app_ui/pages/admin.py:389
+#: app_ui/pages/admin.py:409
 #, python-brace-format
 msgid "Model removed, and its files on this server ({gb} GB)."
 msgstr ""
 
-#: app_ui/pages/admin.py:400
+#: app_ui/pages/admin.py:420
 msgid ""
 "Run \"Check local against remote\" first: an index must not mix vectors "
 "of two different models."
 msgstr ""
 
-#: app_ui/pages/admin.py:408
+#: app_ui/pages/admin.py:428
 msgid "Embedding the same texts locally and remotely …"
 msgstr ""
 
-#: app_ui/pages/admin.py:421
+#: app_ui/pages/admin.py:441
 msgid "Edit embedding model"
 msgstr ""
 
-#: app_ui/pages/admin.py:421
+#: app_ui/pages/admin.py:441
 msgid "Add embedding model"
 msgstr ""
 
-#: app_ui/pages/admin.py:423
+#: app_ui/pages/admin.py:443
 msgid "Model (Hugging Face id)"
 msgstr ""
 
-#: app_ui/pages/admin.py:428
+#: app_ui/pages/admin.py:448
 msgid ""
 "Runs on this server with sentence-transformers; the first use downloads "
 "it. The index belongs to the model, so the id cannot change."
 msgstr ""
 
-#: app_ui/pages/admin.py:431
+#: app_ui/pages/admin.py:451
 msgid "Query instruction"
 msgstr ""
 
-#: app_ui/pages/admin.py:434
+#: app_ui/pages/admin.py:454
 msgid ""
 "Put before every search query, never before stored text. Empty = filled "
 "in for known models (e5-instruct, Qwen3-Embedding)."
 msgstr ""
 
-#: app_ui/pages/admin.py:436
+#: app_ui/pages/admin.py:456
 msgid "Remote endpoint (optional)"
 msgstr ""
 
-#: app_ui/pages/admin.py:439
+#: app_ui/pages/admin.py:459
 msgid "Model name there"
 msgstr ""
 
-#: app_ui/pages/admin.py:447
+#: app_ui/pages/admin.py:467
 msgid "stored — empty keeps it"
 msgstr ""
 
-#: app_ui/pages/admin.py:448
+#: app_ui/pages/admin.py:468
 msgid ""
 "Any OpenAI-compatible /v1/embeddings (Ollama, TEI, vLLM). The same model "
 "remotely, e.g. to build a large index on a GPU and search it on this "
 "server afterwards."
 msgstr ""
 
-#: app_ui/pages/admin.py:464
+#: app_ui/pages/admin.py:484
 msgid "This model is already in the list."
 msgstr ""
 
-#: app_ui/pages/admin.py:479
+#: app_ui/pages/admin.py:499
 #, python-brace-format
 msgid "Distance thresholds — {name}"
 msgstr ""
 
-#: app_ui/pages/admin.py:481
+#: app_ui/pages/admin.py:501
 msgid ""
 "All values are distances, as the tool log prints them: 0 = identical, "
 "lower = closer. Each model spreads distances differently — the comparison"
@@ -2405,130 +2429,130 @@ msgid ""
 "install ran with."
 msgstr ""
 
-#: app_ui/pages/admin.py:487 app_ui/pages/experts.py:192
+#: app_ui/pages/admin.py:507 app_ui/pages/experts.py:192
 msgid "default"
 msgstr ""
 
-#: app_ui/pages/admin.py:491
+#: app_ui/pages/admin.py:511
 msgid "Memory and note hints: max. distance"
 msgstr ""
 
-#: app_ui/pages/admin.py:492
+#: app_ui/pages/admin.py:512
 msgid "… and at most this factor above the best hint (≥ 1)"
 msgstr ""
 
-#: app_ui/pages/admin.py:494
+#: app_ui/pages/admin.py:514
 msgid "Hints from memory and notes shown next to search results."
 msgstr ""
 
-#: app_ui/pages/admin.py:498
+#: app_ui/pages/admin.py:518
 #, python-brace-format
 msgid "The old setting \"similarity {sim}\" is the distance {dist}."
 msgstr ""
 
-#: app_ui/pages/admin.py:503
+#: app_ui/pages/admin.py:523
 msgid "Archive hint on web search: max. distance"
 msgstr ""
 
-#: app_ui/pages/admin.py:504
+#: app_ui/pages/admin.py:524
 msgid "\"A very similar fact exists\": max. distance"
 msgstr ""
 
-#: app_ui/pages/admin.py:512
+#: app_ui/pages/admin.py:532
 msgid "Enter a number in every field."
 msgstr ""
 
-#: app_ui/pages/admin.py:527
+#: app_ui/pages/admin.py:547
 msgid "Reset to defaults"
 msgstr ""
 
-#: app_ui/pages/admin.py:541
+#: app_ui/pages/admin.py:561
 msgid "Search settings"
 msgstr ""
 
-#: app_ui/pages/admin.py:542
+#: app_ui/pages/admin.py:562
 msgid "For every user. The distance thresholds belong to each model, above."
 msgstr ""
 
-#: app_ui/pages/admin.py:545
+#: app_ui/pages/admin.py:565
 msgid "Max. search results"
 msgstr ""
 
-#: app_ui/pages/admin.py:551 app_ui/pages/experts.py:371
+#: app_ui/pages/admin.py:571 app_ui/pages/experts.py:371
 #: app_ui/pages/experts.py:513 app_ui/pages/experts.py:575
 #: app_ui/pages/experts.py:808 app_ui/pages/settings.py:229
 #: app_ui/pages/settings.py:692
 msgid "Saved."
 msgstr ""
 
-#: app_ui/pages/admin.py:553
+#: app_ui/pages/admin.py:573
 msgid "Enter a number."
 msgstr ""
 
-#: app_ui/pages/admin.py:563
+#: app_ui/pages/admin.py:583
 msgid "Compare indexes"
 msgstr ""
 
-#: app_ui/pages/admin.py:564
+#: app_ui/pages/admin.py:584
 msgid ""
 "Semantic search only, no language model: which documents each index "
 "finds, and how fast. One model after the other, each alone in RAM."
 msgstr ""
 
-#: app_ui/pages/admin.py:574
+#: app_ui/pages/admin.py:594
 msgid "Two models with an index are needed. Add a model and build its index."
 msgstr ""
 
-#: app_ui/pages/admin.py:585
+#: app_ui/pages/admin.py:605
 msgid "Questions, one per line"
 msgstr ""
 
-#: app_ui/pages/admin.py:587
+#: app_ui/pages/admin.py:607
 msgid "Documents per question"
 msgstr ""
 
-#: app_ui/pages/admin.py:595
+#: app_ui/pages/admin.py:615
 msgid "Enter questions and pick two different models."
 msgstr ""
 
-#: app_ui/pages/admin.py:600
+#: app_ui/pages/admin.py:620
 msgid "Running — loading a model can take a minute …"
 msgstr ""
 
-#: app_ui/pages/admin.py:634
+#: app_ui/pages/admin.py:655
 msgid "One of the two indexes could not be searched."
 msgstr ""
 
-#: app_ui/pages/admin.py:652
+#: app_ui/pages/admin.py:673
 #, python-brace-format
 msgid "Load {s} s · query embedding {e} ms · vector search {v} ms (median)"
 msgstr ""
 
-#: app_ui/pages/admin.py:656
+#: app_ui/pages/admin.py:677
 #, python-brace-format
 msgid "Distance of the best document {f}, of the last {l} (median) · {n} chunks"
 msgstr ""
 
-#: app_ui/pages/admin.py:660
+#: app_ui/pages/admin.py:681
 #, python-brace-format
 msgid "Same documents in both lists, on average: {pct} %"
 msgstr ""
 
-#: app_ui/pages/admin.py:663
+#: app_ui/pages/admin.py:684
 msgid "Documents you cannot see in Paperless are shown by number only."
 msgstr ""
 
-#: app_ui/pages/admin.py:674
+#: app_ui/pages/admin.py:695
 #, python-brace-format
 msgid "{e} ms + {v} ms"
 msgstr ""
 
-#: app_ui/pages/admin.py:679
+#: app_ui/pages/admin.py:700
 #, python-brace-format
 msgid "Document #{id}"
 msgstr ""
 
-#: app_ui/pages/admin.py:684
+#: app_ui/pages/admin.py:705
 msgid "only here"
 msgstr ""
 
@@ -2923,6 +2947,13 @@ msgstr ""
 msgid ": Doc #{id}"
 msgstr ""
 
+#: app_ui/pages/chat.py:900 app_ui/pages/chat.py:3455
+#: app_ui/pages/dashboard.py:415 app_ui/pages/experts.py:127
+#: app_ui/pages/findings.py:1017 app_ui/pages/findings.py:1623
+#: app_ui/pages/settings.py:412
+msgid "Documents"
+msgstr ""
+
 #: app_ui/pages/chat.py:902 app_ui/pages/dashboard.py:590
 #: app_ui/pages/experts.py:127 app_ui/pages/settings.py:785
 msgid "Calendar"
@@ -2939,6 +2970,11 @@ msgstr ""
 
 #: app_ui/pages/chat.py:905 app_ui/pages/experts.py:128
 msgid "Visual"
+msgstr ""
+
+#: app_ui/pages/chat.py:906 app_ui/pages/chat.py:1053 app_ui/pages/chat.py:3456
+#: app_ui/pages/experts.py:128
+msgid "Memory"
 msgstr ""
 
 #: app_ui/pages/chat.py:909 app_ui/pages/experts.py:129

@@ -342,12 +342,30 @@ async def remove_model(model_id: str) -> int:
 
 
 async def counts(m: dict) -> dict[str, int]:
-    out = {}
-    for role in reg.ROLES:
-        try:
-            out[role] = await client_for(m, role).count()
-        except Exception:  # noqa: BLE001
-            out[role] = 0
+    """What the index holds: chunks, and the documents / notes they come from.
+    A document is split into ~200-word chunks, so chunks are several times the
+    documents — the card shows both, or 2 600 reads like 2 600 documents."""
+    out = {"doc_chunks": 0, "docs": 0, "note_chunks": 0, "notes": 0, "facts": 0}
+    try:
+        c = client_for(m, "documents")
+        raw = await asyncio.to_thread(c.collection.get, include=["metadatas"])
+        metas = raw.get("metadatas") or []
+        out["doc_chunks"] = len(metas)
+        out["docs"] = len({(x or {}).get("paperless_id") for x in metas} - {None})
+    except Exception:  # noqa: BLE001
+        log.debug("counting documents", exc_info=True)
+    try:
+        c = client_for(m, "vault")
+        raw = await asyncio.to_thread(c.collection.get, include=["metadatas"])
+        metas = raw.get("metadatas") or []
+        out["note_chunks"] = len(metas)
+        out["notes"] = len({(x or {}).get("pbrain_id") or (x or {}).get("path") for x in metas} - {None, ""})
+    except Exception:  # noqa: BLE001
+        log.debug("counting notes", exc_info=True)
+    try:
+        out["facts"] = await client_for(m, "brain").count()
+    except Exception:  # noqa: BLE001
+        pass
     return out
 
 
@@ -377,6 +395,8 @@ async def parity(model_id: str) -> dict:
               "n": len(sims), "mean": round(sum(sims) / len(sims), 4),
               "min": round(min(sims), 4), "dims": [len(a[0]), len(b[0])]}
     reg.update(model_id, parity=result)
+    # The local copy was loaded only for the check; it stays unless pinned.
+    await asyncio.to_thread(emb.drop_unpinned)
     return result
 
 

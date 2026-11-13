@@ -77,7 +77,8 @@ async def admin_page():
         "paused": _("Incomplete"),
         "ready": _("Ready"),
     }
-    role_label = {"documents": _("Documents"), "brain": _("Memory"), "vault": _("Notes")}
+    # Progress counts chunks, not documents: a document is several chunks.
+    role_label = {"documents": _("Document chunks"), "brain": _("Memory facts"), "vault": _("Note chunks")}
     _cmp_pref: dict = {}
 
     with ui.column().classes("adm-wrap p-3 gap-3"):
@@ -152,22 +153,31 @@ async def admin_page():
             elif idx in ("paused", "building"):
                 _step(_("The build stopped before the end. It continues where it stopped."),
                       [(_("Continue building"), "construction", lambda: _start(mid, "build"))])
-            elif use == "remote" and remote and not reg.parity_ok(m):
+            elif use == "remote" and remote and not m.get("stay_remote"):
                 par = m.get("parity") or {}
-                if par and par.get("endpoint") == f"{m['remote_url']}|{m['remote_model']}":
+                keep = (_("Keep it remote"), "cloud", lambda: _stay_remote(mid))
+                if reg.parity_ok(m):
+                    _step(_("Same vectors here and remotely. Next: either switch to this server — from now on "
+                            "it embeds here, the index stays as it is — or keep embedding remotely."),
+                          [(_("Switch to this server"), "dns", lambda: _set_use(mid, "local")), keep])
+                elif par and par.get("endpoint") == f"{m['remote_url']}|{m['remote_model']}":
                     _step(_("This server's copy gives different vectors (cosine {mean}), so the index cannot "
                             "move here. Keep embedding remotely, or rebuild the index on this server.").format(
                               mean=par.get("mean")),
-                          [(_("Rebuild on this server"), "dns", lambda: _rebuild_here(mid)),
+                          [keep, (_("Rebuild on this server"), "dns", lambda: _rebuild_here(mid)),
                            (_("Check again"), "compare_arrows", lambda: _parity(mid))], warn=True)
                 else:
-                    _step(_("Built remotely. Next: check that this server gives the same vectors — it downloads "
-                            "the model here (about 1–2 GB) and embeds some stored chunks both ways."),
-                          [(_("Check local against remote"), "compare_arrows", lambda: _parity(mid))])
+                    _step(_("Built remotely. Next: keep embedding remotely, or move to this server — a check "
+                            "first makes sure this server gives the same vectors (it downloads the model here, "
+                            "about 1–2 GB, and embeds some stored chunks both ways)."),
+                          [(_("Check local against remote"), "compare_arrows", lambda: _parity(mid)), keep])
             elif use == "remote":
-                _step(_("Same vectors here and remotely. Next: switch to this server — from now on it embeds "
-                        "here; the index stays as it is."),
-                      [(_("Switch to this server"), "dns", lambda: _set_use(mid, "local"))])
+                _step(_("Embedding remotely. Next: compare it with the active index, set its distance "
+                        "thresholds, then make it active. Once it is active, every search asks the endpoint — "
+                        "while it is off, search finds nothing."),
+                      [(_("Compare"), "compare_arrows", lambda: _goto_compare(mid)),
+                       (_("Distance thresholds"), "tune", lambda: _thresholds_dialog(reg.get(mid))),
+                       (_("Make active"), "check_circle", lambda: _confirm_activate(reg.get(mid)))])
             else:
                 _step(_("Ready. Next: compare it with the active index, set its distance thresholds from the "
                         "distances you see, then make it active."),
@@ -184,6 +194,10 @@ async def admin_page():
                     return
                 reg.set_use(mid, use)
             _start(mid, "build")
+
+        def _stay_remote(mid: str) -> None:
+            reg.update(mid, stay_remote=True)
+            model_list.refresh()
 
         def _set_use(mid: str, use: str) -> None:
             try:
@@ -257,7 +271,9 @@ async def admin_page():
                         ui.label(f"{m['remote_url']} · {m['remote_model']}").classes("w-full text-xs text-gray-500 adm-mono")
                     c = counts.get(mid)
                     if c and idx != "none":
-                        ui.label(" · ".join(f"{role_label[r]} {c.get(r, 0)}" for r in reg.ROLES)).classes(
+                        ui.label(_("{docs} documents ({dc} chunks) · {notes} notes ({nc} chunks) · {facts} memory facts").format(
+                            docs=c.get("docs", 0), dc=c.get("doc_chunks", 0), notes=c.get("notes", 0),
+                            nc=c.get("note_chunks", 0), facts=c.get("facts", 0))).classes(
                             "text-xs text-gray-500")
                     if running or (idx in ("building", "paused") and p.get("total")):
                         # Only this part redraws while a job runs — redrawing the
@@ -269,7 +285,8 @@ async def admin_page():
                             with ui.row().classes("w-full items-center gap-2 no-wrap"):
                                 ui.label(_("{part}: {done} of {total} · {n} embedded").format(
                                     part=role_label.get(q.get("role", ""), q.get("role", "")), done=done,
-                                    total=total, n=q.get("embedded", 0))).classes(
+                                    total=total, n=q.get("embedded", 0)) if q.get("role") else
+                                    _("Starting … (a remote host may need to wake up first)")).classes(
                                     "flex-1 min-w-0 text-xs text-gray-400")
                                 if show_stop:
                                     ui.button(_("Stop"), icon="stop_circle", color=None,

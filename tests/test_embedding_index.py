@@ -324,3 +324,27 @@ def test_thresholds_are_distances_with_the_old_global_setting_as_default(registr
     finally:
         ws.set_value(ws.BRAIN_HINT_THRESHOLD, "")
         ws.set_value(ws.BRAIN_HINT_WINDOW, "")
+
+
+def test_counts_tell_documents_from_chunks(registry):
+    a = _fill_active()
+
+    async def go():
+        await vector_index.client_for(a, "documents").upsert(
+            ids=["paperless_1_chunk_1"], documents=["Seite 2"],
+            metadatas=[{"paperless_id": 1, "chunk_index": 1, "page_number": 2}])
+        c = await ei.counts(a)
+        assert (c["docs"], c["doc_chunks"]) == (2, 3)
+        assert (c["notes"], c["note_chunks"], c["facts"]) == (1, 1, 1)
+
+    asyncio.run(go())
+
+
+def test_choosing_remote_for_a_built_index_means_staying_there(registry):
+    q = reg.add_model("Qwen/Qwen3-Embedding-0.6B", remote_url="http://gpu:11434",
+                      remote_model="qwen3-embedding:0.6b")
+    assert reg.set_use(q["id"], "remote")["stay_remote"] is False  # only how to build
+    reg.update(q["id"], index="ready", use="local",
+               parity={"endpoint": "http://gpu:11434/v1|qwen3-embedding:0.6b", "mean": 0.999})
+    assert reg.set_use(q["id"], "remote")["stay_remote"] is True
+    assert reg.set_use(q["id"], "local")["stay_remote"] is False
