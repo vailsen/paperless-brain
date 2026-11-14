@@ -22,10 +22,8 @@ WRITE_TOOLS = {
     "create_deadline",
     "update_brain_fact",
     "delete_brain_fact",
-    "create_kanban_task",
     "trigger_docx_generation",
     "create_email",
-    "generate_chat_pdf",
 }
 
 

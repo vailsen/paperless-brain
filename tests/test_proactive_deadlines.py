@@ -463,3 +463,38 @@ def test_deadline_title_says_what_to_do_not_the_file_name():
     assert len(title_for(long, "de")) <= 92 and title_for(long, "de").endswith(" …")
     bare = Deadline("2026-11-18", "payment", True, "", "q")
     assert title_for(bare, "en", "Invoice 12") == "Payment due: Invoice 12"
+
+
+# ── Manual deadlines (create_deadline in chat) ───────────────────────────────
+
+
+def test_manual_deadline_is_a_quiet_finding_that_reminds(env):
+    """The user set it in chat: nothing is sent now, the reminders still come."""
+    from proactive import deadlines, findings
+
+    f = asyncio.run(deadlines.manual("alice", "Renew the passport", "2026-11-20", "note-1"))
+    assert f is not None and f.kind == "deadline" and f.status == "relevant"
+    assert f.finding_key == "deadline:manual:note-1" and f.doc_ids == []
+    assert "Renew the passport" in f.title
+    assert _texts(env) == []
+
+    _worker_run("daily_run")                     # 2026-10-26: 25 days left → offset 30
+    assert len(_texts(env)) == 1 and "25 days left" in _texts(env)[0]
+    assert findings.get("alice", f.finding_id).status == "surfaced"
+
+
+def test_manual_deadline_needs_opt_in_and_a_future_date(env):
+    from proactive import deadlines, prefs
+
+    assert asyncio.run(deadlines.manual("alice", "Too late", "2026-10-01", "n2")) is None
+    p = prefs.get("bob")
+    p.optin = False
+    prefs.save(p)
+    assert asyncio.run(deadlines.manual("bob", "Not opted in", "2026-12-01", "n3")) is None
+
+
+def test_manual_deadline_writes_nothing_when_proactive_is_off(proactive_off):
+    from proactive import deadlines
+
+    assert asyncio.run(deadlines.manual("alice", "x", "2030-01-01", "n4")) is None
+    assert not proactive_off.exists()  # no DB file either

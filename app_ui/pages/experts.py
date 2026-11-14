@@ -126,7 +126,7 @@ async def experts_page(e: str = "", view: str = "experts"):
     group_labels = {
         "documents": _("Documents"), "email": _("Email"), "calendar": _("Calendar"), "web": _("Web"),
         "calculate": _("Calc"), "visual": _("Visual"), "memory": _("Memory"), "vault": _("Vault"),
-        "deep_research": _("Deep research"), "create": _("Create"), "document_notes": _("Document notes"),
+        "create": _("Create"), "document_notes": _("Document notes"),
     }
     open_document, _dlg = create_document_dialog()
 

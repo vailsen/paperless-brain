@@ -165,7 +165,40 @@ class ToolCallEvent:
 
 @dataclass
 class ToolResultEvent:
-    tool_output: str  # first 2000 chars of the raw tool result
+    tool_output: str  # the whole tool result, exactly what the model got
+    duration_ms: int = 0
+
+
+@dataclass
+class ModelCallEvent:
+    """One model request of the loop, for the tool history.
+
+    Claude reports exact counts: `input_tokens` is the uncached part of the
+    prompt, the cached rest is `cache_read` / `cache_write`. An OpenAI-compatible
+    server reports `input_tokens` as what it *evaluated* — Ollama leaves out a
+    prefix reused from its cache — so `estimated_prompt` is our own estimate of
+    what the model read (`estimate_prompt_tokens`)."""
+
+    iteration: int
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read: int = 0
+    cache_write: int = 0
+    estimated_prompt: int = 0
+    first_token_ms: int = 0
+    total_ms: int = 0
+    stop: str = ""
+
+
+@dataclass
+class TranscriptEvent:
+    """What the model was sent, at the end of a turn: system prompt, tool
+    schemas and every message of the loop, its final answer appended. Thinking
+    is removed. For the "raw conversation" download — never stored."""
+
+    system: str
+    tools: list[dict]
+    messages: list[dict]
 
 
 @dataclass
@@ -215,21 +248,6 @@ class EmailRequestEvent:
 
 
 @dataclass
-class PdfSaveRequestEvent:
-    params: dict  # title, content_markdown, filename_topic
-
-
-@dataclass
-class KanbanTaskRequestEvent:
-    params: dict  # request, title
-
-
-@dataclass
-class DownloadRequestEvent:
-    params: dict  # document_id
-
-
-@dataclass
 class ImageDisplayEvent:
     """A page, or one picture on it, to show the user inline in the answer."""
 
@@ -259,6 +277,8 @@ ChatEvent = (
     | TextTokenEvent
     | ToolCallEvent
     | ToolResultEvent
+    | ModelCallEvent
+    | TranscriptEvent
     | DocsRetrievedEvent
     | VaultNotesRetrievedEvent
     | BrainFactsRetrievedEvent
@@ -268,9 +288,6 @@ ChatEvent = (
     | OffloadEvent
     | DocxRequestEvent
     | EmailRequestEvent
-    | PdfSaveRequestEvent
-    | KanbanTaskRequestEvent
-    | DownloadRequestEvent
     | ImageDisplayEvent
 )
 
@@ -469,22 +486,6 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
             },
             "required": ["document_id", "page_number"],
-        },
-    },
-    {
-        "name": "download_document",
-        "description": (
-            "Starts the download of a Paperless document's original file directly in the user's browser. ONLY call when the user EXPLICITLY wants to download a document (e.g. 'download the invoice for me', 'give me the PDF', 'download document #123'). NEVER use for information search or reading content. If the document_id is unknown, determine it via search first. For multiple documents call the tool several times (once per document)."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "document_id": {
-                    "type": "integer",
-                    "description": "Paperless document ID of the document to download",
-                },
-            },
-            "required": ["document_id"],
         },
     },
     {
@@ -941,52 +942,6 @@ TOOL_DEFINITIONS: list[dict] = [
         },
     },
     {
-        "name": "generate_chat_pdf",
-        "description": (
-            "Creates a structured PDF document from the current conversation content and stores it in Paperless as an AI-generated information document. Use this tool when the user wants to permanently archive information from the chat — e.g. email analyses, research results, summaries or deadline overviews. Compose a complete, well-structured Markdown text with all relevant information before calling the tool. If it is unclear what should be saved, ask the user first. After the call a review dialog opens before saving."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "description": "Document title, e.g. 'Email history John Miller' or 'Calendar overview May 2026'",
-                },
-                "content_markdown": {
-                    "type": "string",
-                    "description": "Complete document content in Markdown. Well structured with headings, lists and tables.",
-                },
-                "filename_topic": {
-                    "type": "string",
-                    "description": "Short filename part without special characters, max. 30 characters, e.g. 'Email_History_J_Miller'",
-                },
-            },
-            "required": ["title", "content_markdown", "filename_topic"],
-        },
-    },
-    {
-        "name": "create_kanban_task",
-        "description": (
-            "Creates an autonomous deep-research task in the background. Use this tool when the user mentions a complex task that requires multi-step research, document analysis or synthesis work — i.e. too extensive for a single chat step. IMPORTANT: Write a short, goal-oriented request (3–6 sentences). No detailed plan, no method prescriptions, no pre-researched data — the agent researches on its own. Provide only the goal, context and relevant Paperless document IDs. CRITICAL: After calling this tool, do NOTHING ELSE. No web search, no own research, no generate_chat_pdf — the deep-research agent takes over the work completely. After the call a confirmation dialog opens — the user can still adjust the request and pick the model before it starts."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "description": "Short title, max. 6 words, e.g. 'Insurance contract overview 2026'",
-                },
-                "request": {
-                    "type": "string",
-                    "description": (
-                        "Short work order, max. 6 sentences. Contains: what should be determined/created, which Paperless document IDs are relevant (if known), the desired output format. Does NOT contain: research methodology, step-by-step plans, pre-researched data, comparison criteria — the agent works that out itself."
-                    ),
-                },
-            },
-            "required": ["title", "request"],
-        },
-    },
-    {
         "name": "use_skill",
         "description": (
             "Loads the full instructions of one of your skills (listed in the system prompt under 'Skills'). Call it before a task the skill's description matches, then follow the returned instructions. Only skills listed there exist."
@@ -1057,9 +1012,6 @@ def _tool_label(name: str) -> str:
         "update_brain_fact": _("🧠 Updating fact..."),
         "delete_brain_fact": _("🧠 Deleting fact..."),
         "vault_search": _("📓 Searching notes..."),
-        "generate_chat_pdf": _("💾 Creating document..."),
-        "download_document": _("⬇️ Preparing download..."),
-        "create_kanban_task": _("⚙️ Starting deep research..."),
         "use_skill": _("Loading skill..."),
     }
     return labels.get(name, name)
@@ -1101,20 +1053,6 @@ async def _execute_tool_dispatch(
             "Email template created. A dialog opens where you can copy address, subject and message to the clipboard."
         )
         return text, [], [EmailRequestEvent(params=inputs)]
-    if name == "generate_chat_pdf":
-        text = (
-            "Document prepared. A dialog opens where you can review title and content and save the document to Paperless."
-        )
-        return text, [], [PdfSaveRequestEvent(params=inputs)]
-    if name == "create_kanban_task":
-        return "Task recorded.", [], [KanbanTaskRequestEvent(params=inputs)]
-    if name == "download_document":
-        text = (
-            f"A download button for document #{inputs.get('document_id')} is now shown in the chat. "
-            "The download starts only after the user clicks it. Do NOT claim the download has already "
-            "started — tell the user to click the button to download the file."
-        )
-        return text, [], [DownloadRequestEvent(params=inputs)]
     if name == "show_document_image":
         text, event = await _tool_show_document_image(inputs)
         if not event:
@@ -2894,7 +2832,16 @@ async def _tool_create_deadline(inputs: dict) -> tuple[str, list]:
     pbrain_id = await vault_brain_writer.create_deadline(
         text=text, due=due, user=user, tags=inputs.get("tags") or None
     )
-    return f"Deadline stored ({due}, ID: {pbrain_id}).", []
+    # With proactive on, a finding carries the reminders; the note stays the record.
+    reminder = ""
+    try:
+        from proactive import deadlines as _pro_deadlines
+
+        if await _pro_deadlines.manual(user, text, due, pbrain_id) is not None:
+            reminder = " Push reminders are scheduled at the user's reminder offsets."
+    except Exception:
+        _log.warning("create_deadline: reminder finding failed", exc_info=True)
+    return f"Deadline stored ({due}, ID: {pbrain_id}).{reminder}", []
 
 
 async def _tool_search_memory(inputs: dict) -> tuple[str, list, list]:
@@ -3332,6 +3279,20 @@ _ANSWER_HEADROOM = 8_000
 DEFAULT_MAX_OUTPUT_TOKENS = 16_384
 
 
+def _transcript(system: str, tools: list[dict] | None, working: list[dict], answer: str = "") -> TranscriptEvent:
+    """`TranscriptEvent` for the messages a backend sent, without thinking."""
+    msgs: list[dict] = []
+    for m in working:
+        c = m.get("content")
+        if isinstance(c, list):
+            c = [b for b in c if not (isinstance(b, dict) and b.get("type") in ("thinking", "redacted_thinking"))]
+            m = {**m, "content": c}
+        msgs.append(m)
+    if answer:
+        msgs.append({"role": "assistant", "content": answer})
+    return TranscriptEvent(system=system, tools=list(tools or []), messages=msgs)
+
+
 class ClaudeChatBackend:
     def __init__(
         self,
@@ -3444,6 +3405,8 @@ class ClaudeChatBackend:
             think_parts: list[str] = []
             think_yield_buf: list[str] = []
             loop_detected = False
+            _t0 = time.monotonic()
+            _t_first: list[float] = []
             async with self.client.messages.stream(
                 model=self.model,
                 system=system_blocks,
@@ -3456,6 +3419,8 @@ class ClaudeChatBackend:
                     if event.type != "content_block_delta":
                         continue
                     d = event.delta
+                    if not _t_first:
+                        _t_first.append(time.monotonic())
                     if d.type == "text_delta":
                         text_chunks.append(d.text)
                     elif d.type == "thinking_delta":
@@ -3494,10 +3459,22 @@ class ClaudeChatBackend:
                 + (getattr(_u, "cache_read_input_tokens", 0) or 0)
                 + (getattr(_u, "cache_creation_input_tokens", 0) or 0)
             )
+            _t_end = time.monotonic()
+            yield ModelCallEvent(
+                iteration=_i + 1,
+                input_tokens=_u.input_tokens or 0,
+                output_tokens=_u.output_tokens or 0,
+                cache_read=getattr(_u, "cache_read_input_tokens", 0) or 0,
+                cache_write=getattr(_u, "cache_creation_input_tokens", 0) or 0,
+                first_token_ms=int(((_t_first[0] if _t_first else _t_end) - _t0) * 1000),
+                total_ms=int((_t_end - _t0) * 1000),
+                stop=final.stop_reason or "",
+            )
 
             if final.stop_reason == "end_turn":
                 if accumulated:
                     yield TextTokenEvent(accumulated)
+                yield _transcript(system, active_tools, working, accumulated)
                 yield DoneEvent(input_tokens=usage, context_window=self.context_window)
                 return
 
@@ -3521,10 +3498,13 @@ class ClaudeChatBackend:
                         tool_name=block.name,
                         tool_input=block.input,
                     )
+                    _tt = time.monotonic()
                     result_text, docs, extras = await execute_tool(
                         block.name, block.input
                     )
-                    yield ToolResultEvent(tool_output=result_text[:2000])
+                    yield ToolResultEvent(
+                        tool_output=result_text, duration_ms=int((time.monotonic() - _tt) * 1000)
+                    )
                     if docs:
                         yield DocsRetrievedEvent(docs, merge=block.name in _DOC_READ_TOOLS)
                     for extra in extras:
@@ -3558,9 +3538,11 @@ class ClaudeChatBackend:
                 yield TextTokenEvent(
                     "\n\n*[Response was cut off at the token limit.]*"
                 )
+            yield _transcript(system, active_tools, working, accumulated)
             yield DoneEvent(input_tokens=usage, context_window=self.context_window)
             return
 
+        yield _transcript(system, active_tools, working)
         yield DoneEvent(input_tokens=usage, context_window=self.context_window)
 
 
@@ -4024,6 +4006,15 @@ class OpenAICompatibleChatBackend:
                 self.model, _i + 1, _est_prompt, prompt_tokens, _first - _t0,
                 activity.tokens, _gen_s, activity.tokens / _gen_s if activity.tokens else 0.0,
             )
+            yield ModelCallEvent(
+                iteration=_i + 1,
+                input_tokens=prompt_tokens,
+                output_tokens=activity.tokens,
+                estimated_prompt=_est_prompt,
+                first_token_ms=int((_first - _t0) * 1000),
+                total_ms=int((_t_end - _t0) * 1000),
+                stop="loop" if loop_detected else ("tool_calls" if tool_calls_map else "stop"),
+            )
             prompt_tokens = reported_or_estimate(prompt_tokens, _est_prompt)
             if not offload_checked and not self._no_ps:
                 offload_checked = True
@@ -4088,6 +4079,7 @@ class OpenAICompatibleChatBackend:
                     continue
                 if content:
                     yield TextTokenEvent(content)
+                yield _transcript(system, active_tools, working[1:], content)
                 yield DoneEvent(
                     input_tokens=prompt_tokens, context_window=self.context_window
                 )
@@ -4134,8 +4126,11 @@ class OpenAICompatibleChatBackend:
                     tool_name=tool_name,
                     tool_input=tool_args,
                 )
+                _tt = time.monotonic()
                 result_text, docs, extras = await execute_tool(tool_name, tool_args)
-                yield ToolResultEvent(tool_output=result_text[:2000])
+                yield ToolResultEvent(
+                    tool_output=result_text, duration_ms=int((time.monotonic() - _tt) * 1000)
+                )
                 if docs:
                     yield DocsRetrievedEvent(docs, merge=tool_name in _DOC_READ_TOOLS)
                 for extra in extras:
@@ -4163,4 +4158,5 @@ class OpenAICompatibleChatBackend:
                     "content": answer_language_reminder(answer_language),
                 })
 
+        yield _transcript(system, active_tools, working[1:])
         yield DoneEvent(input_tokens=prompt_tokens, context_window=self.context_window)

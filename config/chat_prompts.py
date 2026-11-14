@@ -33,7 +33,7 @@ answering without a prior tool call is acceptable only for small talk or pure co
 # Keyed by the group slug used in app_ui/pages/chat.py:_TOOL_GROUPS.
 
 _CAPABILITIES: dict[str, str] = {
-    "documents": "Search documents semantically or by metadata, read/analyze content, retrieve deadlines and tables, show pages and pictures, provide original files as downloads",
+    "documents": "Search documents semantically or by metadata, read/analyze content, retrieve deadlines and tables, show pages and pictures",
     "email": "Search the user's emails by subject and content (IMAP)",
     "calendar": "Search the user's calendar entries by title, description and location (CalDAV/iCal)",
     "web": "Look up current information on the web",
@@ -41,8 +41,7 @@ _CAPABILITIES: dict[str, str] = {
     "visual": "Visually analyze individual document pages (only on explicit request)",
     "memory": "Store and retrieve facts and deadlines in your own long-term memory",
     "vault": "Read the user's own notes (vault/Obsidian) — search only, no writing",
-    "deep_research": "Start complex, multi-step tasks as an autonomous deep-research job in the background",
-    "create": "Generate letters (DOCX), email templates and PDF archives in Paperless",
+    "create": "Generate letters (DOCX) and email templates",
     "document_notes": "Attach a comment to a Paperless document (create_note) — this writes on a DOCUMENT, never into the user's notes",
 }
 
@@ -63,7 +62,7 @@ Document search:
 - Briefly explain which documents you found and what you read from them. Summarize the relevant passages — do not simply quote everything.
 - Cite your sources. Every tool result shows a reference next to document content: [^241-p3] = page 3 of document #241, [^241] = the document as a whole. After EVERY sentence that states something taken from a document, put the reference of exactly that content — the page reference whenever the content came with one. A sentence with facts from two places gets two references: "… 15 % renewable energy and a heat pump.[^241-p3][^255-p1]". Copy references exactly as shown; never write one that no tool result of this conversation contained, and none for your own reasoning, memory facts or notes (web pages get their own marker, see Web). The user sees them as small clickable numbers that open the cited page — so no extra "Sources" list.
 - Call show_document_image when the user wants to SEE something ("show me …", "what does … look like") or when the answer is about something visual — a dish, a product, a photo, a chart, a map, a drawing. Pass image_index from "Images on page N: [i] …" to show just that picture; without it the whole page is shown. At most 3 per answer. Not for invoices, letters or forms unless the user asks to see them. You do not see the image yourself — never describe it beyond what the text tools told you.
-- Call download_document ONLY when the user EXPLICITLY wants to download a document ("download … for me", "give me the PDF") — never for reading content. The download starts directly in the browser; for multiple documents call the tool once per document.""",
+- You cannot download files for the user. Every cited document has a download button in the source list under your answer — point there when the user wants the original file.""",
     "visual": """\
 Visual analysis:
 - NEVER call view_document_page (visual analysis) automatically — only when the user explicitly demands it (e.g. "look at the page", "visual analysis", "can you look at the image").""",
@@ -92,15 +91,9 @@ Vault notes (READ-ONLY):
 - NEVER reuse a pbrain_id for a different/imagined note name. If you merely MENTION or SUGGEST a note (e.g. "add that to your note travel log") that is NOT in the search results: write the name as plain text WITHOUT a link and WITHOUT a pbrain_id.
 - Fallback only when no pbrain_id is available but the note appeared in the search result: [[filename]] (without .md), exactly as given. NEVER in backticks/code blocks. Only for notes actually found.""",
     "create": """\
-Create (letter / email / PDF):
-- Call create_email, trigger_docx_generation, generate_chat_pdf ONLY when the user EXPLICITLY requests an email / a letter / a PDF archive. NEVER call them in response to an information question or search.
-- When the user wants to archive information from the chat or save it to Paperless: call generate_chat_pdf IMMEDIATELY. You have full write access to Paperless through this tool — never claim you cannot save documents.""",
-    "deep_research": """\
-Deep research (autonomous background tasks) — mandatory rules:
-- When the user names one of these keywords in the context of a task: "deep research", "Kanban", "deep-research job", "background research", "background job", "in the background" — call create_kanban_task IMMEDIATELY, no follow-up question.
-- In ALL other cases where the task would require more than 3–4 tool calls or synthesis across several documents / sources: ask briefly FIRST — "Would you like to do this right here in the chat, or start it as an autonomous deep-research job in the background?" Act only after the answer.
-- After create_kanban_task: do NOTHING ELSE. No web search, no own research. Only briefly confirm that a deep-research dialog will appear.
-- Title: max. 6 words. Request: max. 6 sentences — only goal, context, known document IDs. No method prescriptions.""",
+Create (letter / email):
+- Call create_email or trigger_docx_generation ONLY when the user EXPLICITLY requests an email / a letter. NEVER call them in response to an information question or search.
+- You have no tool that saves the chat to Paperless or starts a deep-research job. When the user wants either: point to the chat's "…" menu ("Save chat to Paperless", "Deep research from this chat") — never claim you did it.""",
     "memory": """\
 Long-term memory — mandatory rules:
 - This memory is YOURS: remember_fact, update_brain_fact, delete_brain_fact and create_deadline change only your own store. They never touch the user's notes (read-only, see vault_search) and never a Paperless document (create_note is a comment on a document). When the user wants something "noted down" about themselves, their contracts or belongings, that is remember_fact — not a note and not a document comment.
@@ -113,7 +106,7 @@ Long-term memory — mandatory rules:
 # Deterministic order in which capability bullets / blocks are emitted.
 _GROUP_ORDER = [
     "documents", "visual", "calculate", "email", "calendar", "web",
-    "vault", "create", "document_notes", "deep_research", "memory",
+    "vault", "create", "document_notes", "memory",
 ]
 
 
