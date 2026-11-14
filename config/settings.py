@@ -10,10 +10,21 @@ class Settings(BaseSettings):
     # Paperless
     paperless_url: str
     paperless_superuser_token: str
+    # Address of Paperless as the user's browser reaches it (links that open
+    # Paperless in a new tab). Empty = PAPERLESS_URL, which is often an
+    # internal address the phone outside the LAN cannot reach.
+    paperless_public_url: str = ""
     # Names a real tag in Paperless — existing installs must pin their own value.
     ignore_inbox_tag_at_sync: str = "Inbox"
 
+    # Comma-separated Paperless usernames with the admin area (/admin): the
+    # embedding models and their indexes. Only here, never in the UI, so no
+    # one can make themselves admin. Empty = no admin area.
+    admin_users: str = ""
+
     # ChromaDB
+    # The first embedding model; after the first start the admin area's model
+    # list decides (services/embedding_registry.py) and this is ignored.
     embedding_model: str
     chroma_path: str
     chroma_collection: str

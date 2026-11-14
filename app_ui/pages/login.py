@@ -128,7 +128,9 @@ async def login_page() -> None:
                     from services.background_access import refresh_on_login
 
                     refresh_on_login(username, token)
-                    ui.navigate.to("/")
+                    from app_ui.layout import take_login_target
+
+                    ui.navigate.to(take_login_target())
                     return
 
                 # Only a rejected credential is the user's fault — everything

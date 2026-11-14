@@ -273,7 +273,52 @@ def test_small_skill_sets_inline_large_ones_load_on_demand():
     assert "short" in block and not need
     big = [skills.Skill(str(i), f"S{i}", "Use when", "x" * 1000) for i in range(4)]
     block, need = skills.prompt_block(big)
-    assert need and "x" * 50 not in block and "use_skill" in block
+    # 2 500 chars: two bodies inline, two listed for use_skill
+    assert need and "use_skill" in block and block.count("x" * 1000) == 2
+
+
+def test_one_long_skill_does_not_push_small_ones_out():
+    from services import skills
+
+    tiny = skills.Skill("t", "Tiny", "Use when t", "TINYBODY")
+    huge = skills.Skill("h", "Huge", "Use when h", "H" * 3900)
+    block, need = skills.prompt_block([huge, tiny])
+    assert need and "TINYBODY" in block and "H" * 100 not in block
+    assert "- Huge: Use when h" in block
+
+
+def test_skill_budget_scales_with_the_context_window():
+    from services import skills
+
+    mid = [skills.Skill(str(i), f"S{i}", "Use when", f"B{i}" + "x" * 1500) for i in range(3)]
+    small_ctx, need_small = skills.prompt_block(mid, ctx_window=8_192)
+    large_ctx, need_large = skills.prompt_block(mid, ctx_window=200_000)
+    assert need_small and not need_large
+    assert all(f"B{i}x" in large_ctx for i in range(3))
+    assert sum(f"B{i}x" in small_ctx for i in range(3)) <= 1
+    assert skills.inline_budget(0) == skills.INLINE_BUDGET_CHARS
+    assert skills.inline_budget(10**7) == skills._BUDGET_CAP_CHARS
+
+
+def test_a_loaded_skill_is_inlined_on_later_turns():
+    from services import skills
+
+    big = [skills.Skill(str(i), f"S{i}", "Use when", f"B{i}" + "x" * 3000) for i in range(3)]
+    block, need = skills.prompt_block(big, ctx_window=8_192, loaded={" s1 "})
+    assert "B1x" in block and "B0x" not in block and need
+    assert "- S1:" not in block
+
+
+def test_loaded_names_come_from_successful_use_skill_calls_only():
+    from services import skills
+
+    trace = [
+        {"name": "use_skill", "input": {"name": "Police lesen"}, "output": "Skill 'Police lesen' — follow"},
+        {"name": "use_skill", "input": {"name": "Nope"}, "output": "No skill with that name."},
+        {"name": "use_skill", "input": {"name": "police  lesen"}, "output": "Skill 'Police lesen' — follow"},
+        {"name": "search", "input": {"query": "x"}, "output": "Skill 'x'"},
+    ]
+    assert skills.loaded_names(trace) == ["Police lesen"]
 
 
 def test_use_skill_returns_only_assigned_skills():

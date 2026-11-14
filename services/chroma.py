@@ -10,7 +10,6 @@ import os
 from typing import Any
 
 import chromadb
-from chromadb.utils import embedding_functions
 
 
 class ChromaClient:
@@ -28,32 +27,35 @@ class ChromaClient:
         self,
         collection_name: str,
         persist_directory: str,
-        embedding_function: str,
+        embedder,
         distance_metric: str = "cosine",  # "cosine" | "l2" | "ip"
     ):
         """
         Args:
             collection_name:   Name of the ChromaDB collection.
-            persist_directory: Path for persistent storage. None = in-memory.
-            embedding_function: A ChromaDB-compatible embedding function.
+            persist_directory: Path for persistent storage.
+            embedder:          `services.embeddings` Local/RemoteEmbedder. Chroma
+                               itself embeds nothing (see that module).
             distance_metric:   Distance function used for similarity search.
         """
 
         os.makedirs(persist_directory, exist_ok=True)
         self.client = chromadb.PersistentClient(path=persist_directory)
+        self.embedder = embedder
+        self._space = distance_metric
+        self.collection = self._open(collection_name)
 
-        self.ef = self._build_embedding_function(embedding_function)
-        # e5-instruct models require an instruct QUERY prefix; passages stay raw.
-        # Our stored documents are raw (only a semantic context prefix at most),
-        # so we only need to prefix the query side — no re-embedding required.
-        self._instruct = "e5" in (embedding_function or "").lower() and "instruct" in (embedding_function or "").lower()
-
-        self.collection = self.client.get_or_create_collection(
-            name=collection_name,
-            embedding_function=self.ef,
+    def _open(self, name: str):
+        # embedding_function=None: Chroma must not build the function persisted
+        # in an old collection's configuration (it would load a second copy of
+        # the model). Text without vectors would fall back to Chroma's default
+        # model, so every call below passes vectors.
+        return self.client.get_or_create_collection(
+            name=name,
+            embedding_function=None,
             configuration={
                 "hnsw": {
-                    "space": distance_metric,
+                    "space": self._space,
                     "ef_construction": 100,
                     "max_neighbors": 16,
                 }
@@ -84,8 +86,10 @@ class ChromaClient:
         metadatas = metadatas or [{} for _ in documents]
         # Embedding inference (SentenceTransformer) runs inside the collection
         # call and is CPU-heavy — off the event loop, or every session freezes.
+        embeddings = await asyncio.to_thread(self.embedder.passages, documents)
         await asyncio.to_thread(
-            self.collection.add, documents=documents, metadatas=metadatas, ids=ids
+            self.collection.add, documents=documents, embeddings=embeddings,
+            metadatas=metadatas, ids=ids,
         )
         return ids
 
@@ -106,20 +110,31 @@ class ChromaClient:
         embedding function is called directly on ``embed_documents``.
         """
         metadatas = metadatas or [{} for _ in documents]
-        if embed_documents is not None:
-            embeddings = await asyncio.to_thread(self.ef, embed_documents)
-            await asyncio.to_thread(
-                self.collection.upsert,
-                documents=documents,
-                embeddings=embeddings,
-                metadatas=metadatas,
-                ids=ids,
-            )
-        else:
-            await asyncio.to_thread(
-                self.collection.upsert, documents=documents, metadatas=metadatas, ids=ids
-            )
+        embeddings = await asyncio.to_thread(
+            self.embedder.passages,
+            embed_documents if embed_documents is not None else documents,
+        )
+        await asyncio.to_thread(
+            self.collection.upsert,
+            documents=documents,
+            embeddings=embeddings,
+            metadatas=metadatas,
+            ids=ids,
+        )
         return ids
+
+    async def upsert_vectors(
+        self,
+        ids: list[str],
+        embeddings: list[list[float]],
+        documents: list[str],
+        metadatas: list[dict],
+    ) -> None:
+        """Store vectors computed elsewhere (index build, `embedding_index`)."""
+        await asyncio.to_thread(
+            self.collection.upsert, ids=ids, embeddings=embeddings,
+            documents=documents, metadatas=metadatas,
+        )
 
     async def update(
         self,
@@ -141,8 +156,11 @@ class ChromaClient:
             kwargs["documents"] = documents
         if metadatas:
             kwargs["metadatas"] = metadatas
-        if embed_documents is not None:
-            kwargs["embeddings"] = await asyncio.to_thread(self.ef, embed_documents)
+        if embed_documents is not None or documents:
+            kwargs["embeddings"] = await asyncio.to_thread(
+                self.embedder.passages,
+                embed_documents if embed_documents is not None else documents,
+            )
         await asyncio.to_thread(self.collection.update, **kwargs)
 
     async def delete(
@@ -189,8 +207,9 @@ class ChromaClient:
             id, document, metadata, distance.
         """
         include = include or ["documents", "metadatas", "distances"]
+        vectors = await asyncio.to_thread(self.embedder.queries, list(query_texts))
         kwargs: dict[str, Any] = {
-            "query_texts": [self._q(t) for t in query_texts],
+            "query_embeddings": vectors,
             "n_results": n_results,
             "include": include,
         }
@@ -276,14 +295,8 @@ class ChromaClient:
     async def reset(self) -> None:
         """Delete and recreate the collection (clears all data)."""
         name = self.collection.name
-        meta = self.collection.metadata
         await asyncio.to_thread(self.client.delete_collection, name)
-        self.collection = await asyncio.to_thread(
-            self.client.get_or_create_collection,
-            name=name,
-            embedding_function=self.ef,
-            metadata=meta,
-        )
+        self.collection = await asyncio.to_thread(self._open, name)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -304,26 +317,6 @@ class ChromaClient:
                 )
             results.append(hits)
         return results
-
-    def _q(self, text: str) -> str:
-        """Apply the e5-instruct query prefix. Passages stay raw (embedded as-is).
-
-        Without this the query is embedded like a passage → distances become
-        indistinct and irrelevant chunks outrank relevant ones (the exact
-        multilingual-e5-large-instruct failure mode).
-        """
-        if self._instruct:
-            return (
-                "Instruct: Given a search query, retrieve relevant passages that "
-                f"answer the query\nQuery: {text}"
-            )
-        return text
-
-    @staticmethod
-    def _build_embedding_function(embedding_function):
-        return embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=embedding_function
-        )
 
 
 # ---------------------------------------------------------------------------

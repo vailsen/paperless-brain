@@ -24,7 +24,7 @@ def _entries(_) -> list[tuple[str, str, str]]:
             "tool switches and quick actions are below the input.")),
     ]
     if is_enabled():
-        out.append(("notifications", _("Findings"), _(
+        out.append(("lightbulb", _("Findings"), _(
             "What the system noticed in your documents while you were away — deadlines, price changes, "
             "contracts worth a look — as an inbox, plus dossiers: one binder per matter with its state, "
             "timeline, open questions, documents, research and the chat answers you saved. The chat on "

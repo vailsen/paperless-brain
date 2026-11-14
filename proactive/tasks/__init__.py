@@ -24,6 +24,5 @@ def attach(worker: "Worker") -> None:
     scheduler.ensure(ledger.LEDGER_SCAN, "every:300", run_now=True)
     scheduler.ensure(documents.NEWDOC_POLL, f"every:{worker.cfg.proactive_newdoc_poll_seconds}", run_now=True)
     scheduler.ensure(daily.DAILY_RUN, f"daily:{worker.cfg.daily_run_time:%H:%M}")
-    # Email is send-only now; drop the reply poller's schedule from older DBs.
-    scheduler.remove("imap_poll")
     scheduler.ensure(vault_sync.VAULT_SYNC_CHECK, f"every:{vault_sync.CHECK_SECONDS}")
+    scheduler.ensure(topics.STALE_CHECK, f"every:{topics.STALE_CHECK_SECONDS}")

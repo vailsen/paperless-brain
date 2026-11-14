@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config.settings import settings
 from pipelines import paperless_db_sync
-from services.chroma import ChromaClient
+from services.vector_index import active_client
 from services.paperless import PaperlessClient
 from services.sidecar_service import SidecarService
 from services.thumbnail_service import ThumbnailService
@@ -20,11 +20,7 @@ async def main():
         settings.paperless_superuser_token,
     )
 
-    chroma = ChromaClient(
-        collection_name=settings.chroma_collection,
-        persist_directory=str(settings.app_path / settings.chroma_path),
-        embedding_function=settings.embedding_model,
-    )
+    chroma = active_client("documents")
     vision = OllamaVisionClient(
         base_url=settings.ollama_server, model=settings.ollama_ingest_model
     )

@@ -57,3 +57,65 @@ def test_render_fallback_for_old_answers():
 
 def test_a_failed_fetch_is_no_source():
     assert "blocked.example" not in link_web_refs("A [^blocked]", TRACE)
+
+
+def test_numbered_web_footnotes_are_links_not_document_one():
+    from services.web_citations import link_web_refs, plain_web_refs
+
+    text = ("Laufen kann es verschlimmern.[^1] Langfristiger Prozess.[^2]\n\n"
+            "[^1]: [Runners World – Piriformis Syndrome](https://www.runnersworld.com/piri)\n"
+            "[^2]: [Temporal Patterns](https://pubmed.ncbi.nlm.nih.gov/123/)\n")
+    out = plain_web_refs(text)
+    assert "[^1]" not in out and "[^2]" not in out and "]:" not in out
+    assert "verschlimmern. ([Runners World – Piriformis Syndrome](https://www.runnersworld.com/piri))" in out
+    # store time: only a page a tool returned keeps its link
+    trace = [{"name": "web_search", "output": "[Runners](https://www.runnersworld.com/piri)"}]
+    stored = link_web_refs(text, trace)
+    assert "(https://www.runnersworld.com/piri)" in stored
+    assert "(Temporal Patterns)" in stored and "pubmed" not in stored
+
+
+def test_document_markers_without_definitions_stay():
+    from services.web_citations import plain_web_refs
+
+    assert plain_web_refs("Beitrag 112,77 €.[^241-p3]") == "Beitrag 112,77 €.[^241-p3]"
+
+
+def test_web_sources_render_as_numbers_with_links_in_the_box(monkeypatch):
+    import app_ui.pages.chat as chat
+
+    monkeypatch.setattr(chat, "get_translator", lambda: (lambda s: s))
+    out = chat._inject_doc_links("Aigner soll es werden. ([srf.ch](https://www.srf.ch/news/aigner)) "
+                                 "Palmer unter Druck. ([Spiegel](https://www.spiegel.de/b))")
+    assert "([srf.ch]" not in out and "(srf.ch)" not in out
+    assert 'class="pb-cite pb-web-cite" href="https://www.srf.ch/news/aigner" target="_blank"' in out
+    assert ">1</a>" in out and ">2</a>" in out
+    assert 'pb-cite-list' in out and ">srf.ch/news/aigner</span>" in out and ">Spiegel</span>" in out
+    long = chat._inject_doc_links("BVB gewinnt. ([msn.com](https://www.msn.com/de-de/nachrichten/other/"
+                                  "live-bvb-mit-drei-startelf-wechseln-gegen-elversberg/ar-AA2gW518))")
+    assert ">msn.com/de-de/nachrichten/" in long and "…" in long and "ar-AA2gW518</span>" in long
+
+
+def test_a_trailing_source_list_goes_into_the_box():
+    from services.web_citations import split_source_list
+
+    text = ("Lokal läuft es offline.\n\n## Quellen\n"
+            "- [CEXTrader – Bot](https://github.com/leftamber/grid-dca-bot)\n"
+            "- [KDnuggets](https://www.kdnuggets.com/which-local-lms)\n\n"
+            "Soll ich tiefer eintauchen?")
+    out, items = split_source_list(text)
+    assert items == [("CEXTrader – Bot", "https://github.com/leftamber/grid-dca-bot"),
+                     ("KDnuggets", "https://www.kdnuggets.com/which-local-lms")]
+    assert "Quellen" not in out and "github" not in out
+    assert out.startswith("Lokal läuft es offline.") and "Soll ich tiefer eintauchen?" in out
+    # a heading followed by prose is not a source list
+    keep = "## Quellen\nIch habe keine gefunden.\n"
+    assert split_source_list(keep) == (keep, [])
+
+
+def test_listed_sources_render_numbered_in_the_box(monkeypatch):
+    import app_ui.pages.chat as chat
+
+    monkeypatch.setattr(chat, "get_translator", lambda: (lambda s: s))
+    out = chat._inject_doc_links("Text.\n\n**Quellen:**\n- [KDnuggets](https://www.kdnuggets.com/x)\n")
+    assert "pb-cite-list" in out and ">KDnuggets</span>" in out and "**Quellen" not in out

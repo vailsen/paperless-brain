@@ -64,7 +64,8 @@ nothing of it matters any more, it is not worth a finding.
 
 topic: a short subject label (1–3 words) in {language}, spelled as in normal \
 text (German nouns capitalised, umlauts kept). If one of the existing labels \
-fits, use it exactly.
+fits, use it exactly. A similar document "in dossier X" of the same matter \
+means: use X — the more specific dossier over a broader one.
 urgency: how soon it matters — low, medium, high, critical.
 title: one line, in {language}.
 summary: 2–4 sentences in {language}: what you noticed and why it may matter.
@@ -121,7 +122,13 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
         "Existing topic labels: " + (", ".join(sorted(_labels(user, known.rows, lang_code))) or "(none)"),
     ]
     if similar:
-        context.append("Similar documents: " + "; ".join(f"#{d['doc_id']} {d.get('title', '')}" for d in similar))
+        # Which dossier each similar document is in — documents the user added
+        # or moved by hand included: the strongest hint where this one belongs.
+        homes = _doc_dossiers(user)
+        context.append("Similar documents: " + "; ".join(
+            f"#{d['doc_id']} {d.get('title', '')}"
+            + (f" (in dossier {homes[int(d['doc_id'])]!r})" if int(d['doc_id']) in homes else "")
+            for d in similar))
     corr = meta.get("correspondent") if isinstance(meta.get("correspondent"), int) else None
     known_series = [f for f in findings.list_findings(user)
                     if f.kind == "insight" and corr is not None and f.correspondent == corr]
@@ -146,7 +153,7 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
     if not raw or not raw.get("worth_finding"):
         return True
     label = str(raw.get("topic") or a.topic_hint)
-    topic = slugify(label)
+    topic = _dossier_key(user, label)
     quotes = [q for q in (raw.get("evidence_quotes") or []) if isinstance(q, str)]
     evidence = [{"doc_id": a.doc_id, "quote": q} for q in quotes]
     rec, sources = "", []
@@ -218,7 +225,10 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
     # A matter that already has a dossier gets every new document of its
     # topic — code decides that, not the model (a dossier missed the two
     # newest letters the model did not flag as "continues a matter").
-    if raw.get("dossier_update") or (topic and _dossiers.load(user, topic) is not None):
+    if topic and _dossiers.is_archived(user, topic):
+        # An archived matter only notes the document; no model work.
+        await _dossiers.note_archived_doc(user, topic, a.doc_id)
+    elif raw.get("dossier_update") or (topic and _dossiers.load(user, topic) is not None):
         from proactive import jobs
 
         jobs.enqueue("dossier_update", user, {"topic": topic, "doc_id": a.doc_id},
@@ -228,9 +238,45 @@ async def triage(user: str, token: str, a: Analysis, meta: dict, model) -> bool:
 
 def _labels(user: str, topics, lang: str) -> list[str]:
     """The known topics as the model should reuse them: the label a finding
-    carries, else the key made readable. Reusing a label keeps the key."""
+    carries, else the key made readable, and every dossier by its name.
+    Reusing a label keeps the key."""
     seen = {f.topic: f.topic_label for f in findings.list_findings(user) if f.topic_label}
-    return [findings.topic_display(t, seen.get(t, ""), lang) for t in topics]
+    out = {t: findings.topic_display(t, seen.get(t, ""), lang) for t in topics}
+    # Every dossier is a matter the model should file into — also one the user
+    # made or filed a finding into by hand, which no reaction has counted yet.
+    # Without it, a finding moved into a dossier changed nothing for the next
+    # similar document.
+    from proactive import dossiers
+
+    try:
+        for d in dossiers.list_dossiers(user):
+            out[d.topic] = d.display
+    except Exception:  # noqa: BLE001 — an unreadable dossier folder never stops triage
+        pass
+    return list(out.values())
+
+
+def _doc_dossiers(user: str) -> dict[int, str]:
+    """Document id → the name of the dossier it is in."""
+    from proactive import dossiers
+
+    out: dict[int, str] = {}
+    try:
+        for d in dossiers.list_dossiers(user):
+            for i in dossiers.all_doc_ids(user, d):
+                out.setdefault(int(i), d.display)
+    except Exception:  # noqa: BLE001 — a hint, never a reason to stop triage
+        pass
+    return out
+
+
+def _dossier_key(user: str, label: str) -> str:
+    """The topic key for the label the model chose — mapped onto a dossier
+    when it names one, by its name (a renamed dossier keeps its old key) or a
+    merged-in alias (`dossiers.resolve_topic`)."""
+    from proactive import dossiers
+
+    return dossiers.resolve_topic(user, slugify(label))
 
 
 def _is_home_page(url: str) -> bool:

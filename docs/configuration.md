@@ -41,6 +41,7 @@ the env value is only the initial fallback).
 |---|---|---|---|
 | `APP_PATH` | ✅ | — | Absolute path to the app root, with trailing slash. In Docker: `/app/` |
 | `PAPERLESS_URL` | ✅ | — | Base URL of your Paperless-ngx instance |
+| `PAPERLESS_PUBLIC_URL` | | `PAPERLESS_URL` | Address of Paperless as the browser reaches it (header button, "open in Paperless" links). Set it when `PAPERLESS_URL` is an internal address |
 | `PAPERLESS_SUPERUSER_TOKEN` | ✅ | — | API token of a Paperless superuser (used for sync; chat requests use each user's own session token) |
 | `IGNORE_INBOX_TAG_AT_SYNC` | | `Inbox` | *UI* — documents carrying this tag are skipped during sync |
 | `EMBEDDING_MODEL` | ✅ | — | Sentence-transformers model id; ships tuned for `intfloat/multilingual-e5-large-instruct` |
@@ -48,9 +49,9 @@ the env value is only the initial fallback).
 | `CHROMA_COLLECTION` | ✅ | — | Collection name for document embeddings |
 | `EXTRACTION_SIDECAR_PATH` | ✅ | — | Directory for per-document JSON extraction sidecars |
 | `THUMB_PATH` | ✅ | — | Directory for thumbnails |
-| `CHROMA_MAX_RESULTS` | | `20` | *UI* — max search results per query |
-| `BRAIN_HINT_SIMILARITY_THRESHOLD` | | `0.70` | *UI* — min similarity for memory hints in search |
-| `BRAIN_HINT_WINDOW_FACTOR` | | `1.5` | *UI* — window factor for memory hints |
+| `CHROMA_MAX_RESULTS` | | `20` | *UI (Admin > Search)* — max search results per query |
+| `BRAIN_HINT_SIMILARITY_THRESHOLD` | | `0.70` | Default only — memory hints are a per-model *distance* in Admin > embedding model > Distance thresholds (0.70 similarity = 0.30 distance) |
+| `BRAIN_HINT_WINDOW_FACTOR` | | `1.5` | Default only — per model in the admin area |
 | `OLLAMA_SERVER` | | empty | *UI* — Ollama base URL for vision ingestion; also names the host the WoL/shutdown buttons control (otherwise inferred from your first local-lane model) |
 | `OLLAMA_INGEST_MODEL` | | empty | *UI* — vision model used to read documents |
 | `EXTRACTION_PROFILE` | | `en` | *UI* — extraction-rule profile: `en` or `de` (see [Extraction rules](#extraction-rules)) |

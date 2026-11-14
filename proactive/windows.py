@@ -29,7 +29,7 @@ WINDOWED_KINDS = frozenset({"sweep_doc", "dossier_build", "dossier_revisit"})
 #: The only reason to wake the host outside a window — and only while the
 #: request is fresh (`USER_WAKE_FRESH`), so a job that keeps deferring does
 #: not wake the machine again and again through the evening.
-USER_REQUESTED_KINDS = frozenset({"sweep_now", "deep_dive", "dossier_relook"})
+USER_REQUESTED_KINDS = frozenset({"sweep_now", "deep_dive", "dossier_relook", "doc_reprocess", "folder_overview"})
 USER_WAKE_FRESH = timedelta(minutes=30)
 
 

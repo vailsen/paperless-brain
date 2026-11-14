@@ -7,7 +7,6 @@ return {} rather than raise — the settings page calls load_credentials() durin
 render, so an exception there would blank the whole page.
 """
 
-import json
 
 import pytest
 

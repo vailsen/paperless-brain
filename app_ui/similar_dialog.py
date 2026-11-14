@@ -30,10 +30,19 @@ def create_similar_dialog(
     _ = get_translator()
     _state: dict = {"results": [], "empty_reason": ""}
 
+    _aside: list[bool] = [False]
+
     async def _open_doc(res) -> None:
-        # The document dialog would otherwise open underneath this one.
+        # The document dialog would otherwise open underneath this one; this
+        # one steps aside and comes back when the document is closed.
+        _aside[0] = True
         similar_dlg.close()
-        await open_document_fn(res)
+        await open_document_fn(res, on_close=_come_back)
+
+    def _come_back() -> None:
+        if _aside[0]:
+            _aside[0] = False
+            similar_dlg.open()
 
     @ui.refreshable
     def _similar_cards() -> None:
@@ -97,6 +106,7 @@ def create_similar_dialog(
         # the semantic search uses -- one number for "how many results", not a
         # second one hidden in the code.
         n = max_results if max_results is not None else get_search_max_results()
+        _aside[0] = False
 
         _state["results"] = []
         _state["empty_reason"] = ""

@@ -60,6 +60,18 @@ def test_a_doubled_caret_goes_with_the_marker():
     assert sources == [(1, 577, 1)]
 
 
+def test_a_caret_only_outside_is_a_marker_too():
+    # Pandoc's inline-footnote form, written by a model live.
+    out, sources = number_citations("auf Lebenszeit.^[435-p1] Und.^[434]", lambda n, d, p: f"<{n}>")
+    assert out == "auf Lebenszeit.<1> Und.<2>"
+    assert sources == [(1, 435, 1), (2, 434, 0)]
+
+
+def test_a_caret_bracket_without_a_number_is_left_alone():
+    out, sources = number_citations("x^[note] y", lambda n, d, p: "<>")
+    assert out == "x^[note] y" and sources == []
+
+
 def test_footnote_style_text_is_not_a_citation():
     _, sources = number_citations("see [^note] and [^a1]", lambda n, d, p: "")
     assert sources == []

@@ -58,8 +58,8 @@ _RUN_LINK = r"\[([^\]]+)\]\((?:https?://[^)\s]*)?/werkbank\?run={run}\)"
 
 
 def link_research_note(body: str, run_id: str, note_rel: str) -> str:
-    """The "[Full report in deep research](…/werkbank?run=…)" link of an older
-    finding → an Obsidian link to the report's note, keeping its text."""
+    """The "[Full report in deep research](…/werkbank?run=…)" link (written
+    when the note could not be) → an Obsidian link to the report's note."""
     from vault.research import wikilink
 
     if not run_id:
@@ -484,26 +484,6 @@ def dedupe_sources(sources: list[dict]) -> list[dict]:
     return out[:MAX_SOURCES]
 
 
-def tidy_sources(body: str, lang: str) -> str:
-    """`body` with its Sources list deduplicated — for findings written before
-    `dedupe_sources` existed. Display only; the file is left as it is."""
-    from i18n import translator_for
-
-    heading = f"## {translator_for(lang)('Sources')}"
-    lines = body.splitlines()
-    try:
-        start = lines.index(heading) + 1
-    except ValueError:
-        return body
-    end = next((i for i in range(start, len(lines)) if lines[i].startswith("## ")), len(lines))
-    entries = [m for m in (_SOURCE_LINE.match(x.strip()) for x in lines[start:end]) if m]
-    kept = dedupe_sources([{"url": m.group(1), "retrieved": m.group(2)} for m in entries])
-    if len(kept) == len(entries):
-        return body
-    new = ["", *(f"- {s['url']} ({s['retrieved']})" for s in kept), ""]
-    return "\n".join(lines[:start] + new + lines[end:])
-
-
 def disclaimer(lang: str) -> str:
     from i18n import translator_for
 
@@ -609,6 +589,15 @@ def _safe_filename(title: str) -> str:
     return name
 
 
+def _archived(user: str, topic: str) -> bool:
+    from proactive import dossiers
+
+    try:
+        return dossiers.is_archived(user, topic)
+    except Exception:  # noqa: BLE001 — an unreadable archive never stops a finding
+        return False
+
+
 async def create(user: str, f: Finding) -> Finding:
     """Write a new finding file. `f.finding_id` and `pbrain_id` are minted here
     when empty."""
@@ -616,6 +605,9 @@ async def create(user: str, f: Finding) -> Finding:
     from vault.paths import atomic_write_text, ensure_vault_dir
 
     f.user = user
+    if f.status == "new" and _archived(user, f.topic):
+        # A finding of an archived matter is kept, as done: nothing is sent.
+        f.status = "done"
     f.finding_id = f.finding_id or new_finding_id()
     f.pbrain_id = f.pbrain_id or str(uuid.uuid4())
     f.created = f.created or clock.local_now().isoformat(timespec="seconds")
@@ -701,7 +693,8 @@ async def upsert(user: str, f: Finding) -> tuple[Finding, str]:
         return await create(user, f), "created"
     if existing.evidence_hash == f.evidence_hash:
         return existing, "unchanged"
-    reopen = transition(existing.status, "reopen") is not None
+    # An archived matter is closed: new evidence refreshes, never reopens.
+    reopen = transition(existing.status, "reopen") is not None and not _archived(user, f.topic)
     fields = {
         "title": f.title,
         "topic": f.topic,

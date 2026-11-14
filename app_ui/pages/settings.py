@@ -288,8 +288,48 @@ def _show_status(
 # ── Page ──────────────────────────────────────────────────────────────────────
 
 
+_SETTINGS_CSS = """
+/* Below the header, the page itself never scrolls: the menu stands still and
+   only the pane in the middle scrolls (the menu used to move a little with it). */
+.pb-set{position:fixed;top:var(--q-header-height,52px);left:0;right:0;bottom:0;display:grid;
+  grid-template-columns:minmax(220px,1fr) minmax(0,760px) minmax(0,1fr);background:var(--c-bg)}
+.pb-set-nav{grid-column:1;justify-self:end;width:240px;padding:24px 16px;display:flex;flex-direction:column;
+  gap:2px;overflow-y:auto;min-height:0;box-sizing:border-box}
+.pb-set-nav .pb-set-title{font-size:1.25rem;font-weight:700;color:var(--c-text);padding:0 10px 10px}
+.pb-set-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;
+  color:var(--c-text-2);font-size:.9rem;min-width:0}
+.pb-set-item:hover{background:var(--c-surface-2)}
+.pb-set-item.is-active{background:var(--c-accent-soft);color:var(--c-text)}
+.pb-set-item .q-icon{font-size:20px;flex-shrink:0}
+.pb-set-item .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-set-scroll{grid-column:2 / 4;overflow-y:auto;overflow-x:hidden;min-height:0;min-width:0}
+.pb-set-main{max-width:760px;width:100%;padding:24px 24px 48px;box-sizing:border-box;min-width:0}
+.pb-set-sec{display:flex;flex-direction:column;gap:0;width:100%;min-width:0}
+.pb-set-head{margin-bottom:4px}
+.pb-set-head .h{font-size:1.15rem;font-weight:700;color:var(--c-text)}
+.pb-set-head .s{font-size:.8rem;color:var(--c-text-muted)}
+.pb-set-sec > .q-card:first-of-type{margin-top:8px!important}
+/* A phone: the menu is a row of tabs above the pane, underlined when active. */
+@media (max-width:767px){
+  .pb-set{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .pb-set-nav{grid-column:1;justify-self:stretch;width:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:none;gap:0;padding:0 8px;border-bottom:1px solid var(--c-border);background:var(--c-bg)}
+  .pb-set-nav::-webkit-scrollbar{display:none}
+  .pb-set-nav .pb-set-title{display:none}
+  .pb-set-item{flex-shrink:0;border-radius:0;padding:12px 12px 10px;font-size:.85rem;gap:6px;
+    border-bottom:2px solid transparent;margin-bottom:-1px}
+  .pb-set-item:hover{background:transparent}
+  .pb-set-item.is-active{background:transparent;color:var(--c-text);border-bottom-color:var(--c-accent)}
+  .pb-set-item .q-icon{font-size:18px}
+  .pb-set-item .t{overflow:visible}
+  .pb-set-scroll{grid-column:1}
+  .pb-set-main{padding:12px 12px 32px}
+}
+"""
+
+
 @ui.page("/settings")
-async def settings_page() -> None:
+async def settings_page(s: str = "") -> None:
     if not require_auth():
         return
     page_layout()
@@ -298,7 +338,6 @@ async def settings_page() -> None:
     username: str = ng_app.storage.user.get("paperless_user", "")
     token: str = get_session_token()
     creds = load_credentials(username, token)
-    llm_cfg: dict = creds.get("llm", {})
     imap_cfg: dict = creds.get("imap", {})
     cal_cfg: dict = creds.get("calendar", {})
     sender_cfg: dict = creds.get("sender_profile", {})
@@ -312,25 +351,55 @@ async def settings_page() -> None:
 
     saved_cal_mode = "ical" if (_saved_ical_urls[0] or cal_cfg.get("ical_url")) else ("caldav" if cal_cfg.get("url") else "ical")
 
-    with ui.column().classes("w-full max-w-2xl mx-auto p-6 gap-3"):
-        ui.label(_("Settings")).classes("text-xl font-bold text-gray-100 mb-1")
+    ui.add_css(_SETTINGS_CSS)
+    _layout = ui.element("div").classes("pb-set")
+    with _layout:
+        _nav = ui.element("nav").classes("pb-set-nav")
+        with _nav:
+            ui.label(_("Settings")).classes("pb-set-title")
+        with ui.element("div").classes("pb-set-scroll"):
+            _main = ui.element("div").classes("pb-set-main")
+    with _main:
 
         # ── Sections ──────────────────────────────────────────────────────────
-        # Fifteen cards in one column put everything equally far away. The
-        # groups are created here, up front; `_card()` then parents each card
-        # into its group. Since a NiceGUI element's parent is fixed when it is
-        # created, the sections below keep their original build order and code —
-        # only the `with` line changes.
-        _groups: dict[str, ui.expansion] = {}
+        # A menu on the left, one group at a time on the right: as expansion
+        # panels in one column, the groups had grown into one long scroll.
+        # The groups are created here, up front; `_card()` then parents each
+        # card into its group. Since a NiceGUI element's parent is fixed when
+        # it is created, the sections below keep their original build order
+        # and code — only the `with` line changes. The open group is in the
+        # URL (`?s=ai`), so a reload or a link lands on it.
+        _groups: dict[str, ui.element] = {}
+        _items: dict[str, ui.element] = {}
+        _cur = {"k": ""}
+
+        def _show(key: str) -> None:
+            _cur["k"] = key
+            for k, sec in _groups.items():
+                sec.set_visibility(k == key)
+                _items[k].classes(add="is-active") if k == key else _items[k].classes(remove="is-active")
+            # On a phone the menu is a chip row: bring the chosen one into view.
+            ui.run_javascript(
+                f"history.replaceState(null,'','/settings?s={key}');"
+                "var sc=document.querySelector('.pb-set-scroll');if(sc)sc.scrollTop=0;"
+                "setTimeout(function(){var a=document.querySelector('.pb-set-item.is-active');"
+                "if(a)a.scrollIntoView({inline:'center',block:'nearest'});},50)")
 
         def _group(key: str, icon: str, title: str, subtitle: str, opened: bool = False) -> None:
-            _groups[key] = (
-                ui.expansion(
-                    title, caption=subtitle, icon=icon, group="settings", value=opened
-                )
-                .props('expand-separator header-class="settings-group-header"')
-                .classes("w-full settings-group")
-            )
+            with _nav:
+                item = ui.element("div").classes("pb-set-item")
+                item.on("click", lambda _e, k=key: _show(k))
+                with item:
+                    ui.icon(icon)
+                    ui.label(title).classes("t")
+            _items[key] = item
+            with _main:
+                sec = ui.element("section").classes("pb-set-sec")
+                with sec:
+                    with ui.column().classes("pb-set-head gap-0"):
+                        ui.label(title).classes("h")
+                        ui.label(subtitle).classes("s")
+            _groups[key] = sec
 
         def _card(group: str) -> ui.card:
             with _groups[group]:
@@ -360,6 +429,8 @@ async def settings_page() -> None:
                 _("Proactive"),
                 _("Reminders, insights and notification channels"),
             )
+
+        _show(s if s in _groups else "general")
 
         if "proactive" in _groups:
             with _card("proactive"):
@@ -577,61 +648,8 @@ async def settings_page() -> None:
                 "unelevated dark dense"
             ).classes("bg-primary text-white")
 
-        # ── Suche & Gedächtnis-Schwellenwerte ─────────────────────────────────
-        with _card("memory"):
-            from werkbank import settings_store as _ws_search
-
-            _section_header(
-                "tune",
-                _("Search & memory thresholds"),
-                _("Number of search results, relevance threshold and window for memory hints"),
-            )
-
-            _max_results_field = ui.number(
-                _("Max. search results"), value=_ws_search.get_search_max_results(),
-                min=1, max=100, step=1, format="%d",
-            ).props("outlined dark dense").classes("w-full mb-2")
-
-            _hint_threshold_field = ui.number(
-                _("Memory hint similarity threshold (0–1)"),
-                value=_ws_search.get_brain_hint_threshold(),
-                min=0.0, max=1.0, step=0.05, format="%.2f",
-            ).props("outlined dark dense").classes("w-full mb-2")
-            _hint(
-                _(
-                    "Cosine similarity: higher value = stricter filter. Distances are shown in the tool log as <code>[0.XX]</code> — a hint appears only when distance ≤ <code>1 − threshold</code>."
-                )
-            )
-
-            _hint_window_field = ui.number(
-                _("Memory hint window factor (≥ 1.0)"),
-                value=_ws_search.get_brain_hint_window(),
-                min=1.0, max=3.0, step=0.1, format="%.1f",
-            ).props("outlined dark dense").classes("w-full mb-2")
-            _hint(
-                _(
-                    "Maximum distance relative to the best match. 1.0 = best match only; 1.5 = up to 50 % short of the best."
-                )
-            )
-
-            def _parse_float(val, default: float) -> float:
-                try:
-                    return float(str(val).replace(",", "."))
-                except (ValueError, TypeError):
-                    return default
-
-            def _save_search_cfg():
-                try:
-                    _ws_search.set_value(_ws_search.SEARCH_MAX_RESULTS, str(max(1, int(_parse_float(_max_results_field.value, 20)))))
-                    _ws_search.set_value(_ws_search.BRAIN_HINT_THRESHOLD, str(max(0.0, min(1.0, _parse_float(_hint_threshold_field.value, 0.70)))))
-                    _ws_search.set_value(_ws_search.BRAIN_HINT_WINDOW, str(max(1.0, _parse_float(_hint_window_field.value, 1.3))))
-                    ui.notify(_("Search settings saved."), type="positive")
-                except Exception as e:
-                    ui.notify(_("Invalid value: {err}").format(err=e), type="negative")
-
-            ui.button(_("Save"), icon="save", on_click=_save_search_cfg).props(
-                "unelevated dark dense"
-            ).classes("bg-primary text-white")
+        # Search & memory thresholds moved to the admin area (/admin): they
+        # apply to every user, and the hint distances belong to the embedding model.
 
         # ── Gedächtnis-Pflege (Träumen) ───────────────────────────────────────
         with _card("memory"):

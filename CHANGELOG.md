@@ -7,6 +7,81 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Reference numbers showed as raw text** (`^[435-p1]`) when the model
+  wrote the caret outside the bracket, Pandoc-style. That form counts as a
+  reference now, in stored answers too.
+- **Every chat answer failed** with "The current slot cannot be determined"
+  when the local model ran partly on the CPU: the new warning was shown from
+  the background task that runs the turn. It is shown in the chat's context
+  now, and a hint can no longer end an answer.
+
+- **The findings chat came back empty after the phone slept.** On a weak
+  connection the chat frame reloads itself; it had rewritten its own address
+  to the full chat, and a finding's chat always started a new conversation.
+  It now reloads into the same conversation, and the findings page reloads a
+  frame that did not come back on its own (never one with a half-typed
+  message).
+- **A reference number in the findings chat on a phone** opens the document
+  drawer on its Source tab with the passage marked, as in the full chat. The
+  maximized chat opened a full-screen page view on top of the drawer, at the
+  wrong place.
+- **The context ring counts what the model reads**: the system prompt and the
+  tool definitions, not only the messages (a long chat showed 2 % of 141k).
+  The prompt size a local model reports no longer undercounts either: Ollama
+  leaves out what it reused from its cache.
+
+### Changed
+
+- **Conversation menu above the chat** (⋮ next to the pickers): download and
+  delete the conversation. On a phone, tools and compression moved there too,
+  so the input row is the input, the mic and send.
+- **Chroma no longer embeds.** The app computes every vector itself and opens
+  the collections without an embedding function, so Chroma never loads a
+  second copy of the model. `EMBEDDING_MODEL` only seeds the model list on the
+  first start; after that, the admin area decides.
+- **Search thresholds moved to the admin area** and are distances
+  everywhere, per embedding model: memory and note hints (max. distance and
+  window), archive hint, similar fact. Settings no longer shows them — they
+  apply to every user and belong to the model. Your old setting carries over
+  (similarity 0.82 = distance 0.18). Max. search results is under Admin >
+  Search.
+- **The admin page says what to do next** with a model: build (remotely when
+  an endpoint is set), check against this server, switch over, compare, set
+  thresholds, make active — one step and its button at a time. Where a model
+  embeds (this server or the remote endpoint) is a switch on its card, both
+  ways at any time; with an index the check that both give the same vectors
+  runs on its own first. The card counts documents and their chunks
+  separately.
+- **The header collapses its modules into the ☰ menu** whenever they would
+  wrap into a second row (a half-width window), not only on a phone.
+
+### Added
+
+- **Slow local model, explained**: the dashboard shows when a model in memory
+  runs partly on the CPU, and the chat says so once in a turn. The log has a
+  `[chat-timing]` line per request: prompt size, time to the first token,
+  tokens per second.
+- **Admin area** (`/admin`, for the Paperless users named in the new
+  `ADMIN_USERS` in `.env`). It manages the embedding models and their indexes:
+  - add a model (e.g. `Qwen/Qwen3-Embedding-0.6B`), running on the server or
+    behind an OpenAI-compatible `/v1/embeddings` endpoint (Ollama, TEI, vLLM);
+  - build its index from the chunks already stored — no vision model, no
+    re-ingest, and the documents, notes and memory keep working meanwhile;
+  - compare two indexes by semantic search: which documents each finds per
+    question, the query-embedding and vector-search times, distances. One
+    model in RAM at a time, the active one loaded again afterwards;
+  - make one active for every user (it is brought up to date first), keep the
+    other dormant or delete it. The active index cannot be deleted;
+  - move an index between remote and local embedding only after a check that
+    both give the same vectors;
+  - distance thresholds per model (archive hint, similar fact, memory hint);
+  - deleting an index also deletes that model's downloaded files on the
+    server (a remote endpoint is not touched).
+
+## [0.20.0] — 2026-11-08
+
 ### Added
 
 - **Help in the header**: the "?" next to your name opens the module overview
@@ -286,17 +361,14 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 - **"Save to Paperless" for AI deep research reports.** The report is a note
   in your vault now (see Added); a model's research does not belong in the
   document archive. Download as Markdown or PDF stays.
-- **Replying to notification emails, and with it everything that read the
-  mailbox.** It moved every unread mail of the inbox, not just replies, into
-  `PaperlessBrain/Processed`. Email is now send-only, like push: title,
-  urgency and one link to the finding. `IMAP_*` in `.env` is ignored. Mails
-  it moved are still in that label — move them back to the inbox in Gmail.
-- **The weekly message limit.** Every finding worth a message is sent; the
-  first nights of the archive run are busier, then it settles.
-- **Telegram as a notification channel.** Push in the app does the same
-  without a bot to set up and is end-to-end encrypted. Existing Telegram links
-  are deleted on upgrade; a user who had picked Telegram keeps their other
-  channels. `TELEGRAM_BOT_TOKEN` in `.env` is ignored and can be removed.
+- **The old deep-research engine (Werkbank v1).** It had been switched off
+  since 0.11.0; its code is gone now. Old v1 tasks in `data/papersage.db`
+  (`agent_tasks`, `agent_subtasks`) are no longer read — the tables are left
+  in place, nothing deletes them.
+- **Upgrade shims from the development builds between 0.11.0 and 0.20.0**
+  (findings merges, retitling, dossier layout and question repairs, the
+  pre-release `proactive.db` steps). A `proactive.db` from a build older than
+  quiet hours refuses to open with a clear message; move it aside.
 
 ## [0.11.0] — 2026-10-23
 
@@ -1533,6 +1605,17 @@ across documents at a glance.
 First semantically versioned release. See the
 [release notes](https://github.com/vailsen/paperless-brain/releases/tag/v0.2.0).
 
+[Unreleased]: https://github.com/vailsen/paperless-brain/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/vailsen/paperless-brain/compare/v0.11.0...v0.20.0
+[0.11.0]: https://github.com/vailsen/paperless-brain/compare/v0.10.1...v0.11.0
+[0.10.1]: https://github.com/vailsen/paperless-brain/compare/v0.10.0...v0.10.1
+[0.10.0]: https://github.com/vailsen/paperless-brain/compare/v0.9.4...v0.10.0
+[0.9.4]: https://github.com/vailsen/paperless-brain/compare/v0.9.3...v0.9.4
+[0.9.3]: https://github.com/vailsen/paperless-brain/compare/v0.9.2...v0.9.3
+[0.9.2]: https://github.com/vailsen/paperless-brain/compare/v0.9.0...v0.9.2
+[0.9.0]: https://github.com/vailsen/paperless-brain/compare/v0.8.1...v0.9.0
+[0.8.1]: https://github.com/vailsen/paperless-brain/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/vailsen/paperless-brain/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/vailsen/paperless-brain/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/vailsen/paperless-brain/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/vailsen/paperless-brain/compare/v0.6.0...v0.7.0

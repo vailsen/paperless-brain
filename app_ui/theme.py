@@ -243,6 +243,8 @@ body.body--light .app-header .q-icon { color: var(--c-text-2) !important; }
 .card-action-btn .q-icon { color: var(--c-text-muted) !important; transition: color .12s; }
 .doc-card:hover .card-action-btn .q-icon { color: var(--c-text-2) !important; }
 .card-action-btn:hover .q-icon { color: var(--c-text) !important; }
+.card-action-btn > .q-btn__content > svg, .card-action-btn .q-btn__content > div > svg { color: var(--c-text-muted); transition: color .12s; }
+.card-action-btn:hover .q-btn__content svg { color: var(--c-text); }
 /* Pinned is an active selection — one of the things the accent means. */
 .card-action-btn.is-pinned .q-icon,
 .doc-card:hover .card-action-btn.is-pinned .q-icon { color: var(--c-accent) !important; }

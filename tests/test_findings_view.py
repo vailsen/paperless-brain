@@ -96,44 +96,28 @@ def test_hints_show_notification_and_research_not_as_status():
     assert fv.research(_f("r", "researched"))[0] == "fact_check"
 
 
-def test_overview_one_tile_per_topic_and_no_topic_is_its_own():
+def test_overview_one_row_per_topic_pressing_first_no_topic_last():
     from app_ui import findings_chart
 
-    data = {r["topic"]: r for r in findings_chart.topics(ITEMS, TODAY)}
-    assert set(data) == {"kfz", "mobilfunk", "strom", fv.NO_TOPIC}  # "done" is history
-    assert (data["kfz"]["calm"], data["kfz"]["act"]) == (1, 1)     # kfz2 medium, kfz1 high
-    assert (data["strom"]["calm"], data["strom"]["act"]) == (0, 1)  # due in four days
-    spec = findings_chart.tiles(list(data.values()), "light",
-                                {"none": "No topic", "pressing": "{n} pressing", "more": "{n} more"})
-    tiles = {t["name"]: t for t in spec["tiles"]}
-    assert tiles["Kfz"]["value"] == 2 and tiles["No topic"]["key"] == fv.NO_TOPIC
-    assert tiles["Kfz"]["act"] == 1 and tiles["Mobilfunk"]["act"] == 0
-    assert len({t["bg"] for t in tiles.values()}) == 1  # one tile colour
-    assert [t["value"] for t in spec["tiles"]] == sorted((t["value"] for t in spec["tiles"]), reverse=True)
-    assert spec["pressing"] == "{n} pressing" and spec["more"] == "{n} more"
+    rows = findings_chart.topics(ITEMS, TODAY)
+    assert [r["topic"] for r in rows] == ["strom", "kfz", "mobilfunk", fv.NO_TOPIC]  # "done" is history
+    by = {r["topic"]: r for r in rows}
+    assert (by["kfz"]["open"], by["kfz"]["act"]) == (2, 1)       # kfz2 medium, kfz1 high
+    assert (by["strom"]["act"], by["strom"]["due"]) == (1, "2026-11-02")  # due in four days
+    assert by["kfz"]["label"] == "Kfz" and by[fv.NO_TOPIC]["label"] == ""
 
 
-def test_overview_names_are_set_as_text_not_html():
+def test_overview_due_label_is_the_whole_date():
     from app_ui import findings_chart
 
-    # model text reaches the DOM only through textContent / title
-    assert "innerHTML" not in findings_chart.TREEMAP_JS
-    assert "textContent = r.name" in findings_chart.TREEMAP_JS
+    assert findings_chart.due_label("2026-11-18", TODAY) == "2026-11-18"
+    assert findings_chart.due_label("2027-04-01", TODAY) == "2027-04-01"
+    assert findings_chart.due_label("", TODAY) == ""
 
 
 def test_no_topic_filter():
     (g,) = fv.arrange(ITEMS, status="open", topic=fv.NO_TOPIC, group="none", sort="relevance", today=TODAY)
     assert [f.finding_id for f in g.items] == ["loose"]
-
-
-def test_overview_tiles_take_the_users_topic_colour():
-    from app_ui import findings_chart, topic_colors
-
-    data = [{"topic": "kfz", "label": "Kfz", "calm": 2, "act": 1}, {"topic": "gas", "label": "Gas", "calm": 1, "act": 0}]
-    tiles = {t["name"]: t for t in findings_chart.tiles(
-        data, "light", {"none": "-", "pressing": "{n}"}, {"kfz": 3})["tiles"]}
-    assert tiles["Kfz"]["bg"] == topic_colors.tint(3, "light", "#f4f5f7", findings_chart.TINT["light"])
-    assert tiles["Gas"]["bg"] == findings_chart.COLORS["light"]["tile"]
 
 
 def test_topic_hex_matches_the_theme_tokens():
@@ -147,3 +131,16 @@ def test_topic_hex_matches_the_theme_tokens():
         dark_hex = re.search(rf"--topic-{i}: (#[0-9a-f]{{6}})", css).group(1)
         light_hex = re.search(rf"--topic-{i}: (#[0-9a-f]{{6}})", light).group(1)
         assert topic_colors.HEX["dark"][i - 1] == dark_hex and topic_colors.HEX["light"][i - 1] == light_hex
+
+
+def test_evidence_quotes_get_reference_numbers_with_their_page():
+    from app_ui.pages.findings import cite_evidence
+
+    body = ("## Evidence\n\n> Der Beitrag steigt um 4 % jährlich.\n> — [#625](http://p/documents/625/details)\n\n"
+            "> Zulage 175 € pro Jahr.\n> — [#625](http://p/documents/625/details)\n")
+    pages = {625: [(1, "Anschreiben Debeka"), (3, "Der Beitrag steigt um 4 % jährlich ab 2026."),
+                   (5, "Die Zulage beträgt 175 € pro Jahr für Sie.")]}
+    out = cite_evidence(body, pages_of=pages.get)
+    assert 'data-c="625-3"' in out and 'data-c="625-5"' in out
+    assert '>1</sup>' in out and '>2</sup>' in out
+    assert out.count("> — [#625]") == 2   # the document link stays

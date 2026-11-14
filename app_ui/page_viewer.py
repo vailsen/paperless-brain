@@ -14,6 +14,9 @@ Zoom: two-finger pinch, double tap, Ctrl+wheel or the +/- buttons. While the
 fingers move, the pages are only scaled with a CSS transform; on release the
 zoom is committed as a width, so native scrolling pans the zoomed pages.
 Back (Android) closes the viewer.
+
+Every page frame also gets a text layer (`/api/doc-words`): the PDF's words,
+invisible, over the picture, so text can be selected and copied.
 """
 
 PAGE_VIEWER_HTML = """<style>
@@ -36,6 +39,17 @@ PAGE_VIEWER_HTML = """<style>
 .pbv-inner .pb-src-page { margin: 0 0 8px 0 !important; cursor: default; }
 .pbv-inner img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .pb-src-page, .dl-thumb { cursor: zoom-in; }
+/* Text layer: the page's own words, invisible, over the picture — so text can
+   be selected and copied. HTML spans, not SVG text: Chrome paints selected SVG
+   text in its own selection colour (white letters over the page) and gives a
+   stretched glyph next to no hit area. Each word is stretched to reach the next
+   one, so a line is one strip the mouse can drag along. */
+.pb-txl { position: absolute; inset: 0; overflow: hidden; line-height: 1; cursor: text;
+         font-family: sans-serif; user-select: text; -webkit-user-select: text; }
+.pb-txl span { position: absolute; color: transparent; white-space: pre; line-height: 1;
+              transform-origin: 0 0; }
+.pb-txl span::selection { color: transparent; background: rgba(51, 136, 255, .35); }
+.pb-txl br::selection { background: transparent; }
 </style>
 <script>
 (function () {
@@ -190,12 +204,101 @@ PAGE_VIEWER_HTML = """<style>
     },
   };
 
-  // A page in the Source tab opens the viewer on that page.
+  // A page in the Source tab opens the viewer on that page — not when the
+  // click ends a text selection on it.
   document.addEventListener('click', function (e) {
     var page = e.target.closest && e.target.closest('.pb-src-scroll .pb-src-page');
     if (!page) return;
+    if (String(window.getSelection ? window.getSelection() : '').trim()) return;
     var all = page.parentNode.querySelectorAll('.pb-src-page');
     window.__pbViewer.open(all, Array.prototype.indexOf.call(all, page));
   });
+  // Text layer (`/api/doc-words`): one transparent span per word, placed in
+  // page fractions. Font size follows the frame's height (a ResizeObserver,
+  // so zoom and drawer width need no re-layout); the horizontal stretch is
+  // size-independent — computed once from the page's aspect ratio.
+  var SRC = /\\/api\\/doc-image\\/(\\d+)\\/(\\d+)(?:$|[?#])/, ctx = null;
+  function measure(text) {
+    ctx = ctx || document.createElement('canvas').getContext('2d');
+    ctx.font = '100px sans-serif';
+    return ctx.measureText(text).width || 1;
+  }
+  function fit(frame, tl) {
+    var W = frame.clientWidth, H = frame.clientHeight;
+    if (!W || !H) return;
+    tl.style.fontSize = H + 'px';
+    if (tl.__pbFit) return;
+    tl.__pbFit = true;
+    tl.querySelectorAll('span').forEach(function (sp) {
+      var w = +sp.getAttribute('data-w'), h = +sp.getAttribute('data-h');
+      sp.style.transform = 'scaleX(' + (w / h) * (W / H) * 100 / measure(sp.textContent) + ')';
+    });
+  }
+  function watch(frame) {
+    var tl = frame.querySelector('.pb-txl');
+    if (!tl || frame.__pbTlObs) return;
+    frame.__pbTlObs = true;
+    tl.__pbFit = false;  // a viewer clone: the copy carries the old stretch
+    if (window.ResizeObserver) new ResizeObserver(function () { fit(frame, tl); }).observe(frame);
+    fit(frame, tl);
+  }
+  function layer(frame) {
+    if (frame.querySelector('.pb-txl')) { watch(frame); return; }
+    if (frame.__pbTl) return;
+    var img = frame.querySelector('img'), m = img && SRC.exec(img.getAttribute('src') || '');
+    if (!m) return;
+    frame.__pbTl = true;
+    fetch('/api/doc-words/' + m[1] + '/' + m[2], { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.words || !d.words.length || frame.querySelector('.pb-txl')) return;
+        var tl = document.createElement('div');
+        tl.className = 'pb-txl';
+        // Lines in reading order, a <br> between them: a copied line keeps its
+        // spaces, a line break comes only between lines.
+        var lines = [], line = null, lastY = -1, lastH = 0;
+        d.words.forEach(function (w) {
+          if (!line || Math.abs(w[2] - lastY) > Math.max(w[4], lastH) * 0.5) {
+            line = []; lines.push(line); lastY = w[2]; lastH = w[4];
+          }
+          line.push(w);
+        });
+        lines.forEach(function (ws, li) {
+          if (li) tl.appendChild(document.createElement('br'));
+          ws.forEach(function (w, i) {
+            var next = ws[i + 1], h = Math.max(w[4], 0.001);
+            // up to the next word of the line, so the gap belongs to the text
+            var width = next && next[1] > w[1] ? next[1] - w[1] : w[3];
+            var sp = document.createElement('span');
+            sp.textContent = next ? w[0] + ' ' : w[0];
+            sp.setAttribute('data-w', Math.max(width, 0.001));
+            sp.setAttribute('data-h', h);
+            sp.style.left = w[1] * 100 + '%';
+            sp.style.top = w[2] * 100 + '%';
+            sp.style.fontSize = h + 'em';
+            tl.appendChild(sp);
+          });
+        });
+        frame.appendChild(tl);
+        watch(frame);
+      })
+      .catch(function () {});
+  }
+  function scan(root) {
+    if (!root.querySelectorAll) return;
+    // the frame itself, its pages, or the frame it was added to (Vue mounts
+    // the image after its frame)
+    var up = root.closest && root.closest('.pb-src-page');
+    if (up) layer(up);
+    root.querySelectorAll('.pb-src-page').forEach(layer);
+  }
+  new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      if (m.type === 'attributes') { scan(m.target); return; }
+      m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scan(n); });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true,
+                                          attributeFilter: ['src'] });
+  document.addEventListener('DOMContentLoaded', function () { scan(document); });
 })();
 </script>"""

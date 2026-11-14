@@ -10,6 +10,8 @@ findings, and from those to reminders.
   (`doc_ids`, quotes) and sends nothing — the date is already known.
   Re-analysing a document (a lost DB, a version bump) finds the same finding
   and writes nothing when the evidence is unchanged.
+- The title says what to do (`title_for`, the analysis' description), never
+  "<kind>: <file name> (<date>)"; the date is shown next to it anyway.
 - Reminders at the user's offsets (default 30/7/1 days). Which offsets were
   sent lives in the finding's `reminders_sent`, so a restart or a deleted
   `proactive.db` never sends one twice. A worker that was down past several
@@ -42,6 +44,26 @@ def _kind_label(kind: str, lang: str) -> str:
         "informational": N_("Date"),
     }
     return translator_for(lang)(labels.get(kind, labels["informational"]))
+
+
+#: A title is read in a list next to its date; the date is not repeated.
+TITLE_MAX = 90
+
+
+def title_for(d: Deadline, lang: str, doc_title: str = "") -> str:
+    """What has to be done — the analysis' one-line description ("Einspruch
+    gegen den Steuerbescheid einlegen"), not "Widerspruchsfrist:
+    2026_10_22_Steuerbescheid_…": a file name says which paper, not what to
+    do. Only without a description the kind and the document title."""
+    text = " ".join((d.description or "").split()).strip()
+    text = text.split(". ")[0].rstrip(" .;:")
+    if len(text) > TITLE_MAX:
+        cut = text[:TITLE_MAX].rsplit(" ", 1)[0]
+        text = (cut or text[:TITLE_MAX]).rstrip(" ,;:-") + " …"
+    if text:
+        return text[0].upper() + text[1:]
+    label = _kind_label(d.kind, lang)
+    return f"{label}: {doc_title}" if doc_title else label
 
 
 def urgency(d: Deadline, today: date) -> str:
@@ -111,20 +133,24 @@ async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str,
                        correspondent: int | None = None) -> list[str]:
     """Create/refresh this user's deadline findings for one analysed document.
     The caller has checked the user's access. Returns the outcomes."""
+    from proactive import dossiers
     from proactive.interests import slugify
 
     today = clock.local_now().date()
     outcomes = []
+    # A merged-in or renamed matter files under its dossier, like triage.
+    topic = dossiers.resolve_topic(user, slugify(a.topic_hint))
+    topic_label = findings.topic_label_for(a.topic_hint, topic) if topic == slugify(a.topic_hint) else (
+        next((d.display for d in dossiers.list_dossiers(user) if d.topic == topic), ""))
     for d in a.deadlines:
         if not d.actionable or d.day < today:
             continue
-        title = f"{_kind_label(d.kind, lang)}: {doc_title}" if doc_title else _kind_label(d.kind, lang)
         f = findings.Finding(
             finding_id="",
             kind="deadline",
-            title=f"{title} ({d.date})",
-            topic=slugify(a.topic_hint),
-            topic_label=findings.topic_label_for(a.topic_hint, slugify(a.topic_hint)),
+            title=title_for(d, lang, doc_title),
+            topic=topic,
+            topic_label=topic_label,
             urgency=urgency(d, today),
             doc_ids=[a.doc_id],
             evidence_hash=findings.evidence_hash([a.doc_id], [d.date, d.kind, d.quote]),

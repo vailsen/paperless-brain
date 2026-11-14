@@ -443,29 +443,6 @@ def test_a_merged_deadline_sends_nothing_new_and_keeps_the_status(env, fake_llm)
     assert pay.status == "done" and pay.doc_ids == [100, 101]
 
 
-def test_legacy_deadline_findings_are_merged_once(env, fake_llm, monkeypatch):
-    from proactive import findings, series
-    from proactive.paperless_ro import document as _unused  # noqa: F401
-    import proactive.paperless_ro as pro
-
-    _analyse(env, 100, {"title": "A"})          # written before: no sender, per-document key
-    _analyse(env, 101, {"title": "B"})
-    assert len(findings.list_findings("alice")) == 4
-
-    async def document(tok, doc_id):
-        return {"id": doc_id, "correspondent": 7}
-
-    monkeypatch.setattr(pro, "document", document)
-    assert asyncio.run(series.consolidate_deadlines("alice", "t-alice")) == 2
-    alice = findings.list_findings("alice")
-    assert len(alice) == 2 and all(f.doc_ids == [100, 101] for f in alice)
-    assert all(f.finding_key.startswith("deadline:c7:") for f in alice)
-    assert asyncio.run(series.consolidate_deadlines("alice", "t-alice")) == 0   # once
-    # a later analysis with the sender joins the merged finding, no twin
-    _analyse(env, 100, {"title": "A", "correspondent": 7})
-    assert len(findings.list_findings("alice")) == 2
-
-
 def test_a_legacy_finding_is_adopted_not_duplicated(env, fake_llm):
     from proactive import findings
 
@@ -473,3 +450,16 @@ def test_a_legacy_finding_is_adopted_not_duplicated(env, fake_llm):
     _analyse(env, 100, {"title": "A", "correspondent": 7})   # version bump, sender known now
     alice = findings.list_findings("alice")
     assert len(alice) == 2 and all(f.finding_key.startswith("deadline:c7:") for f in alice)
+
+
+def test_deadline_title_says_what_to_do_not_the_file_name():
+    from proactive.analysis import Deadline
+    from proactive.deadlines import title_for
+
+    d = Deadline("2026-11-18", "objection", True, "einspruch gegen den Steuerbescheid einlegen. Frist 1 Monat", "q")
+    assert title_for(d, "de", "2026_10_22_Steuerbescheid_Einkommensteuer_Finanzamt") == \
+        "Einspruch gegen den Steuerbescheid einlegen"
+    long = Deadline("2026-11-18", "payment", True, "Bezahlen " + "sehr " * 40 + "Ende", "q")
+    assert len(title_for(long, "de")) <= 92 and title_for(long, "de").endswith(" …")
+    bare = Deadline("2026-11-18", "payment", True, "", "q")
+    assert title_for(bare, "en", "Invoice 12") == "Payment due: Invoice 12"

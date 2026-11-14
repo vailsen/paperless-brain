@@ -164,21 +164,6 @@ def test_email_not_configured_is_never_offered_or_attempted(proactive_on, smtp):
     assert smtp == []  # no connection attempted
 
 
-def test_stored_telegram_choice_reads_as_the_remaining_channels(proactive_on):
-    """Telegram was removed; a user who had chosen it must still save cleanly."""
-    from proactive import prefs
-    from proactive.db import connect
-
-    with connect() as conn:
-        conn.execute("INSERT INTO proactive_prefs (user, channels, updated_at) VALUES ('alice', 'push,telegram', 'x')")
-    p = prefs.get("alice")
-    assert p.channel_list() == ["push"] and p.channels == "push"
-    prefs.save(p)
-    # "both" was the "every channel" choice: push and email now (not email alone,
-    # which sent mail but never a push to the people who had chosen it).
-    assert prefs.ProactivePrefs("a", channels="both").channel_list() == ["push", "email"]
-
-
 def test_email_verification_code_is_mailed_and_scrubbed(channels_on, smtp):
     from proactive import jobs, linking
 

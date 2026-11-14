@@ -1,13 +1,17 @@
 # app_ui/layout.py
 
+import html as _html
+
 from nicegui import app as ng_app
 from nicegui import ui
 
-from app_ui.brand import head_html, wordmark_html
+from app_ui.brand import head_html, paperless_leaf_svg, wordmark_html
 from app_ui.page_viewer import PAGE_VIEWER_HTML
 from app_ui.theme import apply_theme
 from config.version import __version__
 from i18n import N_, get_translator
+from services import paperless_links
+from services.admin import is_admin
 from services.session_auth import clear_session, get_session_token
 
 # A real <a href> rather than a click handler: that is what makes middle-click
@@ -26,6 +30,11 @@ _MOBILE_HEADER_CSS = (
     # Nav icon colour lives in theme.py — icons inherit the label's colour and the
     # active item is the only differentiated one.
     ".nav-btn .q-btn__content{font-size:0.875rem!important;font-weight:500!important;gap:5px!important;}"
+    # The modules go into the menu whenever they do not fit in one row
+    # (NAV_FIT_JS), not only below 768 px — a half-width desktop window wrapped
+    # the header into two rows.
+    "body.pb-nav-compact .desktop-nav-btn{display:none!important;}"
+    "body.pb-nav-compact .mobile-nav-btn{display:inline-flex!important;}"
     "@media(max-width:767px){"
     ".desktop-nav-btn{display:none!important;}"
     ".mobile-nav-btn{display:inline-flex!important;}"
@@ -37,6 +46,30 @@ _MOBILE_HEADER_CSS = (
     "</style>"
 )
 
+# Collapse the module buttons into the menu when the header would wrap: take
+# the class off, see whether the header's visible children still share one
+# row, put it back if not. Synchronous, so the browser never paints the
+# two-row state. Re-checked on resize and once the fonts are in.
+NAV_FIT_JS = """<script>(function(){
+function fit(){
+  var h=document.querySelector('.app-header');if(!h)return false;
+  var b=document.body;b.classList.remove('pb-nav-compact');
+  var kids=[].filter.call(h.children,function(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0;});
+  if(!kids.length)return true;
+  var top=kids[0].getBoundingClientRect().top,wrapped=false;
+  for(var i=1;i<kids.length;i++){if(Math.abs(kids[i].getBoundingClientRect().top-top)>8){wrapped=true;break;}}
+  if(!wrapped&&h.scrollWidth>h.clientWidth+2)wrapped=true;
+  if(wrapped)b.classList.add('pb-nav-compact');
+  return true;
+}
+var t=null;function later(){clearTimeout(t);t=setTimeout(fit,60);}
+window.addEventListener('resize',later);
+var n=0,iv=setInterval(function(){if(fit()||++n>100){clearInterval(iv);}},50);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);
+window.addEventListener('load',fit);
+window.__pbNavFit=fit;
+})();</script>"""
+
 # N_() marks the labels for pybabel extraction; translation happens at render via _(label).
 NAV_ITEMS = [
     ("dashboard", N_("Dashboard"), "/"),
@@ -46,7 +79,7 @@ NAV_ITEMS = [
     ("psychology", N_("Experts"), "/experts"),
     ("grid_view", N_("Browser"), "/browser"),
 ]
-FINDINGS_ITEM = ("notifications", N_("Findings"), "/findings")
+FINDINGS_ITEM = ("lightbulb", N_("Findings"), "/findings")
 
 
 def nav_items() -> list[tuple[str, str, str]]:
@@ -76,7 +109,9 @@ def user_icon(username: str) -> str:
     three unrelated roles has stopped being an accent. The admin still reads as
     admin because the glyph differs, which also survives a greyscale screenshot.
     """
-    return "admin_panel_settings" if username == "Superuser" else "person"
+    from services.admin import is_admin
+
+    return "admin_panel_settings" if username == "Superuser" or is_admin(username) else "person"
 
 
 def _current_path() -> str:
@@ -100,9 +135,33 @@ def _is_active(nav_path: str, current: str) -> bool:
 def require_auth() -> bool:
     """Returns True if authenticated. Call at the top of protected pages."""
     if not get_session_token():
+        _remember_target()
         ui.navigate.to("/login")
         return False
     return True
+
+
+def _remember_target() -> None:
+    """Where the user was going — a push notification's finding, say — so the
+    login leads there instead of the dashboard. A path of this app only."""
+    from nicegui import app as ng_app
+    from nicegui import context
+
+    try:
+        url = context.client.request.url
+        target = url.path + (f"?{url.query}" if url.query else "")
+        if target.startswith("/") and not target.startswith("//") and target not in ("/", "/login"):
+            ng_app.storage.user["after_login"] = target
+    except Exception:  # noqa: BLE001 — no request (a handler): the dashboard it is
+        pass
+
+
+def take_login_target() -> str:
+    """The remembered target, once."""
+    from nicegui import app as ng_app
+
+    target = str(ng_app.storage.user.pop("after_login", "") or "")
+    return target if target.startswith("/") and not target.startswith("//") else "/"
 
 
 # A link to another site opens in a new tab — everywhere, including links a
@@ -187,6 +246,22 @@ _NO_SPELLCHECK_JS = """<script>
 </script>"""
 
 
+# A tapped push notification (static/sw.js) whose window the service worker
+# could not navigate itself: it asks the page. Own origin only.
+PUSH_OPEN_JS = """<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    var d = e.data || {};
+    if (d.type !== 'pb-open' || typeof d.url !== 'string') return;
+    try {
+      var u = new URL(d.url, location.origin);
+      if (u.origin === location.origin && u.href !== location.href) location.assign(u.href);
+    } catch (_) {}
+  });
+}
+</script>"""
+
+
 def page_layout() -> None:
     """Call at the top of every page to inject the shared header + drawer."""
     apply_theme()
@@ -209,9 +284,11 @@ def page_layout() -> None:
         "m.content=c;document.head.appendChild(m);}})();</script>"
     )
     ui.add_head_html(_MOBILE_HEADER_CSS)
+    ui.add_head_html(NAV_FIT_JS)
     ui.add_head_html(_NO_SPELLCHECK_JS)
     ui.add_head_html(_EXTERNAL_LINKS_JS)
     ui.add_head_html(SOCKET_REVIVE_JS)
+    ui.add_head_html(PUSH_OPEN_JS)
     ui.add_head_html(PAGE_VIEWER_HTML)
 
     _ = get_translator()
@@ -228,6 +305,7 @@ def page_layout() -> None:
         ui.space()
 
         _here = _current_path()
+        _paperless_base = paperless_links.public_base()
 
         # Desktop nav — hidden on mobile via CSS.
         # color=None matters: ui.button defaults to color='primary', which Quasar
@@ -263,7 +341,31 @@ def page_layout() -> None:
                             ui.label(_(_nl)).style(
                                 "font-size:0.875rem;font-weight:500;letter-spacing:normal;"
                             )
+                if username and _paperless_base:
+                    # Paperless-ngx itself, in a new tab — apart from the modules.
+                    ui.separator().props("dark").classes("my-1")
+                    with ui.element("q-item").props("clickable v-ripple dense").classes(
+                        "text-gray-200 rounded-lg nav-menu-item"
+                    ).style("padding:8px 12px;").on(
+                        "click", lambda: ui.navigate.to(_paperless_base, new_tab=True)
+                    ):
+                        with ui.element("q-item-section").props("avatar").style("min-width:28px;padding-right:8px;"):
+                            ui.html(paperless_leaf_svg(18), sanitize=False)
+                        with ui.element("q-item-section"):
+                            ui.label("Paperless-ngx").style(
+                                "font-size:0.875rem;font-weight:500;letter-spacing:normal;"
+                            )
             _menu_btn.on_click(_nav_menu.open)
+
+        # ── Paperless-ngx in a new tab (desktop; the phone has it in the menu) ──
+        if username and _paperless_base:
+            ui.separator().props("vertical dark").classes("mx-1 h-6 self-center mobile-hidden")
+            with ui.button(color=None).props(
+                f'flat dark dense round href="{_html.escape(_paperless_base)}" target="_blank" '
+                'rel="noopener" aria-label="Paperless-ngx"'
+            ).classes("text-gray-300 nav-btn mobile-hidden"):
+                ui.html(paperless_leaf_svg(20), sanitize=False)
+                ui.tooltip(_("Open Paperless-ngx"))
 
         # ── Voice memo quick capture ─────────────────────────────────────────
         # Reachable from every page on purpose: a memo is not a chat turn, and
@@ -319,6 +421,16 @@ def page_layout() -> None:
                             ui.icon("settings", size="xs").classes("text-gray-400")
                         with ui.element("q-item-section"):
                             ui.label(_("Settings")).style("font-size:0.875rem;font-weight:500;")
+                    if is_admin(username):
+                        with ui.element("q-item").props("clickable v-ripple dense").classes(
+                            "text-gray-200 rounded-lg"
+                        ).style("padding:8px 12px;").on("click", lambda: ui.navigate.to("/admin")):
+                            with ui.element("q-item-section").props("avatar").style(
+                                "min-width:28px;padding-right:8px;"
+                            ):
+                                ui.icon("admin_panel_settings", size="xs").classes("text-gray-400")
+                            with ui.element("q-item-section"):
+                                ui.label(_("Admin")).style("font-size:0.875rem;font-weight:500;")
                     with ui.element("q-item").props("clickable v-ripple dense").classes(
                         "text-gray-200 rounded-lg"
                     ).style("padding:8px 12px;").on("click", _logout):

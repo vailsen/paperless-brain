@@ -14,7 +14,6 @@ the thing this whole rebuild exists to avoid.
 
 from __future__ import annotations
 
-import html
 import re
 
 from nicegui import ui

@@ -1,6 +1,6 @@
 // Bump on every rebrand/icon change: the activate handler deletes all caches
 // whose name differs, which is what evicts stale icons from installed PWAs.
-const CACHE_NAME = 'paperlessbrain-v5';
+const CACHE_NAME = 'paperlessbrain-v6';
 const WS_PREFIXES = ['wss://', 'ws://'];
 const SKIP_PATHS = ['/_nicegui/', '/socket.io', '/manifest.json', '/sw.js'];
 
@@ -61,14 +61,25 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const url = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
-    // Only ever open our own origin, whatever the payload says.
-    const target = url.origin === self.location.origin ? url.href : self.location.origin + '/';
+    // Only ever open our own origin, whatever the payload says. A link built
+    // for another address of this app (PROACTIVE_APP_BASE_URL vs. the LAN
+    // address the app was installed from) keeps its path on ours — it used
+    // to become the dashboard.
+    const target = self.location.origin + url.pathname + url.search;
+    // An open app window is focused and sent to the finding. navigate()
+    // rejects for a window this worker does not control (includeUncontrolled
+    // returns those too) — the window was focused and stayed on the
+    // dashboard. So the page is also told by message (layout.PUSH_OPEN_JS),
+    // and with no window left a new one opens.
     event.waitUntil(
-        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
-            for (const w of wins) {
-                if (new URL(w.url).origin === self.location.origin && 'navigate' in w) {
-                    return w.focus().then(() => w.navigate(target));
-                }
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (wins) => {
+            const ours = wins.filter((w) => new URL(w.url).origin === self.location.origin);
+            for (const w of ours) {
+                try { await w.focus(); } catch (e) { /* not focusable: still try to send it */ }
+                try {
+                    if ('navigate' in w && await w.navigate(target)) return;
+                } catch (e) { /* uncontrolled: fall through to the message */ }
+                try { w.postMessage({ type: 'pb-open', url: target }); return; } catch (e) { /* next */ }
             }
             return self.clients.openWindow(target);
         })

@@ -260,11 +260,17 @@ expert is a tuning of the existing editable slot, not a new hole in `_CORE`.
 ### 5.3 Skills at runtime
 
 - Assigned skills' **name + description** always go into the skills block.
-- Bodies: if all assigned bodies together are ≤ 2 500 chars → inlined. Else a
-  tool `use_skill(name)` (always-on for that expert) returns the body on demand
-  — progressive disclosure, so an expert with eight skills does not burn a local
-  model's 8k context. The block tells the model to load a skill before a task
-  its description matches.
+- Bodies are decided **per skill** (`skills.prompt_block`):
+  - a skill loaded with `use_skill` earlier in the conversation is inlined —
+    the chat history keeps only answer text, so the tool result that carried
+    the body is gone on the next turn. The loaded names are stored per answer
+    in `chat_turn_meta` (`skills`, from `skills.loaded_names(tool_trace)`);
+  - a body ≤ `SMALL_SKILL_CHARS` (600) is always inlined;
+  - the rest are inlined smallest first within `skills.inline_budget(ctx_window)`
+    (~8 % of the model's context window, 2 500 chars when unknown, capped at
+    16 000), and whatever does not fit is listed (name + description) for
+    `use_skill(name)` — progressive disclosure, so an expert with eight skills
+    does not burn a local model's 8k context, while a 200k model gets them all.
 - `use_skill` is read-only, returns only skills assigned to the current expert.
   It joins `_TOOL_ALWAYS_ON` conditionally; the `_GROUPED_TOOLS` import guard
   must accept it.

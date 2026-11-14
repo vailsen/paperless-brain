@@ -622,7 +622,7 @@ Weiterhin nur mit echtem Modell prüfbar (nicht automatisierbar):
 - Run mit deaktiviertem Mail- und Kalender-Tool läuft sauber durch und
   dokumentiert die Lücken
 
-**Danach:** v1-Module löschen.
+**Erledigt (0.20.0):** v1-Module gelöscht — v2 lief seit 0.11.0 auf echten Daten (Deep Dives, Chat-Übergabe).
 
 ---
 

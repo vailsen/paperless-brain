@@ -134,7 +134,7 @@ def test_app_settings_ignore_proactive_keys(monkeypatch):
 def test_db_schema_and_recreate_after_delete(proactive_on):
     from proactive import db
 
-    assert db.schema_version() == len(db.MIGRATIONS)
+    assert db.schema_version() == db.SCHEMA_VERSION
     with db.connect() as conn:
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert {
@@ -144,7 +144,7 @@ def test_db_schema_and_recreate_after_delete(proactive_on):
     proactive_on.unlink()
     for suffix in ("-wal", "-shm"):
         Path(str(proactive_on) + suffix).unlink(missing_ok=True)
-    assert db.schema_version() == len(db.MIGRATIONS)
+    assert db.schema_version() == db.SCHEMA_VERSION
 
 
 # ── Jobs ─────────────────────────────────────────────────────────────────────

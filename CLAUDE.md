@@ -55,6 +55,12 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
 - `PAPERLESS_URL`, `PAPERLESS_SUPERUSER_TOKEN` — Paperless-ngx API
 - `IGNORE_INBOX_TAG_AT_SYNC` — tag name to skip during sync
 - `EMBEDDING_MODEL`, `CHROMA_PATH`, `CHROMA_COLLECTION`, `EXTRACTION_SIDECAR_PATH`, `THUMB_PATH`
+  (`EMBEDDING_MODEL` only seeds the admin's model list on the first start)
+- `ADMIN_USERS` — *optional*, Paperless usernames with `/admin`. Never settable in the UI.
+- **What stays in `.env`**: anything needed before anyone logs in, secrets,
+  access to other machines, the file layout, and the addresses of the services
+  the server depends on (`PAPERLESS_URL`, `SEARXNG_HOST`, `WHISPER_URL`, …).
+  The admin area holds what is *administered* — the embedding models.
 - `OLLAMA_SERVER`, `OLLAMA_INGEST_MODEL` — *optional*, vision LLM for ingestion
   (both also settable in Settings > Processing, which wins). Chat and Werkbank
   never read them — those use per-user models with their own `base_url`.
@@ -106,10 +112,18 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 ### UI
 
 - NiceGUI 3.x, pages in `app_ui/pages/` (each imports `page_layout` + `require_auth` from `app_ui/layout.py`)
-- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `findings` (workspace, proactive only)
+- Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `admin`, `findings` (workspace, proactive only)
+- **The module buttons go into the ☰ menu whenever they would wrap** (`layout.NAV_FIT_JS`,
+  `body.pb-nav-compact`), not only below 768 px: the check measures the header, so it
+  holds for any number of modules and any language.
 - Dialogs: `app_ui/document_dialog.py`, `app_ui/cluster_dialog.py`
 - **NiceGUI pattern**: use `@ui.refreshable` for dynamic content in plain columns. `QTabPanels`/`element.clear()` silently fails.
 - Chat events stream via `AsyncGenerator[ChatEvent, None]` — UI iterates with `async for` and updates reactively.
+- **A chat turn outlives its page.** The prompt is stored before the model is asked, the answer
+  in `do_send`'s `finally` (`_persist_turn`) — leaving /chat for another module mid-answer must
+  not lose either; past `reconnect_timeout` the page is deleted and creating UI raises. A /chat
+  page opened while a turn runs (`_LIVE_TURNS`, per user, process-local) shows that conversation
+  and the answer as it streams, whatever "open with" says, then reloads it from the store.
 
 ### Reconnecting after the app was in the background
 
@@ -253,6 +267,33 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   an answer open in a new tab.
 - **Markers become placeholders before `#id` linking**, or `[^#241-p3]` turns into a document
   link mid-marker.
+- **A footnote the model defines with a web address is a web source**
+  (`web_citations._web_footnotes`): `[^1]` with `[^1]: [Title](url)` was read as
+  document #1. Its markers become inline links, the definitions go; at store
+  time only a page a tool returned keeps its link. `[Title](#356)` is a
+  document link (`chat._MD_DOC_LINK_RE`), not an anchor in the chat page.
+- **The model cites web pages with `[^Site name]` after each sentence** (prompt
+  block `web` in `config/chat_prompts.py`) — it used to be told to write
+  Markdown links, so it wrote a "Quellen" list and no numbers. A trailing
+  source list it writes anyway goes into the source box, numbered
+  (`web_citations.split_source_list`, render time).
+- **A web source is a reference number like a document's** (`chat._WEB_CITE_RUN_RE`,
+  at render — older answers too): the stored `([Name](url))` becomes a number
+  after the documents' numbers that opens the page in a new tab, and the
+  source box lists name and site as links. A screenshot of the page with the
+  passage marked was built and reverted (2026-11-07): consent walls
+  (Sourcepoint, contentpass, …) covered nearly every news page, and
+  clicking "accept" for the user is not ours to do.
+- **Source pages are pictures with a text layer** (`/api/doc-words`, same access
+  check; `page_viewer` lays the PDF's words over the picture as transparent
+  HTML spans, each stretched to the next word), so text can be selected and
+  copied. Not SVG text: Chrome painted selected SVG text white over the page. A click
+  that ends a selection does not open the viewer. A scan without a text layer
+  has none.
+- **A finding's evidence carries reference numbers** (`findings.cite_evidence`,
+  page by `page_for` at render time — no rescan): a tap opens the dock chat's
+  own source viewer over the chat (`chat-src-overlay`, "Back to the chat"),
+  which is also where the dock's own reference numbers open.
 
 ### Formulas
 
@@ -277,6 +318,76 @@ request of the app *and* the worker is bracketed with `inference_activity.track(
 model)` (shared file `data/inference_activity.json`, `flock`, written at start and end
 only). A new call path to a model goes through `track` too, or the dashboard calls the
 host idle while it works. Tracking never fails a request.
+
+A loaded model partly outside VRAM (`inference_activity.cpu_share`, from
+`/api/ps` `size` vs `size_vram`) is what makes a fast model crawl: the dashboard
+shows the share, the chat yields `OffloadEvent` once per turn, and every local
+request logs `[chat-timing]` (prompt size, first token, tokens/s). **A chat turn
+runs as a background task with no UI slot**: anything that creates UI from it
+(`ui.notify` included) goes inside `with messages_container:` — a bare
+`ui.notify` for that warning raised and ended every answer (0.20.x, hotfixed).
+
+**The context ring is an estimate of what the model reads**: system prompt +
+tool schemas of the last turn (`ctx_base_chars`) + the stored messages. Never
+Ollama's `prompt_tokens` alone — it counts only the tokens it evaluated, not a
+prefix reused from its cache (`chat_service.reported_or_estimate`).
+
+## Embedding models and indexes (admin)
+
+`docs/embedding-models.md`. Code: `services/embeddings.py` (text → vectors),
+`services/embedding_registry.py` (the admin's models, which is active),
+`services/vector_index.py` (collections per model, `ActiveCollection`),
+`services/embedding_index.py` (build, catch up, activate, delete, parity,
+compare), page `app_ui/pages/admin.py`, `services/admin.py`.
+
+- **Chroma never embeds.** Collections are opened with `embedding_function=None`
+  and `ChromaClient` passes vectors on every write and query. Text without
+  vectors would silently fall back to Chroma's own default model (MiniLM, 384
+  dimensions) — a new Chroma call path goes through `ChromaClient`, never
+  `collection.add/upsert/update/query` with text alone.
+- **`services.clients.chroma` / `brain._chroma` / `vault_chroma` are
+  `ActiveCollection`s**: each access resolves the active model's collection.
+  Switching the model needs no restart.
+- **Each model has its own three collections** (`<base>` for the first model,
+  `<base>__<model id>` after). One index belongs to one model; local and
+  remote are two ways to run it. Moving an index between them needs a passed
+  parity check (`PARITY_MIN_MEAN`): Ollama's GGUF copy is not bit-identical.
+- **A new index is the stored text embedded again** — never a re-ingest.
+  Document chunks store exactly what was embedded; brain and vault entries
+  get their context header back from `path` / `heading_path`
+  (`embedding_index.embed_text_for` — keep it equal to what the writers embed).
+- **One mechanism: make index B equal to index A** (`sync_role`), for the
+  first build, a dormant index's catch-up and the pass before activation.
+  **Activation always catches up first** — a stale active index makes Paperless
+  sync re-ingest the missing documents with the vision model.
+- **Exactly one index is active; it cannot be deleted.** A dormant index is not
+  updated. Deleting an index (or removing a model) also deletes the model's
+  files from this server's Hugging Face cache (`embeddings.delete_local_files`)
+  — only a Hugging Face id, never a folder path, never the active model's,
+  never anything on a remote endpoint. A build interrupted by a restart is paused, never resumed on its own.
+- **As few local models in RAM as needed** (`embeddings.set_pinned`): the
+  active one, plus one being built locally. The comparison loads each model
+  exclusively, one after the other, and reloads the active one after.
+- **Every query instruction comes from `query_prompt`**: `encode(prompt="")`, so a
+  model's own sentence-transformers default prompt never lands on passages, nor
+  twice on queries. e5-instruct and Qwen3 both instruct the query only.
+- **The comparison is semantic search only** — documents, distances, timings;
+  never an LLM answer. Titles come from Paperless as the admin.
+- **Distance thresholds are per model and always distances** (`embedding_registry.thresholds`,
+  `memory_hint_limits`): memory/note hint max. distance and window, archive hint,
+  similar fact — the number the tool log prints. Unset keys fall back to what every
+  install ran with: the old global similarity in `werkbank_settings`
+  (`BRAIN_HINT_THRESHOLD`, converted `1 − s`) or `.env`. They are no longer in
+  Settings (a per-user page editing a global, model-bound value); the admin area
+  holds them, plus the global max. search results.
+- **Where a model embeds is a switch on its card** ("Embeds on: This server / Remote
+  endpoint", `admin._choose_use`), reversible at any time: before a build it is free;
+  with an index the parity check runs first and the switch happens only if it passes.
+  The guide (`admin._next_step`) is about the index alone — build, continue, then
+  compare / thresholds / make active. An earlier "keep it remote" step made the
+  choice look final. "Dormant" means *was* active (`was_active`). The card counts
+  documents *and* chunks (`embedding_index.counts`): ~500 documents are ~2 600 chunks,
+  and a bare chunk count read as the number of documents.
 
 ## Experts
 
@@ -319,8 +430,11 @@ page `app_ui/pages/experts.py`.
   (`vault.router.is_config_path`); identity is `expert_id` / `skill_id`, no
   `pbrain_id`. A shared skill (`common: true`) is read from its owner's folder
   at use time; un-sharing takes it away at once; "Duplicate" is the only copy.
-- **Skills inline below `skills.INLINE_BUDGET_CHARS`, else `use_skill`** loads
-  one on demand. The wizard drafts; only the user saves. Its lint flags tool
+- **Skills are inlined per skill, else listed for `use_skill`**: short ones
+  always, the rest smallest first within a budget scaled to the model's context
+  window (`skills.inline_budget`). A skill loaded with `use_skill` is inlined on
+  every later turn of that conversation (`chat_turn_meta.skills`) — the history
+  keeps only answer text, so the loaded body would otherwise be gone. The wizard drafts; only the user saves. Its lint flags tool
   names that do not exist; its trial runs read-only tools only.
 - **A briefing is a map, not evidence.** Archive map = code; orientation =
   model, checked by `briefings.validate` (studied ids only, numbers must be in
@@ -358,14 +472,31 @@ page `app_ui/pages/experts.py`.
   is wider than tall, and orientation rules let the pickers run off screen.
 - **The folder tree under `Dossiers/` is the dossier tree**; a dossier is found
   by its `topic`, never by its path (`dossiers._path` scans).
-- **Dossier sections carry `<!-- pb:… -->` anchors**; a file without them is
-  read by position once. **Insights are code-owned** like `research`: a rebuild
+- **A folder opens its overview** (`proactive/folder_overview.py`, `_Overview.md`
+  in the folder): links come from code, the model writes only the text and one
+  line per dossier (numbers not in its input are dropped). Out of date is
+  computed — a fingerprint of the inner dossiers' name, state and questions —
+  never marked; `dossier_stale_check` queues `folder_overview` for stale ones
+  in the sweep window, after their dossiers' rescans. The file has no `topic`:
+  never a dossier, never indexed.
+- **Dossier sections carry `<!-- pb:… -->` anchors** (headings are translated).
+  **Insights are code-owned** like `research`: a rebuild
   never edits or drops them, the rebuild model sees them read-only.
 - **Provenance comes from the tool log** (`dossier_merge.provenance`, stored per
   answer in `chat_turn_meta`), never from a model: cited documents a tool
   returned, web pages a tool returned or read. Nothing is written to a dossier
   before the user saw the preview; the merge output passes `numbers_missing`.
 - `/findings/{id}?action=` deep links still never apply on load.
+- **The dock frame keeps its own URL.** NiceGUI reloads a page whose socket
+  timed out on reconnect (a phone back from standby on a train); the embedded
+  chat never `replaceState`s, and a finding's dock reopens that finding's
+  latest conversation (`context = finding:<id>`), as a dossier's does. The
+  findings page reloads a frame that is still dead 8 s after the page comes
+  back (`pbmDockHeal`) — never one with text in the input.
+- **A source in the dock opens in the chat's drawer below 768 px**, Source tab
+  (`_EMBED_CSS`); the full-screen `chat-src-overlay` is only for a wide compact
+  dock, which has no drawer. `__pbSrcHost` picks the Source pane by its area on
+  screen — the hidden ones still have an `offsetParent`.
 - **Hand-added documents (`added_docs`) are code-owned** like insights: a
   rebuild reads them and never drops them. "Rescan" (job `dossier_relook`) is
   user-requested, so it may run outside the sweep windows and wake the host.
@@ -379,8 +510,52 @@ page `app_ui/pages/experts.py`.
   `dropped_questions`, both code-owned, so no rebuild brings them back.
   "Ask the chat" only fills the dock's input — the user sends it.
 - **A model's list may arrive as a JSON string** (`dossiers._as_list`); iterating
-  it filed every character as a question. Files already split that way read as
-  no questions (`heal_questions`) until the next rescan.
+  it filed every character as a question.
+- **Archive and trash are shelves, not states**: `Dossiers/_Archive/` and
+  `Dossiers/_Deleted/`, outside the tree, `load` and `list_dossiers`. An
+  archived topic writes new findings as done and only notes new documents;
+  a reset deletes the dossier and its findings and queues `doc_reprocess`.
+  A deleted dossier is a record in `_Deleted/` — restorable, resettable.
+- **A finding's dock chat is about that finding** (its dossier comes along as
+  context), a fresh conversation per finding, and pins nothing: pins are the
+  user's across every chat, and the inbox left each finding's documents there.
+- **Saving to a dossier never proposes questions** — the model only says which
+  existing ones the excerpt answers; its new ones were invented.
+- **The chat never offers to change a finding or dossier** (`chat._CTX_READ_ONLY`
+  in both context blocks): no tool does it, so "shall I update the finding?"
+  ended in nothing. In the dock, "Save to dossier" is a button of its own.
+- **Settings are a menu and one pane** (`settings._group` / `_show`, `?s=<group>`):
+  a fixed layout where only the pane scrolls, tabs on a phone — the expansion
+  panels had become one long scroll.
+- **Triage is offered every dossier by name** (`triage._labels`), similar
+  documents carry the dossier they are in (`_doc_dossiers` — hand-added ones
+  too), and every topic key goes through `dossiers.resolve_topic` (own key,
+  a merged-in alias, a renamed dossier's name) — in triage and for deadlines.
+  Names are never matched by similarity: "Altersvorsorge" is part of
+  "Altersvorsorge - Metallrente".
+- **Merge and move are code-owned**: `dossiers.merge` hands over findings,
+  documents, insights, questions and research and keeps the source key as an
+  alias (the source becomes a `_Deleted/` record with `merged_into`);
+  `move_documents` puts documents into `excluded_docs` of the source for good
+  (a rebuild or a finding cannot bring them back) and takes a finding along
+  when all its documents moved.
+- **A hand change marks the dossier `stale`** (add, move, take out, merge,
+  filing a finding with new documents); only a rescan (`dossier_relook`, it
+  reads every document) clears it — an update for one new letter keeps it.
+  The navigator lists them under "Rescan pending" with "Rescan all";
+  `topics.dossier_stale_check` queues the rest inside a sweep window, so
+  nothing waits past the night.
+- **Every findings dialog is a child of the page** (`findings._page_dialog`),
+  never of the navigator or viewer: their re-render (the 20 s watch after a
+  worker write, or the action itself) took the dialog's buttons with them —
+  "Rename" and "Merge" hung until F5.
+- **The overview is one row per topic** (`app_ui/findings_chart`), never a
+  chart: every chart cut the topic names.
+- **A deadline's title says what to do** (`deadlines.title_for`, the
+  analysis' description), not "<kind>: <file name> (<date>)".
+- **A push tap keeps its path** (`static/sw.js`): any address of the app is
+  mapped onto the installed one; a window the worker cannot navigate is told
+  by message (`layout.PUSH_OPEN_JS`), and the login returns to the target.
 
 ## Deployment target
 
@@ -393,17 +568,13 @@ LXC container (see `.deploy.env` for target host), remote path from `DEPLOY_REMO
 Spezifikation (v2, maßgeblich): `docs/werkbank-architecture.md`
 Bauplan + Umsetzungsstand: `docs/werkbank-tasks.md`
 Bestandsaufnahme, Tool-Inventar, Tool→Archetyp-Zuordnung: `docs/werkbank-v2-findings.md`
-Abgelöstes v1: `docs/werkbank-v1-legacy.md`
 
-**v2 ist live.** `/werkbank` ist `werkbank/v2/ui/page.py`, ein Lauf geht durch
-`werkbank/v2/pipeline.py`, die Chat-Übergabe startet einen v2-Lauf. Der
-v1-Ausführungspfad (`orchestrator.py`, `scheduler.py`, `roles/`, `compaction.py`,
-`prechecks.py`, `ui/module_page.py`, `ui/task_dialog.py`) ist aus jedem Live-Pfad
-entfernt, trägt einen `DEPRECATED`-Header und liegt noch **eine Release** auf der
-Platte, bis v2 einen vollständigen Lauf auf echten Daten bestanden hat — danach
-löschen. Weiter in Benutzung und **nicht** deprecated: `repository.py`,
-`models.py`, `archetypes.py`, `settings_store.py`, `export.py`, `llm_lane.py`,
-`ui/archetype_dialog.py`.
+`/werkbank` ist `werkbank/v2/ui/page.py`, ein Lauf geht durch
+`werkbank/v2/pipeline.py`, die Chat-Übergabe startet einen v2-Lauf. v1
+(Orchestrator, Splitter, Kompaktierung, Task-Tabellen) ist gelöscht (0.20.0).
+Außerhalb von `v2/` liegen nur noch geteilte Teile: `repository.py` (Archetypen),
+`models.py`, `archetypes.py`, `settings_store.py`, `export.py` (`upload_pdf` für
+den Chat), `llm_lane.py`, `ui/archetype_dialog.py`.
 
 ### v2 — nicht verhandelbar
 
@@ -479,7 +650,7 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   Jeder Subtask kostet Modellaufrufe, also entscheidet der Nutzer, nicht der
   Prozessstart (`store.reset_stale_runs()`).
 
-### v1 — Prinzipien (gelten unverändert in v2 weiter)
+### Prinzipien aus v1 (gelten in v2 weiter)
 
 - **Der Orchestrator ist deterministischer Python-Code, kein LLM.** Steuerung
   (Reihenfolge, Status, Retries, Fehler) ist Python; kognitive Arbeit nur innerhalb
@@ -493,8 +664,8 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   untergraben. In v2 gehen Berichte gar nicht mehr nach Paperless (kein
   „Save to Paperless"), sondern als Notiz in den Vault (`vault/research.py`,
   siehe *Research notes*).
-- **User-Scoping auf JEDER Repository-Query.** `user_id` liegt auf allen drei
-  Tabellen (auch denormalisiert auf `agent_subtasks` als Defense-in-Depth).
+- **User-Scoping auf JEDER Repository-Query.** `user_id` liegt auf jeder Tabelle
+  (`agent_archetypes`, `wb2_*`, auch denormalisiert als Defense-in-Depth).
 
 ### Architektur-Entscheidungen mit Begründung
 
@@ -502,15 +673,12 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
   relationale Daten ohne Ähnlichkeitsbezug. Chroma bleibt für Vektoren.
 - **Nebenläufigkeit = per-Backend-Lanes.** Lokale Ollama-Instanz = `Semaphore(1)`;
   Claude-API = `Semaphore(N)`. Limitierende Ressource ist die GPU, nicht "ein Task
-  global". v1: Nebenläufigkeit nur zwischen Tasks.
+  global".
 - **Sub-Tasks = DAG via `depends_on`.** Subsumiert die lineare Kette. Ready-Set-Walk:
   ausführbar, wenn alle Abhängigkeiten `DONE`.
-- **System-Rollen (Planner/Splitter/Critic/Synthesizer) vs. Worker-Archetypen.**
-  Erstere: Prompts in Settings, fest. Letztere: Nutzer-CRUD in SQLite, Defaults
-  `retriever` + `researcher`.
-- **Splitter-Robustheit = Generierungs-Constraint + Validierung.** Ollama `format`
-  mit JSON-Schema (bzw. Claude Tool-Use) erzwingt valide Struktur; danach 8-stufige
-  semantische Validierung; Retry-mit-Feedback; Einzel-Sub-Task-Fallback.
+- **System-Rollen (Briefer/Planner/Critics/Writer) vs. Worker-Archetypen.**
+  Erstere: Prompts in Settings überschreibbar (`werkbank/v2/prompts.py`). Letztere:
+  Nutzer-CRUD in SQLite, Defaults aus `config/agents.yaml`.
 - **Failed-Policy = weitermachen.** Gescheiterter Sub-Task → Platzhalter, Synthesizer
   vermerkt die Lücke. Kein Gesamt-Abbruch.
 - **Stop/Resume durch Persistenz.** Jedes Sub-Task-Ergebnis wird sofort gespeichert;
@@ -518,9 +686,10 @@ prüft, was das LLM behauptet.** Alles Folgende ist eine Konsequenz daraus.
 
 ### Projektspezifische Fakten (gelten ggf. projektweit)
 
-- Embedding-Modell: `intfloat/multilingual-e5-large-instruct` — **immer mit
-  Instruct-Prefixes** verwenden (Query- vs. Passage-Prefix), sonst sinkt die
-  Retrieval-Qualität und Distanzen werden untrennscharf.
+- Embedding-Modell: vom Admin gewählt (`services/embedding_registry.py`),
+  Start mit `intfloat/multilingual-e5-large-instruct`. Die Anfrage bekommt die
+  Instruktion des Modells (`query_prompt`), gespeicherter Text nie — sonst
+  sinkt die Retrieval-Qualität und Distanzen werden untrennscharf.
 - Lokale Inferenz über Ollama; per-User Claude-API-Key liegt verschlüsselt pro User
   (vorhandene Datei), nie Klartext in SQLite.
 - Bestehende Komponenten anbinden, nicht neu bauen: LLM-Client, Tool-Registry,
@@ -772,9 +941,9 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
 
 ## Embedding
 
-- Reuse the existing `multilingual-e5-large-instruct` helper; it already handles the instruct
-  prefixes. Passages embedded as-is; `*_search` queries use the instruct query prefix. Do not
-  reinvent the embedding path.
+- Reuse the existing embedding path (`ChromaClient` → `services/embeddings.py`); it handles the
+  active model's query instruction. Passages embedded as-is; `*_search` queries get the
+  instruction. Do not reinvent the embedding path.
 
 ## Do-not list
 

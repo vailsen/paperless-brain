@@ -3,7 +3,7 @@
 
 import json
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 
 from services.chroma import ChromaClient

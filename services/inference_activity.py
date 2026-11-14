@@ -185,6 +185,20 @@ def snapshot(host: str, now: float | None = None) -> dict:
     return {"running": running, "last": last}
 
 
+def cpu_share(entry: dict) -> int:
+    """Percent of a model in `/api/ps` that Ollama keeps outside VRAM (0–100).
+    A model partly in system RAM runs at CPU speed — the usual reason a
+    normally fast model crawls."""
+    try:
+        size = int(entry.get("size") or 0)
+        vram = int(entry.get("size_vram") or 0)
+    except (TypeError, ValueError):
+        return 0
+    if size <= 0 or vram >= size:
+        return 0
+    return round(100 * (size - vram) / size)
+
+
 async def loaded_models(base_url: str) -> list[dict] | None:
     """Ollama `/api/ps`: what sits in memory. None when the host does not answer."""
     import httpx

@@ -48,6 +48,7 @@ from services.chat_service import (
     DocsRetrievedEvent,
     DocxRequestEvent,
     DoneEvent,
+    OffloadEvent,
     DownloadRequestEvent,
     EmailRequestEvent,
     ImageDisplayEvent,
@@ -70,14 +71,23 @@ from services.chat_service import (
 )
 from services.clients import get_session_paperless
 from services import dossier_merge as _dossier_merge
+from services import skills as _skills_mod
 from services.markdown_text import escape_intraword_underscores
 from services.credential_store import load_credentials, save_credentials
 import services.chat_history_service as _chat_hist
 
 _DOC_ID_RE = re.compile(r"(?<!\]\()(?<![`\w])(#)(\d+)\b")
+# A model links a document by its number: "[Segmentfreigabe L4](#356)" — an
+# anchor in the chat's own page, which did nothing.
+_MD_DOC_LINK_RE = re.compile(r"\[([^\]\n]{1,200})\]\(#(\d{1,7})\)")
+# A web source as `services/web_citations` stores it: "([Name](url), [B](url))".
+# Shown as reference numbers like a document's, the links in the source box.
+_WEB_LINK = r"\[[^\]\n]{1,200}\]\(https?://[^)\s]+\)"
+_WEB_CITE_RUN_RE = re.compile(r"[ \t]?\((" + _WEB_LINK + r"(?:, " + _WEB_LINK + r")*)\)")
+_WEB_ONE_RE = re.compile(r"\[([^\]\n]{1,200})\]\((https?://[^)\s]+)\)")
 _VAULT_LINK_RE = re.compile(r"\[([^\]]+)\]\(vault:([a-f0-9-]{32,})\)")
 _VAULT_WIKI_RE = re.compile(r"`?\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]`?")
-_PARTIAL_CITE_RE = re.compile(r"\^?\[\^[^\]\s]{0,16}$|\^$")
+_PARTIAL_CITE_RE = re.compile(r"\^?\[\^[^\]\s]{0,16}$|\^\[(?:#?\d[^\]\s]{0,15})?$|\^$")
 _MD_TABLE_RE = re.compile(r"^\|.+\|[ \t]*\n\|[-: |]+\|", re.MULTILINE)
 
 
@@ -171,6 +181,38 @@ def _inject_doc_links(
     text = web_citations.plain_web_refs(text)
     text, sources = number_citations(text, _sup)
 
+    # Web sources: numbered after the documents, in order of first use; the
+    # number opens the page in a new tab, the box below lists name and link.
+    web: dict[str, tuple[int, str]] = {}
+
+    def _web_run(m: re.Match) -> str:
+        chips = []
+        for name, url in _WEB_ONE_RE.findall(m.group(1)):
+            if url not in web:
+                web[url] = (len(sources) + len(web) + 1, name)
+            n = web[url][0]
+            sups.append(
+                f'<a class="pb-cite pb-web-cite" href="{_html.escape(url, quote=True)}" target="_blank" '
+                f'rel="noopener" title="{_html.escape(name, quote=True)}">{n}</a>'
+            )
+            chips.append(f"\x00{len(sups) - 1}\x00")
+        return "".join(chips)
+
+    text = _WEB_CITE_RUN_RE.sub(_web_run, text)
+    # A source list the model wrote at the end anyway: into the box, numbered.
+    text, listed = web_citations.split_source_list(text)
+    for name, url in listed:
+        if url not in web:
+            web[url] = (len(sources) + len(web) + 1, name)
+
+    text = _MD_DOC_LINK_RE.sub(
+        lambda m: (
+            f'<a href="#" data-doc-id="{m.group(2)}" '
+            f'style="color:var(--c-accent-text);text-decoration:underline;cursor:pointer;'
+            f'touch-action:manipulation;">{m.group(1)} (&num;{m.group(2)})</a>'  # entity: no '#' for the pass below
+        ),
+        text,
+    )
     text = _DOC_ID_RE.sub(
         lambda m: (
             f'<a href="#" data-doc-id="{m.group(2)}" '
@@ -181,13 +223,14 @@ def _inject_doc_links(
         ),
         text,
     )
-    if not sources:
+    if not sources and not web:
         return text
     text = re.sub("\x00(\\d+)\x00", lambda m: sups[int(m.group(1))], text)
-    return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}) + "\n"
+    return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}, web) + "\n"
 
 
-def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str]) -> str:
+def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str],
+                   web: dict[str, tuple[int, str]] | None = None) -> str:
     """The source box under an answer: one row per document, its cited pages as
     numbered chips that open the page. A title not known yet is filled in by
     the browser once ``_fill_cite_titles`` has it."""
@@ -212,6 +255,28 @@ def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str]) 
             f'<span class="pb-cite-title" data-doc="{doc}">{title}</span>'
             f'<span class="pb-cite-id">#{doc}</span></a>'
             f'<span class="pb-cite-pages">{chips}</span></div>'
+        )
+    for url, (n, name) in sorted((web or {}).items(), key=lambda kv: kv[1][0]):
+        from urllib.parse import urlparse
+
+        host = urlparse(url).hostname or ""
+        host = host[4:] if host.startswith("www.") else host
+        u = _html.escape(url, quote=True)
+        site = host
+        if name.lower().removeprefix("www.") == host.lower():
+            # Only the site's name: the address itself says which page — whole,
+            # site first, shortened in the middle so its end (often the
+            # article's id) stays; the full address on hover.
+            full = url.split("://", 1)[-1].removeprefix("www.").split("?")[0].rstrip("/")
+            name = full if len(full) <= 90 else f"{full[:50]}…{full[-35:]}"
+            site = ""
+        rows.append(
+            f'<div class="pb-cite-doc"><a href="{u}" target="_blank" rel="noopener" class="pb-cite-doclink" '
+            f'title="{u}">'
+            f'<span class="pb-cite-title">{_html.escape(name)}</span>'
+            f'<span class="pb-cite-id">{_html.escape(site)}</span></a>'
+            f'<span class="pb-cite-pages"><a class="pb-cite-item is-bare" href="{u}" target="_blank" '
+            f'rel="noopener"><b>{n}</b></a></span></div>'
         )
     head = _html.escape(_("Sources"))
     return f'<div class="pb-cite-list"><div class="pb-cite-head">{head}</div>{"".join(rows)}</div>'
@@ -256,6 +321,9 @@ async def _resolve_vault_wiki_links(text: str, index: dict, username: str) -> No
 
 
 _TABS_H = "48px"
+#: German prose and JSON tool schemas run 3–4 characters a token in the
+#: tokenizers in use; the meter is an estimate either way.
+_CHARS_PER_TOKEN = 3.5
 
 # ── Tool groups (display name, icon, [tool names in TOOL_DEFINITIONS]) ────────
 _TOOL_GROUPS: list[tuple[str, str, list[str]]] = [
@@ -545,6 +613,14 @@ html, body { overflow: hidden !important; }
 .chat-input-tool { flex-shrink: 0; min-width: 36px; width: 36px; height: 36px;
     color: var(--c-text-muted); border-radius: 10px; }
 .chat-input-tool:hover { color: var(--c-text); }
+/* A phone: tools and compression move from the input row into the
+   conversation menu above the chat — the row is the input, mic and send. */
+.chat-menu-tool { display: none !important; }
+@media (max-width: 767px) {
+    .chat-input-row .chat-input-tool { display: none !important; }
+    body:not(.pb-compact) .chat-menu-tool { display: flex !important; }
+    .chat-input-row { padding: 8px 10px !important; }
+}
 .chat-send-btn { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; }
 .chat-send-btn .q-icon { font-size: 20px; }
 /* Mic button active state */
@@ -604,11 +680,14 @@ html, body { overflow: hidden !important; }
     cursor: pointer; user-select: none; touch-action: manipulation;
 }
 .pb-cite:hover, .pb-cite-item:hover { color: var(--c-text); }
+.chat-md a.pb-web-cite, .chat-md a.pb-cite-item { text-decoration: none; color: var(--c-accent-text); }
 /* The user's own message: an accent tint, not a solid slab. */
 .pb-user-bubble {
     background: var(--c-accent-soft); border: 1px solid var(--c-accent-border);
     border-radius: 12px 12px 3px 12px; padding: 10px 14px; font-size: 0.875rem;
     color: var(--c-text); word-break: break-word; line-height: 1.5;
+    /* The user's line breaks (Shift+Enter) are part of what they wrote. */
+    white-space: pre-wrap;
 }
 .chat-bubble { border: 1px solid var(--c-border); }
 /* Quasar's default track is a pale grey that vanishes on the light surface.
@@ -675,6 +754,11 @@ html, body { overflow: hidden !important; }
     overflow-wrap: anywhere; white-space: pre-wrap;
 }
 .pb-src-page { position: relative; margin: 8px; background: #fff; }
+.chat-src-overlay { position: fixed; inset: 0; z-index: 5000; display: none; flex-direction: column;
+    background: var(--c-bg); }
+.chat-src-overlay.open { display: flex; }
+.chat-src-overlay-bar { flex-shrink: 0; padding: 4px 6px; border-bottom: 1px solid var(--c-border); }
+.chat-src-overlay-body { position: relative; flex: 1; min-height: 0; }
 .pb-src-img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .pb-src-hl {
     position: absolute; pointer-events: none; border-radius: 2px;
@@ -755,6 +839,20 @@ body.pb-compact .chat-splitter > .q-splitter__before{width:100%!important;}
 body.pb-compact .chat-input-row{padding:6px 10px!important;}
 .chat-head{padding:0 8px!important;gap:6px!important;}
 body.pb-compact .chat-dock-min, body:not(.pb-compact) .chat-dock-max{display:none!important;}
+/* The full-screen source layer is only for the compact dock, which has no
+   drawer. Maximized, the drawer on the right shows the source — the layer
+   covered it until "Back to the chat" revealed it. */
+body:not(.pb-compact) .chat-src-overlay.open{display:none!important;}
+/* A phone-width dock: a reference number opens the document drawer on its
+   Source tab, as in the full chat — the full-screen source layer read as a
+   viewer, and tapping a page opens the viewer anyway. The layer stays for a
+   wide compact dock, which has no drawer. No app header in the frame. */
+@media (max-width: 767px) {
+  body.pb-compact div.chat-docs-mobile{display:block!important;}
+  body.pb-compact .chat-docs-scrim.open{display:block!important;}
+  .chat-src-overlay.open{display:none!important;}
+  .chat-docs-mobile, .chat-docs-scrim{top:0!important;}
+}
 </style>
 <script>
 // The findings page says whether its dock is maximized (pb-dock-mode).
@@ -764,6 +862,21 @@ window.addEventListener('message',function(e){
   document.body.classList.toggle('pb-compact',!e.data.full);
 });
 </script>"""
+
+
+#: The chat can read a finding or dossier, never change one: offering to
+#: "update the finding" ended in nothing happening (there is no such tool).
+_CTX_READ_ONLY = (
+    "You cannot change findings or dossiers — no tool does that, so never offer to update, note or "
+    "file anything in them. To keep an answer, the user presses \"Save to dossier\" under it."
+)
+
+
+#: The chat turn each user has running in /chat, by username. A turn runs on in
+#: the background when its page is left for another module; a /chat page opened
+#: meanwhile shows it (live) instead of the stale state, and its answer lands in
+#: the conversation either way. Process-local, like the turn itself.
+_LIVE_TURNS: dict[str, dict] = {}
 
 
 @ui.page("/chat")
@@ -845,10 +958,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         try:
             # Try vault collection first, then brain (fact) collection
             items = await vault_chroma.get(where={"pbrain_id": {"$eq": pbrain_id}})
-            is_brain = False
             if not items:
                 items = await brain._chroma.get(ids=[pbrain_id])
-                is_brain = bool(items)
             if not items:
                 ui.notify(_("Note not found."), type="warning")
                 return
@@ -1386,8 +1497,14 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
     # ── History drawer helpers ────────────────────────────────────────────────
 
     def _est_tokens() -> int:
-        """Rough token estimate from current messages (1 token ≈ 4 chars)."""
-        return max(0, sum(len(str(m.get("content", ""))) for m in _s["messages"]) // 4)
+        """What the model reads at the start of the next turn: the system
+        prompt and tool definitions of the last turn (`ctx_base_chars`) plus
+        the conversation. Counting only the messages left out the part that
+        is there on every turn — a long chat read 2 % of a 141k window.
+        Ollama's own count is no help: it reports only the tokens it had to
+        evaluate, not those reused from its cache."""
+        chars = sum(len(str(m.get("content", ""))) for m in _s["messages"])
+        return max(0, int((chars + int(_s.get("ctx_base_chars") or 0)) / _CHARS_PER_TOKEN))
 
     def _get_model_ctx_win() -> int:
         """Context window from model config — used before first API response."""
@@ -1507,6 +1624,11 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 remove="text-gray-600 text-amber-500",
                 add="text-amber-500" if ratio >= 0.75 else "text-gray-600",
             )
+            # On a phone compression lives in this menu: the hint goes with it.
+            conv_menu_btn.classes(
+                remove="text-gray-400 text-amber-500",
+                add="text-amber-500" if ratio >= 0.75 else "text-gray-400",
+            )
         else:
             # No window size known yet (before the first answer). An empty chat
             # still uses exactly 0 % of any window — say so instead of an empty
@@ -1516,6 +1638,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             ctx_pct_label.set_text("0%" if ct == 0 else "–")
             ctx_tt.set_text(_("Context: –"))
             compact_btn.classes(remove="text-amber-500", add="text-gray-600")
+            conv_menu_btn.classes(remove="text-amber-500", add="text-gray-400")
 
     def _load_conv(conv_id: str) -> None:
         if conv_id != _s.get("conv_id"):
@@ -1552,6 +1675,16 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 _fill_titles_later(messages)
         _update_context_progress()
         _set_history_visible(False)
+        _scroll_bottom_later()
+
+    def _scroll_bottom_later() -> None:
+        """To the newest message — now and again once markdown, tables and
+        pictures have their height (a switch from the history landed mid-way)."""
+        messages_scroll.scroll_to(percent=1.0)
+        ui.run_javascript(
+            "(function(){var f=function(){var e=document.querySelector("
+            "'.chat-messages-scroll .q-scrollarea__container');if(e){e.scrollTop=e.scrollHeight;}};"
+            "f();[80,250,600,1200,2000].forEach(function(t){setTimeout(f,t);});})()")
 
     def _delete_conv(conv_id: str) -> None:
         _chat_hist.delete_conversation(conv_id, _username)
@@ -1834,6 +1967,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         else:
             mobile_docs.classes(remove="open")
             scrim.classes(remove="open")
+            if _drawer.get("src_overlay") is not None:  # the dock's source layer goes too
+                _drawer["src_overlay"].classes(remove="open")
             docs_edge_handle.classes(remove="open")
             docs_handle_icon.set_name("chevron_left")
 
@@ -1976,12 +2111,29 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         else:
                             ui.label(_("No models configured")).classes("text-xs text-red-400 self-center")
 
-                        ui.button(
-                            icon="delete_sweep",
-                            on_click=lambda: _clear_chat(),
-                        ).props("flat dark dense").classes("text-gray-400").tooltip(
-                            _("Delete conversation")
-                        )
+                        # What acts on the whole conversation sits above it, in
+                        # one menu: download and delete — and on a phone also
+                        # tools and compression, so the input row is the input.
+                        def _conv_item(icon: str, label: str, on_click, cls: str = ""):
+                            with ui.menu_item(on_click=on_click).classes(cls) as it:
+                                with ui.row().classes("items-center gap-3 no-wrap"):
+                                    ui.icon(icon, size="1.15rem").classes("text-gray-500")
+                                    ui.label(label).classes("text-sm")
+                            return it
+
+                        # color=None: the glyph inherits the text colour; the
+                        # accent is not a "menu" colour.
+                        with ui.button(icon="more_vert", color=None).props("flat dark dense").classes(
+                                "text-gray-400 chat-conv-menu").tooltip(_("Conversation")) as conv_menu_btn:
+                            with ui.menu().props("auto-close"):
+                                _conv_item("download", _("Download conversation as Markdown"),
+                                           lambda: _dl_conversation())
+                                _conv_item("tune", _("Configure tools"),
+                                           lambda: _toggle_tools_panel(), "chat-menu-tool")
+                                _conv_item("compress", _("Compress chat"),
+                                           lambda: asyncio.ensure_future(_compact_chat()), "chat-menu-tool")
+                                ui.separator()
+                                _conv_item("delete_sweep", _("Delete conversation"), lambda: _clear_chat())
                         if _embed:
                             # The findings dock: maximize / back, in this row. A
                             # message to the page around it — no server round trip,
@@ -2266,20 +2418,6 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             )
                             compact_btn.on_click(lambda: asyncio.ensure_future(_compact_chat()))
 
-                            def _dl_conversation() -> None:
-                                from app_ui.chat_export import conversation_markdown
-
-                                md = conversation_markdown(
-                                    _s["messages"], you=_("You"), assistant=_expert().name or "PaperlessBrain")
-                                if not md:
-                                    ui.notify(_("Nothing to download yet."), type="info")
-                                    return
-                                ui.download(md.encode("utf-8"), _("conversation.md"), media_type="text/markdown")
-
-                            (ui.button(icon="download", color=None, on_click=_dl_conversation)
-                             .props("flat dark").classes("chat-input-tool")
-                             .tooltip(_("Download conversation as Markdown")))
-
                             input_field = (
                                 ui.textarea(placeholder=_("Message …"))
                                 .classes("flex-1 chat-main-input")
@@ -2308,7 +2446,11 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
 </script>""")
 
                             def _handle_send_or_stop() -> None:
-                                if _s["running"]:
+                                _live = _s.get("adopted")
+                                if _live and not _live["done"]:
+                                    # A turn from before the user left /chat.
+                                    _live["state"]["stop_requested"] = True
+                                elif _s["running"]:
                                     _s["stop_requested"] = True
                                 else:
                                     asyncio.ensure_future(do_send())
@@ -2339,6 +2481,19 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     with _rs["right_panel"]:
                         _placeholder()
                     _drawer["preview_hosts"] = [_desktop_preview, _mobile_preview]
+
+    # The findings dock has no document drawer: a source opens over the chat,
+    # with the way back on top — a reference number in the dock's own answers,
+    # and one tapped on the finding beside it (`pb-open-cite`).
+    _src_overlay = None
+    if _embed:
+        with ui.element("div").classes("chat-src-overlay") as _src_overlay:
+            with ui.row().classes("chat-src-overlay-bar items-center no-wrap"):
+                ui.button(_("Back to the chat"), icon="arrow_back",
+                          on_click=lambda: _src_overlay.classes(remove="open")).props("flat dense no-caps")
+            _embed_preview = ui.element("div").classes("chat-src-overlay-body")
+        _drawer["preview_hosts"].append(_embed_preview)
+        _drawer["src_overlay"] = _src_overlay
 
     # ── Enter key handling ────────────────────────────────────────────────────
     ui.add_head_html("""<script>
@@ -2689,6 +2844,8 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
         _rs["preview"] = {"loading": True}
         _render_preview()
         _show_drawer_tab("preview")
+        if _src_overlay is not None:
+            _src_overlay.classes(add="open")
         if not _s["docs_visible"]:
             _set_docs_visible(True)
         known = _known_result(doc_id)
@@ -2770,6 +2927,14 @@ document.addEventListener('click', function(e) {{
     // A web source in an answer opens beside the chat, never in its place.
     var ext = e.target.closest('.chat-md a[href^="http"]');
     if (ext) {{ e.preventDefault(); window.open(ext.getAttribute('href'), '_blank', 'noopener'); return; }}
+    // Open thoughts can be long: a tap anywhere in them folds them again
+    // (not while selecting text), and the bubble's top comes back into view.
+    var th = e.target.closest('details.pb-thoughts[open]');
+    if (th && !e.target.closest('summary') && !String(window.getSelection() || '')) {{
+        th.open = false;
+        var s = th.querySelector('summary');
+        if (s && s.getBoundingClientRect().top < 0) s.scrollIntoView({{block: 'nearest'}});
+    }}
 }});
 window.__openDocById = function(docId) {{
     if (!window.socket || !window.did_handshake) {{
@@ -2807,6 +2972,21 @@ window.__citeClaim = function(el) {{
     if (claim.length < 30 && sents.length) claim = sents.pop() + ' ' + claim;
     return claim.slice(-400);
 }};
+// The findings page beside the dock: open a source of the finding here.
+window.__pbOpenCiteData = function(c, claim) {{
+    if (!window.socket || !window.did_handshake) {{
+        setTimeout(function() {{ window.__pbOpenCiteData(c, claim); }}, 100);
+        return;
+    }}
+    window.socket.emit('event', {{
+        id: {_cite_handler.id}, client_id: window.clientId, listener_id: '{_cite_listener_id}',
+        args: [JSON.stringify({{c: c, claim: claim || '', others: []}})]
+    }});
+}};
+window.addEventListener('message', function(e) {{
+    if (e.origin !== window.location.origin || !e.data || e.data.type !== 'pb-open-cite') return;
+    window.__pbOpenCiteData(String(e.data.c || ''), String(e.data.claim || ''));
+}});
 window.__openCite = function(el) {{
     if (!window.socket || !window.did_handshake) {{
         setTimeout(function() {{ window.__openCite(el); }}, 100);
@@ -2835,9 +3015,19 @@ window.__openCite = function(el) {{
     }});
 }};
 // The Source tab: bring the cited passage into view, track and step pages.
+// The Source pane on screen. There is one per host (desktop panel, phone
+// drawer, dock overlay) and the hidden ones still have an offsetParent: the
+// phone drawer waits off-screen, the desktop panel has no width. Picking the
+// first one scrolled a pane nobody saw, and the passage never came into view.
 window.__pbSrcHost = function() {{
-    return Array.prototype.find.call(
-        document.querySelectorAll('.pb-src-scroll'), function(x) {{ return x.offsetParent; }});
+    var best = null, area = 0, vw = window.innerWidth, vh = window.innerHeight;
+    document.querySelectorAll('.pb-src-scroll').forEach(function(x) {{
+        var r = x.getBoundingClientRect();
+        var w = Math.min(r.right, vw) - Math.max(r.left, 0);
+        var h = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+        if (w > 0 && h > 0 && w * h > area) {{ area = w * h; best = x; }}
+    }});
+    return best;
 }};
 window.__pbScrollToHighlight = function(page, tries) {{
     tries = tries || 0;
@@ -2965,7 +3155,7 @@ window.__openVaultNote = function(noteId) {{
 
             f = _findings.get(_username, fid)  # the user's own ledger only
         _s["finding_ctx"] = (
-            {"id": f.finding_id, "title": f.title, "text": _findings.tidy_sources(f.body, f.lang)}
+            {"id": f.finding_id, "title": f.title, "text": f.body}
             if f else None
         )
         if f:
@@ -3027,10 +3217,12 @@ window.__openVaultNote = function(noteId) {{
         _render_ctx_bar()
 
     def _conv_context() -> str | None:
-        if _s.get("dossier_ctx"):
-            return f"dossier:{_s['dossier_ctx']['id']}"
+        # A finding is the narrower context: a conversation about one finding
+        # of a dossier is not the dossier's conversation the dock reopens.
         if _s.get("finding_ctx"):
             return f"finding:{_s['finding_ctx']['id']}"
+        if _s.get("dossier_ctx"):
+            return f"dossier:{_s['dossier_ctx']['id']}"
         return None
 
     # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
@@ -3069,11 +3261,35 @@ window.__openVaultNote = function(noteId) {{
         return _click
 
     def _answer_menu(idx: int, bubble_el, content: str, trace_dlg=None) -> None:
+        if _embed and content and _dossiers_on and idx >= 0:
+            _answer_menu_embed(idx, bubble_el, content, trace_dlg)
+            return
+        _answer_menu_full(idx, bubble_el, content, trace_dlg)
+
+    def _sel_snapshot_js(bubble_el) -> str:
+        return ("() => { var s = window.getSelection(); var el = document.getElementById("
+                + json.dumps(f"c{bubble_el.id}") + ");"
+                " window.__pbSelSnap = (s && !s.isCollapsed && el && el.contains(s.anchorNode))"
+                " ? {id: el.id, text: s.toString()} : null; }")
+
+    def _answer_menu_embed(idx: int, bubble_el, content: str, trace_dlg=None) -> None:
+        """In the findings dock, saving to the dossier is what an answer is
+        for: its own button, next to the "…" menu with the rest."""
+        with ui.row().classes("justify-end items-center w-full mt-1 gap-1 no-wrap"):
+            sv = ui.button(_("Save to dossier"), icon="create_new_folder", color=None).props(
+                "flat dark dense no-caps").classes("text-gray-500 text-xs").tooltip(
+                _("Select text first to save only that part"))
+            sv.on("mousedown", js_handler=_sel_snapshot_js(bubble_el))
+            sv.on_click(_save_action(idx, bubble_el))
+            _answer_menu_full(idx, bubble_el, content, trace_dlg, with_save=False, inline=True)
+
+    def _answer_menu_full(idx: int, bubble_el, content: str, trace_dlg=None, *, with_save: bool = True,
+                          inline: bool = False) -> None:
         """One "…" button under an answer: Markdown, CSV per table, save to
         dossier, tool history. Four buttons in a row did not line up and
         crowded a phone."""
         csvs = _extract_markdown_csvs(content) if content else []
-        save = _save_action(idx, bubble_el) if (content and _dossiers_on and idx >= 0) else None
+        save = _save_action(idx, bubble_el) if (with_save and content and _dossiers_on and idx >= 0) else None
         if not (content or csvs or trace_dlg):
             return
 
@@ -3086,15 +3302,13 @@ window.__openVaultNote = function(noteId) {{
                     ui.icon(icon, size="1.1rem").classes("text-gray-500")
                     ui.label(label).classes("text-sm")
 
-        with ui.row().classes("justify-end w-full mt-1"):
+        from contextlib import nullcontext
+
+        with (nullcontext() if inline else ui.row().classes("justify-end w-full mt-1")):
             # color=None: icons inherit the text colour (no accent on a tool button).
             btn = ui.button(icon="more_horiz", color=None).props("flat dark dense round").classes(
                 "text-gray-600").tooltip(_("More"))
-            btn.on("mousedown", js_handler=(
-                "() => { var s = window.getSelection(); var el = document.getElementById("
-                + json.dumps(f"c{bubble_el.id}") + ");"
-                " window.__pbSelSnap = (s && !s.isCollapsed && el && el.contains(s.anchorNode))"
-                " ? {id: el.id, text: s.toString()} : null; }"))
+            btn.on("mousedown", js_handler=_sel_snapshot_js(bubble_el))
             with btn, ui.menu().props("auto-close"):
                 if content:
                     _item("download", _("Download answer as Markdown"), _dl_md)
@@ -3379,12 +3593,89 @@ window.__openVaultNote = function(noteId) {{
             _chat_hist.delete_conversation(_s["conv_id"], _username)
         _new_conv()
 
+    def _dl_conversation() -> None:
+        from app_ui.chat_export import conversation_markdown
+
+        md = conversation_markdown(
+            _s["messages"], you=_("You"), assistant=_expert().name or "PaperlessBrain")
+        if not md:
+            ui.notify(_("Nothing to download yet."), type="info")
+            return
+        ui.download(md.encode("utf-8"), _("conversation.md"), media_type="text/markdown")
+
     async def _scroll_bottom() -> None:
         messages_scroll.scroll_to(percent=1.0)
         await asyncio.sleep(0.05)
         messages_scroll.scroll_to(percent=1.0)
 
+    def _persist_turn(turn: dict) -> None:
+        """Store what this turn added — once, and even when the page that ran
+        it is gone (the user went to another module): the answer must land in
+        the conversation whatever happens to its bubble."""
+        if turn.get("persisted") or turn.get("save_start") is None:
+            return
+        turn["persisted"] = True
+        start = turn["save_start"]
+        try:
+            # Only while this browser still has this conversation open: a page
+            # opened meanwhile may have switched to another one.
+            if _cstore.get("chat_conv_id") in (None, _s.get("conv_id")):
+                _cstore["chat_history"] = list(_s["messages"])
+                _cstore.pop("chat_fresh", None)
+                _cstore["chat_token_count"] = _s["total_tokens"]
+                _cstore["chat_context_window"] = _s["context_window"]
+                _cstore["chat_ctx_base"] = _s.get("ctx_base_chars") or 0
+        except Exception:
+            _log.warning("could not update the browser's chat state", exc_info=True)
+        new_msgs = _s["messages"][start:]
+        if not (new_msgs and _username):
+            return
+        if not _s.get("conv_id"):
+            first_user = next(
+                (m["content"] for m in _s["messages"] if m["role"] == "user"),
+                _("New conversation"),
+            )
+            _s["conv_id"] = _chat_hist.create_conversation(
+                _username, first_user[:60], expert_id=_s.get("expert_id"),
+                context=_conv_context(),
+            )
+            _cstore["chat_conv_id"] = _s["conv_id"]
+            try:
+                _refresh_history_list()
+            except Exception:
+                pass  # the page is gone; the conversation is stored
+        _chat_hist.append_messages(_s["conv_id"], _username, new_msgs)
+        for _mi, _meta in list(_s["turn_meta"].items()):
+            if _mi >= start and _meta.get("_unsaved"):
+                _meta.pop("_unsaved", None)
+                try:
+                    _chat_hist.set_turn_meta(_s["conv_id"], _username, _mi, _meta)
+                except Exception:
+                    _log.warning("could not store turn provenance", exc_info=True)
+
     async def do_send() -> None:
+        live = _s.get("adopted")
+        if live and not live["done"]:
+            ui.notify(_("The previous answer is still being written."), type="info")
+            return
+        turn: dict = {"save_start": None, "persisted": False}
+        try:
+            await _do_send_inner(turn)
+        finally:
+            try:
+                _persist_turn(turn)
+            except Exception:
+                _log.warning("could not store the chat turn", exc_info=True)
+            # A refused send (empty, or a turn already running) touches nothing.
+            if turn.get("started"):
+                _s["running"] = False
+                _s["stop_requested"] = False
+                entry = _LIVE_TURNS.get(_username)
+                if entry is not None and entry.get("state") is _s:
+                    entry["done"] = True
+                    _LIVE_TURNS.pop(_username, None)
+
+    async def _do_send_inner(_turn: dict) -> None:
         text = input_field.value.strip()
         if not text or _s["running"]:
             return
@@ -3401,6 +3692,7 @@ window.__openVaultNote = function(noteId) {{
             ui.notify(_("Sync is currently running — please wait"), type="warning")
             return
         _s["running"] = True
+        _turn["started"] = True
         _s["stop_requested"] = False
         _rs["vault_index"] = {}    # reset per-turn vault link index
         _rs["brain_results"] = []  # reset brain fact cards
@@ -3427,6 +3719,28 @@ window.__openVaultNote = function(noteId) {{
         _s["messages"].append({"role": "user", "content": text})
         await _scroll_bottom()
         await asyncio.sleep(0)
+
+        # The prompt is stored before the model is asked: a user who goes to
+        # another module and comes back finds it — and the answer once it lands.
+        # (`_username` is re-bound further down in this function, so here it is
+        # read from the session.)
+        _u = ng_app.storage.user.get("paperless_user") or ""
+        if _u:
+            try:
+                if not _s.get("conv_id"):
+                    _s["conv_id"] = _chat_hist.create_conversation(
+                        _u, text[:60], expert_id=_s.get("expert_id"),
+                        context=_conv_context(),
+                    )
+                    _refresh_history_list()
+                _chat_hist.append_messages(_s["conv_id"], _u, _s["messages"][_msg_save_start:])
+                _msg_save_start = len(_s["messages"])
+                _cstore["chat_conv_id"] = _s["conv_id"]
+                _cstore["chat_history"] = list(_s["messages"])
+                _cstore.pop("chat_fresh", None)
+            except Exception:
+                _log.warning("could not store the prompt before the turn", exc_info=True)
+        _turn["save_start"] = _msg_save_start
 
         # Sync vault before any brain/vault retrieval this turn — but only AFTER
         # the user bubble is rendered and the input is cleared, so a slow sync
@@ -3468,7 +3782,7 @@ window.__openVaultNote = function(noteId) {{
                 "content": (
                     "[The user opened this chat from a PaperlessBrain finding. The finding is "
                     "the system's own note, not evidence: cite the documents it names, never "
-                    "the finding.]\n<finding>\n# " + _fc["title"] + "\n\n"
+                    "the finding. " + _CTX_READ_ONLY + "]\n<finding>\n# " + _fc["title"] + "\n\n"
                     + _fc["text"][:FINDING_CTX_CHARS] + "\n</finding>\n\n"
                     + llm_messages[-1]["content"]
                 ),
@@ -3480,7 +3794,7 @@ window.__openVaultNote = function(noteId) {{
                 "content": (
                     "[The user is looking at this PaperlessBrain dossier. It is the system's own "
                     "summary — a map, not evidence: use its document ids to decide what to read, "
-                    "cite the documents, never the dossier.]\n<dossier>\n# " + _dc["title"] + "\n\n"
+                    "cite the documents, never the dossier. " + _CTX_READ_ONLY + "]\n<dossier>\n# " + _dc["title"] + "\n\n"
                     + _dc["text"][:FINDING_CTX_CHARS] + "\n</dossier>\n\n"
                     + llm_messages[-1]["content"]
                 ),
@@ -3518,7 +3832,7 @@ window.__openVaultNote = function(noteId) {{
                     )
                     # Persistent <details> — browser owns open/closed state; we only
                     # update the inner content div, so state is never lost on refresh.
-                    with ui.element("details").style(
+                    with ui.element("details").classes("pb-thoughts").style(
                         "margin-bottom:8px;border-left:2px solid var(--c-border);"
                         "padding-left:8px;display:none"
                     ) as _thinking_details_el:
@@ -3541,6 +3855,9 @@ window.__openVaultNote = function(noteId) {{
         await asyncio.sleep(0)
 
         accumulated = [""]
+        if _u and not _embed and _s.get("conv_id"):
+            _LIVE_TURNS[_u] = {"conv_id": _s["conv_id"], "acc": accumulated,
+                                      "state": _s, "done": False}
         thinking_chunks: list = [[]]  # list of {"text": str, "iter_label": str}
         _STRIP_THINK = re.compile(r"</?think(?:ing)?>", re.IGNORECASE)
 
@@ -3625,9 +3942,14 @@ window.__openVaultNote = function(noteId) {{
         # told to use a tool that was filtered out of its tool list.
         _exp = _expert()
         try:
+            # Skills loaded with use_skill in earlier turns: their bodies came
+            # in a tool result, and the history keeps only answer text.
+            _loaded_skills = {n for _m in (_s.get("turn_meta") or {}).values()
+                              for n in (_m.get("skills") or [])}
             _te = await _expert_prompt.for_turn(
                 _username, get_session_token() or "", _exp,
-                ctx_window=int(_s.get("context_window") or _get_model_ctx_win() or 0), _=_,
+                ctx_window=int(_s.get("context_window") or _get_model_ctx_win() or 0),
+                loaded_skills=_loaded_skills, _=_,
             )
         except Exception:  # skills/briefing are extras; the turn still runs
             _log.warning("expert prompt blocks failed", exc_info=True)
@@ -3672,6 +3994,14 @@ window.__openVaultNote = function(noteId) {{
                          "Please send your message again in a moment.").format(s=_settings.ollama_wake_timeout_s)
             return ""
 
+        _turn_tools = _active_tools(use_skill=_te.needs_use_skill)
+        # The part of every request that is not the stored conversation: the
+        # system prompt, the tool definitions and this turn's context prefixes.
+        _s["ctx_base_chars"] = (
+            len(_system) + len(json.dumps(_turn_tools, ensure_ascii=False))
+            + max(0, sum(len(str(m.get("content", ""))) for m in llm_messages)
+                  - sum(len(str(m.get("content", ""))) for m in _s["messages"])))
+        _update_context_progress()
         try:
             _wake_err = await _wake_local_host()
             if _wake_err and _wake_err != "stopped":
@@ -3680,7 +4010,7 @@ window.__openVaultNote = function(noteId) {{
                 llm_messages,
                 _system,
                 _s["temperature"],
-                tools=_active_tools(use_skill=_te.needs_use_skill),
+                tools=_turn_tools,
                 max_iterations=_s["max_iterations"],
                 answer_language=_lang,
             )):
@@ -3788,6 +4118,21 @@ window.__openVaultNote = function(noteId) {{
                         _shown_images.append(event)
                         streaming_label[0].set_content(_build_display())
 
+                elif isinstance(event, OffloadEvent):
+                    # Slow because the model does not fit the GPU — not the
+                    # connection. Said once per turn, while it still matters.
+                    # The turn runs as a background task, which has no UI slot:
+                    # a bare ui.notify raised and ended the answer.
+                    try:
+                        with messages_container:
+                            ui.notify(
+                                _("{model} runs partly on the CPU of its host ({pct} %), which makes it slow. "
+                                  "Another model in memory or a large context window takes the GPU's room.").format(
+                                    model=event.model, pct=event.cpu_percent),
+                                type="warning", timeout=12000, multi_line=True)
+                    except Exception:  # noqa: BLE001 — a hint must never cost the answer
+                        _log.warning("offload notice could not be shown", exc_info=True)
+
                 elif isinstance(event, DoneEvent):
                     status_badge[0].style("display:none;")
                     activity_row.set_visibility(False)
@@ -3847,10 +4192,15 @@ window.__openVaultNote = function(noteId) {{
                         accumulated[0], _tool_trace, model=_s.get("chat_model_name", ""),
                         expert="" if _exp.builtin else _exp.name,
                     )
-                    _prov["_unsaved"] = True
-                    _s["turn_meta"][len(_s["messages"]) - 1] = _prov
                 except Exception:
                     _log.warning("provenance failed", exc_info=True)
+                    _prov = {}
+                _loaded_now = _skills_mod.loaded_names(_tool_trace)
+                if _loaded_now:
+                    _prov["skills"] = _loaded_now
+                if _prov:
+                    _prov["_unsaved"] = True
+                    _s["turn_meta"][len(_s["messages"]) - 1] = _prov
                 _update_context_progress()  # re-estimate now that assistant msg is in history
             _md_raw = accumulated[0]
 
@@ -4364,7 +4714,6 @@ window.__openVaultNote = function(noteId) {{
                                     # chat page import-light — but inside the try, so an
                                     # import failure surfaces in the UI instead of
                                     # killing the handler silently.
-                                    from services.clients import get_session_paperless
                                     from services.doc_image_service import embed_images
                                     from services.session_auth import get_session_token
                                     from werkbank.export import upload_pdf as _upload_pdf
@@ -4548,34 +4897,51 @@ window.__openVaultNote = function(noteId) {{
             send_btn.props(add="icon=send color=primary")
             _s["running"] = False
             _s["stop_requested"] = False
-            _cstore["chat_history"] = list(_s["messages"])
-            _cstore.pop("chat_fresh", None)
-            _cstore["chat_token_count"] = _s["total_tokens"]
-            _cstore["chat_context_window"] = _s["context_window"]
+            _persist_turn(_turn)
             messages_scroll.scroll_to(percent=1.0)
 
-            # Auto-save new messages to DB
-            new_msgs = _s["messages"][_msg_save_start:]
-            if new_msgs and _username:
-                if not _s.get("conv_id"):
-                    first_user = next(
-                        (m["content"] for m in _s["messages"] if m["role"] == "user"),
-                        _("New conversation"),
-                    )
-                    _s["conv_id"] = _chat_hist.create_conversation(
-                        _username, first_user[:60], expert_id=_s.get("expert_id"),
-                        context=_conv_context(),
-                    )
-                    _cstore["chat_conv_id"] = _s["conv_id"]
-                    _refresh_history_list()
-                _chat_hist.append_messages(_s["conv_id"], _username, new_msgs)
-                for _mi, _meta in list(_s["turn_meta"].items()):
-                    if _mi >= _msg_save_start and _meta.get("_unsaved"):
-                        _meta.pop("_unsaved", None)
-                        try:
-                            _chat_hist.set_turn_meta(_s["conv_id"], _username, _mi, _meta)
-                        except Exception:
-                            _log.warning("could not store turn provenance", exc_info=True)
+    def _adopt_live(live: dict) -> None:
+        """Show a turn another (left) /chat page is still running: its
+        conversation, plus the answer as it streams. When it is done, the
+        conversation is reloaded from the store — the answer with its sources."""
+        _load_conv(live["conv_id"])
+        _s["adopted"] = live
+        send_btn.props(add="icon=stop color=red")
+        with messages_container:
+            with ui.row().classes("justify-start w-full"):
+                with ui.element("div").classes("chat-bubble").style(
+                    "background:var(--c-surface-3); border-radius:0 12px 12px 12px;"
+                    "padding:10px 14px; max-width:85%;min-width:0; font-size:0.875rem; color:var(--c-text-2);"
+                    "display:flex; flex-direction:column; gap:6px;"
+                ):
+                    with ui.row().classes("items-center gap-2"):
+                        ui.spinner(size="xs").classes("pb-accent-text")
+                        ui.label(_("The answer is still being written …")).classes("text-xs pb-accent-text")
+                    live_md = ui.markdown("", sanitize=False, extras=_MD_EXTRAS).classes("chat-md")
+        _scroll_bottom_later()
+        seen = [""]
+
+        def _tick() -> None:
+            text = live["acc"][0] or ""
+            if text != seen[0] and not live_md.is_deleted:
+                seen[0] = text
+                live_md.set_content(escape_intraword_underscores(text))
+                messages_scroll.scroll_to(percent=1.0)
+            if not live["done"]:
+                return
+            live_timer.deactivate()
+            _s.pop("adopted", None)
+            send_btn.props(remove="icon=stop color=red")
+            send_btn.props(add="icon=send color=primary")
+            if _s.get("conv_id") == live["conv_id"]:
+                _load_conv(live["conv_id"])
+                try:
+                    _cstore["chat_history"] = list(_s["messages"])
+                except Exception:
+                    pass
+            _refresh_history_list()
+
+        live_timer = ui.timer(0.5, _tick)
 
     # ── Restore or initialize chat ────────────────────────────────────────────
     # Per-user setting: open the last conversation (default) or a fresh one.
@@ -4603,46 +4969,56 @@ window.__openVaultNote = function(noteId) {{
             _apply_expert(_want_expert)
         if _s.get("dossier_ctx") is None:
             _set_dossier_ctx(dossier)
-    if get_pref("chat_on_open", "last") == "new" and not _embed:
-        for _k in ("chat_history", "chat_token_count", "chat_context_window", "chat_conv_id", "chat_fresh"):
-            _cstore.pop(_k, None)
-    _saved = _cstore.get("chat_history") or []
-    _latest = None
-    if (
-        not _saved
-        and _username
-        and get_pref("chat_on_open", "last") == "last"
-        and not _cstore.get("chat_fresh")
-        and not _embed
-    ):
-        _convs = _chat_hist.list_conversations(_username)
-        _latest = _convs[0]["id"] if _convs else None
-    if _latest:
-        _load_conv(_latest)
-        messages_scroll.scroll_to(percent=1.0)
-    elif _saved:
-        _s["messages"] = list(_saved)
-        _s["total_tokens"] = _cstore.get("chat_token_count", 0)
-        _s["context_window"] = _cstore.get("chat_context_window", 0)
-        _s["current_ctx_tokens"] = _s["total_tokens"]
-        # Restore conv_id so messages are linked to existing conversation, not new
-        _stored_conv_id = _cstore.get("chat_conv_id")
-        if _stored_conv_id and _username:
-            _known_ids = {c["id"] for c in _chat_hist.list_conversations(_username)}
-            if _stored_conv_id in _known_ids:
-                _s["conv_id"] = _stored_conv_id
-                _s["turn_meta"] = _chat_hist.load_turn_meta(_stored_conv_id, _username)
-                _apply_expert((_chat_hist.get_conversation(_stored_conv_id, _username) or {}).get("expert_id")
-                              or _experts_mod.UNIVERSAL_ID)
-        with messages_container:
-            for _mi, _msg in enumerate(_s["messages"]):
-                _render_stored_msg(_msg, _mi)
-            _fill_titles_later(_s["messages"])
-        _update_context_progress()
-        messages_scroll.scroll_to(percent=1.0)
-    elif not (_embed and _s["messages"]):
-        with messages_container:
-            _welcome_msg()
+    # A turn still running from before the user left /chat comes first,
+    # whatever "open with" says: the user should see the answer arrive.
+    _live = (_LIVE_TURNS.get(_username) if _username and not _embed
+             and not (conv or dossier or expert or finding) else None)
+    if _live is not None and (_live["done"] or _live.get("state") is _s):
+        _live = None
+    if _live is not None:
+        _adopt_live(_live)
+    else:
+        if get_pref("chat_on_open", "last") == "new" and not _embed:
+            for _k in ("chat_history", "chat_token_count", "chat_context_window", "chat_conv_id", "chat_fresh"):
+                _cstore.pop(_k, None)
+        _saved = _cstore.get("chat_history") or []
+        _latest = None
+        if (
+            not _saved
+            and _username
+            and get_pref("chat_on_open", "last") == "last"
+            and not _cstore.get("chat_fresh")
+            and not _embed
+        ):
+            _convs = _chat_hist.list_conversations(_username)
+            _latest = _convs[0]["id"] if _convs else None
+        if _latest:
+            _load_conv(_latest)
+            messages_scroll.scroll_to(percent=1.0)
+        elif _saved:
+            _s["messages"] = list(_saved)
+            _s["total_tokens"] = _cstore.get("chat_token_count", 0)
+            _s["context_window"] = _cstore.get("chat_context_window", 0)
+            _s["ctx_base_chars"] = _cstore.get("chat_ctx_base", 0)
+            _s["current_ctx_tokens"] = _s["total_tokens"]
+            # Restore conv_id so messages are linked to existing conversation, not new
+            _stored_conv_id = _cstore.get("chat_conv_id")
+            if _stored_conv_id and _username:
+                _known_ids = {c["id"] for c in _chat_hist.list_conversations(_username)}
+                if _stored_conv_id in _known_ids:
+                    _s["conv_id"] = _stored_conv_id
+                    _s["turn_meta"] = _chat_hist.load_turn_meta(_stored_conv_id, _username)
+                    _apply_expert((_chat_hist.get_conversation(_stored_conv_id, _username) or {}).get("expert_id")
+                                  or _experts_mod.UNIVERSAL_ID)
+            with messages_container:
+                for _mi, _msg in enumerate(_s["messages"]):
+                    _render_stored_msg(_msg, _mi)
+                _fill_titles_later(_s["messages"])
+            _update_context_progress()
+            messages_scroll.scroll_to(percent=1.0)
+        elif not (_embed and _s["messages"]):
+            with messages_container:
+                _welcome_msg()
     if conv and not _embed and _username:
         # "Continue in the full chat" from the findings dock: that conversation.
         if conv != _s.get("conv_id") and any(c["id"] == conv for c in _chat_hist.list_conversations(_username)):
@@ -4665,7 +5041,28 @@ window.__openVaultNote = function(noteId) {{
         from proactive import findings as _findings
 
         _f = _findings.get(_username, finding)
-        if _f is not None:
+        if _f is not None and _embed:
+            # The dock: the finding's own conversation — its latest one, if it
+            # is with the expert the dock opens with — else a fresh one. A
+            # reload of the frame must come back to it: NiceGUI reloads a page
+            # whose socket timed out on reconnect (a phone back from standby on
+            # a train), and a fresh conversation there was an empty dock.
+            # Its documents are not pinned — pins are the user's, kept across
+            # every chat, and each finding of the inbox left its documents
+            # behind. The finding's text (with its document references) is the
+            # context.
+            _want = _s.get("dock_expert") or _experts_mod.default_id(_username)
+            if not _experts_on:
+                _want = _experts_mod.UNIVERSAL_ID
+            _fconv = next((c for c in _chat_hist.list_conversations(_username)
+                           if c.get("context") == f"finding:{finding}"), None) if _username else None
+            if _fconv and (_fconv.get("expert_id") or _experts_mod.UNIVERSAL_ID) == _want:
+                _cstore["chat_conv_id"] = _fconv["id"]
+                _load_conv(_fconv["id"])
+                messages_scroll.scroll_to(percent=1.0)
+            else:
+                _new_conv()
+        elif _f is not None:
             _new_conv()
             async def _title(d: int) -> str:
                 try:
@@ -4679,8 +5076,11 @@ window.__openVaultNote = function(noteId) {{
                     _s["pinned_docs"].append({"id": _d, "title": _t})
             _sync_pin_storage()
         _set_finding_ctx(finding)
-        # A reload must not start yet another conversation.
-        ui.run_javascript("history.replaceState(null, '', '/chat')")
+        if not _embed:
+            # A reload must not start yet another conversation. Never in the
+            # dock: its frame reloads to its own URL, and `/chat` there was the
+            # full chat with the app header, in a frame the findings page sized.
+            ui.run_javascript("history.replaceState(null, '', '/chat')")
     else:
         _set_finding_ctx(_cstore.get("chat_finding"))
     _refresh_pinned_chips()

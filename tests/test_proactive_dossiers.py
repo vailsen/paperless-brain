@@ -414,3 +414,214 @@ def test_research_request_carries_notes_and_the_findings_language():
     assert "OP im April 2024 erfolgt." in req and "Wirbelgleiten Grad 4." in req
     assert req.rstrip().endswith(deep_dive_app.RESEARCH_LANGUAGE.format(language="German")) or \
         "German" in req.splitlines()[-1] or "Deutsch" in req.splitlines()[-1]
+
+
+# ── Archive and trash ─────────────────────────────────────────────────────
+
+_IDS: dict = {}
+
+
+def _fid(name):
+    from proactive import findings
+
+    return _IDS.setdefault(name, findings.new_finding_id())
+
+
+def _finding(topic, fid, status="surfaced", deadline=None, kind="insight", docs=(10,)):
+    from proactive import findings
+
+    return findings.Finding(finding_id=_fid(fid), kind=kind, title=fid, status=status, topic=topic,
+                            doc_ids=list(docs), finding_key=f"k:{fid}", deadline=deadline,
+                            deadline_kind="payment" if deadline else None, lang="en", body="x")
+
+
+def test_archive_closes_findings_notes_new_docs_and_unarchive_reopens(env):
+    from proactive import dossiers, findings
+
+    async def go():
+        await dossiers.create_manual("alice", "Bauspar", "Geld/Spar")
+        await findings.create("alice", _finding("bauspar", "f1"))
+        await findings.create("alice", _finding("bauspar", "f2", status="dismissed"))
+        await findings.create("alice", _finding("bauspar", "f3", deadline="2020-01-01", kind="deadline"))
+        a = await dossiers.archive("alice", "bauspar")
+        assert a.shelf == dossiers.ARCHIVE and a.archived_from == "Geld/Spar"
+        assert dossiers.load("alice", "bauspar") is None and dossiers.list_dossiers("alice") == []
+        assert "_Archive" not in " ".join(dossiers.folders("alice"))
+        assert findings.get("alice", _fid("f1")).status == "done"
+        assert findings.get("alice", _fid("f2")).status == "dismissed"   # closed already: not ours to reopen
+        assert set(a.closed_findings) == {_fid("f1"), _fid("f3")}
+        # an archived matter: new finding written as done, new doc only noted
+        new = await findings.create("alice", _finding("bauspar", "f4", status="new"))
+        assert new.status == "done"
+        assert await dossiers.note_archived_doc("alice", "bauspar", 12)
+        back = await dossiers.unarchive("alice", a.pbrain_id)
+        assert back.folder == "Geld/Spar" and not back.archived and 12 in back.added_docs
+        assert findings.get("alice", _fid("f1")).status == "surfaced"
+        assert findings.get("alice", _fid("f3")).status == "done"        # its date has passed
+
+    asyncio.run(go())
+
+
+def test_delete_keeps_a_record_and_findings_restore_brings_it_back(env):
+    from proactive import dossiers, findings
+
+    async def go():
+        d = await dossiers.create_manual("alice", "Bauspar")
+        await findings.create("alice", _finding("bauspar", "f1"))
+        rec = await dossiers.delete_dossier("alice", d.pbrain_id)
+        assert rec.shelf == dossiers.TRASH and rec.deleted
+        assert dossiers.load("alice", "bauspar") is None and findings.get("alice", _fid("f1")) is not None
+        assert [x.pbrain_id for x in dossiers.list_shelf("alice", dossiers.TRASH)] == [d.pbrain_id]
+        out = await dossiers.restore("alice", d.pbrain_id)
+        assert out.shelf == "" and dossiers.load("alice", "bauspar") is not None
+        assert dossiers.list_shelf("alice", dossiers.TRASH) == []
+
+    asyncio.run(go())
+
+
+def test_reset_deletes_findings_and_returns_every_document(env):
+    from proactive import dossiers, findings
+
+    async def go():
+        d = await dossiers.create_manual("alice", "Bauspar")
+        await dossiers.add_documents("alice", "bauspar", [11])
+        await findings.create("alice", _finding("bauspar", "f1", docs=(10, 12)))
+        ids = await dossiers.reset_dossier("alice", d.pbrain_id)
+        assert ids == [10, 11, 12]
+        assert findings.get("alice", _fid("f1")) is None and dossiers.load("alice", "bauspar") is None
+        (rec,) = dossiers.list_shelf("alice", dossiers.TRASH)
+        assert rec.reset and set(rec.added_docs) == {10, 11, 12}
+        # the record can be reset again later — same documents
+        assert await dossiers.reset_dossier("alice", rec.pbrain_id) == [10, 11, 12]
+        assert await dossiers.purge("alice", rec.pbrain_id)
+        assert dossiers.list_shelf("alice", dossiers.TRASH) == []
+
+    asyncio.run(go())
+
+
+def test_delete_folder_moves_its_dossiers_up(env):
+    from proactive import dossiers
+
+    async def go():
+        await dossiers.create_manual("alice", "Bauspar", "Geld/Spar")
+        await dossiers.ensure_folder("alice", "Leer")
+        assert await dossiers.delete_folder("alice", "Geld/Spar") == 1
+        assert dossiers.load("alice", "bauspar").folder == "Geld"
+        assert "Geld/Spar" not in dossiers.folders("alice")
+        assert await dossiers.delete_folder("alice", "Leer") == 0 and "Leer" not in dossiers.folders("alice")
+        with pytest.raises(dossiers.DossierError):
+            await dossiers.delete_folder("alice", "_Archive")
+
+    asyncio.run(go())
+
+
+def test_triage_offers_every_dossier_and_maps_a_renamed_one_back(env):
+    from proactive import dossiers, triage
+
+    async def go():
+        await dossiers.create_manual("alice", "Bauspar")
+        await dossiers.rename("alice", "bauspar", "LBS Vertrag")
+        assert "LBS Vertrag" in triage._labels("alice", [], "en")
+        assert triage._dossier_key("alice", "LBS Vertrag") == "bauspar"   # the dossier's own key
+        assert triage._dossier_key("alice", "Strom") == "strom"
+
+    asyncio.run(go())
+
+
+def test_merge_moves_everything_and_keeps_the_name_as_alias(env):
+    from proactive import dossiers, findings, triage
+
+    async def go():
+        a = await dossiers.create_manual("alice", "Riester")
+        b = await dossiers.create_manual("alice", "Riester-Rente")
+        await dossiers.add_documents("alice", "riester", [11])
+        await dossiers.add_question("alice", "riester", "Zulage 2025?")
+        await findings.create("alice", _finding("riester", "m1", docs=(12,)))
+        out = await dossiers.merge("alice", a.pbrain_id, b.pbrain_id)
+        assert out.topic == "riester-rente" and "riester" in out.aliases
+        assert {11, 12} <= set(dossiers.all_doc_ids("alice", out))
+        assert "Zulage 2025?" in out.open_questions
+        assert findings.get("alice", _fid("m1")).topic == "riester-rente"
+        assert dossiers.load("alice", "riester") is None
+        (rec,) = dossiers.list_shelf("alice", dossiers.TRASH)
+        assert rec.merged_into == "riester-rente"
+        # the old name now leads to the merged dossier
+        assert triage._dossier_key("alice", "Riester") == "riester-rente"
+        await dossiers.restore("alice", rec.pbrain_id)
+        assert "riester" not in dossiers.load("alice", "riester-rente").aliases
+
+    asyncio.run(go())
+
+
+def test_moved_documents_stay_out_and_take_their_findings(env):
+    from proactive import dossiers, findings, triage
+
+    async def go():
+        alt = await dossiers.create_manual("alice", "Altersvorsorge")
+        met = await dossiers.create_manual("alice", "Altersvorsorge Metallrente")
+        await dossiers.add_documents("alice", "altersvorsorge", [10, 11])
+        await findings.create("alice", _finding("altersvorsorge", "x1", docs=(11,)))
+        await findings.create("alice", _finding("altersvorsorge", "x2", docs=(10, 11)))
+        n = await dossiers.move_documents("alice", alt.pbrain_id, [11], met.pbrain_id)
+        assert n == 1 and findings.get("alice", _fid("x1")).topic == "altersvorsorge-metallrente"
+        assert findings.get("alice", _fid("x2")).topic == "altersvorsorge"   # one doc stayed
+        assert dossiers.all_doc_ids("alice", dossiers.load("alice", "altersvorsorge")) == [10]  # x2 can't pull 11 back
+        assert 11 in dossiers.all_doc_ids("alice", dossiers.load("alice", "altersvorsorge-metallrente"))
+        # a rebuild that names 11 again keeps it out
+        d = dossiers.from_result("alice", "altersvorsorge", {"doc_ids": [10, 11]}, lang="de", version=1,
+                                 existing=dossiers.load("alice", "altersvorsorge"))
+        assert 11 not in d.doc_ids
+        # triage sees where a similar document lives; the longer name is not swallowed by the shorter
+        assert triage._doc_dossiers("alice")[11] == "Altersvorsorge Metallrente"
+        assert triage._dossier_key("alice", "Altersvorsorge") == "altersvorsorge"
+
+    asyncio.run(go())
+
+
+def test_hand_changes_mark_rescan_pending_and_only_a_rescan_clears_it(env, remote):
+    from proactive import dossiers
+
+    async def go():
+        a = await dossiers.create_manual("alice", "Bauspar")
+        assert not dossiers.load("alice", "bauspar").stale
+        await dossiers.add_documents("alice", "bauspar", [10, 11])
+        assert [d.topic for d in dossiers.stale_dossiers("alice")] == ["bauspar"]
+        b = await dossiers.create_manual("alice", "Bauspar Neu")
+        await dossiers.move_documents("alice", a.pbrain_id, [11], b.pbrain_id)
+        assert {d.topic for d in dossiers.stale_dossiers("alice")} == {"bauspar", "bauspar-neu"}
+
+    asyncio.run(go())
+    # an update for one new letter keeps the mark; a rescan clears it
+    from proactive.tasks.topics import _build_or_update
+
+    asyncio.run(_build_or_update("alice", "bauspar", 10))
+    assert dossiers.load("alice", "bauspar").stale
+    asyncio.run(_build_or_update("alice", "bauspar", 0, doc_ids=[10]))
+    assert not dossiers.load("alice", "bauspar").stale
+
+
+def test_night_check_queues_a_rescan_for_each_pending_dossier(env, monkeypatch):
+    from proactive import dossiers, jobs, windows
+    from proactive.tasks import topics
+
+    asyncio.run(dossiers.create_manual("alice", "Bauspar"))
+    asyncio.run(dossiers.add_documents("alice", "bauspar", [10]))
+    monkeypatch.setattr(windows, "current", lambda *a, **k: None)
+    asyncio.run(topics.dossier_stale_check(None))
+    assert not jobs.is_pending(dossiers.relook_key("alice", "bauspar"))   # daytime: nothing
+    monkeypatch.setattr(windows, "current", lambda *a, **k: object())
+    asyncio.run(topics.dossier_stale_check(None))
+    assert jobs.is_pending(dossiers.relook_key("alice", "bauspar"))
+
+
+def test_folder_rename_keeps_its_dossiers(env):
+    from proactive import dossiers
+
+    async def go():
+        await dossiers.create_manual("alice", "Bauspar", "Geld/Spar")
+        assert await dossiers.rename_folder("alice", "Geld/Spar", "Sparen") == "Geld/Sparen"
+        assert dossiers.load("alice", "bauspar").folder == "Geld/Sparen"
+        with pytest.raises(dossiers.DossierError):
+            await dossiers.rename_folder("alice", "Geld", "_Archive")
+
+    asyncio.run(go())

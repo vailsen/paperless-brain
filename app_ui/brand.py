@@ -67,3 +67,19 @@ def head_html() -> str:
         f'<link rel="apple-touch-icon" href="/static/apple-touch-icon-{v}.png">'
         '<link rel="manifest" href="/manifest.json">'
     )
+
+
+def paperless_leaf_svg(px: int = 18) -> str:
+    """The Paperless-ngx leaf (docs/assets/logo_leaf.svg of paperless-ngx) in
+    the text colour — icons inherit text colour, the brand green would be the
+    only coloured icon in the header."""
+    return (
+        f'<svg width="{px}" height="{px}" viewBox="0 0 1000 1000" fill="currentColor" '
+        'aria-hidden="true" style="display:block;flex:none">'
+        '<path d="M341,949.1c-6.9-20.3-20.7-61.2-21.9-61-199.6-88.9-182.5-229.8-134.3-347.5,'
+        '30,137.2,268.8,148.9,146.2,336-.9,2.2,10,27.8,19.5,51.3,22.7-51.9,58.6-115.5,'
+        '55.8-120.8C178,398.7,724.9,299,807.1,18.5c83,251.5,53.1,659.8-377.4,814.9-2,1.4-63.5,'
+        '148.6-66.9,150.2-.2-2.1-33.2,2.9-30.1-8.7,1.6-7,4.8-16.2,8.2-25.6h0v-.2h.1Z'
+        'M323.1,846.2c48.3-71.9-12.7-120.8-56.9-152.2,81.2,107.4,66.4,120.8,56.9,152.2h0Z"/>'
+        '</svg>'
+    )

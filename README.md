@@ -39,6 +39,7 @@ talk to.
 - **Every claim shows its source** — answers carry reference numbers; one tap
   opens the page with the passage highlighted, from the PDF's own text layer.
   When nothing matches, nothing is marked — no confident wrong highlight.
+  Web pages are numbered sources too, linked to the page the tool actually read.
 - **Vision-LLM ingestion** — every page rendered and read by a vision model:
   summary, tables, actions and deadlines, per document type. Fully local on
   Ollama, or any cloud vision model.
@@ -57,9 +58,14 @@ talk to.
 - **Voice memos** — speak, and the transcript is tidied into structured Markdown
   and filed into your vault after you approve it. Conversation mode turns a
   recorded dialog into speaker turns. → [docs/voice-memos.md](docs/voice-memos.md)
+- **Experts** — chat personas for one slice of the archive (say, "Car" or
+  "Health"): narrowed or excluded by correspondent, type and tag, with their own
+  instructions, reusable skills and a briefing that maps their documents. The
+  scope is enforced in code, not asked of the model.
 - **Deep research** — autonomous multi-step research across **your own
   documents** alongside the web. Deterministic code checks every quote against
-  what the tools actually returned, so what survives is citable.
+  what the tools actually returned, so what survives is citable. Each report
+  becomes a note in your vault, readable as PDF.
 - **Document generation** — DIN-5008 letters, email drafts, chat-to-PDF saved
   back into Paperless. Plus notes filed on a document under your own account.
 - **OCR write-back (opt-in)** — vision-read text pushed back into Paperless,
@@ -79,9 +85,14 @@ talk to.
   finding; quiet hours you set; it learns
   which topics you care about. Every recommendation needs a quote from your
   document and a web page actually read; web queries never carry your names,
-  numbers or amounts. → [docs/proactive.md](docs/proactive.md)
+  numbers or amounts. Findings and long-running topics (dossiers with a
+  timeline, open questions and your saved insights) live in one workspace, with
+  the chat docked beside them. → [docs/proactive.md](docs/proactive.md)
 - **Email, calendar & web** — per-user IMAP and CalDAV (encrypted), web search
   through your own SearXNG with full-page reading.
+- **Wake-on-LAN GPU host** — a local model whose machine is asleep wakes it,
+  and it sleeps again when idle — never while someone is using it. The
+  dashboard shows what the GPU is doing.
 - **PWA** — installable on phone and desktop, English/German, dark/light.
 
 ## Screenshots
@@ -110,7 +121,7 @@ curl -o .env $BASE/.env.example   # fill in: PAPERLESS_URL, PAPERLESS_SUPERUSER_
 docker compose up -d              # pulls the prebuilt image from GHCR
 ```
 
-Two files, ~6 KB — nothing to clone. Prefer a fixed tag (`v0.2.0`) over `main`.
+Two files, ~6 KB — nothing to clone. Prefer a fixed tag (`v0.20.0`) over `main`.
 
 **Before the first start**, point the **vault mount** in `docker-compose.yml` at
 the directory holding your notes — one subfolder per Paperless user

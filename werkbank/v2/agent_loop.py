@@ -1,13 +1,8 @@
 """Werkbank v2 — the tool loop a runner executes in.
 
-Mirrors the message formatting of `werkbank/roles/worker.py` (three backends
-speak three dialects of "here is a tool result") but routes every execution
-through a `ToolBelt`, so the retrieved text is captured and `trust` is assigned
-at the point of retrieval.
-
-The duplication with v1's worker is deliberate and temporary: v1 stays running
-until Phase 7, and refactoring the loop it depends on to serve v2 would put the
-working module at risk for no gain. It goes when v1 does.
+Three backends speak three dialects of "here is a tool result"; every
+execution goes through a `ToolBelt`, so the retrieved text is captured and
+`trust` is assigned at the point of retrieval.
 
 The loop only *gathers*. It never asks for the answer: the model explores with
 tools, and the structured `SubtaskResult` is a separate call afterwards, made

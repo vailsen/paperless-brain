@@ -88,7 +88,8 @@ async def _build_map(user: str, token: str) -> dict:
     return m
 
 
-async def for_turn(user: str, token: str, expert, *, ctx_window: int = 0, _=lambda s: s) -> TurnExpert:
+async def for_turn(user: str, token: str, expert, *, ctx_window: int = 0,
+                   loaded_skills: set[str] | frozenset[str] = frozenset(), _=lambda s: s) -> TurnExpert:
     out = TurnExpert(personality=expert.personality or "")
     sb = scope_block(expert)
     if sb:
@@ -102,7 +103,8 @@ async def for_turn(user: str, token: str, expert, *, ctx_window: int = 0, _=lamb
         except Exception:
             pass  # the map is a convenience; the turn must not fail on it
     out.skills = skills.resolve_all(user, expert.skills)
-    block, out.needs_use_skill = skills.prompt_block(out.skills)
+    block, out.needs_use_skill = skills.prompt_block(
+        out.skills, ctx_window=ctx_window, loaded=loaded_skills)
     if block:
         out.blocks.append(block)
     return out
