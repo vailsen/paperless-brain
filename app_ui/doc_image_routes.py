@@ -80,3 +80,37 @@ async def doc_words(doc_id: int, page: int):
             _WORDS_CACHE.pop(next(iter(_WORDS_CACHE)))
         _WORDS_CACHE[key] = words
     return JSONResponse({"words": words}, headers={"Cache-Control": "private, max-age=86400"})
+
+
+# ── Original file ────────────────────────────────────────────────────────────
+# GET /api/doc-download/{doc_id} — the original file, as the download button in
+# a chat answer's source box. Same access check as the page image (the user's
+# own token, one `list_documents` lookup); the file is fetched with that token
+# too, so Paperless enforces access a second time.
+
+
+@ng_app.get("/api/doc-download/{doc_id}")
+async def doc_download(doc_id: int):
+    from urllib.parse import quote
+
+    try:
+        token = get_session_token()
+    except Exception:  # no session context
+        token = ""
+    found = await doc_image_service._visible_doc(doc_id, token)
+    if found is None:
+        return _not_found()
+    client, _doc = found
+    try:
+        data, filename = await client.download_document_named(doc_id)
+    except Exception:  # noqa: BLE001 — gone or forbidden: the same 404
+        return _not_found()
+    ascii_name = filename.encode("ascii", "replace").decode().replace('"', "_").replace("?", "_")
+    return Response(
+        content=data,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}",
+            "Cache-Control": "private, no-store",
+        },
+    )

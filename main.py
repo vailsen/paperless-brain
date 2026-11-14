@@ -18,7 +18,7 @@ import app_ui.pages.login  # noqa: F401
 import app_ui.pages.settings  # noqa: F401
 import app_ui.memo_routes  # noqa: F401  — registers POST /api/memo/transcribe
 import app_ui.vault_routes  # noqa: F401  — registers GET /api/vault/file
-import app_ui.doc_image_routes  # noqa: F401  — registers GET /api/doc-image/{doc}/{page}
+import app_ui.doc_image_routes  # noqa: F401  — GET /api/doc-image, /api/doc-words, /api/doc-download
 import app_ui.research_routes  # noqa: F401  — registers GET /api/research/pdf (research notes as PDF)
 import werkbank.v2.ui.page  # noqa: F401  — registers /werkbank
 from proactive.app import register as _register_proactive

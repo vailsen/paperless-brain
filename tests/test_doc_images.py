@@ -381,3 +381,24 @@ def test_pictures_tab_lists_only_described_pictures():
     ]}
     assert [(p, i) for p, i, _img in _pictures(sidecar)] == [(2, 0)]
     assert _pictures(None) == [] and _pictures({"pages": [{"page_text": "old"}]}) == []
+
+
+def test_download_route_checks_access_and_names_the_file(monkeypatch):
+    """The source box's download button: the user's own access, else 404."""
+
+    class Client:
+        async def download_document_named(self, doc_id):
+            return b"%PDF-1", "Rechnung März.pdf"
+
+    async def visible(doc_id, token):
+        return (Client(), object()) if token == "tok" and doc_id == 7 else None
+
+    monkeypatch.setattr(doc_image_routes.doc_image_service, "_visible_doc", visible)
+    monkeypatch.setattr(doc_image_routes, "get_session_token", lambda: "")
+    assert _run(doc_image_routes.doc_download(7)).status_code == 404
+    monkeypatch.setattr(doc_image_routes, "get_session_token", lambda: "tok")
+    assert _run(doc_image_routes.doc_download(8)).status_code == 404
+    ok = _run(doc_image_routes.doc_download(7))
+    assert ok.status_code == 200 and ok.body == b"%PDF-1"
+    cd = ok.headers["content-disposition"]
+    assert cd.startswith("attachment;") and "filename*=UTF-8''Rechnung%20M%C3%A4rz.pdf" in cd

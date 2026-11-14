@@ -137,10 +137,29 @@ stale position.
 
 ### Chat tool results that trigger UI dialogs
 
-Three tools don't execute server-side — they return a special event that the UI page (`app_ui/pages/chat.py`) intercepts to open a dialog:
+Two tools don't execute server-side — they return a special event that the UI page (`app_ui/pages/chat.py`) intercepts to open a dialog:
 - `trigger_docx_generation` → `DocxRequestEvent` → DIN-5008 letter dialog
 - `create_email` → `EmailRequestEvent` → email template dialog
-- `generate_chat_pdf` → `PdfSaveRequestEvent` → save-to-Paperless dialog
+
+**What needs no model is a button, not a tool** (2026-11-14): saving the chat to Paperless
+and starting a deep-research run are items in the conversation "…" menu
+(`_save_chat_to_paperless`, `_research_from_chat`); downloading a document is the icon on
+its row in an answer's source box (`/api/doc-download/{id}`, the user's own access check).
+The tools `generate_chat_pdf`, `create_kanban_task` and `download_document` are gone —
+each was a tool schema the model read every turn only to open a dialog.
+
+**Tool history** (`app_ui/tool_trace.py`, an answer's "…" menu): every model request
+(tokens, first token, total time — `ModelCallEvent`) and tool call (duration, the whole
+result), each result rendered only when expanded. Downloads: the history, and the raw
+request of the last model call (`TranscriptEvent`: system prompt, tool schemas, messages;
+thinking removed). Live only — nothing is stored. The trace's `output` stays capped at
+2 000 chars: provenance, web links and skills read it at that length; `output_full` is
+for display.
+
+**A manual deadline** (`create_deadline`) is a memory note (dashboard, `get_actions`,
+recall) and, with proactive on and the user opted in, also a deadline finding
+(`proactive.deadlines.manual`, status `relevant`, key `deadline:manual:<pbrain_id>`) that
+carries only the reminders.
 
 ### Credential store
 
