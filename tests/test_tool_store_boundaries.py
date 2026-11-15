@@ -22,8 +22,6 @@ WRITE_TOOLS = {
     "create_deadline",
     "update_brain_fact",
     "delete_brain_fact",
-    "trigger_docx_generation",
-    "create_email",
 }
 
 

@@ -81,13 +81,6 @@ def test_no_agent_can_write_anything():
         assert not (set(spec.tools) & writes), spec.id
 
 
-def test_no_agent_gets_a_tool_that_needs_a_browser_dialog():
-    reg = registry.load_defaults()
-    dialogs = {"trigger_docx_generation", "create_email"}
-    for spec in reg.agents.values():
-        assert not (set(spec.tools) & dialogs), spec.id
-
-
 def test_an_unconfigured_source_removes_its_agent():
     """The acceptance criterion from the tasks document, as a test."""
     reg = registry.available_agents({"paperless", "vault"})

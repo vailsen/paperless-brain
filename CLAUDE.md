@@ -135,18 +135,48 @@ must answer `pb_alive` within 1.5 s or is replaced; the retry backoff starts at
 as NiceGUI's own `reconnect_attempt` does — without it the server replays from a
 stale position.
 
-### Chat tool results that trigger UI dialogs
+### What needs no model is a button, not a tool
 
-Two tools don't execute server-side — they return a special event that the UI page (`app_ui/pages/chat.py`) intercepts to open a dialog:
-- `trigger_docx_generation` → `DocxRequestEvent` → DIN-5008 letter dialog
-- `create_email` → `EmailRequestEvent` → email template dialog
+Saving the chat to Paperless and starting a deep-research run (2026-11-14), and writing a
+letter or an email (2026-11-15) are items in the conversation "…" menu and quick chips
+(`_save_chat_to_paperless`, `_research_from_chat`, `_compose`); downloading a document is the
+icon on its row in an answer's source box (`/api/doc-download/{id}`, the user's own access
+check). The tools `generate_chat_pdf`, `create_kanban_task`, `download_document`,
+`trigger_docx_generation` and `create_email` are gone — each was a tool schema the model read
+on every call only to open a dialog. The letter / email dialog (`app_ui/compose_dialogs.py`)
+drafts from the conversation with **one model call without tools**, only when opened; the
+fields stay editable and nothing is sent or saved without the user.
 
-**What needs no model is a button, not a tool** (2026-11-14): saving the chat to Paperless
-and starting a deep-research run are items in the conversation "…" menu
-(`_save_chat_to_paperless`, `_research_from_chat`); downloading a document is the icon on
-its row in an answer's source box (`/api/doc-download/{id}`, the user's own access check).
-The tools `generate_chat_pdf`, `create_kanban_task` and `download_document` are gone —
-each was a tool schema the model read every turn only to open a dialog.
+### The fixed part of every model call
+
+System prompt (`config/chat_prompts.py`) + tool schemas are read on every call, and again
+whenever a local model's prompt cache misses (prefill ~3 700 tok/s on the 27B). So:
+
+- **Each rule lives in one place.** How a tool and its parameters work → its description;
+  priorities between tools, citation, honesty → the prompt. `tests/test_chat_slim_prompt.py`
+  fails on a prompt identifier that is no tool or parameter, and on size creep.
+- **Nothing in the prompt changes between turns but its tail.** Today's date is the last line
+  (`today_line`, so "newest"/"next week" need no `get_current_date` round trip). The archive
+  map in the prompt is compact (`briefings.map_markdown(compact=True)`: counts and names — no
+  series, no newest documents, which changed with every upload); the Briefing tab keeps the
+  full one. The Universal map is warmed when /chat opens (`expert_prompt.warm_map`) so it does
+  not appear only from turn 2 on.
+
+### Files uploaded into a chat
+
+`services/chat_attachments.py`, the "+" in the input row. A PDF or picture the user asks about
+without filing it.
+
+- **Nothing goes to Paperless, Chroma or the vault.** The text lives in the stored user message
+  as a `<pb-attachment>` block after the user's words — the history keeps only role + content,
+  the model needs the file on later questions too, and an unchanged message keeps the prompt
+  cache valid. The bubble shows a chip (`attachments.split`); titles, the tool history heading
+  and exports use `strip_for_title`.
+- **The text layer first; vision only for pages without one and for pictures** — the ingestion
+  model with the ingest extraction prompt (`build_vision_client`), woken via WoL if needed.
+  Caps: `MAX_BYTES`, `MAX_PAGES`, `MAX_CHARS` (the block says when it was cut).
+- **No reference numbers**: the block tells the model to cite the upload in words; `[^…]`
+  belongs to Paperless documents only.
 
 **Tool history** (`app_ui/tool_trace.py`, an answer's "…" menu): every model request
 (tokens, first token, total time — `ModelCallEvent`) and tool call (duration, the whole

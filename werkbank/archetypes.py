@@ -17,8 +17,6 @@ lives in a markdown file next to the code; an edited row overrides it, the same
 override-and-reset shape `werkbank/v2/prompts.py` uses for the pipeline roles.
 
 Tool names must always match the keys in services.chat_service.TOOL_DEFINITIONS.
-Tools that require a browser dialog (trigger_docx_generation, create_email)
-are intentionally absent from all worker subsets.
 """
 
 from __future__ import annotations

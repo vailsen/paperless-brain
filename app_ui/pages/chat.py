@@ -47,10 +47,8 @@ from services.chat_service import (
     TOOL_DEFINITIONS,
     ClaudeChatBackend,
     DocsRetrievedEvent,
-    DocxRequestEvent,
     DoneEvent,
     OffloadEvent,
-    EmailRequestEvent,
     ImageDisplayEvent,
     IterationEvent,
     OpenAICompatibleChatBackend,
@@ -73,6 +71,8 @@ from services.clients import get_session_paperless
 from services import dossier_merge as _dossier_merge
 from services import skills as _skills_mod
 from services.markdown_text import escape_intraword_underscores
+from services import chat_attachments as attachments
+from services.chat_attachments import strip_for_title
 from services.credential_store import load_credentials, save_credentials
 import services.chat_history_service as _chat_hist
 
@@ -351,9 +351,9 @@ _TOOL_GROUPS: list[tuple[str, str, list[str]]] = [
     ("visual", "visibility", ["view_document_page"]),
     ("memory", "psychology", ["remember_fact", "create_deadline", "search_memory", "update_brain_fact", "delete_brain_fact"]),
     ("vault", "book", ["vault_search"]),
-    ("create", "create", ["trigger_docx_generation", "create_email"]),
-    # Separate from "create": those two only open a dialog with a draft, this
-    # one writes into Paperless straight away — worth its own switch.
+    # Letters and email drafts are buttons in the conversation menu
+    # (app_ui/compose_dialogs.py), not tools. This one writes into Paperless
+    # straight away — worth its own switch.
     ("document_notes", "sticky_note_2", ["create_note"]),
 ]
 _TOOL_ALWAYS_ON: set[str] = {
@@ -623,6 +623,22 @@ html, body { overflow: hidden !important; }
     .chat-input-row { padding: 8px 10px !important; }
 }
 .chat-send-btn { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; }
+/* Attach: in the row on every width (unlike the tool buttons) — asking about
+   a file is the input, not configuration. */
+.chat-attach-btn { flex-shrink: 0; min-width: 36px; width: 36px; height: 36px;
+    color: var(--c-text-muted); border-radius: 10px; }
+.chat-attach-btn:hover { color: var(--c-text); }
+.chat-attach-upload { display: none !important; }
+.chat-attach-strip { max-width: 860px; margin: 0 auto; width: 100%; padding: 6px 16px 0;
+    display: flex; flex-wrap: wrap; gap: 6px; }
+.pb-attach-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; white-space: normal; }
+.pb-attach-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+    padding: 2px 8px; border-radius: 8px; font-size: 0.75rem; color: var(--c-text-2);
+    background: color-mix(in srgb, currentColor 10%, transparent); min-width: 0; }
+.pb-attach-chip .q-icon { font-size: 14px; flex-shrink: 0; }
+.pb-attach-name { overflow-wrap: anywhere; min-width: 0; }
+.pb-attach-pages { color: var(--c-text-muted); flex-shrink: 0; }
+.pb-attach-chip.is-error { color: var(--c-warn); background: var(--c-warn-bg); }
 .chat-send-btn .q-icon { font-size: 20px; }
 /* Mic button active state */
 .chat-mic-btn.mic-active { background: #450a0a !important; }
@@ -911,12 +927,12 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         "visual": _("Visual"),
         "memory": _("Memory"),
         "vault": _("Vault"),
-        "create": _("Create"),
         # "Document notes", not "Notes": the Vault group already covers the
         # user's own notes, these are notes on Paperless documents.
         "document_notes": _("Document notes"),
     }
-    # (icon, label, prompt). Icons come from the same Material set as the
+    # (icon, label, prompt — or a callable for what needs no model: those
+    # open a dialog instead of asking the model to). Icons come from the same Material set as the
     # navigation — emoji in UI chrome is the most recognisable amateur tell and
     # costs nothing to drop.
     _QUICK_CHIPS_LOCAL = [
@@ -926,9 +942,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         ("description", _("New documents"), _("Show me my latest documents from the last 30 days.")),
         ("mail", _("New emails"), _("What are my latest emails?")),
         ("receipt_long", _("Invoices"), _("Are there any open invoices or outstanding payments?")),
-        ("edit_note", _("Write a letter"), _("Write a letter.")),
-        ("outgoing_mail", _("Write an email"), _("Write an email.")),
-        ("save", _("Save chat to Paperless"), _("Create a document from the current chat and save it to Paperless.")),
+        ("edit_note", _("Write a letter"), lambda: _compose("letter")),
+        ("outgoing_mail", _("Write an email"), lambda: _compose("email")),
+        ("save", _("Save chat to Paperless"), lambda: _save_chat_to_paperless()),
     ]
 
     open_document, _doc_dlg = create_document_dialog(
@@ -1168,6 +1184,13 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
     _username = ng_app.storage.user.get("paperless_user", "")
     _token = get_session_token()
     _creds = load_credentials(_username, _token) if _username and _token else {}
+    if _username and _token:
+        # The Universal expert's archive map is built in the background; started
+        # here, it is in the prompt from the first turn on — appearing only on
+        # the second would change the system prompt and void the model's cache.
+        from services.expert_prompt import warm_map
+
+        warm_map(_username, _token)
     _llm = _creds.get("llm", {})
     # Fallback only for registry entries without a key of their own — keys are
     # configured per model in Settings > AI Models.
@@ -1421,17 +1444,34 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 sanitize=False,
             )
 
+    def _user_bubble(content: str) -> None:
+        """A user message: their words, and a chip per attached file instead
+        of the file's text (which stays in the message for the model)."""
+        words, files = attachments.split(content)
+        chips = "".join(
+            '<span class="pb-attach-chip"><i class="q-icon material-icons">attach_file</i>'
+            f'<span class="pb-attach-name">{_html.escape(f["name"])}</span>'
+            f'<span class="pb-attach-pages">{_html.escape(_pages_label(f["pages"]))}</span></span>'
+            for f in files
+        )
+        with ui.row().classes("justify-end w-full"):
+            ui.html(
+                '<div class="pb-user-bubble">'
+                + (f'<div class="pb-attach-chips">{chips}</div>' if chips else "")
+                + _html.escape(words)
+                + "</div>",
+                sanitize=False,
+            ).classes("chat-bubble-wrap").style("max-width:85%;min-width:0;")
+
+    def _pages_label(n: int) -> str:
+        # TODO i18n-plural
+        return _("1 page") if n == 1 else _("{n} pages").format(n=n)
+
     def _render_stored_msg(msg: dict, idx: int = -1) -> None:
         """Render a single stored message dict into messages_container.
         `idx` = its position in the conversation, for "Save to dossier"."""
         if msg["role"] == "user":
-            with ui.row().classes("justify-end w-full"):
-                ui.html(
-                    f'<div class="pb-user-bubble">'
-                    f"{_html.escape(msg['content'])}"
-                    f"</div>",
-                    sanitize=False,
-                ).classes("chat-bubble-wrap").style("max-width:85%;min-width:0;")
+            _user_bubble(msg["content"])
         else:
             with ui.row().classes("justify-start w-full"):
                 with ui.element("div").classes("chat-bubble").style(
@@ -2140,6 +2180,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                            lambda: _save_chat_to_paperless())
                                 _conv_item("travel_explore", _("Deep research from this chat"),
                                            lambda: _research_from_chat())
+                                _conv_item("mail", _("Write a letter"), lambda: _compose("letter"))
+                                _conv_item("alternate_email", _("Write an email"), lambda: _compose("email"))
                                 _conv_item("tune", _("Configure tools"),
                                            lambda: _toggle_tools_panel(), "chat-menu-tool")
                                 _conv_item("compress", _("Compress chat"),
@@ -2370,7 +2412,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 ui.button(
                                     _chip_label,
                                     icon=_chip_icon,
-                                    on_click=lambda t=_chip_text: _send_quick(t),
+                                    on_click=(lambda t=_chip_text: t()) if callable(_chip_text)
+                                    else (lambda t=_chip_text: _send_quick(t)),
                                 ).props("flat dense dark no-wrap").classes(
                                     "text-xs text-gray-400 suggestion-chip"
                                 ).style(
@@ -2399,6 +2442,28 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
 </script>""")
 
                     quick_strip.set_visibility(bool(get_pref("chat_quick_bar", True)))
+
+                    # Files waiting to go with the next message
+                    @ui.refreshable
+                    def _render_attachments() -> None:
+                        files = _s.setdefault("attachments", [])
+                        if not files:
+                            return
+                        with ui.element("div").classes("chat-attach-strip"):
+                            for f in list(files):
+                                with ui.element("span").classes(
+                                        "pb-attach-chip" + (" is-error" if f["state"] == "error" else "")):
+                                    if f["state"] == "reading":
+                                        ui.spinner(size="14px")
+                                    else:
+                                        ui.icon("error_outline" if f["state"] == "error" else "attach_file")
+                                    ui.html(f'<span class="pb-attach-name">{_html.escape(f["name"])}</span>')
+                                    ui.html(f'<span class="pb-attach-pages">{_html.escape(f["note"])}</span>')
+                                    ui.button(icon="close", color=None,
+                                              on_click=lambda _e, f=f: _drop_attachment(f)).props(
+                                        "flat dense round size=xs").tooltip(_("Remove"))
+
+                    _render_attachments()
 
                     # Input row
                     with (
@@ -2429,6 +2494,29 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 .tooltip(_("Compress chat"))
                             )
                             compact_btn.on_click(lambda: asyncio.ensure_future(_compact_chat()))
+
+                            attach_upload = (
+                                ui.upload(
+                                    on_upload=lambda e: _on_attach(e),
+                                    auto_upload=True,
+                                    max_file_size=attachments.MAX_BYTES,
+                                    on_rejected=lambda: ui.notify(
+                                        _("The file exceeds {n} MB.").format(
+                                            n=attachments.MAX_BYTES // (1024 * 1024)),
+                                        type="warning"),
+                                )
+                                .props(f'accept="{attachments.ACCEPT}" hide-upload-btn')
+                                .classes("chat-attach-upload")
+                            )
+                            (
+                                ui.button(icon="add", color=None)
+                                .props("flat dark")
+                                .classes("chat-attach-btn")
+                                .tooltip(_("Attach a PDF or picture (not saved to Paperless)"))
+                                .on("click", js_handler=(
+                                    "() => document.querySelector('.chat-attach-upload input[type=file]')"
+                                    "?.click()"))
+                            )
 
                             input_field = (
                                 ui.textarea(placeholder=_("Message …"))
@@ -3867,8 +3955,92 @@ window.__openVaultNote = function(noteId) {{
         last = next((m["content"] for m in reversed(_s["messages"])
                      if m.get("role") == "user" and isinstance(m.get("content"), str)
                      and m["content"].strip()), "")
+        last = strip_for_title(last)
         title = " ".join(last.split())[:60]
         _open_research_dialog(title, last.strip())
+
+    _MAX_ATTACHMENTS = 5
+
+    async def _on_attach(e) -> None:
+        """Read an uploaded file now, so sending is instant: its text goes into
+        the next message (services/chat_attachments.py) — never to Paperless."""
+        attach_upload.reset()  # otherwise the picker keeps the file and won't re-fire
+        files = _s.setdefault("attachments", [])
+        if len([f for f in files if f["state"] != "error"]) >= _MAX_ATTACHMENTS:
+            ui.notify(_("At most {n} files per message.").format(n=_MAX_ATTACHMENTS), type="warning")
+            return
+        name = e.file.name or "file"
+        entry = {"name": name, "state": "reading", "note": _("reading …"), "att": None}
+        files.append(entry)
+        _render_attachments.refresh()
+
+        def _progress(done: int, total: int) -> None:
+            entry["note"] = _("vision model, page {d} of {t} …").format(d=min(done + 1, total), t=total)
+            _render_attachments.refresh()
+
+        try:
+            att = await attachments.extract(
+                await e.file.read(), name, e.file.content_type or "",
+                username=ng_app.storage.user.get("paperless_user") or "",
+                token=get_session_token() or "",
+                on_progress=_progress, _=_,
+            )
+        except attachments.AttachmentError as exc:
+            entry.update(state="error", note=str(exc))
+        except Exception:  # noqa: BLE001 — a file must never break the page
+            _log.warning("could not read an uploaded file", exc_info=True)
+            entry.update(state="error", note=_("could not be read"))
+        else:
+            note = _pages_label(att.pages)
+            if att.truncated:
+                note += " · " + _("shortened")
+            entry.update(state="ready", att=att, note=note)
+        if entry in files:
+            _render_attachments.refresh()
+
+    def _drop_attachment(entry: dict) -> None:
+        files = _s.setdefault("attachments", [])
+        if entry in files:
+            files.remove(entry)
+        _render_attachments.refresh()
+
+    def _compose(kind: str) -> None:
+        """Letter or email dialog — drafted from this conversation by one
+        model call without tools (app_ui/compose_dialogs.py)."""
+        from app_ui import compose_dialogs as _cd
+
+        _u = ng_app.storage.user.get("paperless_user") or ""
+        _t = get_session_token() or ""
+        backend = _reg_backends.get(_s.get("chat_model_name", ""))
+        has_chat = any(isinstance(m.get("content"), str) and m["content"].strip()
+                       for m in _s["messages"])
+
+        async def _draft(k: str, instruction: str) -> dict:
+            if backend is None:
+                raise RuntimeError(_("No model selected"))
+            rm = next((m for m in _reg_models if m["name"] == _s.get("chat_model_name")), None)
+            if rm and rm.get("backend") != "anthropic" and rm.get("lane") == "local":
+                from services.wol import ensure_awake
+
+                await ensure_awake(rm.get("base_url", ""), why="a letter draft")
+            system, request = _cd.build_draft_request(k, _s["messages"], instruction)
+            parts: list[str] = []
+            async for ev in backend.run_turn(
+                system=system, messages=[{"role": "user", "content": request}],
+                tools=[], temperature=0.2, max_iterations=1,
+            ):
+                if isinstance(ev, TextTokenEvent):
+                    parts.append(ev.text)
+            return _cd.parse_draft("".join(parts), k)
+
+        draft_fn = _draft if backend is not None else None
+        if kind == "letter":
+            sender = (load_credentials(_u, _t) if _u and _t else {}).get("sender_profile", {})
+            run = _cd.open_letter_dialog(_dlg_host, _, sender=sender, draft_fn=draft_fn)
+        else:
+            run = _cd.open_email_dialog(_dlg_host, _, draft_fn=draft_fn)
+        if run is not None and has_chat:
+            asyncio.ensure_future(run())
 
     async def _scroll_bottom() -> None:
         messages_scroll.scroll_to(percent=1.0)
@@ -3899,7 +4071,7 @@ window.__openVaultNote = function(noteId) {{
             return
         if not _s.get("conv_id"):
             first_user = next(
-                (m["content"] for m in _s["messages"] if m["role"] == "user"),
+                (attachments.strip_for_title(m["content"]) for m in _s["messages"] if m["role"] == "user"),
                 _("New conversation"),
             )
             _s["conv_id"] = _chat_hist.create_conversation(
@@ -3944,7 +4116,11 @@ window.__openVaultNote = function(noteId) {{
 
     async def _do_send_inner(_turn: dict) -> None:
         text = input_field.value.strip()
-        if not text or _s["running"]:
+        _files = _s.setdefault("attachments", [])
+        if (not text and not _files) or _s["running"]:
+            return
+        if any(f["state"] == "reading" for f in _files):
+            ui.notify(_("The attached file is still being read."), type="info")
             return
         # Checked before any state is mutated. The backend lookup further down
         # happens only after the user bubble is rendered and the button has been
@@ -3973,18 +4149,21 @@ window.__openVaultNote = function(noteId) {{
         send_btn.props(add="icon=stop color=red")
         _msg_save_start = len(_s["messages"])  # track index for auto-save
 
+        # Uploaded files travel inside the stored message (chat_attachments):
+        # the model sees them on every later question too.
+        _ready = [f["att"] for f in _files if f["state"] == "ready"]
+        if _ready and not text:
+            text = _("What is in this document?")
+        content = attachments.compose(text, _ready)
+        _files.clear()
+        _render_attachments.refresh()
+
         # Render user bubble (always shows clean text, no pin prefix)
         with messages_container:
-            with ui.row().classes("justify-end w-full"):
-                ui.html(
-                    f'<div class="pb-user-bubble">'
-                    f"{_html.escape(text)}"
-                    f"</div>",
-                    sanitize=False,
-                ).classes("chat-bubble-wrap").style("max-width:85%;min-width:0;")
+            _user_bubble(content)
 
-        _s["messages"].append({"role": "user", "content": text})
-        _question = text  # for the tool history's heading
+        _s["messages"].append({"role": "user", "content": content})
+        _question = attachments.strip_for_title(content)  # for the tool history's heading
         await _scroll_bottom()
         await asyncio.sleep(0)
 
@@ -3997,7 +4176,7 @@ window.__openVaultNote = function(noteId) {{
             try:
                 if not _s.get("conv_id"):
                     _s["conv_id"] = _chat_hist.create_conversation(
-                        _u, text[:60], expert_id=_s.get("expert_id"),
+                        _u, attachments.strip_for_title(content)[:60], expert_id=_s.get("expert_id"),
                         context=_conv_context(),
                     )
                     _refresh_history_list()
@@ -4179,8 +4358,6 @@ window.__openVaultNote = function(noteId) {{
         _tool_trace: list[dict] = []
         _model_calls: list[dict] = []  # ModelCallEvent per model request, for the tool history
         _transcript: list = [None]     # TranscriptEvent: what the model was sent, for the download
-        _pending_docx: list = [None]  # DocxRequestEvent params if triggered
-        _pending_email: list = [None]  # EmailRequestEvent params if triggered
         _shown_images: list[ImageDisplayEvent] = []  # show_document_image, in call order
 
         backend = _reg_backends.get(
@@ -4376,12 +4553,6 @@ window.__openVaultNote = function(noteId) {{
                     _render_results(activate="web", pulse=True)
                     await asyncio.sleep(0)
 
-                elif isinstance(event, DocxRequestEvent):
-                    _pending_docx[0] = event.params
-
-                elif isinstance(event, EmailRequestEvent):
-                    _pending_email[0] = event.params
-
                 elif isinstance(event, ImageDisplayEvent):
                     _key = (event.doc_id, event.page, event.index)
                     if _key not in {(e.doc_id, e.page, e.index) for e in _shown_images}:
@@ -4490,358 +4661,6 @@ window.__openVaultNote = function(noteId) {{
                 with bubble[0]:
                     _answer_menu(len(_s["messages"]) - 1 if _md_raw else -1, bubble[0], _md_raw or "",
                                  trace_dlg)
-
-            # ── Letter dialog (triggered by trigger_docx_generation tool) ──────
-            if _pending_docx[0] is not None:
-                _dp = _pending_docx[0]
-                _username2 = ng_app.storage.user.get("paperless_user") or ""
-                _token2 = get_session_token() or ""
-                _sp = (
-                    load_credentials(_username2, _token2)
-                    if _username2 and _token2
-                    else {}
-                ).get("sender_profile", {})
-
-                with bubble[0]:
-                    with ui.dialog().props("persistent") as _letter_dlg:
-                        with ui.card().style(
-                            "background:var(--c-surface); width:min(520px, 95vw); max-width:min(760px, 95vw); max-height:90vh; overflow-y:auto;"
-                        ):
-                            with ui.row().classes("items-center justify-between mb-2"):
-                                ui.label(_("Create letter")).classes(
-                                    "text-base font-semibold text-gray-100"
-                                )
-                                ui.button(
-                                    icon="close", on_click=_letter_dlg.close
-                                ).props("flat dark dense").classes("text-gray-400")
-                            ui.separator()
-
-                            # Sender fields
-                            ui.label(_("Sender")).classes(
-                                "text-xs text-gray-400 mt-3 mb-1 font-semibold uppercase tracking-wide"
-                            )
-                            _lf_sname = (
-                                ui.input(_("Name"), value=_sp.get("name", ""))
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            _lf_scompany = (
-                                ui.input(_("Company"), value=_sp.get("company", ""))
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            _lf_sstreet = (
-                                ui.input(_("Street"), value=_sp.get("street", ""))
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            with ui.row().classes("w-full gap-2"):
-                                _lf_splz = (
-                                    ui.input(_("Postcode"), value=_sp.get("plz", ""))
-                                    .props("outlined dark dense")
-                                    .style("width:30%")
-                                )
-                                _lf_scity = (
-                                    ui.input(_("City"), value=_sp.get("city", ""))
-                                    .props("outlined dark dense")
-                                    .style("flex:1")
-                                )
-                            _lf_sphone = (
-                                ui.input(_("Phone"), value=_sp.get("phone", ""))
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            _lf_semail = (
-                                ui.input(_("Email"), value=_sp.get("email", ""))
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-
-                            ui.separator().classes("my-3")
-
-                            # Recipient fields (pre-filled from LLM params)
-                            ui.label(_("Recipient")).classes(
-                                "text-xs text-gray-400 mb-1 font-semibold uppercase tracking-wide"
-                            )
-                            _lf_rname = (
-                                ui.input(_("Name"), value=_dp.get("recipient_name", ""))
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            _lf_rstreet = (
-                                ui.input(
-                                    _("Street"), value=_dp.get("recipient_street", "")
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            with ui.row().classes("w-full gap-2"):
-                                _lf_rplz = (
-                                    ui.input(
-                                        _("Postcode"), value=_dp.get("recipient_postcode", "")
-                                    )
-                                    .props("outlined dark dense")
-                                    .style("width:30%")
-                                )
-                                _lf_rcity = (
-                                    ui.input(_("City"), value=_dp.get("recipient_city", ""))
-                                    .props("outlined dark dense")
-                                    .style("flex:1")
-                                )
-
-                            ui.separator().classes("my-3")
-
-                            # Letter content
-                            ui.label(_("Content")).classes(
-                                "text-xs text-gray-400 mb-1 font-semibold uppercase tracking-wide"
-                            )
-                            _lf_crossref = (
-                                ui.input(
-                                    _("Your reference (invoice no. / file no.)"),
-                                    value=_dp.get("source_cross_ref", ""),
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            _lf_bezug = (
-                                ui.input(
-                                    _("Reference (short title of ref. doc., empty = none)"),
-                                    value=_dp.get("src_doc_info", ""),
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            _lf_subject = (
-                                ui.input(_("Subject"), value=_dp.get("subject", ""))
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            _lf_salutation = (
-                                ui.input(
-                                    _("Salutation"),
-                                    value=_dp.get(
-                                        "salutation", "Sehr geehrte Damen und Herren,"
-                                    ),
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-                            _lf_body = (
-                                ui.textarea(
-                                    _("Letter body (separate paragraphs with blank lines)"),
-                                    value="\n\n".join(_dp.get("body_paras", [])),
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                                .style("min-height:140px;")
-                            )
-                            _lf_closing = (
-                                ui.input(
-                                    _("Closing"),
-                                    value=_sp.get("closing", "Mit freundlichen Grüßen"),
-                                )
-                                .props("outlined dark dense")
-                                .classes("w-full")
-                            )
-
-                            ui.separator().classes("my-3")
-
-                            def _build_docx_bytes():
-                                from services.docx_service import generate_letter_docx
-
-                                _body_paras = [
-                                    p.strip()
-                                    for p in _lf_body.value.split("\n\n")
-                                    if p.strip()
-                                ]
-                                return generate_letter_docx(
-                                    sender={
-                                        "name": _lf_sname.value,
-                                        "company": _lf_scompany.value,
-                                        "street": _lf_sstreet.value,
-                                        "plz": _lf_splz.value,
-                                        "city": _lf_scity.value,
-                                        "phone": _lf_sphone.value,
-                                        "email": _lf_semail.value,
-                                    },
-                                    recipient={
-                                        "name": _lf_rname.value,
-                                        "street": _lf_rstreet.value,
-                                        "postcode": _lf_rplz.value,
-                                        "city": _lf_rcity.value,
-                                    },
-                                    subject=_lf_subject.value,
-                                    salutation=_lf_salutation.value,
-                                    body_paras=_body_paras,
-                                    closing=_lf_closing.value
-                                    or "Mit freundlichen Grüßen",
-                                    source_cross_ref=_lf_crossref.value.strip(),
-                                    src_doc_info=_lf_bezug.value.strip(),
-                                    reference_doc_id=_dp.get("reference_doc_id"),
-                                )
-
-                            async def _download_letter():
-                                try:
-                                    import re as _re
-                                    from datetime import date as _d
-
-                                    _docx_bytes = _build_docx_bytes()
-                                    _fn_date = _d.today().strftime("%y_%m_%d")
-                                    _fn_subj = _re.sub(
-                                        r"[^\wÀ-ſ]+", "_", _lf_subject.value.strip()
-                                    )[:28].strip("_")
-                                    _fn_name = (
-                                        _lf_rname.value.strip().split()[0]
-                                        if _lf_rname.value.strip()
-                                        else "Empfaenger"
-                                    )
-                                    _fn_name = _re.sub(r"[^\wÀ-ſ]", "", _fn_name)
-                                    _filename = (
-                                        f"{_fn_date}_Brief_{_fn_subj}_{_fn_name}.docx"
-                                    )
-                                    ui.download(
-                                        _docx_bytes,
-                                        _filename,
-                                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    )
-                                except Exception as ex:
-                                    ui.notify(_("Error: {err}").format(err=ex), type="negative")
-
-                            with ui.row().classes("justify-end gap-2 mt-2"):
-                                ui.button(
-                                    _("Cancel"), on_click=_letter_dlg.close
-                                ).props("flat dark dense").classes("text-gray-400")
-                                ui.button(
-                                    _("Download letter"),
-                                    icon="download",
-                                    on_click=_download_letter,
-                                ).props("dark").classes("text-white")
-
-                _letter_dlg.open()
-
-            # ── Email copy dialog (triggered by create_email tool) ────────────
-            if _pending_email[0] is not None:
-                _ep = _pending_email[0]
-                _ep_body_paras = _ep.get("body_paras", [])
-                _ep_salutation = _ep.get("salutation", "")
-                _ep_full_body = (
-                    "\n\n".join([_ep_salutation] + _ep_body_paras)
-                    if _ep_salutation
-                    else "\n\n".join(_ep_body_paras)
-                )
-
-                with bubble[0]:
-                    with ui.dialog().props("persistent") as _email_dlg:
-                        with ui.card().style(
-                            "background:var(--c-surface); width:min(440px, 95vw); max-width:min(640px, 95vw);"
-                        ):
-                            with ui.row().classes("items-center justify-between mb-2"):
-                                ui.label(_("Email")).classes(
-                                    "text-base font-semibold text-gray-100"
-                                )
-                                ui.button(
-                                    icon="close", on_click=_email_dlg.close
-                                ).props("flat dark dense").classes("text-gray-400")
-                            ui.separator()
-
-                            # An:
-                            ui.label(_("To")).classes(
-                                "text-xs text-gray-400 mt-3 mb-1 font-semibold uppercase tracking-wide"
-                            )
-                            with ui.row().classes("w-full items-center gap-2"):
-                                ui.label(_ep.get("recipient_email", "")).classes(
-                                    "flex-1 text-sm text-gray-200 font-mono px-3 py-2 rounded"
-                                ).style("background:var(--c-bg); word-break:break-all;")
-
-                                async def _copy_addr(_v=_ep.get("recipient_email", "")):
-                                    await ui.run_javascript(
-                                        f"navigator.clipboard.writeText({json.dumps(_v)})"
-                                    )
-                                    ui.notify(_("Copied!"), timeout=1200)
-
-                                ui.button(
-                                    icon="content_copy", on_click=_copy_addr
-                                ).props("flat dark dense").classes(
-                                    "text-gray-500"
-                                ).tooltip(_("Copy address"))
-
-                            # Betreff:
-                            ui.label(_("Subject")).classes(
-                                "text-xs text-gray-400 mt-3 mb-1 font-semibold uppercase tracking-wide"
-                            )
-                            with ui.row().classes("w-full items-center gap-2"):
-                                ui.label(_ep.get("subject", "")).classes(
-                                    "flex-1 text-sm text-gray-200 px-3 py-2 rounded"
-                                ).style("background:var(--c-bg);")
-
-                                async def _copy_subj(_v=_ep.get("subject", "")):
-                                    await ui.run_javascript(
-                                        f"navigator.clipboard.writeText({json.dumps(_v)})"
-                                    )
-                                    ui.notify(_("Copied!"), timeout=1200)
-
-                                ui.button(
-                                    icon="content_copy", on_click=_copy_subj
-                                ).props("flat dark dense").classes(
-                                    "text-gray-500"
-                                ).tooltip(_("Copy subject"))
-
-                            # Nachricht:
-                            ui.label(_("Message")).classes(
-                                "text-xs text-gray-400 mt-3 mb-1 font-semibold uppercase tracking-wide"
-                            )
-                            with ui.column().classes("w-full gap-1"):
-                                ui.textarea(value=_ep_full_body).props(
-                                    "outlined dark dense readonly"
-                                ).classes("w-full").style(
-                                    "min-height:160px; font-size:0.8rem;"
-                                )
-
-                                async def _copy_body(_v=_ep_full_body):
-                                    await ui.run_javascript(
-                                        f"navigator.clipboard.writeText({json.dumps(_v)})"
-                                    )
-                                    ui.notify(_("Message copied!"), timeout=1200)
-
-                                ui.button(
-                                    _("Copy message"),
-                                    icon="content_copy",
-                                    on_click=_copy_body,
-                                ).props("flat dark dense").classes(
-                                    "text-gray-500 text-xs self-end"
-                                )
-
-                            _mailto_url = (
-                                "mailto:"
-                                + urllib.parse.quote(
-                                    _ep.get("recipient_email", ""), safe="@"
-                                )
-                                + "?"
-                                + urllib.parse.urlencode(
-                                    {
-                                        "subject": _ep.get("subject", ""),
-                                        "body": _ep_full_body,
-                                    },
-                                    quote_via=urllib.parse.quote,
-                                )
-                            )
-                            with ui.row().classes("justify-end gap-2 mt-3"):
-                                ui.button(_("Close"), on_click=_email_dlg.close).props(
-                                    "flat dark dense"
-                                ).classes("text-gray-400")
-
-                                async def _open_mailto(_url=_mailto_url):
-                                    await ui.run_javascript(
-                                        f"window.location.href = {json.dumps(_url)}"
-                                    )
-
-                                ui.button(
-                                    _("Open in mail app"),
-                                    icon="open_in_new",
-                                    on_click=_open_mailto,
-                                ).props("unelevated dark").classes("text-white")
-
-                _email_dlg.open()
 
             send_btn.props(add="icon=send color=primary")
             _s["running"] = False
