@@ -77,6 +77,14 @@ def _universal_map(user: str, token: str) -> dict:
     return hit[1] if hit else {}
 
 
+def warm_map(user: str, token: str) -> None:
+    """Start building the map when the chat opens, not at the first turn."""
+    try:
+        _universal_map(user, token)
+    except Exception:
+        pass  # a convenience; the page must not fail on it
+
+
 async def _build_map(user: str, token: str) -> dict:
     from config.settings import settings
     from pipelines.search import _drop_no_ingest

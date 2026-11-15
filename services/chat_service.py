@@ -238,16 +238,6 @@ class OffloadEvent:
 
 
 @dataclass
-class DocxRequestEvent:
-    params: dict  # all inputs from trigger_docx_generation call
-
-
-@dataclass
-class EmailRequestEvent:
-    params: dict  # recipient_email, recipient_name, subject, salutation, body_paras, closing
-
-
-@dataclass
 class ImageDisplayEvent:
     """A page, or one picture on it, to show the user inline in the answer."""
 
@@ -286,8 +276,6 @@ ChatEvent = (
     | IterationEvent
     | DoneEvent
     | OffloadEvent
-    | DocxRequestEvent
-    | EmailRequestEvent
     | ImageDisplayEvent
 )
 
@@ -321,7 +309,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "search_exact",
         "description": (
-            "Analytical search over HARD criteria — metadata and/or exact text. NOT a semantic/content search (use 'search' for that). All parameters are optional and AND-combined; at least one must be set.\nUse when the user names concrete, hard criteria:\n• tags (e.g. 'tax return', '2025'), correspondent, document type\n• date ranges\n• literal identifiers contained in the document: invoice numbers, IBANs, license plates, contract/file numbers, phone numbers (via 'text')\n'text' searches the extracted document content (substring, multiple words = OR) AND the structured cross-references — thereby finds all documents sharing the same reference."
+            "Search by HARD criteria — tags, correspondent, document type, date range, or a literal identifier in the text (invoice/contract/file number, IBAN, license plate, phone number). Not a content search: that is 'search'. Parameters are AND-combined; set at least one. 'text' also matches the structured cross-references, so it finds every document sharing a reference."
         ),
         "input_schema": {
             "type": "object",
@@ -338,7 +326,7 @@ TOOL_DEFINITIONS: list[dict] = [
                 "tag_match": {
                     "type": "string",
                     "enum": ["all", "any"],
-                    "description": "'all' = the document must carry ALL named tags (intersection), 'any' = at least one. Derive from the user's phrasing; ask the user if unclear. Default: 'all'.",
+                    "description": "'all' (default) = every named tag, 'any' = at least one.",
                 },
                 "correspondent": {
                     "type": "string",
@@ -362,7 +350,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "find_similar_documents",
         "description": (
-            "Finds documents that RESEMBLE a document you already have, by comparing their embeddings — 'more like this one'. Use it when the user points at a document and asks for its counterparts, predecessors, other years of the same thing, or anything belonging with it, and when you cannot phrase what makes it distinctive as a query. Not a keyword or metadata search: for a described content use 'search', for hard criteria 'search_exact', for documents sharing a literal reference number 'search_exact' with that reference. Returns document IDs, title, type, correspondent, date and the passage that made each one similar."
+            "'More like this one': finds documents resembling a document you already have, by comparing their embeddings — its counterparts, predecessors, other years of the same thing. Use it when what makes the document distinctive cannot be phrased as a query. Not for a described content ('search') or a shared reference number ('search_exact'). Returns the documents and the passage that made each one similar."
         ),
         "input_schema": {
             "type": "object",
@@ -443,7 +431,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "view_document_page",
         "description": (
-            "Has the vision model analyze a document page directly as an image and returns its answer to YOU as text — the user sees nothing. To SHOW a page or picture to the user use show_document_image instead. Use for: visual elements (logos, stamps, signatures, diagrams, tables as graphics), handwriting, poorly readable OCR, layout questions, colors/symbols/graphics. Also useful when the user explicitly asks about the visual appearance. Slower than the text tools — check get_document_page_text first for pure text content. question MUST contain the concrete visual question (e.g. 'Describe the company logo: colors, symbol, lettering.')."
+            "Has the vision model look at a document page and answers YOU in text — the user sees nothing (to show a page, use show_document_image). For logos, stamps, signatures, handwriting, diagrams, layout, unreadable OCR. Slower than get_document_page_text, which covers plain text."
         ),
         "input_schema": {
             "type": "object",
@@ -455,7 +443,7 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
                 "question": {
                     "type": "string",
-                    "description": "Concrete visual question — what exactly should the vision model recognize or describe on the image? Be as specific as possible (e.g. 'Describe the logo: colors, symbols, lettering.' or 'Is a signature present?').",
+                    "description": "The concrete visual question, e.g. 'Is the contract signed?'",
                 },
             },
             "required": ["document_id", "page_number", "question"],
@@ -469,7 +457,7 @@ TOOL_DEFINITIONS: list[dict] = [
             "or when the answer is about something visual: a dish, a product, a photo, a chart, a map, a drawing. "
             "Without image_index the whole page is shown. With image_index only that picture is shown — the indices are listed as "
             "\"Images on page N: [0] …\" in get_document_details and get_document_page_text. "
-            "Display only: YOU do not get to see the image (for that, use view_document_page). At most 3 per answer. "
+            "Display only: YOU do not get to see the image — never describe it beyond what the text tools told you. At most 3 per answer. "
             "Not for invoices, letters or forms unless the user asks to see them."
         ),
         "input_schema": {
@@ -491,7 +479,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "create_note",
         "description": (
-            "Attaches a comment to a PAPERLESS DOCUMENT (not a note in the user's vault — you cannot write vault notes at all). Requires a document_id and is visible in Paperless-ngx on that document. Use it to record what happened with a document: 'paid on 12.05.2026', 'cancelled by phone', 'forwarded to the tax advisor'. Only call when the user actually wants something recorded about a document — never to store your own intermediate results, and never for facts about the user (use remember_fact for those). Determine an unknown document_id via search first, and keep the note short and factual."
+            "Attaches a comment to a PAPERLESS DOCUMENT (not a note in the user's vault — you cannot write those), visible in Paperless-ngx on that document. Needs a document_id (search first if unknown). For what happened with a document: 'paid on 12.05.2026', 'cancelled by phone'. Only when the user wants something recorded about a document — never your own intermediate results, never facts about the user (remember_fact)."
         ),
         "input_schema": {
             "type": "object",
@@ -506,101 +494,6 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
             },
             "required": ["document_id", "note"],
-        },
-    },
-    {
-        "name": "trigger_docx_generation",
-        "description": (
-            "Creates a DIN 5008-compliant business letter (German standard) as DOCX. ONLY call when the user EXPLICITLY wants to compose a letter (e.g. 'write a letter to …', 'draft a formal letter', 'compose an inquiry to …'). NEVER use for information search or general questions. Collect all necessary information (recipient, subject, content) before calling the tool. After the call a download dialog opens."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "recipient_name": {
-                    "type": "string",
-                    "description": "Full name / company of the recipient",
-                },
-                "recipient_street": {
-                    "type": "string",
-                    "description": "Street and house number of the recipient",
-                },
-                "recipient_postcode": {
-                    "type": "string",
-                    "description": "Postal code of the recipient",
-                },
-                "recipient_city": {
-                    "type": "string",
-                    "description": "City of the recipient",
-                },
-                "subject": {
-                    "type": "string",
-                    "description": "Subject line of the letter",
-                },
-                "salutation": {
-                    "type": "string",
-                    "description": "Salutation, e.g. 'Sehr geehrte Damen und Herren,' (German letters keep German salutations)",
-                },
-                "body_paras": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Paragraphs of the letter body (each entry = one paragraph)",
-                },
-                "closing": {
-                    "type": "string",
-                    "description": "Closing phrase, default: 'Mit freundlichen Grüßen'",
-                },
-                "source_cross_ref": {
-                    "type": "string",
-                    "description": "Your reference ('Ihr Zeichen'): full designation with type prefix, e.g. 'Rechn. Nr. 260412' or 'Az. 2026-04-X' — always incl. the prefix, never just the number (optional)",
-                },
-                "src_doc_info": {
-                    "type": "string",
-                    "description": "Reference line: short title of the referenced document, e.g. 'Rechnung Nr. 260412 vom 12.05.2026' (optional, leave empty if unknown)",
-                },
-                "reference_doc_id": {
-                    "type": "integer",
-                    "description": "Paperless document ID as reference (optional)",
-                },
-            },
-            "required": [
-                "recipient_name",
-                "recipient_street",
-                "recipient_postcode",
-                "recipient_city",
-                "subject",
-                "salutation",
-                "body_paras",
-            ],
-        },
-    },
-    {
-        "name": "create_email",
-        "description": (
-            "Creates an email template for copying. ONLY call when the user EXPLICITLY wants to write or send an email (e.g. 'write an email to …', 'draft an email', 'I want to inquire about … by email'). NEVER use for information search, questions or general tasks. After the call a dialog opens where the user can copy address and text."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "recipient_email": {
-                    "type": "string",
-                    "description": "Email address of the recipient (determine from documents/emails or ask the user)",
-                },
-                "recipient_name": {
-                    "type": "string",
-                    "description": "Name of the recipient",
-                },
-                "subject": {"type": "string", "description": "Subject of the email"},
-                "salutation": {
-                    "type": "string",
-                    "description": "Salutation, e.g. 'Sehr geehrte Damen und Herren,' (German letters keep German salutations)",
-                },
-                "body_paras": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Paragraphs of the email body (each entry = one paragraph). The last paragraph should contain an appropriate closing.",
-                },
-            },
-            "required": ["recipient_email", "subject", "salutation", "body_paras"],
         },
     },
     {
@@ -633,7 +526,7 @@ TOOL_DEFINITIONS: list[dict] = [
                     "type": "string",
                     "enum": ["general", "news", "science"],
                     "description": (
-                        "'news' for news/current events — returns real article links with dates instead of overview pages. 'science' searches academic sources (PubMed, Crossref, OpenAlex, arXiv, Semantic Scholar) — use it for studies, case reports, measurements and anything where a peer-reviewed source is the right kind of evidence; general web search rarely surfaces these. 'general' (default) for everything else. When time_range is set, 'news' is used automatically anyway."
+                        "'news' for news/current events (dated article links instead of overview pages); 'science' for studies, case reports and measurements (PubMed, Crossref, OpenAlex, arXiv, Semantic Scholar); 'general' (default) otherwise."
                     ),
                 },
             },
@@ -659,7 +552,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "calculate",
         "description": (
-            "Evaluates a mathematical expression and returns the exact result. ALWAYS use this for every calculation — never do mental arithmetic. Supports +, -, *, /, **, %, parentheses and all math.* functions (sqrt, log, sin, cos, pi, e etc.)."
+            "Evaluates a mathematical expression exactly. Supports +, -, *, /, **, %, parentheses and all math.* functions (sqrt, log, sin, cos, pi, e …)."
         ),
         "input_schema": {
             "type": "object",
@@ -674,20 +567,20 @@ TOOL_DEFINITIONS: list[dict] = [
     },
     {
         "name": "get_current_date",
-        "description": "Returns the current date and time.",
+        "description": "Returns the current time (today's date is in your instructions).",
         "input_schema": {"type": "object", "properties": {}},
     },
     {
         "name": "search_emails",
         "description": (
-            "Searches the user's emails via IMAP (inbox and sent mail). Use when the user asks about an email, order, booking confirmation or correspondence. Requires a configured IMAP account (settings). On Gmail all parameters run as native Gmail search (fast, precise). For sent emails (e.g. 'when did I write/send X'): set to_addr. For 'latest/newest email': leave all fields empty, set max_results=1 — returns the newest email without filtering. The default search ALREADY covers every folder (all mail) — 'folder' only narrows it down. If a search returns nothing, do NOT guess folder names: retry with a shorter or different search term, or with from_addr. IMPORTANT: NEVER reference emails with #N (e.g. '#3', '#15') — that syntax is reserved exclusively for Paperless documents and would open wrong documents. Instead use 'email 3', 'the third email', '[E3]' or similar."
+            "Searches the user's emails via IMAP — every folder, inbox and sent mail (needs an IMAP account in the settings). Sent emails ('when did I write X'): set to_addr. Nothing found: retry with a shorter or different term or with from_addr — never by guessing folder names. NEVER refer to an email as #N: that opens a Paperless document; write 'email 3' or '[E3]'."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Full-text search term (subject + body). On Gmail: Gmail syntax allowed.",
+                    "description": "Full-text term (subject + body); Gmail syntax on Gmail.",
                 },
                 "subject": {
                     "type": "string",
@@ -715,29 +608,29 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
                 "max_results": {
                     "type": "integer",
-                    "description": "Number of emails per page (default: 20). Combine with 'offset' for pagination.",
+                    "description": "Emails per page (default 20).",
                 },
                 "offset": {
                     "type": "integer",
-                    "description": "Start position for pagination (default: 0). If the result shows '[N more available — offset=X]': call again with offset=X.",
+                    "description": "Next page: the offset=X the result names.",
                 },
                 "detail": {
                     "type": "string",
                     "enum": ["headers", "snippet", "full"],
                     "description": (
-                        "Level of detail of the email content. 'headers': only date/from/subject, no body text — fastest overview for many hits. 'snippet': first ~300 characters of the body (default). 'full': complete email text for detailed analysis."
+                        "'headers' (date/from/subject only), 'snippet' (default, ~300 chars of the body) or 'full' (whole text)."
                     ),
                 },
                 "folder": {
                     "type": "string",
                     "description": (
-                        "Restrict the search to one IMAP folder, in plain text exactly as 'list_folders_only' printed it (e.g. 'INBOX', 'Archive', 'Bestellvorgänge'). Default (recommended): omit — all mail is searched anyway."
+                        "Narrow to one folder, spelled as list_folders_only printed it. Usually omit."
                     ),
                 },
                 "list_folders_only": {
                     "type": "boolean",
                     "description": (
-                        "List all available IMAP folders (no search). Only useful to restrict a search that already works — it is never the fix for a search that found nothing."
+                        "List the IMAP folders instead of searching. Never the fix for an empty result."
                     ),
                 },
             },
@@ -746,7 +639,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "search_calendar",
         "description": (
-            "Searches the user's calendar entries (title, description, location, date). For time-based questions (e.g. 'in June', 'next week') set date_from+date_to and leave query empty. For keywords (e.g. 'doctor', 'orthopedist') set query. Requires a configured calendar account (settings)."
+            "Searches the user's calendar entries (title, description, location, date). Needs a calendar account in the settings."
         ),
         "input_schema": {
             "type": "object",
@@ -770,7 +663,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "get_actions",
         "description": (
-            "Returns actions / deadlines from all documents (from the index.json). Use 'upcoming_only=true' for future deadlines, or filter with 'after' / 'before' (YYYY-MM-DD) for a time range. Returns document ID, description, deadline and whether the deadline date is certain."
+            "Returns actions and deadlines from all documents, with document ID, description, deadline and whether the date is certain. Filter with upcoming_only or after/before (YYYY-MM-DD)."
         ),
         "input_schema": {
             "type": "object",
@@ -822,7 +715,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "remember_fact",
         "description": (
-            "Stores a fact in YOUR OWN long-term memory — a separate store you curate, not the user's notes (those are read-only for you, see vault_search). Use this tool when the user explicitly tells you something, or when you draw a reliable conclusion from documents that would be useful in future conversations. This is also the right tool when the user wants something 'noted down' about themselves, their contracts or their belongings. Do NOT use for speculative assumptions."
+            "Stores a fact in YOUR OWN long-term memory — not the user's notes (read-only, see vault_search). For what the user tells you, what they want noted down about themselves, and reliable conclusions from documents worth keeping. Never for speculation."
         ),
         "input_schema": {
             "type": "object",
@@ -859,13 +752,13 @@ TOOL_DEFINITIONS: list[dict] = [
                     ),
                 },
             },
-            "required": ["text", "tags", "confidence", "filename_topic"],
+            "required": ["text", "filename_topic"],
         },
     },
     {
         "name": "search_memory",
         "description": (
-            "Semantic search in long-term memory. Call this tool FIRST when the question is factual or personal — e.g. deadlines, amounts, owners, people, things already said. Skip it for pure document searches like 'show all Telekom invoices'."
+            "Semantic search in your own long-term memory. Only when the user asks what you remember, or before correcting a fact — 'search' already shows memory hints."
         ),
         "input_schema": {
             "type": "object",
@@ -921,7 +814,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "vault_search",
         "description": (
-            "READ-ONLY search of the user's personal notes (Obsidian vault). These notes belong to the user: there is no tool to create, edit, append to, rename or delete one, so never offer to write anything into a note — say where it would go and let the user do it, or offer remember_fact instead. Two modes: (1) search via 'query' — matches both by meaning (semantic) and by note title/filename; notes whose title matches are listed first and marked '(title match)'. (2) full retrieval via 'pbrain_id' — reads all chunks of one specific note completely. Not for Paperless documents or memory facts."
+            "READ-ONLY search of the user's own notes (Obsidian vault). There is no tool to create, edit, rename or delete a note, so never offer to write into one. Two modes: 'query' searches by meaning and by title (title matches first, marked '(title match)'); 'pbrain_id' reads one note completely. Not for Paperless documents or memory facts."
         ),
         "input_schema": {
             "type": "object",
@@ -932,7 +825,7 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
                 "pbrain_id": {
                     "type": "string",
-                    "description": "The pbrain_id of a note — reads all chunks completely (mode 2). This is the UUID printed as 'pbrain_id: …' in a previous search result; copy that value verbatim. NEVER pass the distance score (the number in parentheses).",
+                    "description": "The UUID printed as 'pbrain_id: …' in a search result, copied verbatim — never the distance score in parentheses.",
                 },
                 "max_results": {
                     "type": "integer",
@@ -1005,8 +898,6 @@ def _tool_label(name: str) -> str:
         "create_note": _("🗒 Saving note..."),
         "search_emails": _("📧 Searching emails..."),
         "search_calendar": _("📅 Searching calendar..."),
-        "trigger_docx_generation": _("📝 Creating letter template..."),
-        "create_email": _("📧 Creating email template..."),
         "remember_fact": _("🧠 Saving fact..."),
         "search_memory": _("🧠 Searching memory..."),
         "update_brain_fact": _("🧠 Updating fact..."),
@@ -1043,16 +934,6 @@ async def execute_tool(
 async def _execute_tool_dispatch(
     name: str, inputs: dict
 ) -> tuple[str, list[DocumentResult], list]:
-    if name == "trigger_docx_generation":
-        text = (
-            "Letter parameters received. A dialog window opens where you can adjust sender details and download the finished letter."
-        )
-        return text, [], [DocxRequestEvent(params=inputs)]
-    if name == "create_email":
-        text = (
-            "Email template created. A dialog opens where you can copy address, subject and message to the clipboard."
-        )
-        return text, [], [EmailRequestEvent(params=inputs)]
     if name == "show_document_image":
         text, event = await _tool_show_document_image(inputs)
         if not event:
