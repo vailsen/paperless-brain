@@ -1,6 +1,7 @@
 """Build, catch up, activate and delete an embedding model's index; compare two.
 
-**No vision model, no re-chunking.** Every chunk is already stored in the
+**No vision model, no re-chunking** (rebuilding chunks from the sidecars is
+`pipelines/rechunk.py`, the "rechunk" job here). Every chunk is already stored in the
 active index with the text it was embedded from, so a new index is that text
 embedded again: read a batch from the active collection, embed it with the
 new model, write it under the same id and metadata. Brain and vault entries
@@ -47,7 +48,7 @@ COMPARE_CHUNKS = 60
 @dataclass
 class Job:
     model_id: str
-    kind: str                      # "build" | "activate"
+    kind: str                      # "build" | "activate" | "rechunk"
     task: asyncio.Task | None = None
     stop: bool = False
     started: float = field(default_factory=time.time)
@@ -281,6 +282,65 @@ def start(model_id: str, kind: str = "build") -> Job:
     _job = job
     job.task = asyncio.get_running_loop().create_task(_run(job))
     return job
+
+
+def start_rechunk() -> Job:
+    """Rebuild the active index's outdated document chunks from the sidecars
+    (`pipelines.rechunk`) — the one job that writes the active index itself."""
+    global _job
+    if current_job():
+        raise RuntimeError("busy")
+    job = Job(reg.active_id(), "rechunk")
+    _job = job
+    job.task = asyncio.get_running_loop().create_task(_run_rechunk(job))
+    return job
+
+
+async def _run_rechunk(job: Job) -> None:
+    global _job
+    mid = job.model_id
+    started = time.time()
+    try:
+        from pipelines.rechunk import rechunk_all
+        from services.clients import paperless, sidecar_service
+
+        m = reg.get(mid)
+        embedder = reg.embedder(m)
+        await _ensure_endpoint(m)
+        _progress(mid, started=reg.now_iso(), error="", kind="rechunk", done=0, total=0,
+                  embedded=0, role="rechunk", finished="")
+        last = [0.0]
+
+        def on_doc(done: int, total: int, chunks: int) -> None:
+            now = time.monotonic()
+            if now - last[0] > 2 or done == total:
+                last[0] = now
+                _progress(mid, role="rechunk", done=done, total=total, embedded=chunks)
+
+        r = await rechunk_all(
+            paperless, client_for(m, "documents"), sidecar_service,
+            progress=on_doc, should_stop=lambda: job.stop,
+            wait=lambda: _wait_for_chat(embedder),
+        )
+        if job.stop:
+            _progress(mid, stopped=reg.now_iso())
+            return
+        _progress(mid, finished=reg.now_iso(), seconds=round(time.time() - started),
+                  embedded=r["chunks"],
+                  error=f"{r['failed']} documents failed, see the log" if r["failed"] else "")
+    except Exception as exc:  # noqa: BLE001
+        log.exception("[embedding-index] rechunk failed")
+        _progress(mid, error=str(exc)[:300])
+    finally:
+        if _job is job:
+            _job = None
+
+
+async def outdated_chunks() -> int:
+    """Documents of the active index whose chunks a rebuild would renew."""
+    from pipelines.rechunk import outdated_ids
+
+    return len(await outdated_ids(client_for(reg.active_model(), "documents")))
 
 
 def stop() -> None:

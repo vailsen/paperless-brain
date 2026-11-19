@@ -298,12 +298,15 @@ def _open_backfill(username: str, token: str) -> None:
         _JOBS[username] = job
 
         async def _run() -> None:
+            from pipelines.rechunk import after_rename
+
             try:
                 renamed, failed = await rename_documents(
                     paperless, sidecar_service, vision.describe_for_title, template,
                     log=job["log"].append,
                     progress=lambda done, total: job.update(renamed=done, total=total),
                     should_stop=lambda: job["stop"],
+                    on_renamed=after_rename,
                 )
                 job.update(renamed=renamed, failed=failed)
             except Exception as exc:  # noqa: BLE001 — shown in the dialog

@@ -65,10 +65,18 @@ def get_token(base_url: str, username: str, password: str) -> str | None:
     return authenticate(base_url, username, password)[0]
 
 
+# (base_url, auth header) → (monotonic time, ids). Module level: a client is
+# created per tool call, the token is what identifies the reader.
+_VISIBLE_IDS: dict[tuple[str, str], tuple[float, set[int]]] = {}
+_IDS_REFRESHING: set[tuple[str, str]] = set()
+_IDS_TASKS: set[asyncio.Task] = set()  # keeps background refreshes referenced
+
+
 class PaperlessClient:
     """Wraps the Paperless-ngx REST API."""
 
-    _MAP_TTL = 60.0  # seconds — tags/correspondents/types/users change rarely
+    _MAP_TTL = 60.0
+    _IDS_TTL = 600.0  # stale ids only cost a slot, never access (see visible_ids)  # seconds — tags/correspondents/types/users change rarely
     # Tag colours are re-picked by hand in the Paperless UI, so they change far
     # more rarely than the name maps and are read once per card render.
     _TAG_COLOR_TTL = 900.0  # 15 minutes
@@ -262,6 +270,50 @@ class PaperlessClient:
             self._parse_document(doc, tag_map, corr_map, dt_map, user_map)
             for doc in results
         ]
+
+    async def visible_ids(self) -> set[int]:
+        """Ids of every document this token can read.
+
+        Lets a search filter by visibility *before* it ranks: Chroma holds every
+        user's chunks, and dropping the unreadable documents after the top-n cut
+        left a user with fewer results than asked for.
+
+        Paperless needs ~0.5 s for the list, so it is cached per token; an entry
+        older than `_IDS_TTL` is returned once more while a refresh runs in the
+        background. Stale ids cannot leak anything: every hit is fetched again
+        with this token afterwards, and what it cannot read is dropped there.
+        """
+        key = (self.base_url, self.headers.get("Authorization", ""))
+        hit = _VISIBLE_IDS.get(key)
+        if hit is not None:
+            if time.monotonic() - hit[0] >= self._IDS_TTL and key not in _IDS_REFRESHING:
+                _IDS_REFRESHING.add(key)
+                task = asyncio.create_task(self._refresh_visible_ids(key))
+                _IDS_TASKS.add(task)
+                task.add_done_callback(_IDS_TASKS.discard)
+            return hit[1]
+        return await self._refresh_visible_ids(key)
+
+    async def _refresh_visible_ids(self, key: tuple[str, str]) -> set[int]:
+        try:
+            ids: set[int] = set()
+            page = 1
+            async with httpx.AsyncClient(headers=self.headers, timeout=60) as client:
+                while True:
+                    r = await client.get(
+                        f"{self.base_url}/api/documents/",
+                        params={"page_size": 1000, "fields": "id", "page": page},
+                    )
+                    r.raise_for_status()
+                    body = r.json()
+                    ids.update(d["id"] for d in body["results"])
+                    if not body.get("next"):
+                        break
+                    page += 1
+            _VISIBLE_IDS[key] = (time.monotonic(), ids)
+            return ids
+        finally:
+            _IDS_REFRESHING.discard(key)
 
     async def list_specific_fields(
         self,

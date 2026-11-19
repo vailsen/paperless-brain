@@ -329,6 +329,12 @@ class _Chroma:
     async def upsert(self, ids, documents, metadatas):
         self.documents = documents
 
+    async def get(self, where=None, include=None):
+        return []
+
+    async def delete(self, ids=None, where=None):
+        pass
+
 
 class _Thumbs:
     async def get_thumbnail(self, doc_id):
@@ -345,6 +351,7 @@ class _IngestPaperless:
     async def get_document(self, doc_id):
         @dataclass
         class D:
+            title: str = "Magazin 2026"
             document_type: str = "Magazin"
             correspondent: str = ""
             created: datetime = datetime(2026, 1, 1)

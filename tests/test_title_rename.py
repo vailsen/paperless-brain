@@ -257,3 +257,16 @@ def test_answers_cached_under_an_older_prompt_are_asked_again(state):
                                     "{description}", path=state))
     assert describe.calls == 1
     assert pl.patched == [(1, "Computerteile")]
+
+
+def test_a_rename_rebuilds_the_chunk_header(state):
+    """The chunk header carries the title; each changed title is reported."""
+    pl = _Paperless([_doc(1, "scan_0001")])
+    seen = []
+
+    async def on_renamed(doc_id, title):
+        seen.append((doc_id, title))
+
+    asyncio.run(tr.rename_documents(pl, _Sidecars({1: "s"}), _Describer(), DEFAULT_TEMPLATE,
+                                    path=state, on_renamed=on_renamed))
+    assert seen == pl.patched == [(1, "2026_10_17_Rechnung_CPU_Amazon")]

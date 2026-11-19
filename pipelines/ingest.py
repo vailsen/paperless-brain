@@ -1,4 +1,5 @@
 # pipelines/ingest.py
+import asyncio
 import io
 import re
 from typing import Callable
@@ -29,7 +30,8 @@ from config.extraction_rules import PROMPT_VERSION
 from models.extraction import ExtractedContent, JsonSidecar
 from services.chroma import ChromaClient
 from services import ingest_hints
-from services.chunking import build_context_prefix, chunk_document
+from pipelines.rechunk import build_chunks, write_chunks
+from services.chunking import context_line
 from services.page_images import build_page_images, embedding_lines, pdf_boxes_per_page
 from services.paperless import PaperlessClient
 from services.pdf_extractor import PDFExtractor
@@ -200,12 +202,10 @@ async def ingest_document(
     _log("    summarizing…")
     full_summary_summarized = await vision.summarize_document(full_summary)
 
-    # chunking and embedding
-    prefix = build_context_prefix(
-        document_type=ai_doc_type,
-        correspondent=document.correspondent,
-        document_date=document.created,
-    )
+    # chunking and embedding — the same builder a rebuild uses
+    # (`pipelines.rechunk`): header v2 (title, context, summary sentence),
+    # chunks fitted to the embedding model's window.
+    context = context_line(ai_doc_type, document.correspondent, document.created)
     # Picture descriptions are embedded with their page so a search for "the
     # lasagna photo" lands on it — but only here: page_text / full_text go back
     # into Paperless via the text write-back and must stay the document's text.
@@ -213,7 +213,9 @@ async def ingest_document(
     for page in extracted_pages:
         lines = embedding_lines(page_pictures.get(page.page, []))
         page_texts.append(f"{page.page_text}\n\n{lines}".strip() if lines else page.page_text)
-    chunks = chunk_document(page_texts=page_texts, context_prefix=prefix)
+    chunks = await asyncio.to_thread(
+        build_chunks, page_texts, context, document.title, full_summary_summarized
+    )
 
     sidecar = JsonSidecar(
         paperless_id=doc_id,
@@ -230,18 +232,7 @@ async def ingest_document(
 
     # → ready for ChromaDB
     _log(f"    embedding {len(chunks)} chunk(s)…")
-    res = await chroma.upsert(
-        ids=[f"paperless_{doc_id}_chunk_{c.chunk_index}" for c in chunks],
-        documents=[c.text for c in chunks],
-        metadatas=[
-            {
-                "paperless_id": doc_id,
-                "chunk_index": c.chunk_index,
-                "page_number": c.page_number,
-            }
-            for c in chunks
-        ],
-    )
+    await write_chunks(chroma, doc_id, chunks, context, document.title)
     sidecar_service.save_sidecar(sidecar)
     thumbnail_service.save_thumbnail(thumb_bytes, doc_id)
 
@@ -249,4 +240,3 @@ async def ingest_document(
 
     _idx.add_document(doc_id, all_cross_references)
 
-    print(res)

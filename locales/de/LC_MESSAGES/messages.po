@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-15 13:32+0100\n"
+"POT-Creation-Date: 2026-11-19 19:13+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -38,7 +38,7 @@ msgstr "Dienst hinzufügen"
 msgid "Backend"
 msgstr "Backend"
 
-#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:431
+#: app_ui/ai_models_settings.py:99 app_ui/pages/admin.py:471
 msgid "Base URL"
 msgstr "Base URL"
 
@@ -50,7 +50,7 @@ msgstr "Anzeigename"
 msgid "e.g. Ollama local, OpenRouter, Claude"
 msgstr "z. B. Ollama lokal, OpenRouter, Claude"
 
-#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:435
+#: app_ui/ai_models_settings.py:106 app_ui/pages/admin.py:475
 msgid "API key"
 msgstr "API-Schlüssel"
 
@@ -101,29 +101,29 @@ msgstr "Dienst gespeichert."
 
 #: app_ui/ai_models_settings.py:172 app_ui/ai_models_settings.py:325
 #: app_ui/ai_models_settings.py:372 app_ui/compose_dialogs.py:240
-#: app_ui/document_dialog.py:980 app_ui/pages/admin.py:364
-#: app_ui/pages/admin.py:383 app_ui/pages/admin.py:466
-#: app_ui/pages/admin.py:524 app_ui/pages/brain.py:277
-#: app_ui/pages/brain.py:291 app_ui/pages/brain.py:772
-#: app_ui/pages/chat.py:1756 app_ui/pages/chat.py:3470
-#: app_ui/pages/chat.py:3838 app_ui/pages/chat.py:3944
-#: app_ui/pages/dashboard.py:1026 app_ui/pages/dashboard.py:1231
-#: app_ui/pages/dashboard.py:1421 app_ui/pages/experts.py:877
-#: app_ui/pages/experts.py:897 app_ui/pages/experts.py:918
-#: app_ui/pages/findings.py:1734 app_ui/pages/findings.py:1772
-#: app_ui/pages/findings.py:1955 app_ui/pages/findings.py:2084
-#: app_ui/pages/findings.py:2127 app_ui/pages/findings.py:2342
-#: app_ui/pages/findings.py:2420 app_ui/pages/settings.py:1205
-#: app_ui/title_rename_settings.py:79 app_ui/title_rename_settings.py:186
-#: app_ui/title_rename_settings.py:245 werkbank/v2/ui/brief_dialog.py:158
-#: werkbank/v2/ui/page.py:522
+#: app_ui/document_dialog.py:978 app_ui/pages/admin.py:380
+#: app_ui/pages/admin.py:404 app_ui/pages/admin.py:423
+#: app_ui/pages/admin.py:506 app_ui/pages/admin.py:564
+#: app_ui/pages/brain.py:277 app_ui/pages/brain.py:291
+#: app_ui/pages/brain.py:772 app_ui/pages/chat.py:1756
+#: app_ui/pages/chat.py:3470 app_ui/pages/chat.py:3838
+#: app_ui/pages/chat.py:3944 app_ui/pages/dashboard.py:1028
+#: app_ui/pages/dashboard.py:1233 app_ui/pages/dashboard.py:1423
+#: app_ui/pages/experts.py:877 app_ui/pages/experts.py:897
+#: app_ui/pages/experts.py:918 app_ui/pages/findings.py:1734
+#: app_ui/pages/findings.py:1772 app_ui/pages/findings.py:1955
+#: app_ui/pages/findings.py:2084 app_ui/pages/findings.py:2127
+#: app_ui/pages/findings.py:2342 app_ui/pages/findings.py:2420
+#: app_ui/pages/settings.py:1205 app_ui/title_rename_settings.py:79
+#: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
+#: werkbank/v2/ui/brief_dialog.py:158 werkbank/v2/ui/page.py:522
 msgid "Cancel"
 msgstr "Abbrechen"
 
 #: app_ui/ai_models_settings.py:173 app_ui/ai_models_settings.py:326
 #: app_ui/dossier_save.py:102 app_ui/memo_dialog.py:323
-#: app_ui/pages/admin.py:467 app_ui/pages/admin.py:525
-#: app_ui/pages/admin.py:549 app_ui/pages/chat.py:1763
+#: app_ui/pages/admin.py:507 app_ui/pages/admin.py:565
+#: app_ui/pages/admin.py:589 app_ui/pages/chat.py:1763
 #: app_ui/pages/experts.py:375 app_ui/pages/experts.py:516
 #: app_ui/pages/experts.py:578 app_ui/pages/experts.py:821
 #: app_ui/pages/settings.py:231 app_ui/pages/settings.py:647
@@ -297,7 +297,7 @@ msgid "Service deleted."
 msgstr "Dienst gelöscht."
 
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
-#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:398
+#: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:438
 #: app_ui/pages/brain.py:292 app_ui/pages/brain.py:1100
 #: app_ui/pages/experts.py:819 app_ui/pages/experts.py:898
 #: app_ui/pages/findings.py:2269 werkbank/v2/ui/page.py:264
@@ -542,7 +542,7 @@ msgstr "Grußformel"
 
 #: app_ui/compose_dialogs.py:230 app_ui/pages/chat.py:1019
 #: app_ui/pages/chat.py:3831 app_ui/pages/chat.py:3940
-#: app_ui/pages/chat.py:4588 app_ui/pages/dashboard.py:1226
+#: app_ui/pages/chat.py:4588 app_ui/pages/dashboard.py:1228
 #: app_ui/pages/settings.py:279 app_ui/similar_dialog.py:123
 #, python-brace-format
 msgid "Error: {err}"
@@ -614,166 +614,166 @@ msgstr "Lädt …"
 msgid "{n} documents"
 msgstr "{n} Dokumente"
 
-#: app_ui/document_dialog.py:167 app_ui/pages/findings.py:829
+#: app_ui/document_dialog.py:165 app_ui/pages/findings.py:829
 #, python-brace-format
 msgid "#{id} not found"
 msgstr "#{id} nicht gefunden"
 
-#: app_ui/document_dialog.py:394
+#: app_ui/document_dialog.py:392
 #, python-brace-format
 msgid "Page {page}"
 msgstr "Seite {page}"
 
-#: app_ui/document_dialog.py:396
+#: app_ui/document_dialog.py:394
 msgid "whole page — position unknown"
 msgstr "ganze Seite — Position unbekannt"
 
-#: app_ui/document_dialog.py:402
+#: app_ui/document_dialog.py:400
 msgid "Show in PDF"
 msgstr "Im PDF zeigen"
 
-#: app_ui/document_dialog.py:454 app_ui/document_dialog.py:534
+#: app_ui/document_dialog.py:452 app_ui/document_dialog.py:532
 #: proactive/deadlines.py:103 proactive/deadlines.py:104
 #: proactive/deep_dive_app.py:120 proactive/findings.py:405
 #: proactive/findings.py:811 proactive/findings.py:812
 msgid "Summary"
 msgstr "Zusammenfassung"
 
-#: app_ui/document_dialog.py:455
+#: app_ui/document_dialog.py:453
 msgid "Full text"
 msgstr "Volltext"
 
-#: app_ui/document_dialog.py:456
+#: app_ui/document_dialog.py:454
 msgid "Dates / References"
 msgstr "Termine / Referenzen"
 
-#: app_ui/document_dialog.py:457
+#: app_ui/document_dialog.py:455
 msgid "Tables"
 msgstr "Tabellen"
 
-#: app_ui/document_dialog.py:459
+#: app_ui/document_dialog.py:457
 msgid "Pictures"
 msgstr "Bilder"
 
-#: app_ui/document_dialog.py:475
+#: app_ui/document_dialog.py:473
 msgid "Metadata"
 msgstr "Metadaten"
 
-#: app_ui/document_dialog.py:499 app_ui/pages/chat.py:1468
+#: app_ui/document_dialog.py:497 app_ui/pages/chat.py:1468
 msgid "1 page"
 msgstr "1 Seite"
 
-#: app_ui/document_dialog.py:500 app_ui/pages/chat.py:1468
+#: app_ui/document_dialog.py:498 app_ui/pages/chat.py:1468
 #, python-brace-format
 msgid "{n} pages"
 msgstr "{n} Seiten"
 
-#: app_ui/document_dialog.py:543 app_ui/pages/chat.py:3557
+#: app_ui/document_dialog.py:541 app_ui/pages/chat.py:3557
 msgid "Notes"
 msgstr "Notizen"
 
-#: app_ui/document_dialog.py:566
+#: app_ui/document_dialog.py:564
 msgid "Deadlines / Actions"
 msgstr "Fristen / Aktionen"
 
-#: app_ui/document_dialog.py:583
+#: app_ui/document_dialog.py:581
 #, python-brace-format
 msgid "+{n} more in the \"Dates / References\" tab"
 msgstr "+{n} weitere im Tab „Termine / Referenzen“"
 
-#: app_ui/document_dialog.py:601
+#: app_ui/document_dialog.py:599
 msgid "No extracted text available."
 msgstr "Kein extrahierter Text verfügbar."
 
-#: app_ui/document_dialog.py:615
+#: app_ui/document_dialog.py:613
 msgid "Actions"
 msgstr "Aktionen"
 
-#: app_ui/document_dialog.py:623 app_ui/pages/dashboard.py:1820
+#: app_ui/document_dialog.py:621 app_ui/pages/dashboard.py:1822
 msgid "Description"
 msgstr "Beschreibung"
 
-#: app_ui/document_dialog.py:630 app_ui/findings_view.py:72
+#: app_ui/document_dialog.py:628 app_ui/findings_view.py:72
 #: app_ui/pages/findings.py:30
 msgid "Deadline"
 msgstr "Frist"
 
-#: app_ui/document_dialog.py:637 app_ui/pages/dashboard.py:1776
+#: app_ui/document_dialog.py:635 app_ui/pages/dashboard.py:1778
 msgid "Certain"
 msgstr "Sicher"
 
-#: app_ui/document_dialog.py:647
+#: app_ui/document_dialog.py:645
 msgid "Yes"
 msgstr "Ja"
 
-#: app_ui/document_dialog.py:649
+#: app_ui/document_dialog.py:647
 msgid "No"
 msgstr "Nein"
 
-#: app_ui/document_dialog.py:655
+#: app_ui/document_dialog.py:653
 msgid "No actions detected."
 msgstr "Keine Aktionen erkannt."
 
-#: app_ui/document_dialog.py:660
+#: app_ui/document_dialog.py:658
 msgid "Cross-references"
 msgstr "Querverweise"
 
-#: app_ui/document_dialog.py:740
+#: app_ui/document_dialog.py:738
 #, python-brace-format
 msgid "Page: {page}"
 msgstr "Seite: {page}"
 
-#: app_ui/document_dialog.py:769
+#: app_ui/document_dialog.py:767
 msgid "Field"
 msgstr "Feld"
 
-#: app_ui/document_dialog.py:770
+#: app_ui/document_dialog.py:768
 msgid "Value"
 msgstr "Wert"
 
-#: app_ui/document_dialog.py:801
+#: app_ui/document_dialog.py:799
 msgid "(empty table)"
 msgstr "(leere Tabelle)"
 
-#: app_ui/document_dialog.py:807
+#: app_ui/document_dialog.py:805
 msgid "No tables detected."
 msgstr "Keine Tabellen erkannt."
 
-#: app_ui/document_dialog.py:827
+#: app_ui/document_dialog.py:825
 msgid "PDF cannot be displayed."
 msgstr "PDF kann nicht angezeigt werden."
 
-#: app_ui/document_dialog.py:889 app_ui/pages/browser.py:536
+#: app_ui/document_dialog.py:887 app_ui/pages/browser.py:536
 #, python-brace-format
 msgid "Relevance: {score:.0%}"
 msgstr "Relevanz: {score:.0%}"
 
-#: app_ui/document_dialog.py:903
+#: app_ui/document_dialog.py:901
 msgid "Cross-reference cluster"
 msgstr "Querverweis-Cluster"
 
-#: app_ui/document_dialog.py:913
+#: app_ui/document_dialog.py:911
 msgid "Similar documents"
 msgstr "Ähnliche Dokumente"
 
-#: app_ui/document_dialog.py:928
+#: app_ui/document_dialog.py:926
 msgid "Pinned — unpin"
 msgstr "Angeheftet — Lösen"
 
-#: app_ui/document_dialog.py:928 app_ui/pages/browser.py:573
+#: app_ui/document_dialog.py:926 app_ui/pages/browser.py:573
 msgid "Pin"
 msgstr "Anheften"
 
-#: app_ui/document_dialog.py:945
+#: app_ui/document_dialog.py:943
 msgid "Open in Paperless-ngx"
 msgstr "In Paperless-ngx öffnen"
 
-#: app_ui/document_dialog.py:955
+#: app_ui/document_dialog.py:953
 #, python-brace-format
 msgid "Re-ingest document #{id}?"
 msgstr "Dokument #{id} neu einlesen?"
 
-#: app_ui/document_dialog.py:958
+#: app_ui/document_dialog.py:956
 msgid ""
 "Its extraction and search index are deleted and built again from the PDF."
 " Every page goes through the vision model once more, which can take a few"
@@ -783,11 +783,11 @@ msgstr ""
 "Jede Seite läuft dafür noch einmal durch das Vision-Modell – das kann "
 "einige Minuten dauern."
 
-#: app_ui/document_dialog.py:964
+#: app_ui/document_dialog.py:962
 msgid "Hint for the vision model (optional)"
 msgstr "Hinweis für das Vision-Modell (optional)"
 
-#: app_ui/document_dialog.py:966
+#: app_ui/document_dialog.py:964
 msgid ""
 "e.g. The blood pressure values are handwritten; the second one reads "
 "210/80, not 210/180."
@@ -795,7 +795,7 @@ msgstr ""
 "z. B. Die Blutdruckwerte sind handschriftlich; der zweite lautet 210/80, "
 "nicht 210/180."
 
-#: app_ui/document_dialog.py:975
+#: app_ui/document_dialog.py:973
 msgid ""
 "Tell the model what it misread and how to read it. The hint stays with "
 "the document and is used on every later re-ingest too; clear the field to"
@@ -805,26 +805,26 @@ msgstr ""
 "ist. Der Hinweis bleibt am Dokument und gilt bei jedem späteren Neu-"
 "Einlesen; leere das Feld, um ihn zu entfernen."
 
-#: app_ui/document_dialog.py:984
+#: app_ui/document_dialog.py:982
 msgid "Re-ingest"
 msgstr "Neu einlesen"
 
-#: app_ui/document_dialog.py:1011
+#: app_ui/document_dialog.py:1009
 #, python-brace-format
 msgid "Re-ingesting document #{id} …"
 msgstr "Dokument #{id} wird neu eingelesen …"
 
-#: app_ui/document_dialog.py:1021
+#: app_ui/document_dialog.py:1019
 #, python-brace-format
 msgid "#{id} re-ingested."
 msgstr "#{id} neu eingelesen."
 
-#: app_ui/document_dialog.py:1026
+#: app_ui/document_dialog.py:1024
 #, python-brace-format
 msgid "Error during re-ingest: {err}"
 msgstr "Fehler beim Neu-Einlesen: {err}"
 
-#: app_ui/document_dialog.py:1034
+#: app_ui/document_dialog.py:1032
 msgid "Re-ingest (extraction + embedding)"
 msgstr "Neu einlesen (Extraktion + Embedding)"
 
@@ -1320,7 +1320,7 @@ msgstr "Hilfe"
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: app_ui/layout.py:433 app_ui/pages/admin.py:87
+#: app_ui/layout.py:433 app_ui/pages/admin.py:88
 msgid "Admin"
 msgstr "Admin"
 
@@ -1612,7 +1612,7 @@ msgstr "Proaktive Erinnerungen und Hinweise"
 msgid "Needs background access."
 msgstr "Benötigt Hintergrundzugriff."
 
-#: app_ui/pages/admin.py:99 app_ui/pages/chat.py:3902
+#: app_ui/pages/admin.py:100 app_ui/pages/chat.py:3902
 #: app_ui/pages/experts.py:629 app_ui/proactive_settings.py:131
 #: app_ui/proactive_settings.py:133 app_ui/skill_wizard_dialog.py:46
 #: app_ui/skill_wizard_dialog.py:60 werkbank/v2/ui/page.py:517
@@ -1841,7 +1841,7 @@ msgstr "Alle Dokumente sind analysiert."
 msgid "{n} documents still to go in this run."
 msgstr "Noch {n} Dokumente in diesem Durchlauf."
 
-#: app_ui/pages/admin.py:249 app_ui/pages/admin.py:288
+#: app_ui/pages/admin.py:254 app_ui/pages/admin.py:295
 #: app_ui/pages/experts.py:617 app_ui/proactive_settings.py:479
 #: app_ui/title_rename_settings.py:263
 msgid "Stop"
@@ -2272,7 +2272,7 @@ msgstr ""
 msgid "Start dry run"
 msgstr "Probelauf starten"
 
-#: app_ui/pages/dashboard.py:1095 app_ui/pages/dashboard.py:1122
+#: app_ui/pages/dashboard.py:1097 app_ui/pages/dashboard.py:1124
 #: app_ui/pages/findings.py:368 app_ui/title_rename_settings.py:231
 #: app_ui/title_rename_settings.py:266 app_ui/title_rename_settings.py:268
 #: werkbank/v2/ui/board.py:139
@@ -2293,22 +2293,22 @@ msgstr "Alle {n} Dokumente umbenennen"
 msgid "None of the examples could be named."
 msgstr "Keines der Beispiele konnte benannt werden."
 
-#: app_ui/title_rename_settings.py:327
+#: app_ui/title_rename_settings.py:330
 #, python-brace-format
 msgid "Renamed {done} of {total} …"
 msgstr "{done} von {total} umbenannt …"
 
-#: app_ui/title_rename_settings.py:332
+#: app_ui/title_rename_settings.py:335
 #, python-brace-format
 msgid "Stopped with an error: {err}"
 msgstr "Mit einem Fehler abgebrochen: {err}"
 
-#: app_ui/title_rename_settings.py:335
+#: app_ui/title_rename_settings.py:338
 #, python-brace-format
 msgid "Finished: {renamed} renamed, {failed} failed."
 msgstr "Fertig: {renamed} umbenannt, {failed} fehlgeschlagen."
 
-#: app_ui/title_rename_settings.py:351
+#: app_ui/title_rename_settings.py:354
 #, python-brace-format
 msgid ""
 "Naming up to {n} documents with the ingestion model — this can take a few"
@@ -2317,12 +2317,12 @@ msgstr ""
 "Das Ingest-Modell benennt bis zu {n} Dokumente — das kann ein paar "
 "Minuten dauern …"
 
-#: app_ui/title_rename_settings.py:364
+#: app_ui/title_rename_settings.py:367
 #, python-brace-format
 msgid "Named {done} of {total} …"
 msgstr "{done} von {total} benannt …"
 
-#: app_ui/title_rename_settings.py:379
+#: app_ui/title_rename_settings.py:382
 #, python-brace-format
 msgid ""
 "{total} documents have not been renamed yet. These are the first {n} as "
@@ -2331,7 +2331,7 @@ msgstr ""
 "{total} Dokumente wurden noch nicht umbenannt. Das sind die ersten {n}, "
 "so wie sie benannt würden — in Paperless wurde nichts geändert."
 
-#: app_ui/title_rename_settings.py:383
+#: app_ui/title_rename_settings.py:386
 msgid "Every analysed document has already been renamed."
 msgstr "Alle analysierten Dokumente wurden bereits umbenannt."
 
@@ -2411,21 +2411,25 @@ msgstr "Gedächtnis-Fakten"
 msgid "Note chunks"
 msgstr "Notiz-Abschnitte"
 
-#: app_ui/pages/admin.py:88
+#: app_ui/pages/admin.py:83
+msgid "Documents rebuilt"
+msgstr "Dokumente neu aufgebaut"
+
+#: app_ui/pages/admin.py:89
 msgid "Settings for every user. Admins are named in ADMIN_USERS on the server."
 msgstr ""
 "Einstellungen für alle Benutzer. Admins stehen auf dem Server in "
 "ADMIN_USERS."
 
-#: app_ui/pages/admin.py:96
+#: app_ui/pages/admin.py:97
 msgid "Embedding models"
 msgstr "Embedding-Modelle"
 
-#: app_ui/pages/admin.py:97
+#: app_ui/pages/admin.py:98
 msgid "Search reads the active model's index, for every user"
 msgstr "Die Suche liest den Index des aktiven Modells, für alle Benutzer"
 
-#: app_ui/pages/admin.py:148
+#: app_ui/pages/admin.py:153
 #, python-brace-format
 msgid ""
 "This server's copy gives different vectors (cosine {mean}), so this index"
@@ -2436,19 +2440,19 @@ msgstr ""
 "daher kann dieser Index hier nicht einbetten. Auf diesem Server neu "
 "aufbauen, wenn die Suche nicht vom Endpunkt abhängen soll."
 
-#: app_ui/pages/admin.py:151
+#: app_ui/pages/admin.py:156
 msgid "Rebuild on this server"
 msgstr "Auf diesem Server neu aufbauen"
 
-#: app_ui/pages/admin.py:153
+#: app_ui/pages/admin.py:158
 msgid "on the remote endpoint"
 msgstr "am entfernten Endpunkt"
 
-#: app_ui/pages/admin.py:153 app_ui/pages/admin.py:240
+#: app_ui/pages/admin.py:158 app_ui/pages/admin.py:245
 msgid "on this server"
 msgstr "auf diesem Server"
 
-#: app_ui/pages/admin.py:154
+#: app_ui/pages/admin.py:159
 #, python-brace-format
 msgid ""
 "Next: build the index {where}. Search keeps using the active index "
@@ -2457,27 +2461,27 @@ msgstr ""
 "Als Nächstes: den Index {where} aufbauen. Die Suche nutzt so lange weiter"
 " den aktiven Index."
 
-#: app_ui/pages/admin.py:157
+#: app_ui/pages/admin.py:162
 msgid "To build on a GPU instead, add its endpoint under Edit."
 msgstr ""
 "Um stattdessen auf einer GPU aufzubauen, deren Endpunkt unter Bearbeiten "
 "eintragen."
 
-#: app_ui/pages/admin.py:158 app_ui/pages/admin.py:247
+#: app_ui/pages/admin.py:163 app_ui/pages/admin.py:252
 msgid "Build index"
 msgstr "Index aufbauen"
 
-#: app_ui/pages/admin.py:160
+#: app_ui/pages/admin.py:165
 msgid "The build stopped before the end. It continues where it stopped."
 msgstr ""
 "Der Aufbau hat vor dem Ende angehalten. Er macht dort weiter, wo er "
 "stehen blieb."
 
-#: app_ui/pages/admin.py:161 app_ui/pages/admin.py:246
+#: app_ui/pages/admin.py:166 app_ui/pages/admin.py:251
 msgid "Continue building"
 msgstr "Aufbau fortsetzen"
 
-#: app_ui/pages/admin.py:163
+#: app_ui/pages/admin.py:168
 msgid ""
 "Ready. Next: compare it with the active index, set its distance "
 "thresholds from the distances you see, then make it active."
@@ -2485,7 +2489,7 @@ msgstr ""
 "Bereit. Als Nächstes: mit dem aktiven Index vergleichen, die Distanz-"
 "Schwellen nach den angezeigten Distanzen setzen, dann aktiv schalten."
 
-#: app_ui/pages/admin.py:166
+#: app_ui/pages/admin.py:171
 msgid ""
 "It embeds remotely: once active, every search asks the endpoint — while "
 "it is off, search finds nothing. Switch to this server above at any time."
@@ -2494,20 +2498,20 @@ msgstr ""
 "solange er aus ist, findet die Suche nichts. Oben jederzeit auf diesen "
 "Server umstellbar."
 
-#: app_ui/pages/admin.py:168 app_ui/pages/admin.py:583
+#: app_ui/pages/admin.py:173 app_ui/pages/admin.py:623
 msgid "Compare"
 msgstr "Vergleichen"
 
-#: app_ui/pages/admin.py:169 app_ui/pages/admin.py:252
+#: app_ui/pages/admin.py:174 app_ui/pages/admin.py:259
 msgid "Distance thresholds"
 msgstr "Distanz-Schwellen"
 
-#: app_ui/pages/admin.py:170 app_ui/pages/admin.py:250
-#: app_ui/pages/admin.py:370
+#: app_ui/pages/admin.py:175 app_ui/pages/admin.py:257
+#: app_ui/pages/admin.py:410
 msgid "Make active"
 msgstr "Aktiv schalten"
 
-#: app_ui/pages/admin.py:182
+#: app_ui/pages/admin.py:187
 msgid ""
 "Checking that this server and the endpoint give the same vectors — the "
 "first time this downloads the model here (about 1–2 GB) …"
@@ -2516,62 +2520,66 @@ msgstr ""
 "beim ersten Mal wird dafür das Modell hier heruntergeladen (etwa 1–2 GB) "
 "…"
 
-#: app_ui/pages/admin.py:196
+#: app_ui/pages/admin.py:201
 msgid "Same vectors both ways — switched."
 msgstr "Auf beiden Wegen dieselben Vektoren — umgestellt."
 
-#: app_ui/pages/admin.py:198
+#: app_ui/pages/admin.py:203
 #, python-brace-format
 msgid "Different vectors (cosine {mean}) — it stays as it was."
 msgstr "Andere Vektoren (Kosinus {mean}) — es bleibt, wie es war."
 
-#: app_ui/pages/admin.py:233
+#: app_ui/pages/admin.py:238
 msgid "Active"
 msgstr "Aktiv"
 
-#: app_ui/pages/admin.py:235
+#: app_ui/pages/admin.py:240
 msgid "Dormant"
 msgstr "Ruhend"
 
-#: app_ui/pages/admin.py:236
+#: app_ui/pages/admin.py:241
 msgid "Was active; not updated until it is active again"
 msgstr "War aktiv; wird nicht aktualisiert, bis er wieder aktiv ist"
 
-#: app_ui/pages/admin.py:242
+#: app_ui/pages/admin.py:247
 msgid "in RAM"
 msgstr "im RAM"
 
-#: app_ui/pages/admin.py:244 app_ui/pages/brain.py:1070
+#: app_ui/pages/admin.py:249 app_ui/pages/brain.py:1070
 #: app_ui/pages/brain.py:1162 app_ui/pages/chat.py:3744
 #: app_ui/pages/chat.py:3786
 msgid "Edit"
 msgstr "Bearbeiten"
 
-#: app_ui/pages/admin.py:247
+#: app_ui/pages/admin.py:252
 msgid "Catch up"
 msgstr "Nachziehen"
 
-#: app_ui/pages/admin.py:253
+#: app_ui/pages/admin.py:255 app_ui/pages/admin.py:334
+msgid "Rebuild document chunks"
+msgstr "Dokument-Abschnitte neu aufbauen"
+
+#: app_ui/pages/admin.py:260
 msgid "Delete index"
 msgstr "Index löschen"
 
-#: app_ui/pages/admin.py:255
+#: app_ui/pages/admin.py:262
 msgid "Remove model"
 msgstr "Modell entfernen"
 
-#: app_ui/pages/admin.py:260
+#: app_ui/pages/admin.py:267
 msgid "Embeds on"
 msgstr "Bettet ein auf"
 
-#: app_ui/pages/admin.py:261
+#: app_ui/pages/admin.py:268
 msgid "This server"
 msgstr "Diesem Server"
 
-#: app_ui/pages/admin.py:261
+#: app_ui/pages/admin.py:268
 msgid "Remote endpoint"
 msgstr "Entferntem Endpunkt"
 
-#: app_ui/pages/admin.py:270
+#: app_ui/pages/admin.py:277
 #, python-brace-format
 msgid ""
 "{docs} documents ({dc} chunks) · {notes} notes ({nc} chunks) · {facts} "
@@ -2580,49 +2588,49 @@ msgstr ""
 "{docs} Dokumente ({dc} Abschnitte) · {notes} Notizen ({nc} Abschnitte) · "
 "{facts} Gedächtnis-Fakten"
 
-#: app_ui/pages/admin.py:282
+#: app_ui/pages/admin.py:289
 #, python-brace-format
 msgid "{part}: {done} of {total} · {n} embedded"
 msgstr "{part}: {done} von {total} · {n} eingebettet"
 
-#: app_ui/pages/admin.py:285
+#: app_ui/pages/admin.py:292
 msgid "Starting … (a remote host may need to wake up first)"
 msgstr "Startet … (ein entfernter Rechner muss eventuell erst aufwachen)"
 
-#: app_ui/pages/admin.py:289
+#: app_ui/pages/admin.py:296
 msgid "Stops after this batch."
 msgstr "Hält nach diesem Durchgang an."
 
-#: app_ui/pages/admin.py:299
+#: app_ui/pages/admin.py:306
 #, python-brace-format
 msgid "Caught up with the active index: {when}"
 msgstr "Auf Stand des aktiven Index: {when}"
 
-#: app_ui/pages/admin.py:302
+#: app_ui/pages/admin.py:309
 #, python-brace-format
 msgid "Last run: {n} embedded in {t}"
 msgstr "Letzter Lauf: {n} eingebettet in {t}"
 
-#: app_ui/pages/admin.py:309
+#: app_ui/pages/admin.py:316
 #, python-brace-format
 msgid "Local against remote: cosine {mean} (lowest {min}) — {verdict}"
 msgstr "Lokal gegen entfernt: Kosinus {mean} (niedrigster {min}) — {verdict}"
 
-#: app_ui/pages/admin.py:311
+#: app_ui/pages/admin.py:318
 msgid "the same model"
 msgstr "dasselbe Modell"
 
-#: app_ui/pages/admin.py:311
+#: app_ui/pages/admin.py:318
 msgid "not the same vectors"
 msgstr "nicht dieselben Vektoren"
 
-#: app_ui/pages/admin.py:314
+#: app_ui/pages/admin.py:321
 msgid "Every search asks this endpoint; while it is off, search finds nothing."
 msgstr ""
 "Jede Suche fragt diesen Endpunkt; solange er aus ist, findet die Suche "
 "nichts."
 
-#: app_ui/pages/admin.py:317
+#: app_ui/pages/admin.py:324
 #, python-brace-format
 msgid ""
 "Distances: memory hint ≤ {mh} (× {mw}) · archive hint ≤ {ah} · similar "
@@ -2631,16 +2639,54 @@ msgstr ""
 "Distanzen: Gedächtnis-Hinweis ≤ {mh} (× {mw}) · Archiv-Hinweis ≤ {ah} · "
 "ähnlicher Fakt ≤ {fd}"
 
-#: app_ui/pages/admin.py:320
+#: app_ui/pages/admin.py:327
 msgid "defaults"
 msgstr "Standardwerte"
 
-#: app_ui/pages/admin.py:357
+#: app_ui/pages/admin.py:331
+#, python-brace-format
+msgid ""
+"{n} documents have chunks of an older version (no title and summary in "
+"their header, or cut off by the model's window). Rebuilding them needs no"
+" vision model."
+msgstr ""
+"{n} Dokumente haben Abschnitte einer älteren Version (ohne Titel und "
+"Zusammenfassung im Kopf oder vom Fenster des Modells abgeschnitten). Der "
+"Neuaufbau braucht kein Vision-Modell."
+
+#: app_ui/pages/admin.py:371
+msgid "Rebuild document chunks?"
+msgstr "Dokument-Abschnitte neu aufbauen?"
+
+#: app_ui/pages/admin.py:373
+msgid ""
+"Cuts every outdated document into chunks again from its stored "
+"extraction, with title and summary in the header and within the model's "
+"window, and embeds them with the active model. No vision model. Search "
+"keeps working meanwhile; a stop or a restart keeps what is done, and the "
+"next run continues."
+msgstr ""
+"Schneidet jedes veraltete Dokument aus seiner gespeicherten Extraktion "
+"neu in Abschnitte, mit Titel und Zusammenfassung im Kopf und innerhalb "
+"des Fensters des Modells, und bettet sie mit dem aktiven Modell ein. Kein"
+" Vision-Modell. Die Suche funktioniert währenddessen weiter; ein Stopp "
+"oder Neustart behält das Erledigte, der nächste Lauf macht weiter."
+
+#: app_ui/pages/admin.py:377
+#, python-brace-format
+msgid "{n} documents."
+msgstr "{n} Dokumente."
+
+#: app_ui/pages/admin.py:392 app_ui/pages/experts.py:674
+msgid "Rebuild"
+msgstr "Neu erstellen"
+
+#: app_ui/pages/admin.py:397
 #, python-brace-format
 msgid "Make \"{name}\" active?"
 msgstr "„{name}“ aktiv schalten?"
 
-#: app_ui/pages/admin.py:360
+#: app_ui/pages/admin.py:400
 msgid ""
 "Its index is first brought up to date with the active one, then every "
 "search of every user reads it. The current index stays as it is, dormant:"
@@ -2651,12 +2697,12 @@ msgstr ""
 "ruhend: Er wird nicht mehr aktualisiert, bis er wieder aktiv geschaltet "
 "wird."
 
-#: app_ui/pages/admin.py:375
+#: app_ui/pages/admin.py:415
 #, python-brace-format
 msgid "Delete the index of \"{name}\"?"
 msgstr "Index von „{name}“ löschen?"
 
-#: app_ui/pages/admin.py:378
+#: app_ui/pages/admin.py:418
 msgid ""
 "Its vectors for documents, notes and memory are deleted, and the model's "
 "files on this server — a remote endpoint is not touched. The documents, "
@@ -2668,29 +2714,29 @@ msgstr ""
 "bleibt unberührt. Die Dokumente, Notizen und Extraktionen selbst bleiben;"
 " der Index lässt sich aus dem aktiven wieder aufbauen."
 
-#: app_ui/pages/admin.py:390
+#: app_ui/pages/admin.py:430
 #, python-brace-format
 msgid "Index deleted, and the model's files on this server ({gb} GB)."
 msgstr "Index gelöscht, dazu die Dateien des Modells auf diesem Server ({gb} GB)."
 
-#: app_ui/pages/admin.py:405
+#: app_ui/pages/admin.py:445
 #, python-brace-format
 msgid "Model removed, and its files on this server ({gb} GB)."
 msgstr "Modell entfernt, dazu seine Dateien auf diesem Server ({gb} GB)."
 
-#: app_ui/pages/admin.py:415
+#: app_ui/pages/admin.py:455
 msgid "Edit embedding model"
 msgstr "Embedding-Modell bearbeiten"
 
-#: app_ui/pages/admin.py:415
+#: app_ui/pages/admin.py:455
 msgid "Add embedding model"
 msgstr "Embedding-Modell hinzufügen"
 
-#: app_ui/pages/admin.py:417
+#: app_ui/pages/admin.py:457
 msgid "Model (Hugging Face id)"
 msgstr "Modell (Hugging-Face-ID)"
 
-#: app_ui/pages/admin.py:422
+#: app_ui/pages/admin.py:462
 msgid ""
 "Runs on this server with sentence-transformers; the first use downloads "
 "it. The index belongs to the model, so the id cannot change."
@@ -2699,11 +2745,11 @@ msgstr ""
 " es herunter. Der Index gehört zum Modell, daher lässt sich die ID nicht "
 "ändern."
 
-#: app_ui/pages/admin.py:425
+#: app_ui/pages/admin.py:465
 msgid "Query instruction"
 msgstr "Anweisung für Suchanfragen"
 
-#: app_ui/pages/admin.py:428
+#: app_ui/pages/admin.py:468
 msgid ""
 "Put before every search query, never before stored text. Empty = filled "
 "in for known models (e5-instruct, Qwen3-Embedding)."
@@ -2711,19 +2757,19 @@ msgstr ""
 "Steht vor jeder Suchanfrage, nie vor gespeichertem Text. Leer = für "
 "bekannte Modelle (e5-instruct, Qwen3-Embedding) ausgefüllt."
 
-#: app_ui/pages/admin.py:430
+#: app_ui/pages/admin.py:470
 msgid "Remote endpoint (optional)"
 msgstr "Entfernter Endpunkt (optional)"
 
-#: app_ui/pages/admin.py:433
+#: app_ui/pages/admin.py:473
 msgid "Model name there"
 msgstr "Modellname dort"
 
-#: app_ui/pages/admin.py:441
+#: app_ui/pages/admin.py:481
 msgid "stored — empty keeps it"
 msgstr "gespeichert — leer lässt ihn"
 
-#: app_ui/pages/admin.py:442
+#: app_ui/pages/admin.py:482
 msgid ""
 "Any OpenAI-compatible /v1/embeddings (Ollama, TEI, vLLM). The same model "
 "remotely, e.g. to build a large index on a GPU and search it on this "
@@ -2733,16 +2779,16 @@ msgstr ""
 "Modell entfernt, z. B. um einen großen Index auf einer GPU aufzubauen und"
 " danach auf diesem Server darin zu suchen."
 
-#: app_ui/pages/admin.py:458
+#: app_ui/pages/admin.py:498
 msgid "This model is already in the list."
 msgstr "Dieses Modell steht schon in der Liste."
 
-#: app_ui/pages/admin.py:473
+#: app_ui/pages/admin.py:513
 #, python-brace-format
 msgid "Distance thresholds — {name}"
 msgstr "Distanz-Schwellen — {name}"
 
-#: app_ui/pages/admin.py:475
+#: app_ui/pages/admin.py:515
 msgid ""
 "All values are distances, as the tool log prints them: 0 = identical, "
 "lower = closer. Each model spreads distances differently — the comparison"
@@ -2754,71 +2800,71 @@ msgstr ""
 "Vergleich unten zeigt die dieses Modells. Mit „Standard“ markierte Werte "
 "sind die, mit denen jede Installation bisher lief."
 
-#: app_ui/pages/admin.py:481 app_ui/pages/experts.py:192
+#: app_ui/pages/admin.py:521 app_ui/pages/experts.py:192
 msgid "default"
 msgstr "Standard"
 
-#: app_ui/pages/admin.py:485
+#: app_ui/pages/admin.py:525
 msgid "Memory and note hints: max. distance"
 msgstr "Hinweise aus Gedächtnis und Notizen: max. Distanz"
 
-#: app_ui/pages/admin.py:486
+#: app_ui/pages/admin.py:526
 msgid "… and at most this factor above the best hint (≥ 1)"
 msgstr "… und höchstens dieser Faktor über dem besten Hinweis (≥ 1)"
 
-#: app_ui/pages/admin.py:488
+#: app_ui/pages/admin.py:528
 msgid "Hints from memory and notes shown next to search results."
 msgstr "Hinweise aus Gedächtnis und Notizen, die neben Suchergebnissen erscheinen."
 
-#: app_ui/pages/admin.py:492
+#: app_ui/pages/admin.py:532
 #, python-brace-format
 msgid "The old setting \"similarity {sim}\" is the distance {dist}."
 msgstr "Die alte Einstellung „Ähnlichkeit {sim}“ ist die Distanz {dist}."
 
-#: app_ui/pages/admin.py:497
+#: app_ui/pages/admin.py:537
 msgid "Archive hint on web search: max. distance"
 msgstr "Archiv-Hinweis bei der Websuche: max. Distanz"
 
-#: app_ui/pages/admin.py:498
+#: app_ui/pages/admin.py:538
 msgid "\"A very similar fact exists\": max. distance"
 msgstr "„Ein sehr ähnlicher Fakt existiert“: max. Distanz"
 
-#: app_ui/pages/admin.py:506
+#: app_ui/pages/admin.py:546
 msgid "Enter a number in every field."
 msgstr "In jedes Feld eine Zahl eintragen."
 
-#: app_ui/pages/admin.py:521
+#: app_ui/pages/admin.py:561
 msgid "Reset to defaults"
 msgstr "Auf Standardwerte zurücksetzen"
 
-#: app_ui/pages/admin.py:535
+#: app_ui/pages/admin.py:575
 msgid "Search settings"
 msgstr "Sucheinstellungen"
 
-#: app_ui/pages/admin.py:536
+#: app_ui/pages/admin.py:576
 msgid "For every user. The distance thresholds belong to each model, above."
 msgstr "Für alle Benutzer. Die Distanz-Schwellen gehören zu jedem Modell, oben."
 
-#: app_ui/pages/admin.py:539
+#: app_ui/pages/admin.py:579
 msgid "Max. search results"
 msgstr "Max. Suchergebnisse"
 
-#: app_ui/pages/admin.py:545 app_ui/pages/experts.py:371
+#: app_ui/pages/admin.py:585 app_ui/pages/experts.py:371
 #: app_ui/pages/experts.py:513 app_ui/pages/experts.py:575
 #: app_ui/pages/experts.py:808 app_ui/pages/settings.py:229
 #: app_ui/pages/settings.py:692
 msgid "Saved."
 msgstr "Gespeichert."
 
-#: app_ui/pages/admin.py:547
+#: app_ui/pages/admin.py:587
 msgid "Enter a number."
 msgstr "Eine Zahl eintragen."
 
-#: app_ui/pages/admin.py:557
+#: app_ui/pages/admin.py:597
 msgid "Compare indexes"
 msgstr "Indizes vergleichen"
 
-#: app_ui/pages/admin.py:558
+#: app_ui/pages/admin.py:598
 msgid ""
 "Semantic search only, no language model: which documents each index "
 "finds, and how fast. One model after the other, each alone in RAM."
@@ -2826,66 +2872,66 @@ msgstr ""
 "Nur semantische Suche, kein Sprachmodell: welche Dokumente jeder Index "
 "findet und wie schnell. Ein Modell nach dem anderen, jedes allein im RAM."
 
-#: app_ui/pages/admin.py:568
+#: app_ui/pages/admin.py:608
 msgid "Two models with an index are needed. Add a model and build its index."
 msgstr ""
 "Dafür braucht es zwei Modelle mit Index. Ein Modell hinzufügen und seinen"
 " Index aufbauen."
 
-#: app_ui/pages/admin.py:579
+#: app_ui/pages/admin.py:619
 msgid "Questions, one per line"
 msgstr "Fragen, eine pro Zeile"
 
-#: app_ui/pages/admin.py:581
+#: app_ui/pages/admin.py:621
 msgid "Documents per question"
 msgstr "Dokumente pro Frage"
 
-#: app_ui/pages/admin.py:589
+#: app_ui/pages/admin.py:629
 msgid "Enter questions and pick two different models."
 msgstr "Fragen eingeben und zwei verschiedene Modelle wählen."
 
-#: app_ui/pages/admin.py:594
+#: app_ui/pages/admin.py:634
 msgid "Running — loading a model can take a minute …"
 msgstr "Läuft — ein Modell zu laden kann eine Minute dauern …"
 
-#: app_ui/pages/admin.py:629
+#: app_ui/pages/admin.py:669
 msgid "One of the two indexes could not be searched."
 msgstr "Einer der beiden Indizes ließ sich nicht durchsuchen."
 
-#: app_ui/pages/admin.py:647
+#: app_ui/pages/admin.py:687
 #, python-brace-format
 msgid "Load {s} s · query embedding {e} ms · vector search {v} ms (median)"
 msgstr "Laden {s} s · Anfrage einbetten {e} ms · Vektorsuche {v} ms (Median)"
 
-#: app_ui/pages/admin.py:651
+#: app_ui/pages/admin.py:691
 #, python-brace-format
 msgid "Distance of the best document {f}, of the last {l} (median) · {n} chunks"
 msgstr ""
 "Distanz des besten Dokuments {f}, des letzten {l} (Median) · {n} "
 "Abschnitte"
 
-#: app_ui/pages/admin.py:655
+#: app_ui/pages/admin.py:695
 #, python-brace-format
 msgid "Same documents in both lists, on average: {pct} %"
 msgstr "Gleiche Dokumente in beiden Listen, im Schnitt: {pct} %"
 
-#: app_ui/pages/admin.py:658
+#: app_ui/pages/admin.py:698
 msgid "Documents you cannot see in Paperless are shown by number only."
 msgstr ""
 "Dokumente, die du in Paperless nicht sehen kannst, stehen nur mit Nummer "
 "da."
 
-#: app_ui/pages/admin.py:669
+#: app_ui/pages/admin.py:709
 #, python-brace-format
 msgid "{e} ms + {v} ms"
 msgstr "{e} ms + {v} ms"
 
-#: app_ui/pages/admin.py:674
+#: app_ui/pages/admin.py:714
 #, python-brace-format
 msgid "Document #{id}"
 msgstr "Dokument #{id}"
 
-#: app_ui/pages/admin.py:679
+#: app_ui/pages/admin.py:719
 msgid "only here"
 msgstr "nur hier"
 
@@ -3934,7 +3980,7 @@ msgstr "Dezember"
 msgid "Loading..."
 msgstr "Lade..."
 
-#: app_ui/pages/dashboard.py:420 app_ui/pages/dashboard.py:989
+#: app_ui/pages/dashboard.py:420 app_ui/pages/dashboard.py:991
 #, python-brace-format
 msgid "Last sync: {ts}"
 msgstr "Letzter Sync: {ts}"
@@ -4031,34 +4077,34 @@ msgstr "✗ #{id} Fehler"
 msgid "#{id} removed"
 msgstr "#{id} entfernt"
 
-#: app_ui/pages/dashboard.py:970
+#: app_ui/pages/dashboard.py:972
 msgid "Sync stopped"
 msgstr "Sync gestoppt"
 
-#: app_ui/pages/dashboard.py:973
+#: app_ui/pages/dashboard.py:975
 msgid "Sync complete"
 msgstr "Sync abgeschlossen"
 
-#: app_ui/pages/dashboard.py:980
+#: app_ui/pages/dashboard.py:982
 #, python-brace-format
 msgid "{new} new, {removed} removed"
 msgstr "{new} neu, {removed} entfernt"
 
-#: app_ui/pages/dashboard.py:994 app_ui/pages/dashboard.py:1468
+#: app_ui/pages/dashboard.py:996 app_ui/pages/dashboard.py:1470
 #, python-brace-format, python-format
 msgid "{pct} % indexed in ChromaDB"
 msgstr "{pct} % in ChromaDB indexiert"
 
-#: app_ui/pages/dashboard.py:999
+#: app_ui/pages/dashboard.py:1001
 #, python-brace-format
 msgid "Sync error: {err}"
 msgstr "Sync Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1014
+#: app_ui/pages/dashboard.py:1016
 msgid "Sync"
 msgstr "Synchronisieren"
 
-#: app_ui/pages/dashboard.py:1017
+#: app_ui/pages/dashboard.py:1019
 msgid ""
 "New documents are always ingested. Additionally, outdated documents (old "
 "prompt version) are re-ingested — up to how many? Empty = all. Large "
@@ -4068,19 +4114,19 @@ msgstr ""
 "Dokumente (alte Prompt-Version) neu eingelesen — wie viele maximal? Leer "
 "= alle. Große Zahlen können lange dauern."
 
-#: app_ui/pages/dashboard.py:1021
+#: app_ui/pages/dashboard.py:1023
 msgid "Max. re-ingests (empty = all)"
 msgstr "Max. Neu-Einlesungen (leer = alle)"
 
-#: app_ui/pages/dashboard.py:1036 werkbank/v2/ui/brief_dialog.py:159
+#: app_ui/pages/dashboard.py:1038 werkbank/v2/ui/brief_dialog.py:159
 msgid "Start"
 msgstr "Starten"
 
-#: app_ui/pages/dashboard.py:1050
+#: app_ui/pages/dashboard.py:1052
 msgid "Stopping after the current document…"
 msgstr "Stoppe nach dem aktuellen Dokument…"
 
-#: app_ui/pages/dashboard.py:1067
+#: app_ui/pages/dashboard.py:1069
 msgid ""
 "No model configured for dreaming. Please set one in Settings > Memory "
 "maintenance."
@@ -4088,102 +4134,102 @@ msgstr ""
 "Kein Modell für Träumen konfiguriert. Bitte in Einstellungen > "
 "Gedächtnis-Pflege einstellen."
 
-#: app_ui/pages/dashboard.py:1076
+#: app_ui/pages/dashboard.py:1078
 msgid "No memory entries available."
 msgstr "Keine Gedächtniseinträge vorhanden."
 
-#: app_ui/pages/dashboard.py:1089
+#: app_ui/pages/dashboard.py:1091
 msgid "Error during memory analysis"
 msgstr "Fehler bei Gedächtnis-Analyse"
 
-#: app_ui/pages/dashboard.py:1110
+#: app_ui/pages/dashboard.py:1112
 msgid "Memory analysis"
 msgstr "Gedächtnis-Analyse"
 
-#: app_ui/pages/dashboard.py:1113
+#: app_ui/pages/dashboard.py:1115
 msgid "No actions suggested."
 msgstr "Keine Maßnahmen vorgeschlagen."
 
-#: app_ui/pages/dashboard.py:1116
+#: app_ui/pages/dashboard.py:1118
 msgid "LLM response (debug)"
 msgstr "LLM-Antwort (Debug)"
 
-#: app_ui/pages/dashboard.py:1119
+#: app_ui/pages/dashboard.py:1121
 msgid "(empty)"
 msgstr "(leer)"
 
-#: app_ui/pages/dashboard.py:1137
+#: app_ui/pages/dashboard.py:1139
 msgid "Memory cleanup"
 msgstr "Gedächtnis-Bereinigung"
 
-#: app_ui/pages/dashboard.py:1141
+#: app_ui/pages/dashboard.py:1143
 #, python-brace-format
 msgid "{n} actions suggested — deselect to skip"
 msgstr "{n} Maßnahmen vorgeschlagen — abwählen um zu überspringen"
 
-#: app_ui/pages/dashboard.py:1161
+#: app_ui/pages/dashboard.py:1163
 msgid "🗑 Delete"
 msgstr "🗑 Löschen"
 
-#: app_ui/pages/dashboard.py:1162
+#: app_ui/pages/dashboard.py:1164
 msgid "✏️ Update"
 msgstr "✏️ Aktualisieren"
 
-#: app_ui/pages/dashboard.py:1164
+#: app_ui/pages/dashboard.py:1166
 msgid "🏷️ Update tags"
 msgstr "🏷️ Tags aktualisieren"
 
-#: app_ui/pages/dashboard.py:1182
+#: app_ui/pages/dashboard.py:1184
 #, python-brace-format
 msgid "Current: {text}"
 msgstr "Aktuell: {text}"
 
-#: app_ui/pages/dashboard.py:1189
+#: app_ui/pages/dashboard.py:1191
 #, python-brace-format
 msgid "New: {text}"
 msgstr "Neu: {text}"
 
-#: app_ui/pages/dashboard.py:1200
+#: app_ui/pages/dashboard.py:1202
 #, python-brace-format
 msgid "Tags old: {tags}"
 msgstr "Tags alt: {tags}"
 
-#: app_ui/pages/dashboard.py:1203
+#: app_ui/pages/dashboard.py:1205
 #, python-brace-format
 msgid "Tags new: {tags}"
 msgstr "Tags neu: {tags}"
 
-#: app_ui/pages/dashboard.py:1212
+#: app_ui/pages/dashboard.py:1214
 msgid "No actions selected."
 msgstr "Keine Maßnahmen ausgewählt."
 
-#: app_ui/pages/dashboard.py:1220
+#: app_ui/pages/dashboard.py:1222
 #, python-brace-format
 msgid "Cleanup complete: {d} deleted, {u} updated."
 msgstr "Bereinigung abgeschlossen: {d} gelöscht, {u} aktualisiert."
 
-#: app_ui/pages/dashboard.py:1235
+#: app_ui/pages/dashboard.py:1237
 msgid "Run selected"
 msgstr "Ausgewählte ausführen"
 
-#: app_ui/pages/dashboard.py:1246
+#: app_ui/pages/dashboard.py:1248
 msgid "No user signed in."
 msgstr "Kein Nutzer angemeldet."
 
-#: app_ui/pages/dashboard.py:1251
+#: app_ui/pages/dashboard.py:1253
 msgid "📂 Synchronizing vault…"
 msgstr "📂 Vault wird synchronisiert…"
 
-#: app_ui/pages/dashboard.py:1261
+#: app_ui/pages/dashboard.py:1263
 msgid "Vault synchronized."
 msgstr "Vault synchronisiert."
 
-#: app_ui/pages/dashboard.py:1264
+#: app_ui/pages/dashboard.py:1266
 #, python-brace-format
 msgid "Vault sync error: {err}"
 msgstr "Vault-Sync Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1296
+#: app_ui/pages/dashboard.py:1298
 #, python-brace-format
 msgid ""
 "Several local models point at different hosts ({hosts}). Set "
@@ -4193,174 +4239,174 @@ msgstr ""
 "OLLAMA_SERVER in der .env, um festzulegen, welche Maschine die Power-"
 "Buttons steuern."
 
-#: app_ui/pages/dashboard.py:1304
+#: app_ui/pages/dashboard.py:1306
 msgid "OLLAMA_HOST_LAN_MAC_ADDRESS_WOL not configured"
 msgstr "OLLAMA_HOST_LAN_MAC_ADDRESS_WOL nicht konfiguriert"
 
-#: app_ui/pages/dashboard.py:1317
+#: app_ui/pages/dashboard.py:1319
 #, python-brace-format
 msgid "WoL error: {err}"
 msgstr "WoL Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1320
+#: app_ui/pages/dashboard.py:1322
 #, python-brace-format
 msgid "Magic packet → {target}"
 msgstr "Magic Packet → {target}"
 
-#: app_ui/pages/dashboard.py:1321
+#: app_ui/pages/dashboard.py:1323
 msgid "Waking up…"
 msgstr "Weckt auf…"
 
-#: app_ui/pages/dashboard.py:1340
+#: app_ui/pages/dashboard.py:1342
 msgid "Ollama is online!"
 msgstr "Ollama ist online!"
 
-#: app_ui/pages/dashboard.py:1353
+#: app_ui/pages/dashboard.py:1355
 msgid "OLLAMA_SSH_USER not configured"
 msgstr "OLLAMA_SSH_USER nicht konfiguriert"
 
-#: app_ui/pages/dashboard.py:1356
+#: app_ui/pages/dashboard.py:1358
 msgid "Shutting down…"
 msgstr "Fährt herunter…"
 
-#: app_ui/pages/dashboard.py:1384
+#: app_ui/pages/dashboard.py:1386
 #, python-brace-format
 msgid "Shutdown failed: {err}"
 msgstr "Herunterfahren fehlgeschlagen: {err}"
 
-#: app_ui/pages/dashboard.py:1385
+#: app_ui/pages/dashboard.py:1387
 #, python-brace-format
 msgid "ssh exited with {code}"
 msgstr "ssh endete mit Code {code}"
 
-#: app_ui/pages/dashboard.py:1390 app_ui/pages/dashboard.py:1394
-#: app_ui/pages/dashboard.py:1479 app_ui/pages/dashboard.py:1480
+#: app_ui/pages/dashboard.py:1392 app_ui/pages/dashboard.py:1396
+#: app_ui/pages/dashboard.py:1481 app_ui/pages/dashboard.py:1482
 msgid "Online"
 msgstr "Online"
 
-#: app_ui/pages/dashboard.py:1393
+#: app_ui/pages/dashboard.py:1395
 #, python-brace-format
 msgid "SSH error: {err}"
 msgstr "SSH Fehler: {err}"
 
-#: app_ui/pages/dashboard.py:1404 app_ui/pages/dashboard.py:1478
-#: app_ui/pages/dashboard.py:1479 app_ui/pages/dashboard.py:1480
-#: app_ui/pages/dashboard.py:1487
+#: app_ui/pages/dashboard.py:1406 app_ui/pages/dashboard.py:1480
+#: app_ui/pages/dashboard.py:1481 app_ui/pages/dashboard.py:1482
+#: app_ui/pages/dashboard.py:1489
 msgid "Offline"
 msgstr "Offline"
 
-#: app_ui/pages/dashboard.py:1407
+#: app_ui/pages/dashboard.py:1409
 msgid "Server is shutting down…"
 msgstr "Server wird heruntergefahren…"
 
-#: app_ui/pages/dashboard.py:1412
+#: app_ui/pages/dashboard.py:1414
 msgid "Shut down server"
 msgstr "Server herunterfahren"
 
-#: app_ui/pages/dashboard.py:1414 app_ui/pages/login.py:90
+#: app_ui/pages/dashboard.py:1416 app_ui/pages/login.py:90
 #: app_ui/pages/settings.py:822
 msgid "Password"
 msgstr "Passwort"
 
-#: app_ui/pages/dashboard.py:1418
+#: app_ui/pages/dashboard.py:1420
 msgid "Wrong password"
 msgstr "Falsches Passwort"
 
-#: app_ui/pages/dashboard.py:1432
+#: app_ui/pages/dashboard.py:1434
 msgid "Shut down"
 msgstr "Herunterfahren"
 
-#: app_ui/pages/dashboard.py:1471
+#: app_ui/pages/dashboard.py:1473
 msgid "Paperless not reachable"
 msgstr "Paperless nicht erreichbar"
 
-#: app_ui/pages/dashboard.py:1482
+#: app_ui/pages/dashboard.py:1484
 msgid "Running"
 msgstr "Läuft"
 
-#: app_ui/pages/dashboard.py:1482
+#: app_ui/pages/dashboard.py:1484
 msgid "No sign of life"
 msgstr "Kein Lebenszeichen"
 
-#: app_ui/pages/dashboard.py:1485
+#: app_ui/pages/dashboard.py:1487
 #, python-brace-format
 msgid "{n} docs"
 msgstr "{n} Docs"
 
-#: app_ui/pages/dashboard.py:1485
+#: app_ui/pages/dashboard.py:1487
 msgid "Error"
 msgstr "Fehler"
 
-#: app_ui/pages/dashboard.py:1501
+#: app_ui/pages/dashboard.py:1503
 #, python-brace-format
 msgid "{up} of {n} online"
 msgstr "{up} von {n} online"
 
-#: app_ui/pages/dashboard.py:1544 app_ui/pages/dashboard.py:1546
-#: app_ui/pages/dashboard.py:1559
+#: app_ui/pages/dashboard.py:1546 app_ui/pages/dashboard.py:1548
+#: app_ui/pages/dashboard.py:1561
 msgid "Not configured"
 msgstr "Nicht konfiguriert"
 
-#: app_ui/pages/dashboard.py:1555
+#: app_ui/pages/dashboard.py:1557
 #, python-brace-format
 msgid "iCal ({n} calendars)"
 msgstr "iCal ({n} Kalender)"
 
-#: app_ui/pages/dashboard.py:1611
+#: app_ui/pages/dashboard.py:1613
 msgid "upcoming"
 msgstr "bevorstehend"
 
-#: app_ui/pages/dashboard.py:1613
+#: app_ui/pages/dashboard.py:1615
 #, python-brace-format
 msgid "{n} overdue"
 msgstr "{n} überfällig"
 
-#: app_ui/pages/dashboard.py:1615
+#: app_ui/pages/dashboard.py:1617
 msgid "Show overdue deadlines only"
 msgstr "Nur überfällige Fristen anzeigen"
 
-#: app_ui/pages/dashboard.py:1714
+#: app_ui/pages/dashboard.py:1716
 msgid "No deadlines found."
 msgstr "Keine Fristen gefunden."
 
-#: app_ui/pages/dashboard.py:1725
+#: app_ui/pages/dashboard.py:1727
 msgid "Overdue only"
 msgstr "Nur überfällige"
 
-#: app_ui/pages/dashboard.py:1728 app_ui/pages/findings.py:1914
+#: app_ui/pages/dashboard.py:1730 app_ui/pages/findings.py:1914
 msgid "Show all"
 msgstr "Alle anzeigen"
 
-#: app_ui/pages/dashboard.py:1740
+#: app_ui/pages/dashboard.py:1742
 #, python-brace-format
 msgid "{n} hidden"
 msgstr "{n} ausgeblendet"
 
-#: app_ui/pages/dashboard.py:1743
+#: app_ui/pages/dashboard.py:1745
 msgid "Show"
 msgstr "Einblenden"
 
-#: app_ui/pages/dashboard.py:1743 app_ui/pages/dashboard.py:1793
+#: app_ui/pages/dashboard.py:1745 app_ui/pages/dashboard.py:1795
 msgid "Hide"
 msgstr "Ausblenden"
 
-#: app_ui/pages/dashboard.py:1776
+#: app_ui/pages/dashboard.py:1778
 msgid "Uncertain"
 msgstr "Unsicher"
 
-#: app_ui/pages/dashboard.py:1793
+#: app_ui/pages/dashboard.py:1795
 msgid "Show again"
 msgstr "Wieder anzeigen"
 
-#: app_ui/pages/dashboard.py:1818 proactive/deadlines.py:44
+#: app_ui/pages/dashboard.py:1820 proactive/deadlines.py:44
 msgid "Date"
 msgstr "Datum"
 
-#: app_ui/pages/dashboard.py:1821
+#: app_ui/pages/dashboard.py:1823
 msgid "Doc"
 msgstr "Dok"
 
-#: app_ui/pages/dashboard.py:1850
+#: app_ui/pages/dashboard.py:1852
 #, python-brace-format
 msgid "Page {page} / {total}  ·  {count} entries"
 msgstr "Seite {page} / {total}  ·  {count} Einträge"
@@ -4727,10 +4773,6 @@ msgstr "Zugriff seit dem Briefing geändert — neu erstellen"
 #: app_ui/pages/experts.py:673
 msgid "Update"
 msgstr "Aktualisieren"
-
-#: app_ui/pages/experts.py:674
-msgid "Rebuild"
-msgstr "Neu erstellen"
 
 #: app_ui/pages/experts.py:677
 msgid "Study documents"
@@ -7051,95 +7093,95 @@ msgstr "das Vision-Modell konnte sie nicht lesen ({err})"
 msgid "no text could be read from it"
 msgstr "es ließ sich kein Text daraus lesen"
 
-#: services/chat_service.py:884
+#: services/chat_service.py:885
 msgid "🔍 Searching documents..."
 msgstr "🔍 Suche Dokumente..."
 
-#: services/chat_service.py:885
+#: services/chat_service.py:886
 msgid "🔎 Analytical search..."
 msgstr "🔎 Analytische Suche..."
 
-#: services/chat_service.py:886
+#: services/chat_service.py:887
 msgid "🧲 Searching similar documents..."
 msgstr "🧲 Suche ähnliche Dokumente..."
 
-#: services/chat_service.py:887
+#: services/chat_service.py:888
 msgid "📋 Loading document details..."
 msgstr "📋 Lade Dokumentdetails..."
 
-#: services/chat_service.py:888
+#: services/chat_service.py:889
 msgid "📊 Loading table..."
 msgstr "📊 Lade Tabelle..."
 
-#: services/chat_service.py:889
+#: services/chat_service.py:890
 msgid "📄 Reading page text..."
 msgstr "📄 Lese Seitentext..."
 
-#: services/chat_service.py:890
+#: services/chat_service.py:891
 msgid "👁 Visual analysis..."
 msgstr "👁 Visuelle Analyse..."
 
-#: services/chat_service.py:891
+#: services/chat_service.py:892
 msgid "🖼 Showing image..."
 msgstr "🖼 Zeige Bild..."
 
-#: services/chat_service.py:892
+#: services/chat_service.py:893
 msgid "🌐 Web search..."
 msgstr "🌐 Websuche..."
 
-#: services/chat_service.py:893
+#: services/chat_service.py:894
 msgid "🌐 Loading web page..."
 msgstr "🌐 Lade Webseite..."
 
-#: services/chat_service.py:894
+#: services/chat_service.py:895
 msgid "🧮 Calculating..."
 msgstr "🧮 Berechne..."
 
-#: services/chat_service.py:895
+#: services/chat_service.py:896
 msgid "📅 Getting date..."
 msgstr "📅 Datum abrufen..."
 
-#: services/chat_service.py:896
+#: services/chat_service.py:897
 msgid "📌 Loading deadlines..."
 msgstr "📌 Lade Fristen..."
 
-#: services/chat_service.py:897
+#: services/chat_service.py:898
 msgid "📌 Creating deadline..."
 msgstr "📌 Lege Frist an..."
 
-#: services/chat_service.py:898
+#: services/chat_service.py:899
 msgid "🗒 Saving note..."
 msgstr "🗒 Speichere Notiz..."
 
-#: services/chat_service.py:899
+#: services/chat_service.py:900
 msgid "📧 Searching emails..."
 msgstr "📧 Durchsuche E-Mails..."
 
-#: services/chat_service.py:900
+#: services/chat_service.py:901
 msgid "📅 Searching calendar..."
 msgstr "📅 Durchsuche Kalender..."
 
-#: services/chat_service.py:901
+#: services/chat_service.py:902
 msgid "🧠 Saving fact..."
 msgstr "🧠 Speichere Fakt..."
 
-#: services/chat_service.py:902
+#: services/chat_service.py:903
 msgid "🧠 Searching memory..."
 msgstr "🧠 Durchsuche Gedächtnis..."
 
-#: services/chat_service.py:903
+#: services/chat_service.py:904
 msgid "🧠 Updating fact..."
 msgstr "🧠 Aktualisiere Fakt..."
 
-#: services/chat_service.py:904
+#: services/chat_service.py:905
 msgid "🧠 Deleting fact..."
 msgstr "🧠 Lösche Fakt..."
 
-#: services/chat_service.py:905
+#: services/chat_service.py:906
 msgid "📓 Searching notes..."
 msgstr "📓 Durchsuche Notizen..."
 
-#: services/chat_service.py:906
+#: services/chat_service.py:907
 msgid "Loading skill..."
 msgstr "Lade Skill …"
 

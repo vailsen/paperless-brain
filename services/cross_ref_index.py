@@ -35,7 +35,9 @@ def _is_trivial(value: str) -> bool:
 
 
 def _normalise(value: str) -> str:
-    return " ".join(value.lower().split())
+    """Lookup key for a reference value: case, spaces and separators removed, so
+    'DE89 3704 0044' and 'de8937040044', 'RE-2023/0815' and 'RE 2023 0815' meet."""
+    return re.sub(r"[\s\-./:]+", "", value.lower())
 
 
 # Observed label synonyms the suffix rule cannot collapse.
