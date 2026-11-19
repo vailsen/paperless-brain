@@ -7,7 +7,7 @@ Install: pip install chromadb
 
 import asyncio
 import os
-from typing import Any
+from typing import Any, Awaitable
 
 import chromadb
 
@@ -191,6 +191,7 @@ class ChromaClient:
         where: dict | None = None,
         where_document: dict | None = None,
         include: list[str] | None = None,
+        where_pending: Awaitable[dict | None] | None = None,
     ) -> list[list[dict]]:
         """
         Similarity search.
@@ -200,6 +201,8 @@ class ChromaClient:
             n_results:       Number of results per query.
             where:           Metadata filter  e.g. {"source": {"$eq": "wiki"}}
             where_document:  Document content filter e.g. {"$contains": "python"}
+            where_pending:   Awaitable of a further metadata filter, resolved
+                             concurrently with the query embedding.
             include:         Fields to return. Default: documents, metadatas, distances.
 
         Returns:
@@ -207,7 +210,15 @@ class ChromaClient:
             id, document, metadata, distance.
         """
         include = include or ["documents", "metadatas", "distances"]
-        vectors = await asyncio.to_thread(self.embedder.queries, list(query_texts))
+        embedding = asyncio.to_thread(self.embedder.queries, list(query_texts))
+        if where_pending is None:
+            vectors = await embedding
+        else:
+            # A filter that needs its own round trip (the reader's visible ids)
+            # is fetched while the query is embedded, not after.
+            vectors, extra = await asyncio.gather(embedding, where_pending)
+            if extra:
+                where = {"$and": [where, extra]} if where else extra
         kwargs: dict[str, Any] = {
             "query_embeddings": vectors,
             "n_results": n_results,

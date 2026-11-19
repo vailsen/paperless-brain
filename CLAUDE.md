@@ -99,6 +99,23 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
 4. **Cross-ref index** (`services/cross_ref_index.py`): built from all sidecars at startup; maps invoice numbers / file references to document IDs for the `get_related_documents` tool.
 5. **Chat** (`services/chat_service.py`): agentic loop with `MAX_ITERATIONS=16`. Two backends: `ClaudeChatBackend` (Anthropic API streaming) and `OllamaChatBackend` (httpx POST). Both emit the same `ChatEvent` union type. Tools are defined in `TOOL_DEFINITIONS` (list of dicts, Claude format); converted to Ollama format via `_to_ollama_tools()`.
 
+### Literal matches and visibility in search
+
+- **`search_exact`'s `text` ignores case, spaces and separators.** `_build_where_document`
+  finds the identifier runs in the text (`_code_runs`: tokens with a digit, letter groups
+  of 1–3, lone separators) and sends Chroma one `$regex` per spelling (`(?i)`,
+  `[\s\-./:]*` between every two characters) — 'DE89 3704…' = 'de893704…', 'VR 1000631423'
+  = 'VR1000631423'. Prose words next to an identifier are not searched (they matched half
+  the archive); a variant too weak alone (a bare '244') is dropped. The cross-reference
+  index keys on the same compact form (`cross_ref_index._normalise`).
+- **`search` ranks only what the reader can see.** The document collection holds every
+  user's chunks; the user's visible ids (`PaperlessClient.visible_ids`, cached per token,
+  stale-while-revalidate) go into the Chroma query as `paperless_id $in`, fetched while the
+  query is embedded (`ChromaClient.query(where_pending=…)`). Stale ids cost at most a result
+  slot, never access: every hit is still fetched with the user's token.
+- Measured with `eval/harness` (`docs/hybrid-search-eval-results.md`): lexical fusion in
+  `search` was a NO-GO; rerun the harness after any retrieval change.
+
 ### Key singletons (`services/clients.py`)
 
 Module-level singletons created at import time — one `PaperlessClient`, one `ChromaClient` for documents, one `ChromaClient` for brain facts (collection `"brain"`), `BrainService`, `SidecarService`, `CrossRefIndex`, `ThumbnailService`, `OllamaVisionClient`.

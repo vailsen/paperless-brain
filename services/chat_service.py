@@ -316,7 +316,7 @@ TOOL_DEFINITIONS: list[dict] = [
             "properties": {
                 "text": {
                     "type": "string",
-                    "description": "Exact text/substring in the document content, or a reference (e.g. 'RE-2024-001', 'DE89370400440532013000', 'KA-ZY 244'). Multiple words are OR-combined.",
+                    "description": "Exact text/substring in the document content, or a reference (e.g. 'RE-2024-001', 'DE89 3704 0044 0532 0130 00', 'KA-ZY 244'). Case, spaces and separators do not matter. Words without an identifier are OR-combined.",
                 },
                 "tags": {
                     "type": "array",
@@ -1022,61 +1022,126 @@ def _tool_use_skill(inputs: dict) -> str:
 _BOOL_OPS = {"OR", "AND", "NOT", "UND", "ODER"}
 
 
-def _identifier_atoms(query: str) -> list[str] | None:
-    """If the query looks like a single separator-bearing identifier (license
-    plate, invoice/reference number, …), return its atoms split on whitespace
-    AND hyphens; else None.
+# Characters an identifier is written with, in some spelling or other:
+# "DE89 3704 0044", "DE89370400440532", "KA-ZY 244", "65822/61741".
+_ID_SEP = r"[\s\-./:]*"
+_ID_EDGE = ",;:()[]\"'„“”‚‘’«»"
+_LETTER_GROUP = re.compile(r"[A-Za-zÄÖÜäöüß]{1,3}\.?")
+_CODE_TOKEN = re.compile(r"[\w\-./:]+")
+_RUN_SEPARATORS = {"/", "-", "–", "."}
 
-    Atoms must each be a short letter group (1-3) or a digit group (1-6), with
-    at least one of each, 2-4 atoms total. This catches 'KA-AA 1331',
-    'KA AA 1331', 'RE-2024-001' but not normal prose like 'Rechnung Vodafone'.
-    Atomizing on both space and hyphen means 'KA AA 1331' and 'KA-AA 1331'
-    produce the identical atom list — and therefore identical results.
+
+def _code_runs(query: str) -> list[list[str]]:
+    """The identifiers in a query: maximal runs of code-like tokens (anything with
+    a digit, letter groups of 1-3, lone separators) that contain a digit.
+
+    'Rechnung VR 1000631423' → [['VR', '1000631423']]; 'MAU044 GRG 915 / 2021'
+    is one run. Prose words end a run and are not part of any.
     """
-    atoms = [a for a in re.split(r"[\s\-]+", query.strip()) if a]
-    if not (2 <= len(atoms) <= 4):
-        return None
-    has_alpha = has_digit = False
-    for a in atoms:
-        if re.fullmatch(r"[A-Za-zÄÖÜäöü]{1,3}", a):
-            has_alpha = True
-        elif re.fullmatch(r"[0-9]{1,6}", a):
-            has_digit = True
+    runs: list[list[str]] = []
+    cur: list[str] = []
+    tokens: list[str] = []
+    for raw in query.split():
+        tok = raw.strip(_ID_EDGE)
+        parts = [p for p in tok.split("-") if p]
+        # 'KA-ZY' or 'RE-2024-001' is code, 'Kfz-Haftpflicht' is a word.
+        if len(parts) > 1 and all(_LETTER_GROUP.fullmatch(p) or re.search(r"\d", p) for p in parts):
+            tokens.extend(parts)
         else:
-            return None
-    return atoms if (has_alpha and has_digit) else None
+            tokens.append(tok)
+    for tok in tokens:
+        if tok in _RUN_SEPARATORS:
+            if cur:
+                cur.append(tok)
+            continue
+        if tok and re.search(r"\d", tok) and _CODE_TOKEN.fullmatch(tok):
+            cur.append(tok)
+        elif _LETTER_GROUP.fullmatch(tok) and tok.rstrip(".").upper() not in _BOOL_OPS:
+            cur.append(tok.rstrip("."))
+        else:
+            if cur:
+                runs.append(cur)
+            cur = []
+    if cur:
+        runs.append(cur)
+    out = []
+    for run in runs:
+        while run and run[-1] in _RUN_SEPARATORS:
+            run.pop()
+        if any(re.search(r"\d", t) for t in run):
+            out.append(run)
+    return out
 
 
-def _separator_variants(atoms: list[str]) -> list[str]:
-    """Join atoms with every separator ('', '-', ' ') between adjacent atoms.
+def _is_letters(tok: str) -> bool:
+    return not re.search(r"\d", tok) and tok not in _RUN_SEPARATORS
 
-    'KA-AA 1331' (stored form) and 'KAAA1331' etc. are all generated, so the
-    filter matches the document regardless of how the user spaced/hyphenated it.
-    """
-    seps = ("", "-", " ")
-    variants = {atoms[0]}
-    for atom in atoms[1:]:
-        variants = {prefix + sep + atom for prefix in variants for sep in seps}
-    return sorted(variants)
+
+def _run_variants(run: list[str]) -> list[str]:
+    """Spellings of one identifier run to search for: the whole run, and the run
+    without its leading letter groups ('Nr', 'VR', a stray 'von') one at a time.
+    A variant too weak to be an identifier — no digit, or fewer than 5 digits and
+    fewer than 4 characters in all — is dropped: '244' alone matches everything.
+    Trailing letter groups are always dropped from the shorter variants."""
+    core = list(run)
+    while core and _is_letters(core[-1]):
+        core.pop()
+    variants = ["".join(run)]
+    lead = 0
+    while lead < len(core) and _is_letters(core[lead]):
+        lead += 1
+    for i in range(lead + 1):
+        variants.append("".join(core[i:]))
+    out = []
+    for v in dict.fromkeys(variants):
+        alnum = re.sub(r"[^\w]", "", v)
+        digits = sum(c.isdigit() for c in alnum)
+        if digits and (digits >= 5 or len(alnum) >= 4):
+            out.append(v)
+    return out
+
+
+def _id_pattern(text: str) -> str:
+    """Case-insensitive regex for an identifier, with any spaces or separators
+    (or none) between every two of its characters."""
+    chars = [c for c in text if c.isalnum()]
+    return "(?i)" + _ID_SEP.join(re.escape(c) for c in chars)
+
+
+def _word_pattern(word: str) -> str:
+    """Case-insensitive regex for a word; a hyphen in it also matches a space or nothing."""
+    parts = [re.escape(p) for p in re.split(r"[\s\-]+", word) if p]
+    return "(?i)" + _ID_SEP.join(parts)
+
+
+def literal_variants(query: str) -> list[str]:
+    """Every identifier spelling `_build_where_document` searches for (also the
+    keys for the cross-reference lookup)."""
+    return [v for run in _code_runs(query) for v in _run_variants(run)]
 
 
 def _build_where_document(query: str) -> dict | None:
-    atoms = _identifier_atoms(query)
-    if atoms:
-        # Tight phrase match across separator variants — avoids the loose
-        # single-token OR ('KA' OR 'AA') that floods candidates and lets the
-        # vector ranking bury the real identifier hits.
-        variants = _separator_variants(atoms)
-        if len(variants) == 1:
-            return {"$contains": variants[0]}
-        return {"$or": [{"$contains": v} for v in variants]}
+    """Chroma document filter for a literal text, robust to case, spaces and
+    separators.
 
-    words = [w for w in query.split() if len(w) > 1 and w.upper() not in _BOOL_OPS]
-    if not words:
+    An identifier in the text ('DE89 3704…', 'VR 1000631423', 'KA-ZY 244') is
+    matched in every spelling of it; prose words around it are left out, they
+    would match half the archive. Text without an identifier: each word of 3+
+    characters, any of them, ignoring case.
+    """
+    variants = literal_variants(query)
+    if variants:
+        pats = [_id_pattern(v) for v in variants]
+    else:
+        words = [w.strip(_ID_EDGE) for w in query.split()]
+        words = [w for w in words if len(w) > 2 and w.upper() not in _BOOL_OPS]
+        pats = [_word_pattern(w) for w in dict.fromkeys(words)]
+    pats = list(dict.fromkeys(p for p in pats if p != "(?i)"))
+    if not pats:
         return None
-    if len(words) == 1:
-        return {"$contains": words[0]}
-    return {"$or": [{"$contains": w} for w in words]}
+    if len(pats) == 1:
+        return {"$regex": pats[0]}
+    return {"$or": [{"$regex": p} for p in pats]}
 
 
 async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
@@ -1526,7 +1591,9 @@ async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
 
     # ── Fold in structured cross-reference matches for the literal value ─────
     if text:
-        ref_ids = cross_ref_index.find_by_value(text)
+        ref_ids: set[int] = set(cross_ref_index.find_by_value(text))
+        for v in literal_variants(text):
+            ref_ids |= cross_ref_index.find_by_value(v)
         have = {r.document.id for r in results}
         missing = [pid for pid in ref_ids if pid not in have]
         if missing:

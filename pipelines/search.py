@@ -105,12 +105,20 @@ async def search(
         else:
             hits = [[]]
     else:
-        # Run ChromaDB query and tag search in parallel
+        # Rank only what this reader may see. Chroma holds every user's chunks;
+        # filtering after the top-n cut let other users' documents take result
+        # slots. The id list is fetched while the query is embedded; the
+        # superuser client sees everything and skips it.
+        async def _visible() -> dict:
+            ids = await pl.visible_ids()
+            return {"paperless_id": {"$in": sorted(ids) or [-1]}}
+
         hits, tag_doc_map = await asyncio.gather(
             chroma.query(
                 query_texts=[effective_semantic],
                 n_results=chunk_request,
                 where_document=where_document,
+                where_pending=None if pl is paperless else _visible(),
             ),
             _tag_search(pl, effective_semantic, owner),
         )

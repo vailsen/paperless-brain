@@ -39,9 +39,11 @@ def test_substantive_values_are_kept(value):
     assert not _is_trivial(value)
 
 
-def test_normalise_is_case_and_whitespace_insensitive():
+def test_normalise_is_case_whitespace_and_separator_insensitive():
     assert _normalise("  RE-2023-0815  ") == _normalise("re-2023-0815")
-    assert _normalise("AZ   4 K") == "az 4 k"
+    assert _normalise("AZ   4 K") == _normalise("az4k")
+    assert _normalise("DE89 3704 0044 0532 0130 00") == _normalise("de89370400440532013000")
+    assert _normalise("65822/61741") == _normalise("65822 / 61741")
 
 
 @pytest.mark.parametrize(
@@ -173,3 +175,13 @@ def test_remove_unknown_document_is_a_noop(tmp_sidecar_dir):
     idx = CrossRefIndex()
     idx.build(str(tmp_sidecar_dir))
     idx.remove_document(12345)  # must not raise
+
+
+def test_find_by_value_ignores_spacing_and_case(tmp_sidecar_dir):
+    _sidecar(tmp_sidecar_dir, 1, [{"type": "IBAN", "value": "DE89 3704 0044 0532 0130 00"}])
+    _sidecar(tmp_sidecar_dir, 2, [{"type": "Rechnungsnummer", "value": "vr1000631423"}])
+    idx = CrossRefIndex()
+    idx.build(str(tmp_sidecar_dir))
+    assert idx.find_by_value("DE89370400440532013000") == {1}
+    assert idx.find_by_value("de89 3704-0044 0532 0130 00") == {1}
+    assert idx.find_by_value("VR 1000631423") == {2}
