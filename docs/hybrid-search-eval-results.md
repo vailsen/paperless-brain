@@ -179,3 +179,28 @@ cache); 2 is not; 4 is being measured.
   non-identifier queries, so its false-positive rate is untested here.
 - Keyword generation ran single-turn; in a real conversation the model sees
   earlier turns and the memory hints.
+
+## Follow-up: contextual chunk headers (plan §13), 2026-11-19
+
+`eval/harness/headers.py`: every chunk re-embedded under each variant (same
+model, fp16 on a GPU, B0 = today's text re-embedded the same way), exact dense
+search, the user's visibility, production's tag append. Same frozen set.
+
+| variant | chunk text | chunks > 512 tokens | MRR@10 user / agent wording | R@10 net user / agent | long_doc MRR user / agent |
+|---|---|---|---|---|---|
+| B0 | today: `Dokument: type, correspondent, date — ` + body | 1 081 of 2 617 | 0.732 / 0.763 | ±0 / ±0 | 0.69 / 0.78 |
+| H1 | + document title | 1 230 | 0.774 / 0.780 | ±0 / +2 | 0.77 / 0.77 |
+| **H2** | + title + first sentence of the document summary | 1 620 | **0.828 / 0.817** | **+2 / +3** | **0.88 / 0.88** |
+| H3 | + title + first sentence of the page summary | 1 684 | 0.804 / 0.779 | +3 / +4 | 0.84 / 0.79 |
+| S0 | today's prefix, chunks of 150 words (re-cut from the sidecars) | 176 of 3 469 | 0.789 / 0.774 | −1 / −1 | 0.94 / 0.94 |
+| S2 | H2 header on 150-word chunks | 594 of 3 469 | 0.810 / 0.823 | +1 / +3 | 0.90 / 0.90 |
+
+- **H2 is the variant to build.** Outside identifier queries (which go to
+  `search_exact`) it moves the first relevant document up in 8 queries and
+  down by one rank in 2; no other loss. Long documents 0.69 → 0.88.
+- **Side finding: 41 % of today's chunks are longer than the model's 512-token
+  window**, so their tail is never embedded (a 250-word German chunk is ~480
+  tokens before the prefix). Only the 30-word overlap carries it into the next
+  chunk. Smaller chunks (S0) fix that and help long documents most, but cost
+  elsewhere; with the header on top (S2) they are level with H2. H2 keeps
+  today's chunks, ids and citations and needs only new chunk text + embedding.
