@@ -4,6 +4,7 @@ import asyncio
 import re as _re
 
 from models.result_document import DocumentResult
+from services.chunking import strip_context_prefix
 from services.clients import chroma, paperless, sidecar_service
 from services.paperless import PaperlessClient
 
@@ -132,7 +133,9 @@ async def search(
         score = hit["distance"]
         if pid not in best_score or score < best_score[pid]:
             best_score[pid] = score
-        all_chunks.setdefault(pid, []).append(hit["document"])
+        # Without the header: its title and summary sentence are not the
+        # document's words — a snippet or a citation must not show them.
+        all_chunks.setdefault(pid, []).append(strip_context_prefix(hit["document"]))
         all_pages.setdefault(pid, []).append(int(hit["metadata"].get("page_number") or 0))
 
     sorted_pids = sorted(best_score, key=lambda pid: best_score[pid])[:n_results]

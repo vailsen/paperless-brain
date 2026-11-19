@@ -79,7 +79,8 @@ async def admin_page():
         "ready": _("Ready"),
     }
     # Progress counts chunks, not documents: a document is several chunks.
-    role_label = {"documents": _("Document chunks"), "brain": _("Memory facts"), "vault": _("Note chunks")}
+    role_label = {"documents": _("Document chunks"), "brain": _("Memory facts"), "vault": _("Note chunks"),
+                  "rechunk": _("Documents rebuilt")}
     _cmp_pref: dict = {}
 
     with ui.column().classes("adm-wrap p-3 gap-3"):
@@ -106,6 +107,10 @@ async def admin_page():
             for m in reg.models():
                 if m.get("index") != "none":
                     counts[m["id"]] = await ei.counts(m)
+            try:
+                counts.setdefault(reg.active_id(), {})["outdated"] = await ei.outdated_chunks()
+            except Exception:  # noqa: BLE001 — the hint is optional
+                pass
             model_list.refresh()
             if "compare_box" in _refs:  # a finished build makes a second index to compare
                 _refs["compare_box"].refresh()
@@ -247,6 +252,8 @@ async def admin_page():
                              (_("Catch up") if idx == "ready" else _("Build index")),
                              lambda x=mid: _start(x, "build"), not is_active and job is None),
                             ("stop_circle", _("Stop"), lambda: (ei.stop(), model_list.refresh()), running),
+                            ("view_agenda", _("Rebuild document chunks"), lambda: _confirm_rechunk(),
+                             is_active and job is None),
                             ("check_circle", _("Make active"), lambda x=m: _confirm_activate(x),
                              not is_active and job is None and idx in ("ready", "paused")),
                             ("tune", _("Distance thresholds"), lambda x=m: _thresholds_dialog(x), True),
@@ -320,6 +327,12 @@ async def admin_page():
                         + ("" if own else " — " + _("defaults"))).classes("text-xs text-gray-500")
                     if not is_active and not running:
                         _next_step(m, job is not None)
+                    if is_active and not running and (c or {}).get("outdated"):
+                        _step(_("{n} documents have chunks of an older version (no title and summary in "
+                                "their header, or cut off by the model's window). Rebuilding them needs no "
+                                "vision model.").format(n=c["outdated"]),
+                              [(_("Rebuild document chunks"), "view_agenda", lambda: _confirm_rechunk())],
+                              warn=False)
 
         model_list()
         def _tick() -> None:
@@ -351,6 +364,33 @@ async def admin_page():
                 return
             _was["job"] = True
             model_list.refresh()
+
+        def _confirm_rechunk() -> None:
+            n = (counts.get(reg.active_id()) or {}).get("outdated")
+            with ui.dialog() as dlg, ui.card().classes("bg-gray-900").style("width:min(92vw,460px)"):
+                ui.label(_("Rebuild document chunks?")).classes("text-base font-semibold text-gray-100")
+                ui.label(_(
+                    "Cuts every outdated document into chunks again from its stored extraction, with "
+                    "title and summary in the header and within the model's window, and embeds them "
+                    "with the active model. No vision model. Search keeps working meanwhile; a stop or "
+                    "a restart keeps what is done, and the next run continues.")
+                    + ("" if n is None else " " + _("{n} documents.").format(n=n))).classes(
+                    "text-sm text-gray-400")
+                with ui.row().classes("w-full justify-end gap-2 mt-2"):
+                    ui.button(_("Cancel"), on_click=dlg.close).props("flat dense")
+
+                    def _go() -> None:
+                        dlg.close()
+                        try:
+                            ei.start_rechunk()
+                        except Exception as exc:  # noqa: BLE001
+                            ui.notify(str(exc), type="warning")
+                            return
+                        _was["job"] = True
+                        model_list.refresh()
+
+                    ui.button(_("Rebuild"), on_click=_go).props("unelevated dense color=primary")
+            dlg.open()
 
         def _confirm_activate(m: dict) -> None:
             with ui.dialog() as dlg, ui.card().classes("bg-gray-900").style("width:min(92vw,460px)"):

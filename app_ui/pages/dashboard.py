@@ -943,6 +943,7 @@ window.__toggleHideAction = function(key) {{
             # the dry run in Settings, never behind the user's back.
             if get_pref("rename_titles", False) and _ingested and not _stopped():
                 try:
+                    from pipelines.rechunk import after_rename
                     from pipelines.title_rename import DEFAULT_TEMPLATE, rename_documents
                     from services.clients import get_session_paperless
 
@@ -954,6 +955,7 @@ window.__toggleHideAction = function(key) {{
                         get_pref("rename_title_template", DEFAULT_TEMPLATE) or DEFAULT_TEMPLATE,
                         doc_ids=_ingested,
                         log=_log,
+                        on_renamed=after_rename,
                     )
                     _log(f"  ✓ {_n_ren} renamed · {_n_fail} failed")
                 except Exception as exc:

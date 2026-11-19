@@ -23,6 +23,7 @@ from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
 from models.web_result import WebSearchResult
 from pipelines.search import search
+from services.chunking import strip_context_prefix
 from services.citations import cite_ref, page_for, sidecar_page_texts, split_sentences
 from services.clients import chroma, cross_ref_index, paperless, sidecar_service
 from services.ollama_watchdog import chat_touch as _chat_touch
@@ -2071,7 +2072,7 @@ async def _web_search_archive_hint(query: str) -> str:
             if doc_id in seen or doc_id is None or int(doc_id) not in visible:
                 continue
             seen.add(doc_id)
-            snippet = (h.get("document") or "").replace("\n", " ")[:160]
+            snippet = strip_context_prefix(h.get("document")).replace("\n", " ")[:160]
             lines.append(f"- Document #{doc_id}: {snippet}")
         if not lines:
             return ""

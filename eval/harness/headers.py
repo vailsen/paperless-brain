@@ -65,6 +65,13 @@ def main() -> None:
     import numpy as np
     from sentence_transformers import SentenceTransformer
 
+    model = SentenceTransformer(a.model, device="cuda", model_kwargs={"torch_dtype": "float16"})
+    tok = model.tokenizer
+    limit = model.max_seq_length
+
+    def token_len(t: str) -> int:
+        return len(tok(t, add_special_tokens=True)["input_ids"])
+
     chunks = load_jsonl(LOCAL / "raw" / "chunks.jsonl")
     meta = {d["id"]: d for d in json.loads((LOCAL / "raw" / "docs_meta.json").read_text())}
     side_dir = LOCAL / "raw" / "extractions"
@@ -108,9 +115,27 @@ def main() -> None:
                     texts.setdefault(name, []).append(head + ch.text)
                     docs_of.setdefault(name, []).append(doc)
 
-    model = SentenceTransformer(a.model, device="cuda", model_kwargs={"torch_dtype": "float16"})
-    tok = model.tokenizer
-    limit = model.max_seq_length
+    # Token-fitted chunks (production since HEADER_VERSION 2): header + text
+    # within the model window, the header built by the production code.
+    from services.chunking import build_context_prefix, strip_context_prefix  # noqa: F401
+
+    for doc, sc in sidecars.items():
+        pages = []
+        for pg in sc.get("pages") or []:
+            lines = embedding_lines(pg.get("images") or [])
+            pages.append(f"{pg.get('page_text') or ''}\n\n{lines}".strip() if lines else (pg.get("page_text") or ""))
+        ctx = ctx_of.get(doc, "")
+        title = _title(meta.get(doc, {}))
+        summ = sc.get("full_summary_summarized") or sc.get("full_summary") or ""
+        heads = {
+            "T0": f"Dokument: {ctx} — " if ctx else "",
+            "T2": (f"Dokument: {title} | {ctx} — " if ctx else f"Dokument: {title} — ")
+            + (f"Inhalt: {_first_sentence(summ)} — " if _first_sentence(summ) else ""),
+        }
+        for name, head in heads.items():
+            for ch in chunk_document(pages, context_prefix=head, token_len=token_len, max_tokens=limit):
+                texts.setdefault(name, []).append(ch.text)
+                docs_of.setdefault(name, []).append(doc)
 
     qs = load_queries()
     rows = {r["id"]: r for r in load_jsonl(LOCAL / "rankings.jsonl")}

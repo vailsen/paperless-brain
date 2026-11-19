@@ -337,8 +337,12 @@ async def rename_documents(
     log: Log | None = None,
     progress: Callable[[int, int], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
+    on_renamed: Callable[[int, str], Awaitable[None]] | None = None,
 ) -> tuple[int, int]:
     """Name and rename every pending document (or only `doc_ids`).
+
+    `on_renamed(doc_id, title)` runs after each title change — the chunk
+    header carries the title (`pipelines.rechunk.after_rename`).
 
     Returns (renamed, failed). Each document is written as soon as it is named,
     so a long backfill makes progress that survives a stop or a restart.
@@ -368,6 +372,8 @@ async def rename_documents(
                 failed += 1
                 _log(f"  ✗ #{plan.doc_id}: {exc}")
                 continue
+            if on_renamed is not None:
+                await on_renamed(plan.doc_id, plan.new_title)
         await _record(path, "done", plan.doc_id, {
             "from": plan.old_title,
             "to": plan.new_title,

@@ -113,6 +113,18 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
   stale-while-revalidate) go into the Chroma query as `paperless_id $in`, fetched while the
   query is embedded (`ChromaClient.query(where_pending=…)`). Stale ids cost at most a result
   slot, never access: every hit is still fetched with the user's token.
+- **Ranking is exact**: `ChromaClient._search` compares the query with every vector (one
+  matrix product; reloaded after any write through any `ChromaClient`) instead of Chroma's
+  HNSW, which in 1.5.9 returned a different tail for the same query in two processes. Above
+  `chroma.EXACT_MAX` vectors it falls back to HNSW. A write that bypasses `ChromaClient`
+  leaves the matrix stale until the count changes.
+- **Chunk header v2** (`chunking.HEADER_VERSION`): `Dokument: <title> | <type, correspondent,
+  date> — Inhalt: <first sentence of the summary> — <text>`, and no chunk longer than the
+  model's window (`embeddings.token_budget`, capped at 512): the old word budget left 41 % cut
+  off. Chunks are built from the sidecar in one place (`pipelines/rechunk.py`), for ingest,
+  the admin's "Rebuild document chunks" (metadata `header` below the version) and after a
+  title rename. **Everything shown or cited goes through `strip_context_prefix`** — the
+  header's title and summary are not the document's words.
 - Measured with `eval/harness` (`docs/hybrid-search-eval-results.md`): lexical fusion in
   `search` was a NO-GO; rerun the harness after any retrieval change.
 

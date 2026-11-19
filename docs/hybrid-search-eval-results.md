@@ -194,13 +194,32 @@ search, the user's visibility, production's tag append. Same frozen set.
 | H3 | + title + first sentence of the page summary | 1 684 | 0.804 / 0.779 | +3 / +4 | 0.84 / 0.79 |
 | S0 | today's prefix, chunks of 150 words (re-cut from the sidecars) | 176 of 3 469 | 0.789 / 0.774 | −1 / −1 | 0.94 / 0.94 |
 | S2 | H2 header on 150-word chunks | 594 of 3 469 | 0.810 / 0.823 | +1 / +3 | 0.90 / 0.90 |
+| T0 | today's prefix, chunks fitted to 512 tokens | 0 of 3 023 | 0.751 / 0.767 | −4 / ±0 | 0.79 / 0.88 |
+| **T2** | H2 header, chunks fitted to 512 tokens (header included) | **0 of 3 424** | **0.828 / 0.819** | −1 / **+3** | **0.90 / 0.90** |
 
-- **H2 is the variant to build.** Outside identifier queries (which go to
-  `search_exact`) it moves the first relevant document up in 8 queries and
-  down by one rank in 2; no other loss. Long documents 0.69 → 0.88.
-- **Side finding: 41 % of today's chunks are longer than the model's 512-token
-  window**, so their tail is never embedded (a 250-word German chunk is ~480
-  tokens before the prefix). Only the 30-word overlap carries it into the next
-  chunk. Smaller chunks (S0) fix that and help long documents most, but cost
-  elsewhere; with the header on top (S2) they are level with H2. H2 keeps
-  today's chunks, ids and citations and needs only new chunk text + embedding.
+- **The header is what helps**: H2 moves the first relevant document up in 8
+  queries outside identifiers (which go to `search_exact`) and down by one rank
+  in 2. Long documents 0.69 → 0.88.
+- **But H2 alone pushes text out of the window**: 41 % of today's chunks are
+  longer than e5's 512 tokens (a 250-word German chunk is ~480 tokens before
+  the prefix), and the H2 header raises that to 62 %. Their tail is never
+  embedded; only the 30-word overlap carries it into the next chunk.
+- **Built: T2** (`chunking.HEADER_VERSION` 2). Same ranking quality as H2
+  (agent wording, which is what production searches with: MRR 0.819 vs 0.817,
+  R@10 net +3 both; user wording −1 vs +2, all of the difference in the
+  recall of multi-document queries), and no chunk loses text. The set has
+  almost no question about the end of a long chunk, so what T2 adds over H2 is
+  not visible here — it is text that H2 makes invisible to `search`.
+  Chunks are cut again from the sidecars (`pipelines/rechunk.py`, no vision
+  model): ingest writes them, the admin rebuilds old ones ("Rebuild document
+  chunks"), a title rename rebuilds that document.
+
+## Follow-up: exact search and CPU speed, 2026-11-19
+
+- **`search` compares every vector** (`ChromaClient._search`, up to
+  `EXACT_MAX` vectors) instead of Chroma's HNSW graph, which in 1.5.9 gave a
+  different tail for the same query in two processes (P0 §2). The matrix is
+  loaded once per write; filters are still resolved by Chroma.
+- **The server embedded in float16** (e5 ships its weights so), about 4×
+  slower on a CPU than float32 for the same vectors (cosine ≥ 0.9998): 0.8 s
+  vs ~4 s for a 410-token chunk. Local models now load in float32.
