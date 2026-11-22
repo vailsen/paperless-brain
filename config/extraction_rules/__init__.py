@@ -7,6 +7,7 @@ profiles are language- and jurisdiction-specific:
 
     en  — common international types (default)
     de  — German legal/administrative domain, ~46 types
+    pl  — Polish document types (contributed), ~22 types
 
 Choose it in Settings > Processing; EXTRACTION_PROFILE in .env is the fallback.
 An unknown profile name falls back to `en` with a warning rather than failing —
@@ -34,7 +35,7 @@ from config.extraction_rules.base import (
 
 log = logging.getLogger(__name__)
 
-AVAILABLE_PROFILES = ("en", "de")
+AVAILABLE_PROFILES = ("en", "de", "pl")
 DEFAULT_PROFILE = "en"
 
 _warned: set[str] = set()
