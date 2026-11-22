@@ -123,23 +123,20 @@ _YIELD_POLL_S = 5.0
 async def _wait_for_chat(sem: asyncio.Semaphore) -> None:
     if sem is not _LOCAL_SEM or not yield_to_chat.get():
         return
-    from services.ollama_watchdog import chat_busy
+    from services.gpu_yield import chat_busy
 
     while chat_busy():
         await asyncio.sleep(_YIELD_POLL_S)
 
 
-def _touch_watchdog(sem: asyncio.Semaphore) -> None:
-    """Reset the Ollama idle-shutdown timer for local-lane calls.
-
-    Without this, a long werkbank run with no chat activity looks idle to
-    services.ollama_watchdog, which then SSH-shuts-down the Ollama box
-    mid-task. Call before AND after each local LLM call (generations can
-    outlast the idle window)."""
+def _touch_yield(sem: asyncio.Semaphore) -> None:
+    """Stamp app activity for local-lane calls, so the proactive worker leaves
+    the GPU to a running Werkbank (services.gpu_yield). Call before AND after
+    each local LLM call (generations can outlast the yield window)."""
     if sem is _LOCAL_SEM:
         try:
-            from services.ollama_watchdog import touch
-            touch()
+            from services import gpu_yield
+            gpu_yield.touch()
         except Exception:
             pass
 
@@ -188,7 +185,10 @@ async def _call_openai_compatible(
     think: bool | None = None,
 ) -> tuple[str, list[dict], str]:
     """OpenAI-compatible API (Ollama /v1, MiniMax, Moonshot, etc.)."""
-    headers: dict[str, str] = {"Content-Type": "application/json"}
+    from services import model_host
+
+    # Background/no-wake hints for a wake-on-request proxy; others ignore them.
+    headers: dict[str, str] = {"Content-Type": "application/json", **model_host.headers()}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
@@ -217,7 +217,7 @@ async def _call_openai_compatible(
 
     from services import inference_activity
 
-    async with httpx.AsyncClient(timeout=180) as client, inference_activity.track(base_url, model) as activity:
+    async with httpx.AsyncClient(timeout=model_host.READ_TIMEOUT_S) as client, inference_activity.track(base_url, model) as activity:
         resp = await client.post(
             f"{base_url.rstrip('/')}/chat/completions",
             json=payload,
@@ -386,7 +386,7 @@ async def complete(
     sem = _sem_for(model, user_id, token)
     await _wait_for_chat(sem)
     async with sem:
-        _touch_watchdog(sem)
+        _touch_yield(sem)
         text, _, _ = await _raw_call(
             model,
             user_id,
@@ -398,7 +398,7 @@ async def complete(
             temperature,
             think=think,
         )
-        _touch_watchdog(sem)
+        _touch_yield(sem)
     return text
 
 
@@ -422,13 +422,13 @@ async def complete_turn(
     sem = _sem_for(model, user_id, token)
     await _wait_for_chat(sem)
     async with sem:
-        _touch_watchdog(sem)
+        _touch_yield(sem)
         try:
             return await _raw_call(
                 model, user_id, token, system, messages, tools, max_tokens, temperature
             )
         finally:
-            _touch_watchdog(sem)
+            _touch_yield(sem)
 
 
 _JSON_FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.S)
@@ -508,7 +508,7 @@ async def complete_structured(
     sem = _sem_for(model, user_id, token)
     await _wait_for_chat(sem)
     async with sem:
-        _touch_watchdog(sem)
+        _touch_yield(sem)
         cfg = _get_registry_cfg(model, user_id, token)
         if cfg:
             backend = cfg.get("backend", "openai_compatible")
@@ -617,7 +617,10 @@ async def _call_openai_compatible_structured(
     temperature: float,
 ) -> dict:
     """Structured output via forced tool-use for OpenAI-compatible APIs."""
-    headers: dict[str, str] = {"Content-Type": "application/json"}
+    from services import model_host
+
+    # Background/no-wake hints for a wake-on-request proxy; others ignore them.
+    headers: dict[str, str] = {"Content-Type": "application/json", **model_host.headers()}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
@@ -642,7 +645,7 @@ async def _call_openai_compatible_structured(
 
     from services import inference_activity
 
-    async with httpx.AsyncClient(timeout=180) as client, inference_activity.track(base_url, model) as activity:
+    async with httpx.AsyncClient(timeout=model_host.READ_TIMEOUT_S) as client, inference_activity.track(base_url, model) as activity:
         resp = await client.post(
             f"{base_url.rstrip('/')}/chat/completions", json=payload, headers=headers
         )
@@ -711,7 +714,7 @@ def _create_llm_from_config(cfg: dict):
         think: bool | None = None,
     ) -> str:
         async with lane_sem:
-            _touch_watchdog(lane_sem)
+            _touch_yield(lane_sem)
             if backend == "anthropic":
                 text, _, _ = await _call_claude(
                     cfg.get("api_key", ""),
@@ -735,7 +738,7 @@ def _create_llm_from_config(cfg: dict):
                     temperature,
                     think=think,
                 )
-        _touch_watchdog(lane_sem)
+        _touch_yield(lane_sem)
         return text
 
     return _llm

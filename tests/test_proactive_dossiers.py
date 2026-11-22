@@ -351,7 +351,7 @@ def test_deep_dive_result_reports_the_run_state(monkeypatch):
 
 
 def test_a_proactive_run_waits_while_a_user_chats(monkeypatch):
-    from services import ollama_watchdog
+    from services import gpu_yield
     from werkbank import llm_lane
 
     busy = [True, True, False]
@@ -360,7 +360,7 @@ def test_a_proactive_run_waits_while_a_user_chats(monkeypatch):
     async def sleep(s):
         slept.append(s)
 
-    monkeypatch.setattr(ollama_watchdog, "chat_busy", lambda: busy.pop(0))
+    monkeypatch.setattr(gpu_yield, "chat_busy", lambda: busy.pop(0))
     monkeypatch.setattr(llm_lane.asyncio, "sleep", sleep)
 
     asyncio.run(llm_lane._wait_for_chat(llm_lane._LOCAL_SEM))  # unset: no wait

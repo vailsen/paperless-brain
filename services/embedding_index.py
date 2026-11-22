@@ -109,7 +109,7 @@ async def _wait_for_chat(embedder) -> None:
     """A local build waits while someone chats: the CPU embeds their questions."""
     if getattr(embedder, "kind", "") != "local":
         return
-    from services.ollama_watchdog import chat_busy
+    from services.gpu_yield import chat_busy
 
     while chat_busy():
         await asyncio.sleep(2.0)
@@ -165,19 +165,8 @@ def _progress(model_id: str, **fields) -> None:
     reg.update(model_id, progress=p)
 
 
-async def _ensure_endpoint(m: dict) -> None:
-    if m.get("use") != "remote":
-        return
-    from services.wol import ensure_awake
-
-    state = await ensure_awake(m["remote_url"], why="an embedding index")
-    if state == "timeout":
-        raise emb.EmbeddingError(f"{m['remote_url']} did not wake up")
-
-
 async def _catch_up(src_model: dict, m: dict, job: Job, *, deletes: bool = True) -> dict:
     embedder = reg.embedder(m)
-    await _ensure_endpoint(m)
     totals = {"source": 0, "embedded": 0, "deleted": 0}
     last_write = [0.0]
 
@@ -306,7 +295,6 @@ async def _run_rechunk(job: Job) -> None:
 
         m = reg.get(mid)
         embedder = reg.embedder(m)
-        await _ensure_endpoint(m)
         _progress(mid, started=reg.now_iso(), error="", kind="rechunk", done=0, total=0,
                   embedded=0, role="rechunk", finished="")
         last = [0.0]
@@ -444,7 +432,6 @@ async def parity(model_id: str) -> dict:
         raise ValueError("nothing to compare")
     texts += ["Wann läuft meine Versicherung ab?", "invoice number of the laptop"]
     local, remote = reg.embedder(m, "local"), reg.embedder(m, "remote")
-    await _ensure_endpoint({**m, "use": "remote"})
     a = await asyncio.to_thread(local.passages, texts)
     b = await asyncio.to_thread(remote.passages, texts)
     if len(a[0]) != len(b[0]):
@@ -478,7 +465,6 @@ async def compare(model_ids: list[str], questions: list[str], n_docs: int = 10) 
                 continue
             if m.get("use") == "remote":
                 embedder = reg.embedder(m)
-                await _ensure_endpoint(m)
             else:
                 embedder = emb.LocalEmbedder(m["name"], m["query_prompt"], exclusive=True)
             coll = ChromaClient(reg.collection_name(m, "documents"),

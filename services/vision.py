@@ -39,7 +39,8 @@ from services.extraction_guard import (
     inspect_page_text,
     salvage_page_text,
 )
-from services.ollama_watchdog import touch as _wol_touch
+from services.gpu_yield import touch as _yield_touch
+from services import model_host
 from models.extraction import ExtractedContent, PageImage
 
 # Cyrillic, CJK, Hiragana/Katakana, Hangul, Greek — local models occasionally
@@ -129,7 +130,7 @@ class VisionClient(ABC):
     ) -> ExtractedContent:
         """One vision call for one page. Retried by analyze_document if degenerate."""
         image_b64 = base64.b64encode(page.image_bytes).decode("utf-8")
-        _wol_touch()
+        _yield_touch()
         raw_text = await self._vision_json(prompt, image_b64)
         return self._parse_fields(raw_text, page, ai_doc_type)
 
@@ -143,7 +144,7 @@ class VisionClient(ABC):
             "Answer precisely. If the task cannot be answered directly, "
             "describe the relevant visible content of the page."
         )
-        _wol_touch()
+        _yield_touch()
         return (await self._vision_text(prompt, image_b64)).strip()
 
     async def summarize_document(self, full_summary: str) -> str:
@@ -155,7 +156,7 @@ class VisionClient(ABC):
         # (e.g. Russian words in a German summary) — retry once, then drop the
         # condensed summary so consumers fall back to full_summary.
         for _attempt in range(2):
-            _wol_touch()
+            _yield_touch()
             result = (await self._text(prompt)).strip()
             if not _FOREIGN_SCRIPT_RE.search(result):
                 return result
@@ -172,7 +173,7 @@ class VisionClient(ABC):
             TITLE_DESCRIPTION_PROMPT.format(language=_archive_language_name())
             + "\n\nSummary:\n" + (summary or "").strip()
         )
-        _wol_touch()
+        _yield_touch()
         raw = (await self._text(prompt)).strip()
         if _FOREIGN_SCRIPT_RE.search(raw):
             return "", ""
@@ -307,7 +308,8 @@ class OllamaVisionClient(VisionClient):
                     "stream": False,
                     "think": False,
                 },
-                timeout=600,
+                headers=model_host.headers(),
+                timeout=model_host.read_timeout(600),
             )
             response.raise_for_status()
             activity.usage(response.json())
@@ -332,7 +334,8 @@ class OllamaVisionClient(VisionClient):
                     "stream": False,
                     "think": False,
                 },
-                timeout=300,
+                headers=model_host.headers(),
+                timeout=model_host.read_timeout(300),
             )
             response.raise_for_status()
             activity.usage(response.json())
@@ -351,7 +354,8 @@ class OllamaVisionClient(VisionClient):
                     "stream": False,
                     "think": False,
                 },
-                timeout=120,
+                headers=model_host.headers(),
+                timeout=model_host.read_timeout(120),
             )
             response.raise_for_status()
             activity.usage(response.json())
@@ -370,8 +374,11 @@ class OpenAICompatibleVisionClient(VisionClient):
 
     def _headers(self) -> dict:
         # Local servers accept and ignore a bearer header; sending it
-        # unconditionally keeps one code path.
-        return {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
+        # unconditionally keeps one code path. The model_host headers are
+        # hints for a wake-on-request proxy; other servers ignore them.
+
+        h = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
+        return {**h, **model_host.headers()}
 
     def _url(self) -> str:
         base = self._base_url
@@ -430,7 +437,7 @@ class OpenAICompatibleVisionClient(VisionClient):
                     prompt + "\n\nRespond with JSON only, no prose and no code fence.",
                     False,
                 ),
-                timeout=600,
+                timeout=model_host.read_timeout(600),
             )
         return data["choices"][0]["message"]["content"]
 
@@ -447,7 +454,7 @@ class OpenAICompatibleVisionClient(VisionClient):
                 }],
                 "stream": False,
             },
-            timeout=300,
+            timeout=model_host.read_timeout(300),
         )
         return data["choices"][0]["message"]["content"]
 
@@ -458,7 +465,7 @@ class OpenAICompatibleVisionClient(VisionClient):
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
             },
-            timeout=120,
+            timeout=model_host.read_timeout(120),
         )
         return data["choices"][0]["message"]["content"]
 
