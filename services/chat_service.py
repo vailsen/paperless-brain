@@ -26,8 +26,8 @@ from pipelines.search import search
 from services.chunking import strip_context_prefix
 from services.citations import cite_ref, page_for, sidecar_page_texts, split_sentences
 from services.clients import chroma, cross_ref_index, paperless, sidecar_service
-from services.ollama_watchdog import chat_touch as _chat_touch
-from services.ollama_watchdog import touch as _wol_touch
+from services.gpu_yield import chat_touch as _chat_touch
+from services.gpu_yield import touch as _yield_touch
 from services.paperless import PaperlessClient as _PaperlessClient
 
 _log = logging.getLogger(__name__)
@@ -3793,7 +3793,7 @@ class OpenAICompatibleChatBackend:
         offload_checked = False
         for _i in range(max_iterations):
             yield IterationEvent(_i + 1)
-            _wol_touch()
+            _yield_touch()
             _chat_touch()  # a proactive research run steps aside
 
             payload: dict = {
@@ -3823,18 +3823,20 @@ class OpenAICompatibleChatBackend:
             think_chars = 0
             loop_detected = False
 
-            from services import inference_activity
+            from services import inference_activity, model_host
 
             _est_prompt = estimate_prompt_tokens(working, active_tools)
             _t0 = time.monotonic()
+            # read: a wake-on-request proxy holds the first chunk while a
+            # sleeping host boots and loads the model.
             async with httpx.AsyncClient(
-                timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+                timeout=httpx.Timeout(connect=10.0, read=model_host.READ_TIMEOUT_S, write=10.0, pool=5.0)
             ) as client, inference_activity.track(self.base_url, self.model, "chat") as activity:
                 async with client.stream(
                     "POST",
                     f"{self.base_url}/chat/completions",
                     json=payload,
-                    headers=headers,
+                    headers={**headers, **model_host.headers()},
                 ) as resp:
                     if resp.status_code >= 400:
                         await resp.aread()

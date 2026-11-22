@@ -28,7 +28,6 @@ from config.settings import settings
 from config.version import __version__
 from services.clients import cross_ref_index
 from services.embedding_registry import invalidate as invalidate_embedding_registry
-from services.ollama_watchdog import idle_watchdog
 from werkbank.repository import init_db as _werkbank_init_db
 from werkbank.v2.store import reset_stale_runs as _werkbank_reset_runs
 
@@ -107,8 +106,9 @@ async def _start_watchdog() -> None:
     invalidate_embedding_registry()  # read after init_db created the table
     _emb_index.startup()
     asyncio.get_running_loop().run_in_executor(None, _emb_index._warm_active)
-    if settings.ollama_ssh_user:  # idle-shutdown watchdog only with remote-shutdown config
-        asyncio.create_task(idle_watchdog())
+    from config.deprecations import warn_removed_settings_once
+
+    warn_removed_settings_once()
     # Card renderers read the tag colour map synchronously, so it has to be warm
     # before the first page renders — otherwise every chip briefly shows its
     # fallback hue and then jumps.

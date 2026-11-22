@@ -74,12 +74,15 @@ change a finding's `status` in Obsidian or the note editor; the app follows it.
    cloud models only with `PROACTIVE_CLOUD_ALLOWED=true`, within a daily cap.
 5. Work on the existing archive runs only inside `PROACTIVE_SWEEP_WINDOWS`
    (default 01:00–05:00, at most 200 documents a night, shared fairly between
-   users). With `PROACTIVE_WOL_AUTO=true` the worker wakes the GPU host through the
-   same Wake-on-LAN path as the dashboard button — **only inside a sweep window**,
-   or for something a user asked for in the last 30 minutes ("Analyse now", the
-   closer look after "Interesting"). Outside the windows everything else (a new
-   document, its triage, a dossier update) waits until the host is on anyway or
-   the next window opens. The idle rule shuts a worker-woken host down again.
+   users). A GPU host that sleeps behind a wake-on-request proxy
+   ([Sleeping GPU host](operations.md#sleeping-gpu-host)) is woken by the worker's
+   requests **only inside a sweep window**, or for something a user asked for in
+   the last 30 minutes ("Analyse now", the closer look after "Interesting").
+   Outside the windows everything else (a new document, its triage, a dossier
+   update) waits until the host is on anyway or the next window opens — those
+   requests carry `X-No-Wake: 1`. All worker requests carry
+   `X-Idle-Profile: background`, so the proxy shuts a host it woke for them down
+   sooner.
 
 ## Setting it up (user)
 

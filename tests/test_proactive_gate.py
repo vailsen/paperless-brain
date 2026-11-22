@@ -1,4 +1,4 @@
-"""Proactive Phase 2: inference gate, power state, windows, budget, models, cloud."""
+"""Proactive Phase 2: inference gate, GPU yield, windows, budget, models, cloud."""
 
 import asyncio
 import logging
@@ -9,13 +9,13 @@ import pytest
 
 
 @pytest.fixture
-def power_file(tmp_path, monkeypatch):
-    from services import ollama_watchdog as wd
+def activity_file(tmp_path, monkeypatch):
+    from services import gpu_yield
 
-    p = tmp_path / "power_state.json"
-    monkeypatch.setattr(wd, "_state_path", lambda: p)
-    monkeypatch.setattr(wd, "_last_touch_write", 0.0)
-    monkeypatch.setattr(wd, "TOUCH_WRITE_INTERVAL_S", 0.0)
+    p = tmp_path / "activity_state.json"
+    monkeypatch.setattr(gpu_yield, "_state_path", lambda: p)
+    monkeypatch.setattr(gpu_yield, "_last_touch_write", 0.0)
+    monkeypatch.setattr(gpu_yield, "TOUCH_WRITE_INTERVAL_S", 0.0)
     return p
 
 
@@ -61,98 +61,24 @@ def _optin(user, **kw):
     prefs.save(p)
 
 
-# ── Power state shared between processes ─────────────────────────────────────
-
-
-def test_power_state_is_shared_through_the_file(power_file):
-    from services import ollama_watchdog as wd
-
-    wd.on_wol("192.168.1.20")
-    s = wd.state()
-    assert s["wol_active"] and s["wol_host"] == "192.168.1.20"
-    assert power_file.exists()
-    # a "second process" sees the same state: drop nothing in memory, re-read
-    assert wd.state()["wol_active"] is True
-    wd.on_manual_shutdown()
-    assert wd.state()["wol_active"] is False
-
-
-def test_worker_activity_keeps_the_host_up_then_idle_rule_applies(power_file, monkeypatch):
-    from config.settings import settings
-    from services import ollama_watchdog as wd
-
-    monkeypatch.setattr(settings, "ollama_idle_shutdown_minutes", 30)
-    wd.on_wol("10.0.0.5")
-    t0 = wd.state()["last_activity"]
-    # a long sweep: requests every 10 minutes for an hour
-    for i in range(1, 7):
-        now = t0 + timedelta(minutes=10 * i)
-        monkeypatch.setattr(wd, "datetime", _FrozenDT(now))
-        wd.touch()
-        assert not wd.shutdown_due(now)
-    last = t0 + timedelta(minutes=60)
-    assert not wd.shutdown_due(last + timedelta(minutes=29))
-    assert wd.shutdown_due(last + timedelta(minutes=31))
-
-
-class _FrozenDT(datetime):
-    def __new__(cls, now):
-        obj = datetime.__new__(cls, now.year, now.month, now.day, now.hour, now.minute, now.second)
-        obj._now = now
-        return obj
-
-    def now(self, tz=None):  # used as wd.datetime.now()
-        return self._now
-
-    def fromisoformat(self, s):
-        return datetime.fromisoformat(s)
-
-
-def test_worker_wake_shuts_down_sooner_until_a_user_uses_it(power_file, monkeypatch):
-    from config import proactive as cfg
-    from config.settings import settings
-    from services import ollama_watchdog as wd
-
-    monkeypatch.setattr(settings, "ollama_idle_shutdown_minutes", 30)
-    monkeypatch.setenv("PROACTIVE_IDLE_SHUTDOWN_MINUTES", "5")
-    cfg.proactive_settings.cache_clear()
-    monkeypatch.setattr(wd, "_role", "worker")
-    wd.on_wol("10.0.0.5")
-    t0 = wd.state()["last_activity"]
-    assert wd.state()["wol_by"] == "worker"
-    assert not wd.shutdown_due(t0 + timedelta(minutes=4))
-    assert wd.shutdown_due(t0 + timedelta(minutes=6))
-
-    monkeypatch.setattr(wd, "_role", "app")                # a user chats
-    wd.touch()
-    t1 = wd.state()["last_activity"]
-    assert wd.state()["wol_by"] == "app"
-    assert not wd.shutdown_due(t1 + timedelta(minutes=29))
-    assert wd.shutdown_due(t1 + timedelta(minutes=31))
-    cfg.proactive_settings.cache_clear()
-
-
-def test_host_that_was_already_on_is_never_shut_down(power_file):
-    from services import ollama_watchdog as wd
-
-    wd.touch()
-    assert not wd.shutdown_due(datetime.now() + timedelta(days=1))
-
-
-def test_wol_helpers():
-    from services import wol
-
-    assert wol.broadcast_for("http://192.168.1.20:11434") == "192.168.1.255"
-    assert wol.broadcast_for("http://ollama.lan:11434") == "255.255.255.255"
-    assert wol.magic_packet("aa:bb:cc:dd:ee:ff")[:6] == b"\xff" * 6
-    with pytest.raises(ValueError):
-        wol.magic_packet("aa:bb")
-
-
 # ── Gate ─────────────────────────────────────────────────────────────────────
 
 
-def test_gate_without_wol_stays_closed_and_backs_off():
+async def _no_proxy(url):
+    return None
+
+
+def _proxy(host):
+    async def status(url):
+        return {"host": host[0]}
+    return status
+
+
+async def _no_models(url):
+    return set()
+
+
+def test_plain_server_that_does_not_answer_stays_closed_and_backs_off():
     from proactive.gate import InferenceGate
 
     probes = []
@@ -162,8 +88,8 @@ def test_gate_without_wol_stays_closed_and_backs_off():
         return False
 
     t = [0.0]
-    g = InferenceGate(server="http://10.0.0.5:11434", mac="aa:bb:cc:dd:ee:ff", wol_auto=False,
-                      probe_fn=probe, monotonic=lambda: t[0])
+    g = InferenceGate(server="http://10.0.0.5:11434", probe_fn=probe, status_fn=_no_proxy,
+                      monotonic=lambda: t[0])
     assert asyncio.run(g.local_ready()) is False
     assert asyncio.run(g.local_ready()) is False  # within backoff: not even probed
     assert len(probes) == 1
@@ -172,28 +98,34 @@ def test_gate_without_wol_stays_closed_and_backs_off():
     assert len(probes) == 2
 
 
-def test_gate_wakes_the_host_and_records_it(power_file):
-    from proactive.gate import InferenceGate
-    from services import ollama_watchdog as wd
+def test_behind_a_proxy_a_sleeping_host_is_ready_only_when_we_may_wake_it():
+    """Inside a window `asleep` is ready — the job's request wakes the host
+    through the proxy. Outside one only `up` is, so nothing wakes it by day."""
+    from proactive.gate import ASLEEP_RECHECK_S, InferenceGate
 
-    answers = iter([False, False, False, True])
-    woke = []
+    host, t = ["asleep"], [0.0]
 
     async def probe(url):
-        return next(answers)
+        raise AssertionError("behind a proxy the plain probe is never needed")
 
-    def wake(mac, server):
-        woke.append((mac, server))
-        wd.on_wol("10.0.0.5")  # what services.wol.wake records
+    g = InferenceGate(server="http://10.0.0.112:11434", probe_fn=probe, status_fn=_proxy(host),
+                      list_models_fn=_no_models, monotonic=lambda: t[0])
+    assert asyncio.run(g.local_ready(may_wake=False)) is False
+    assert asyncio.run(g.local_ready(may_wake=True)) is True     # a window opened
+    assert g.woke_host
+    # Ready because it was asleep: that does not carry over to "outside a window".
+    assert asyncio.run(g.local_ready(may_wake=False)) is False
+    t[0] += ASLEEP_RECHECK_S + 1
+    host[0] = "up"                                                # someone switched it on
+    assert asyncio.run(g.local_ready(may_wake=False)) is True
 
-    async def no_sleep(s):
-        pass
 
-    g = InferenceGate(server="http://10.0.0.5:11434", mac="aa:bb:cc:dd:ee:ff", wol_auto=True,
-                      probe_fn=probe, wake_fn=wake, sleep=no_sleep)
-    assert asyncio.run(g.local_ready()) is True
-    assert woke == [("aa:bb:cc:dd:ee:ff", "http://10.0.0.5:11434")]
-    assert g.woke_host and wd.state()["wol_active"]
+def test_behind_a_proxy_a_host_shutting_down_waits():
+    from proactive.gate import InferenceGate
+
+    g = InferenceGate(server="http://p:11434", status_fn=_proxy(["shutting_down"]),
+                      list_models_fn=_no_models)
+    assert asyncio.run(g.local_ready(may_wake=True)) is False
 
 
 def test_fixed_model_missing_on_host_refuses():
@@ -205,12 +137,12 @@ def test_fixed_model_missing_on_host_refuses():
     async def models(url):
         return {"qwen3:32b", "llama3:latest"}
 
-    g = InferenceGate(server="http://h:11434", mac="", wol_auto=False, operator_models=["gemma3:27b"],
-                      probe_fn=probe, list_models_fn=models)
+    g = InferenceGate(server="http://h:11434", operator_models=["gemma3:27b"],
+                      probe_fn=probe, status_fn=_no_proxy, list_models_fn=models)
     with pytest.raises(OperatorModelMissing, match="gemma3:27b"):
         asyncio.run(g.local_ready())
-    ok = InferenceGate(server="http://h:11434", mac="", wol_auto=False, operator_models=["llama3"],
-                       probe_fn=probe, list_models_fn=models)
+    ok = InferenceGate(server="http://h:11434", operator_models=["llama3"],
+                       probe_fn=probe, status_fn=_no_proxy, list_models_fn=models)
     assert asyncio.run(ok.local_ready()) is True
 
 
@@ -250,7 +182,7 @@ def test_worker_refuses_operator_model_without_ollama_server(proactive_on, monke
 # ── Worker + gate: LLM jobs wait, others run ─────────────────────────────────
 
 
-def test_asleep_without_wol_llm_jobs_stay_queued_others_run(proactive_on):
+def test_asleep_llm_jobs_stay_queued_others_run(proactive_on):
     from proactive import jobs
     from proactive.worker import Worker
 
@@ -572,23 +504,24 @@ def test_ids_after_filters_itself_because_paperless_ignores_id_gt(monkeypatch):
     assert asyncio.run(paperless_ro.ids_after("t", 0, 3)) == [2, 3, 4]
 
 
-def test_app_activity_makes_the_worker_wait(power_file, monkeypatch):
-    from services import ollama_watchdog as wd
+def test_app_activity_makes_the_worker_wait(activity_file, monkeypatch):
+    from services import gpu_yield
 
-    monkeypatch.setattr(wd, "_role", "worker")
-    wd.touch()                                   # the worker's own requests do not count
-    assert not wd.app_busy()
-    monkeypatch.setattr(wd, "_role", "app")
-    wd.touch()                                   # a user chats
+    monkeypatch.setattr(gpu_yield, "_role", "worker")
+    gpu_yield.touch()                            # the worker's own requests do not count
+    assert not gpu_yield.app_busy()
+    monkeypatch.setattr(gpu_yield, "_role", "app")
+    gpu_yield.touch()                            # a user chats
     t = datetime.now()
-    assert wd.app_busy(t + timedelta(seconds=60))
-    assert not wd.app_busy(t + timedelta(seconds=wd.APP_YIELD_S + 5))
+    assert gpu_yield.app_busy(t + timedelta(seconds=60))
+    assert not gpu_yield.app_busy(t + timedelta(seconds=gpu_yield.APP_YIELD_S + 5))
+    assert activity_file.exists()
 
 
 def test_worker_leaves_llm_jobs_queued_while_the_app_is_busy(proactive_on, monkeypatch):
     from proactive import jobs
     from proactive.worker import Worker
-    from services import ollama_watchdog
+    from services import gpu_yield
 
     class Open:
         woke_host = False
@@ -598,9 +531,9 @@ def test_worker_leaves_llm_jobs_queued_while_the_app_is_busy(proactive_on, monke
 
     jobs.enqueue("doc_new", "", {"doc_id": 1}, needs_llm=True)
     w = Worker(gate=Open())
-    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: True)
+    monkeypatch.setattr(gpu_yield, "app_busy", lambda now=None: True)
     assert asyncio.run(w._local_ok()) is False
-    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: False)
+    monkeypatch.setattr(gpu_yield, "app_busy", lambda now=None: False)
     assert asyncio.run(w._local_ok()) is True
 
 
@@ -684,12 +617,12 @@ def test_vault_sync_runs_while_the_batch_runs(vault_sync_env):
 
 
 def test_no_vault_sync_while_a_user_chats(vault_sync_env, monkeypatch):
-    from services import ollama_watchdog
+    from services import gpu_yield
 
-    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: True)
+    monkeypatch.setattr(gpu_yield, "app_busy", lambda now=None: True)
     _check()
     assert vault_sync_env == []
-    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: False)
+    monkeypatch.setattr(gpu_yield, "app_busy", lambda now=None: False)
     _check()
     assert vault_sync_env == ["alice", "bob"]
 
@@ -698,23 +631,30 @@ def test_no_vault_sync_while_a_user_chats(vault_sync_env, monkeypatch):
 
 
 class RecordingGate:
-    """A real InferenceGate over a host that is asleep, recording wakes."""
+    """A real InferenceGate in front of a wake-on-request proxy whose host is
+    asleep. `woken` records each time the gate sent LLM work to the sleeping
+    host — its first request wakes it through the proxy."""
 
     def __init__(self):
         from proactive.gate import InferenceGate
 
         self.woken = []
 
-        async def probe(url):
-            return bool(self.woken)  # awake once woken
+        async def status(url):
+            return {"host": "up" if self.woken else "asleep"}
 
-        async def no_sleep(s):
-            pass
+        g = InferenceGate(server="http://10.0.0.112:11434", status_fn=status, list_models_fn=_no_models)
+        ready = g.local_ready
 
-        self.gate = InferenceGate(
-            server="http://10.0.0.5:11434", mac="aa:bb:cc:dd:ee:ff", wol_auto=True,
-            probe_fn=probe, wake_fn=lambda mac, srv: self.woken.append(srv), sleep=no_sleep,
-        )
+        async def local_ready(may_wake=True):
+            asleep = not self.woken
+            ok = await ready(may_wake=may_wake)
+            if ok and asleep:
+                self.woken.append(g.server)
+            return ok
+
+        g.local_ready = local_ready
+        self.gate = g
 
 
 def _no_window(monkeypatch):
@@ -824,134 +764,59 @@ def test_inside_a_window_new_documents_wake_the_host(proactive_on, monkeypatch, 
     assert len(rg.woken) == 1 and ran == ["doc_new_t"]
 
 
-# ── Shutdown: verified, retried, logged (the PC still on in the morning) ─────
+# ── Proxy headers: background profile, no wake outside a window ─────────────
 
 
-@pytest.fixture
-def woken(power_file, monkeypatch):
-    from config.settings import settings
-    from services import ollama_watchdog as wd
+def _header_capture(ran):
+    from proactive import jobs
+    from services import model_host
 
-    monkeypatch.setattr(settings, "ollama_server", "http://10.0.0.5:11434")
-    monkeypatch.setattr(settings, "ollama_idle_shutdown_minutes", 30)
-    wd.on_wol("10.0.0.5")
-    return wd
+    async def h(job):
+        ran.append(model_host.headers())
+    jobs.handler("doc_new_t", needs_llm=True)(h)
 
 
-def _idle(wd, minutes):
-    return wd.state()["last_activity"] + timedelta(minutes=minutes)
+class _Up:
+    woke_host = False
+
+    async def local_ready(self, may_wake=True):
+        return True
 
 
-def test_failed_shutdown_is_retried_not_forgotten(woken, monkeypatch, capsys):
-    wd = woken
-    calls = []
+def test_worker_requests_outside_a_window_must_not_wake_the_host(proactive_on, monkeypatch, restore_handlers):
+    from proactive import jobs
+    from proactive.worker import Worker
+    from services import gpu_yield
 
-    async def ssh():
-        calls.append(1)
-        return (False, "Permission denied (publickey).") if len(calls) == 1 else (True, "")
-
-    monkeypatch.setattr(wd, "_ssh_shutdown", ssh)
-    t = _idle(wd, 31)
-    assert asyncio.run(wd.watchdog_step(t)) == "failed"
-    assert wd.state()["wol_active"]                              # still ours to shut down
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=1))) == "idle"   # waits to retry
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=6))) == "shutdown"
-    assert len(calls) == 2
-    out = capsys.readouterr().out
-    assert "shutdown failed: Permission denied" in out and "idle 31 min" in out
+    monkeypatch.setattr(gpu_yield, "_role", "worker")
+    _no_window(monkeypatch)
+    ran = []
+    _header_capture(ran)
+    jobs.enqueue("doc_new_t")
+    asyncio.run(Worker(gate=_Up()).tick_once())       # the host happens to be on
+    assert ran == [{"X-Idle-Profile": "background", "X-No-Wake": "1"}]
 
 
-def test_a_host_that_is_on_again_after_the_shutdown_is_left_on(woken, monkeypatch):
-    """Someone switched it back on: never shut it down again (01:14, the owner at it)."""
-    wd = woken
-    up = [True]
+def test_worker_requests_inside_a_window_may_wake_the_host(proactive_on, monkeypatch, restore_handlers):
+    from proactive import jobs
+    from proactive.worker import Worker
+    from services import gpu_yield, model_host
 
-    async def ssh():
-        return True, ""
-
-    async def reachable(host, port=11434):
-        return up[0]
-
-    monkeypatch.setattr(wd, "_ssh_shutdown", ssh)
-    monkeypatch.setattr(wd, "_host_reachable", reachable)
-    t = _idle(wd, 31)
-    assert asyncio.run(wd.watchdog_step(t)) == "shutdown"
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=1))) == "idle"   # give it time
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=4))) == "still_up"
-    assert not wd.state()["wol_active"]
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=30))) == "idle"  # no second shutdown
+    monkeypatch.setattr(gpu_yield, "_role", "worker")
+    _window_env(monkeypatch)
+    ran = []
+    _header_capture(ran)
+    jobs.enqueue("doc_new_t")
+    asyncio.run(Worker(gate=_Up()).tick_once())
+    assert ran == [{"X-Idle-Profile": "background"}]
+    assert model_host.headers() == {"X-Idle-Profile": "background"}  # no leak after the job
 
 
-def test_shutdown_is_verified_when_the_host_goes_down(woken, monkeypatch):
-    wd = woken
+def test_the_apps_requests_carry_no_proxy_headers(monkeypatch):
+    from services import gpu_yield, model_host
 
-    async def ssh():
-        return True, ""
-
-    async def reachable(host, port=11434):
-        return False
-
-    monkeypatch.setattr(wd, "_ssh_shutdown", ssh)
-    monkeypatch.setattr(wd, "_host_reachable", reachable)
-    t = _idle(wd, 31)
-    assert asyncio.run(wd.watchdog_step(t)) == "shutdown"
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=4))) == "verified"
-
-
-def test_a_host_in_use_at_its_seat_is_not_shut_down(woken, monkeypatch):
-    wd = woken
-    calls = []
-
-    async def ssh():
-        calls.append(1)
-        return False, "in use"
-
-    monkeypatch.setattr(wd, "_ssh_shutdown", ssh)
-    t = _idle(wd, 31)
-    assert asyncio.run(wd.watchdog_step(t)) == "in_use"
-    assert not wd.state()["wol_active"]
-    assert asyncio.run(wd.watchdog_step(t + timedelta(minutes=30))) == "idle"
-    assert calls == [1]
-
-
-def test_in_use_exit_status_is_reported(monkeypatch, woken):
-    wd = woken
-
-    class P:
-        returncode = wd.IN_USE
-
-        async def communicate(self):
-            return b"", b""
-
-    async def fake_exec(*args, **kw):
-        return P()
-
-    from config.settings import settings
-
-    monkeypatch.setattr(settings, "ollama_ssh_user", "pb")
-    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
-    assert asyncio.run(wd._ssh_shutdown()) == (False, "in use")
-    assert "loginctl" in wd.SHUTDOWN_CMD and "IdleHint" in wd.SHUTDOWN_CMD
-
-
-def test_ssh_runs_in_batch_mode(monkeypatch, woken):
-    """Without BatchMode ssh can sit at a prompt until the timeout."""
-    wd = woken
-    seen = {}
-
-    class P:
-        returncode = 0
-
-        async def communicate(self):
-            return b"", b""
-
-    async def fake_exec(*args, **kw):
-        seen["args"] = args
-        return P()
-
-    from config.settings import settings
-
-    monkeypatch.setattr(settings, "ollama_ssh_user", "pb")
-    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
-    assert asyncio.run(wd._ssh_shutdown()) == (True, "")
-    assert "BatchMode=yes" in seen["args"] and "pb@10.0.0.5" in seen["args"]
+    monkeypatch.setattr(gpu_yield, "_role", "app")
+    assert model_host.headers() == {}
+    with model_host.no_wake():
+        assert model_host.headers() == {"X-No-Wake": "1"}
+    assert model_host.headers() == {}

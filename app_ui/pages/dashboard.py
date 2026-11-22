@@ -38,7 +38,6 @@ from services.clients import (
     thumbnail_service,
 )
 from services.credential_store import load_credentials
-from services.ollama_watchdog import on_manual_shutdown
 
 # ── module-level sync state (persists across page navigations) ───────────────
 
@@ -181,39 +180,12 @@ def _resolve_ollama_server(username: str = "", token: str = "") -> str:
     """Return Ollama base URL: settings → first local-lane model → empty.
 
     Good enough for the reachability probe (any local host answering means the
-    GPU is up). Power actions must use `_power_target()` instead, which refuses
-    to guess between several hosts.
+    GPU is up).
     """
     if settings.ollama_server:
         return settings.ollama_server
     urls = _local_ollama_urls(username, token)
     return urls[0] if urls else ""
-
-
-def _power_hosts(username: str = "", token: str = "") -> list[str]:
-    """Candidate hosts for wake/shutdown — exactly one means unambiguous.
-
-    OLLAMA_SERVER is the explicit answer when set. Otherwise the local-lane
-    models have to agree: sending a magic packet to the wrong subnet is harmless,
-    but `sudo shutdown -h now` on the wrong machine is not, and the single global
-    OLLAMA_HOST_LAN_MAC_ADDRESS_WOL / OLLAMA_SSH_USER already assume there is
-    exactly one such box. Callers refuse to act on more than one.
-    """
-    if settings.ollama_server:
-        ip = _ollama_host_ip(username, token)
-        return [ip] if ip else []
-    hosts: list[str] = []
-    for url in _local_ollama_urls(username, token):
-        m = re.search(r"(\d+\.\d+\.\d+\.\d+)", url)
-        if m and m.group(1) not in hosts:
-            hosts.append(m.group(1))
-    return hosts
-
-
-def _ollama_host_ip(username: str = "", token: str = "") -> str:
-    srv = _resolve_ollama_server(username, token)
-    m = re.search(r"(\d+\.\d+\.\d+\.\d+)", srv)
-    return m.group(1) if m else ""
 
 
 async def _fetch_paperless_count() -> int | None:
@@ -244,6 +216,29 @@ async def _fetch_paperless_count() -> int | None:
             return max(total - skipped, 0)
     except Exception:
         return None
+
+
+async def _ollama_status(username: str = "", token: str = "") -> tuple[bool, str] | None:
+    """Status of the local model host for the dashboard row.
+
+    Behind a wake-on-request proxy (`/proxy/status` answers): its view —
+    asleep / waking / up / shutting down. A sleeping host is not an error, it
+    wakes on the next request. Otherwise the plain probe (`_check_ollama`).
+    None = no local model host configured."""
+    srv = _resolve_ollama_server(username, token)
+    if not srv:
+        return None
+    from services import model_host
+
+    st = await model_host.proxy_status(srv)
+    if st is None:
+        ver = await _check_ollama(username, token)
+        return (ver is not None, ver or "")
+    host = st.get("host")
+    if host == "up":
+        ver = await _check_ollama(username, token)
+        return (True, ver or "up")
+    return (True, {"asleep": "asleep", "waking": "waking", "shutting_down": "shutting down"}.get(host, str(host)))
 
 
 async def _check_ollama(username: str = "", token: str = "") -> str | None:
@@ -480,7 +475,6 @@ async def dashboard():
                         "color:var(--c-text-muted);text-transform:uppercase;margin-bottom:12px;"
                     )
                     with ui.column().style("gap:8px; flex:1; justify-content:center;"):
-                        ollama_dot = ollama_badge = wake_btn = stop_btn = None
                         from services import service_status as _svc
 
                         _services = [
@@ -513,23 +507,6 @@ async def dashboard():
                                         "text-gray-300 text-sm flex-1"
                                     )
                                 badge = ui.label("…").classes("text-gray-500 text-xs")
-                                if key == "ollama":
-                                    ollama_dot = dot
-                                    ollama_badge = badge
-                                    if settings.ollama_host_lan_mac_address_wol:
-                                        wake_btn = (
-                                            ui.button(icon="power")
-                                            .props("flat dense round size=xs")
-                                            .classes("text-green-500")
-                                            .tooltip(_("Wake up (WoL)"))
-                                        )
-                                    if settings.ollama_ssh_user:
-                                        stop_btn = (
-                                            ui.button(icon="power_off")
-                                            .props("flat dense round size=xs")
-                                            .classes("text-red-400")
-                                            .tooltip(_("Shut down (SSH)"))
-                                        )
                             _status_items.append((dot, badge, key))
                             if key == "ollama":
                                 # Generating or idle, what is loaded, last speed —
@@ -1286,175 +1263,13 @@ window.__toggleHideAction = function(key) {{
         _sync_watch_timer = ui.timer(0.5, _watch_sync_done)
     _paint_log()  # draw whatever a still-running or finished sync already logged
 
-    # ── WoL / SSH shutdown ────────────────────────────────────────────────────
-    _poll_timer: list = [None]
-
-    def _ambiguous_power_target() -> str:
-        """Warning text when the power buttons cannot tell which machine to hit."""
-        hosts = _power_hosts(_username, _token)
-        if len(hosts) < 2:
-            return ""
-        return _(
-            "Several local models point at different hosts ({hosts}). Set "
-            "OLLAMA_SERVER in .env to say which machine the power buttons control."
-        ).format(hosts=", ".join(hosts))
-
-    async def wake_ollama() -> None:
-        mac = settings.ollama_host_lan_mac_address_wol
-        if not mac:
-            ui.notify(
-                _("OLLAMA_HOST_LAN_MAC_ADDRESS_WOL not configured"), type="warning"
-            )
-            return
-        # Waking the wrong subnet costs nothing, so warn and carry on.
-        if warn := _ambiguous_power_target():
-            ui.notify(warn, type="warning", timeout=10000)
-        from services.wol import wake
-
-        try:
-            # Same path as the proactive worker's: records the wake in the
-            # shared power state, so the idle rule applies to it.
-            broadcast = wake(mac, _resolve_ollama_server(_username, _token))
-        except Exception as exc:
-            ui.notify(_("WoL error: {err}").format(err=exc), type="negative")
-            return
-
-        ui.notify(_("Magic packet → {target}").format(target=broadcast), type="positive")
-        ollama_badge.set_text(_("Waking up…"))
-        ollama_dot.style(
-            "width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#f59e0b;"
-        )
-        wake_btn.disable()
-
-        if _poll_timer[0]:
-            _poll_timer[0].active = False
-
-        async def _poll() -> None:
-            ver = await _check_ollama(_username, _token)
-            if ver:
-                ollama_dot.style(
-                    "width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#22c55e;"
-                )
-                ollama_badge.set_text(ver)
-                wake_btn.enable()
-                _poll_timer[0].active = False
-                _poll_timer[0] = None
-                ui.notify(_("Ollama is online!"), type="positive")
-
-        _poll_timer[0] = ui.timer(5.0, _poll)
-
-    async def _run_shutdown() -> None:
-        ssh_user = settings.ollama_ssh_user
-        # Powering off the wrong machine is not recoverable from here — refuse
-        # rather than pick whichever local model happens to sort first.
-        if warn := _ambiguous_power_target():
-            ui.notify(warn, type="negative", timeout=15000)
-            return
-        host = _ollama_host_ip(_username, _token)
-        if not ssh_user or not host:
-            ui.notify(_("OLLAMA_SSH_USER not configured"), type="warning")
-            return
-
-        ollama_badge.set_text(_("Shutting down…"))
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "ssh",
-                "-o",
-                "StrictHostKeyChecking=no",
-                "-o",
-                "ConnectTimeout=5",
-                "-o",
-                "BatchMode=yes",  # fail instead of hanging on a password prompt
-                f"{ssh_user}@{host}",
-                "sudo shutdown -h now",
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            try:
-                # Not `_, err` — that would make `_` a local of this function and
-                # shadow the page translator every `_()` call above relies on.
-                _out, err = await asyncio.wait_for(proc.communicate(), timeout=8.0)
-            except asyncio.TimeoutError:
-                err = b""  # SSH may drop before returning exit code — treat as success
-            else:
-                # A fast non-zero exit means the command never ran: no key in the
-                # container, wrong user, sudo asking for a password. Say so —
-                # reporting "shutting down" here is how this failure stays silent.
-                if proc.returncode:
-                    detail = (err or b"").decode(errors="replace").strip().splitlines()
-                    ui.notify(
-                        _("Shutdown failed: {err}").format(
-                            err=detail[-1] if detail else _("ssh exited with {code}").format(code=proc.returncode)
-                        ),
-                        type="negative",
-                        timeout=10000,
-                    )
-                    ollama_badge.set_text(_("Online"))
-                    return
-        except Exception as exc:
-            ui.notify(_("SSH error: {err}").format(err=exc), type="negative")
-            ollama_badge.set_text(_("Online"))
-            return
-
-        if _poll_timer[0]:
-            _poll_timer[0].active = False
-            _poll_timer[0] = None
-        ollama_dot.style(
-            "width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#ef4444;"
-        )
-        on_manual_shutdown()
-        ollama_badge.set_text(_("Offline"))
-        if wake_btn is not None:
-            wake_btn.enable()
-        ui.notify(_("Server is shutting down…"), type="info")
-
-    # Password-protected shutdown dialog
-    with ui.dialog() as _shutdown_pw_dlg:
-        with ui.card().style("background:var(--c-surface); min-width:320px;"):
-            ui.label(_("Shut down server")).classes("text-gray-100 font-semibold mb-2")
-            _pw_input = (
-                ui.input(_("Password"), password=True, password_toggle_button=True)
-                .props("outlined dark dense")
-                .classes("w-full")
-            )
-            _pw_err = ui.label(_("Wrong password")).classes("text-red-400 text-xs mt-1")
-            _pw_err.set_visibility(False)
-            with ui.row().classes("justify-end gap-2 mt-3"):
-                ui.button(_("Cancel"), on_click=_shutdown_pw_dlg.close).props(
-                    "flat dark dense"
-                ).classes("text-gray-400")
-
-                async def _confirm_shutdown() -> None:
-                    if _pw_input.value != settings.shutdown_password:
-                        _pw_err.set_visibility(True)
-                        return
-                    _shutdown_pw_dlg.close()
-                    await _run_shutdown()
-
-                ui.button(_("Shut down"), on_click=_confirm_shutdown).props(
-                    "dark dense"
-                ).classes("text-red-400")
-
-    async def stop_ollama() -> None:
-        if settings.shutdown_password:
-            _pw_input.set_value("")
-            _pw_err.set_visibility(False)
-            _shutdown_pw_dlg.open()
-        else:
-            await _run_shutdown()
-
-    if wake_btn is not None:
-        wake_btn.on_click(wake_ollama)
-    if stop_btn is not None:
-        stop_btn.on_click(stop_ollama)
-
     # ── async data load ───────────────────────────────────────────────────────
     from services import service_status as _svc
 
     paperless_count, chroma_count, ollama_ver, paperless_st, searxng_st, whisper_st = await asyncio.gather(
         _fetch_paperless_count(),
         _safe_chroma_count(),
-        _check_ollama(_username, _token),
+        _ollama_status(_username, _token),
         _svc.paperless(),
         _svc.searxng(),
         _svc.whisper(),
@@ -1475,6 +1290,12 @@ window.__toggleHideAction = function(key) {{
     _refresh_outdated()
 
     # status indicators
+    def _ollama_label(st: tuple[bool, str] | None) -> str:
+        if not st or not st[0]:
+            return _("Offline")
+        return {"asleep": _("Asleep — wakes on request"), "waking": _("Waking up…"),
+                "shutting down": _("Shutting down…")}.get(st[1], st[1])
+
     worker_st = _svc.worker()
     status_data = {
         "paperless": (paperless_ok, paperless_st[1] if paperless_ok else _("Offline")),
@@ -1486,7 +1307,8 @@ window.__toggleHideAction = function(key) {{
             chroma_count is not None,
             _("{n} docs").format(n=chroma_count) if chroma_count is not None else _("Error"),
         ),
-        "ollama": (ollama_ver is not None, ollama_ver or _("Offline")),
+        "ollama": (bool(ollama_ver and ollama_ver[0]),
+                   _ollama_label(ollama_ver)),
     }
     for dot_el, badge_el, key in _status_items:
         if key not in status_data:

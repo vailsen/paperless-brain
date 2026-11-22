@@ -366,7 +366,7 @@ UI phases). One build/deploy at the end of a phase batch, not per fix.
 
 ### Phase 3 — Chat extraction (dropped — the dock embeds the chat page)
 - Split `app_ui/pages/chat.py` into `app_ui/chat/`:
-  `session.py` (turn runner: backend, tool loop events, persistence, WoL
+  `session.py` (turn runner: backend, tool loop events, persistence, host
   pre-check), `bubbles.py` (render, citations, images, actions slot),
   `composer.py` (input, mic, send/stop), `dialogs.py` (docx/email/pdf/kanban).
 - `/chat` becomes a thin page over these; behaviour identical. Do it in small

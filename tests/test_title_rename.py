@@ -233,7 +233,7 @@ def test_describe_for_title_parses_the_two_lines(monkeypatch, reply, expected):
             return reply
 
     monkeypatch.setattr(vision, "_archive_language_name", lambda: "German (Deutsch)")
-    monkeypatch.setattr(vision, "_wol_touch", lambda: None)
+    monkeypatch.setattr(vision, "_yield_touch", lambda: None)
     assert asyncio.run(_Fake().describe_for_title("summary")) == expected
 
 

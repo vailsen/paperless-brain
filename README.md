@@ -90,9 +90,10 @@ talk to.
   the chat docked beside them. → [docs/proactive.md](docs/proactive.md)
 - **Email, calendar & web** — per-user IMAP and CalDAV (encrypted), web search
   through your own SearXNG with full-page reading.
-- **Wake-on-LAN GPU host** — a local model whose machine is asleep wakes it,
-  and it sleeps again when idle — never while someone is using it. The
-  dashboard shows what the GPU is doing.
+- **Sleeping GPU host** — works behind a wake-on-request proxy: a chat with a
+  local model whose machine is asleep waits while it wakes, the background
+  worker only wakes it at night. The dashboard shows asleep / waking / up and
+  what the GPU is doing.
 - **PWA** — installable on phone and desktop, English/German, dark/light.
 
 ## Screenshots
@@ -146,7 +147,7 @@ Installing without Docker → [docs/operations.md](docs/operations.md).
 | Paperless-ngx | any recent version + a superuser API token |
 | A vision-capable model | for ingestion — local via Ollama (Qwen-VL class, can live on another machine) or any cloud vision model |
 | An LLM endpoint for chat | Anthropic- or OpenAI-compatible; added per user in Settings |
-| SearXNG · IMAP · CalDAV · speech-to-text · WoL GPU host | all optional, each enabling one feature |
+| SearXNG · IMAP · CalDAV · speech-to-text · wake-on-request proxy for a sleeping GPU host | all optional, each enabling one feature |
 
 ## AI models & providers
 
@@ -188,7 +189,7 @@ Both LLM backends share one tool set and one streaming event protocol.
 | [Vault & notes](docs/vault.md) | how memory and your notes are stored, the built-in editor, Obsidian alongside it |
 | [Voice memos](docs/voice-memos.md) | transcription services, conversation mode, what to expect |
 | [Proactive reminders & insights](docs/proactive.md) | the background worker, push/email, what it does and never does |
-| [Operations](docs/operations.md) | OCR write-back, Wake-on-LAN + idle shutdown, security notes, bare-metal install |
+| [Operations](docs/operations.md) | OCR write-back, sleeping GPU host (proxy contract, migration), security notes, bare-metal install |
 
 ## Why I built this
 

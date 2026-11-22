@@ -118,7 +118,7 @@ def backend(monkeypatch):
 
     monkeypatch.setattr(OpenAICompatibleChatBackend, "_ensure_ctx", _no_probe)
     monkeypatch.setattr("services.chat_service.execute_tool", _fake_tool)
-    monkeypatch.setattr("services.chat_service._wol_touch", lambda: None)
+    monkeypatch.setattr("services.chat_service._yield_touch", lambda: None)
     # Labels are translated, and get_translator() needs a browser session.
     monkeypatch.setattr("services.chat_service._tool_label", lambda name: name)
     return OpenAICompatibleChatBackend(

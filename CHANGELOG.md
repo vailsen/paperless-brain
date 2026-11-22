@@ -7,6 +7,36 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking: the built-in Wake-on-LAN, idle shutdown and the dashboard's
+  power buttons are gone.** paperless-brain no longer wakes or shuts down a
+  GPU host. A host that sleeps gets a wake-on-request proxy in front of it,
+  which holds requests while it boots and shuts down only what it woke
+  (docs/operations.md, "Sleeping GPU host", with the proxy contract and the
+  migration steps). Before updating, empty `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL`
+  and `OLLAMA_SSH_USER` and point `OLLAMA_SERVER` and the local models' base
+  URLs at the proxy — otherwise two watchdogs shut down the same host. These
+  settings do nothing any more and log a warning once if still set:
+  `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL`, `OLLAMA_SSH_USER`,
+  `OLLAMA_IDLE_SHUTDOWN_MINUTES`, `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES`,
+  `OLLAMA_WAKE_TIMEOUT_S`, `SHUTDOWN_PASSWORD`, `PROACTIVE_WOL_AUTO`,
+  `PROACTIVE_IDLE_SHUTDOWN_MINUTES`. The compose file needs neither
+  `network_mode: host` nor an SSH key for this any more.
+
+### Changed
+
+- **Behind a wake-on-request proxy** the dashboard shows the host as asleep /
+  waking / up, and the chat says "The model host is starting…" while it
+  wakes (without a proxy: after about 5 s without a first token).
+- **The proactive worker never wakes the host by day.** Inside a sweep window a
+  sleeping host counts as ready (its request wakes it through the proxy);
+  outside one its requests carry `X-No-Wake: 1`. All its requests carry
+  `X-Idle-Profile: background`, so the proxy can shut a host it woke for them
+  down sooner.
+- Read timeouts for local inference are 330 s, enough for a proxy to wake the
+  host and load the model.
+
 ### Fixed
 
 - **Reference numbers showed as raw text** (`^[435-p1]`) when the model

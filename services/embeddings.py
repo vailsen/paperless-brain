@@ -267,25 +267,36 @@ class RemoteEmbedder:
         return f"remote:{self.base_url}|{self.model}"
 
     def _post(self, texts: list[str]) -> list[list[float]]:
+        from services import model_host
+
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        local = self._on_operator_host()
+        if local:
+            headers.update(model_host.headers())
+        timeout = model_host.read_timeout(REMOTE_TIMEOUT_S) if local else REMOTE_TIMEOUT_S
         try:
             r = httpx.post(f"{self.base_url}/embeddings", headers=headers,
-                           json={"model": self.model, "input": texts}, timeout=REMOTE_TIMEOUT_S)
+                           json={"model": self.model, "input": texts}, timeout=timeout)
             r.raise_for_status()
             data = sorted(r.json()["data"], key=lambda d: d.get("index", 0))
         except Exception as exc:  # noqa: BLE001
             raise EmbeddingError(f"{self.base_url}: {exc}") from exc
         if len(data) != len(texts):
             raise EmbeddingError(f"{self.base_url}: {len(data)} vectors for {len(texts)} texts")
-        try:
-            from services.ollama_watchdog import touch
-            from services.wol import wakes
+        if local:
+            from services import gpu_yield
 
-            if wakes(self.base_url):
-                touch()  # the host the watchdog sleeps is in use
-        except Exception:  # noqa: BLE001
-            pass
+            gpu_yield.touch()  # the shared local model host is in use
         return [d["embedding"] for d in data]
+
+    def _on_operator_host(self) -> bool:
+        """Is this endpoint the operator's local model host (`OLLAMA_SERVER`)?
+        Only that one may sit behind a wake-on-request proxy."""
+        from config.settings import settings
+        from services.model_host import _base
+
+        mine = _base(settings.ollama_server)
+        return bool(mine) and _base(self.base_url) == mine
 
     def _encode(self, texts: list[str]) -> list[list[float]]:
         out: list[list[float]] = []
