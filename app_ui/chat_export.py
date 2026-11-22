@@ -11,10 +11,13 @@ def conversation_markdown(messages: list[dict], *, you: str, assistant: str, now
     Document citations become readable references (`[#241 p3]`) — the pills
     mean nothing outside the chat; web sources are already links. Empty
     string when there is nothing to export."""
+    from services.chat_attachments import strip_for_title
     from services.dossier_merge import plain_refs
     from services.web_citations import plain_web_refs
 
-    turns = [m for m in messages or [] if m.get("role") in ("user", "assistant")
+    # An uploaded file's text stays out: the export names the file.
+    turns = [{**m, "content": strip_for_title(m["content"]) if m["role"] == "user" else m["content"]}
+             for m in messages or [] if m.get("role") in ("user", "assistant")
              and isinstance(m.get("content"), str) and m["content"].strip()]
     if not turns:
         return ""

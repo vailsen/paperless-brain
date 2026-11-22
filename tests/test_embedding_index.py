@@ -208,7 +208,7 @@ def test_a_local_model_load_drops_others_except_pinned(monkeypatch):
     loads = []
 
     class ST:
-        def __init__(self, name, device=None):
+        def __init__(self, name, device=None, model_kwargs=None):
             loads.append(name)
 
     monkeypatch.setitem(sys.modules, "sentence_transformers",
@@ -234,7 +234,7 @@ def test_remote_base_url_is_normalized():
 
 def test_after_a_comparison_only_the_active_model_stays(monkeypatch):
     class ST:
-        def __init__(self, name, device=None):
+        def __init__(self, name, device=None, model_kwargs=None):
             pass
 
     monkeypatch.setitem(sys.modules, "sentence_transformers",

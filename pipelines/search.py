@@ -4,6 +4,7 @@ import asyncio
 import re as _re
 
 from models.result_document import DocumentResult
+from services.chunking import strip_context_prefix
 from services.clients import chroma, paperless, sidecar_service
 from services.paperless import PaperlessClient
 
@@ -105,12 +106,20 @@ async def search(
         else:
             hits = [[]]
     else:
-        # Run ChromaDB query and tag search in parallel
+        # Rank only what this reader may see. Chroma holds every user's chunks;
+        # filtering after the top-n cut let other users' documents take result
+        # slots. The id list is fetched while the query is embedded; the
+        # superuser client sees everything and skips it.
+        async def _visible() -> dict:
+            ids = await pl.visible_ids()
+            return {"paperless_id": {"$in": sorted(ids) or [-1]}}
+
         hits, tag_doc_map = await asyncio.gather(
             chroma.query(
                 query_texts=[effective_semantic],
                 n_results=chunk_request,
                 where_document=where_document,
+                where_pending=None if pl is paperless else _visible(),
             ),
             _tag_search(pl, effective_semantic, owner),
         )
@@ -124,7 +133,9 @@ async def search(
         score = hit["distance"]
         if pid not in best_score or score < best_score[pid]:
             best_score[pid] = score
-        all_chunks.setdefault(pid, []).append(hit["document"])
+        # Without the header: its title and summary sentence are not the
+        # document's words — a snippet or a citation must not show them.
+        all_chunks.setdefault(pid, []).append(strip_context_prefix(hit["document"]))
         all_pages.setdefault(pid, []).append(int(hit["metadata"].get("page_number") or 0))
 
     sorted_pids = sorted(best_score, key=lambda pid: best_score[pid])[:n_results]

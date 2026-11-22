@@ -342,8 +342,8 @@ the Universal expert gets by default (no model cost, whole archive).
      and "open items" (allowed in "what this is about").
 7. Runs app-side as a background job: progress in a store, the page polls
    (a run survives the tab), local-lane calls go through
-   `werkbank.llm_lane.yield_to_chat` and `inference_activity.track`, WoL via
-   `wol.ensure_awake`. Stop/resume like a Werkbank run; never auto-resumed
+   `werkbank.llm_lane.yield_to_chat` and `inference_activity.track` (a sleeping
+   host is woken by a proxy in front of it, not by the app). Stop/resume like a Werkbank run; never auto-resumed
    after restart.
 
 ### 6.4 How it is used

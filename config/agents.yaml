@@ -47,7 +47,6 @@ tool_trust:
 
 # Tools no agent may have, whatever a user configures in the UI.
 #   writes      — a research run must not change the user's data
-#   dialogs     — need a browser that a background run does not have
 #   recursion   — a Werkbank run creating Werkbank runs
 forbidden_tools:
   - create_note
@@ -55,11 +54,6 @@ forbidden_tools:
   - remember_fact
   - update_brain_fact
   - delete_brain_fact
-  - trigger_docx_generation
-  - create_email
-  - generate_chat_pdf
-  - create_kanban_task
-  - download_document
   - show_document_image         # display-only: puts a picture in front of a user who is not there
   - view_document_page          # vision per page; page text says the same thing
   - use_skill                   # experts' skills; experts never run in the Werkbank

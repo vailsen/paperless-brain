@@ -5,8 +5,9 @@
 # Notes:
 # - First boot downloads the embedding model (~2.2 GB) into the hf-cache
 #   volume — the container needs internet access once.
-# - Wake-on-LAN for the Ollama host requires `network_mode: host` (magic
-#   packets don't cross the Docker bridge). Uncomment below and drop `ports:`.
+# - A GPU host that sleeps: put a wake-on-request proxy in front of it and
+#   point OLLAMA_SERVER at the proxy (docs/operations.md, "Sleeping GPU host").
+#   The app itself needs no host networking or SSH key for that.
 # - If you sync the vault from other devices via WebDAV/Remotely Save, the
 #   WebDAV server must serve the SAME ./vaults directory mounted here.
 
@@ -25,7 +26,6 @@ services:
       APP_PATH: /app/
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
-    # network_mode: host  # required for Wake-on-LAN; remove `ports:` if enabled
     volumes:
       # Everything the app owns: ChromaDB, extraction sidecars, thumbnails,
       # the SQLite DB and the encrypted per-user credential files.
@@ -51,12 +51,6 @@ services:
       # Without this every container recreate — including `docker compose pull`
       # — logs all users out and resets their settings.
       - ./nicegui-storage:/app/.nicegui
-      # Only needed for the dashboard's "shut down server" button, which runs
-      # `ssh <OLLAMA_SSH_USER>@<ollama host> "sudo shutdown -h now"`. The
-      # container has no SSH identity of its own, so mount the key read-only —
-      # otherwise the button fails with "Permission denied (publickey)". The
-      # remote user also needs passwordless sudo for /usr/bin/shutdown.
-      # - /root/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro
       # Embedding model (~2.2 GB), so it is downloaded once, not per rebuild.
       - hf-cache:/root/.cache/huggingface
 
@@ -64,8 +58,8 @@ services:
   # different command; only does something with PROACTIVE_ENABLED=true in .env
   # (otherwise it logs one line and exits 0 — `on-failure` keeps it from being
   # restarted for that).
-  # Mounts must match the app's: proactive.db, the power state and the vault
-  # locks live in ./data, findings in the users' vaults.
+  # Mounts must match the app's: proactive.db, the activity state and the
+  # vault locks live in ./data, findings in the users' vaults.
   paperless-brain-worker:
     image: ghcr.io/vailsen/paperless-brain:latest
     # build: .
@@ -79,7 +73,6 @@ services:
       APP_PATH: /app/
       # Similar documents and deep dives run in the app (Chroma, chat tools).
       PROACTIVE_INTERNAL_URL: http://paperless-brain:${PORT:-8080}
-    # network_mode: host  # same as the app if the worker may wake the GPU host (WoL)
     volumes:
       - ./data:/app/data
       - ./vaults:/mnt/vaults

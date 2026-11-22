@@ -23,10 +23,11 @@ from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
 from models.web_result import WebSearchResult
 from pipelines.search import search
+from services.chunking import strip_context_prefix
 from services.citations import cite_ref, page_for, sidecar_page_texts, split_sentences
 from services.clients import chroma, cross_ref_index, paperless, sidecar_service
-from services.ollama_watchdog import chat_touch as _chat_touch
-from services.ollama_watchdog import touch as _wol_touch
+from services.gpu_yield import chat_touch as _chat_touch
+from services.gpu_yield import touch as _yield_touch
 from services.paperless import PaperlessClient as _PaperlessClient
 
 _log = logging.getLogger(__name__)
@@ -165,7 +166,40 @@ class ToolCallEvent:
 
 @dataclass
 class ToolResultEvent:
-    tool_output: str  # first 2000 chars of the raw tool result
+    tool_output: str  # the whole tool result, exactly what the model got
+    duration_ms: int = 0
+
+
+@dataclass
+class ModelCallEvent:
+    """One model request of the loop, for the tool history.
+
+    Claude reports exact counts: `input_tokens` is the uncached part of the
+    prompt, the cached rest is `cache_read` / `cache_write`. An OpenAI-compatible
+    server reports `input_tokens` as what it *evaluated* — Ollama leaves out a
+    prefix reused from its cache — so `estimated_prompt` is our own estimate of
+    what the model read (`estimate_prompt_tokens`)."""
+
+    iteration: int
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read: int = 0
+    cache_write: int = 0
+    estimated_prompt: int = 0
+    first_token_ms: int = 0
+    total_ms: int = 0
+    stop: str = ""
+
+
+@dataclass
+class TranscriptEvent:
+    """What the model was sent, at the end of a turn: system prompt, tool
+    schemas and every message of the loop, its final answer appended. Thinking
+    is removed. For the "raw conversation" download — never stored."""
+
+    system: str
+    tools: list[dict]
+    messages: list[dict]
 
 
 @dataclass
@@ -205,31 +239,6 @@ class OffloadEvent:
 
 
 @dataclass
-class DocxRequestEvent:
-    params: dict  # all inputs from trigger_docx_generation call
-
-
-@dataclass
-class EmailRequestEvent:
-    params: dict  # recipient_email, recipient_name, subject, salutation, body_paras, closing
-
-
-@dataclass
-class PdfSaveRequestEvent:
-    params: dict  # title, content_markdown, filename_topic
-
-
-@dataclass
-class KanbanTaskRequestEvent:
-    params: dict  # request, title
-
-
-@dataclass
-class DownloadRequestEvent:
-    params: dict  # document_id
-
-
-@dataclass
 class ImageDisplayEvent:
     """A page, or one picture on it, to show the user inline in the answer."""
 
@@ -259,6 +268,8 @@ ChatEvent = (
     | TextTokenEvent
     | ToolCallEvent
     | ToolResultEvent
+    | ModelCallEvent
+    | TranscriptEvent
     | DocsRetrievedEvent
     | VaultNotesRetrievedEvent
     | BrainFactsRetrievedEvent
@@ -266,11 +277,6 @@ ChatEvent = (
     | IterationEvent
     | DoneEvent
     | OffloadEvent
-    | DocxRequestEvent
-    | EmailRequestEvent
-    | PdfSaveRequestEvent
-    | KanbanTaskRequestEvent
-    | DownloadRequestEvent
     | ImageDisplayEvent
 )
 
@@ -304,14 +310,14 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "search_exact",
         "description": (
-            "Analytical search over HARD criteria — metadata and/or exact text. NOT a semantic/content search (use 'search' for that). All parameters are optional and AND-combined; at least one must be set.\nUse when the user names concrete, hard criteria:\n• tags (e.g. 'tax return', '2025'), correspondent, document type\n• date ranges\n• literal identifiers contained in the document: invoice numbers, IBANs, license plates, contract/file numbers, phone numbers (via 'text')\n'text' searches the extracted document content (substring, multiple words = OR) AND the structured cross-references — thereby finds all documents sharing the same reference."
+            "Search by HARD criteria — tags, correspondent, document type, date range, or a literal identifier in the text (invoice/contract/file number, IBAN, license plate, phone number). Not a content search: that is 'search'. Parameters are AND-combined; set at least one. 'text' also matches the structured cross-references, so it finds every document sharing a reference."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "text": {
                     "type": "string",
-                    "description": "Exact text/substring in the document content, or a reference (e.g. 'RE-2024-001', 'DE89370400440532013000', 'KA-ZY 244'). Multiple words are OR-combined.",
+                    "description": "Exact text/substring in the document content, or a reference (e.g. 'RE-2024-001', 'DE89 3704 0044 0532 0130 00', 'KA-ZY 244'). Case, spaces and separators do not matter. Words without an identifier are OR-combined.",
                 },
                 "tags": {
                     "type": "array",
@@ -321,7 +327,7 @@ TOOL_DEFINITIONS: list[dict] = [
                 "tag_match": {
                     "type": "string",
                     "enum": ["all", "any"],
-                    "description": "'all' = the document must carry ALL named tags (intersection), 'any' = at least one. Derive from the user's phrasing; ask the user if unclear. Default: 'all'.",
+                    "description": "'all' (default) = every named tag, 'any' = at least one.",
                 },
                 "correspondent": {
                     "type": "string",
@@ -345,7 +351,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "find_similar_documents",
         "description": (
-            "Finds documents that RESEMBLE a document you already have, by comparing their embeddings — 'more like this one'. Use it when the user points at a document and asks for its counterparts, predecessors, other years of the same thing, or anything belonging with it, and when you cannot phrase what makes it distinctive as a query. Not a keyword or metadata search: for a described content use 'search', for hard criteria 'search_exact', for documents sharing a literal reference number 'search_exact' with that reference. Returns document IDs, title, type, correspondent, date and the passage that made each one similar."
+            "'More like this one': finds documents resembling a document you already have, by comparing their embeddings — its counterparts, predecessors, other years of the same thing. Use it when what makes the document distinctive cannot be phrased as a query. Not for a described content ('search') or a shared reference number ('search_exact'). Returns the documents and the passage that made each one similar."
         ),
         "input_schema": {
             "type": "object",
@@ -426,7 +432,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "view_document_page",
         "description": (
-            "Has the vision model analyze a document page directly as an image and returns its answer to YOU as text — the user sees nothing. To SHOW a page or picture to the user use show_document_image instead. Use for: visual elements (logos, stamps, signatures, diagrams, tables as graphics), handwriting, poorly readable OCR, layout questions, colors/symbols/graphics. Also useful when the user explicitly asks about the visual appearance. Slower than the text tools — check get_document_page_text first for pure text content. question MUST contain the concrete visual question (e.g. 'Describe the company logo: colors, symbol, lettering.')."
+            "Has the vision model look at a document page and answers YOU in text — the user sees nothing (to show a page, use show_document_image). For logos, stamps, signatures, handwriting, diagrams, layout, unreadable OCR. Slower than get_document_page_text, which covers plain text."
         ),
         "input_schema": {
             "type": "object",
@@ -438,7 +444,7 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
                 "question": {
                     "type": "string",
-                    "description": "Concrete visual question — what exactly should the vision model recognize or describe on the image? Be as specific as possible (e.g. 'Describe the logo: colors, symbols, lettering.' or 'Is a signature present?').",
+                    "description": "The concrete visual question, e.g. 'Is the contract signed?'",
                 },
             },
             "required": ["document_id", "page_number", "question"],
@@ -452,7 +458,7 @@ TOOL_DEFINITIONS: list[dict] = [
             "or when the answer is about something visual: a dish, a product, a photo, a chart, a map, a drawing. "
             "Without image_index the whole page is shown. With image_index only that picture is shown — the indices are listed as "
             "\"Images on page N: [0] …\" in get_document_details and get_document_page_text. "
-            "Display only: YOU do not get to see the image (for that, use view_document_page). At most 3 per answer. "
+            "Display only: YOU do not get to see the image — never describe it beyond what the text tools told you. At most 3 per answer. "
             "Not for invoices, letters or forms unless the user asks to see them."
         ),
         "input_schema": {
@@ -472,25 +478,9 @@ TOOL_DEFINITIONS: list[dict] = [
         },
     },
     {
-        "name": "download_document",
-        "description": (
-            "Starts the download of a Paperless document's original file directly in the user's browser. ONLY call when the user EXPLICITLY wants to download a document (e.g. 'download the invoice for me', 'give me the PDF', 'download document #123'). NEVER use for information search or reading content. If the document_id is unknown, determine it via search first. For multiple documents call the tool several times (once per document)."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "document_id": {
-                    "type": "integer",
-                    "description": "Paperless document ID of the document to download",
-                },
-            },
-            "required": ["document_id"],
-        },
-    },
-    {
         "name": "create_note",
         "description": (
-            "Attaches a comment to a PAPERLESS DOCUMENT (not a note in the user's vault — you cannot write vault notes at all). Requires a document_id and is visible in Paperless-ngx on that document. Use it to record what happened with a document: 'paid on 12.05.2026', 'cancelled by phone', 'forwarded to the tax advisor'. Only call when the user actually wants something recorded about a document — never to store your own intermediate results, and never for facts about the user (use remember_fact for those). Determine an unknown document_id via search first, and keep the note short and factual."
+            "Attaches a comment to a PAPERLESS DOCUMENT (not a note in the user's vault — you cannot write those), visible in Paperless-ngx on that document. Needs a document_id (search first if unknown). For what happened with a document: 'paid on 12.05.2026', 'cancelled by phone'. Only when the user wants something recorded about a document — never your own intermediate results, never facts about the user (remember_fact)."
         ),
         "input_schema": {
             "type": "object",
@@ -505,101 +495,6 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
             },
             "required": ["document_id", "note"],
-        },
-    },
-    {
-        "name": "trigger_docx_generation",
-        "description": (
-            "Creates a DIN 5008-compliant business letter (German standard) as DOCX. ONLY call when the user EXPLICITLY wants to compose a letter (e.g. 'write a letter to …', 'draft a formal letter', 'compose an inquiry to …'). NEVER use for information search or general questions. Collect all necessary information (recipient, subject, content) before calling the tool. After the call a download dialog opens."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "recipient_name": {
-                    "type": "string",
-                    "description": "Full name / company of the recipient",
-                },
-                "recipient_street": {
-                    "type": "string",
-                    "description": "Street and house number of the recipient",
-                },
-                "recipient_postcode": {
-                    "type": "string",
-                    "description": "Postal code of the recipient",
-                },
-                "recipient_city": {
-                    "type": "string",
-                    "description": "City of the recipient",
-                },
-                "subject": {
-                    "type": "string",
-                    "description": "Subject line of the letter",
-                },
-                "salutation": {
-                    "type": "string",
-                    "description": "Salutation, e.g. 'Sehr geehrte Damen und Herren,' (German letters keep German salutations)",
-                },
-                "body_paras": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Paragraphs of the letter body (each entry = one paragraph)",
-                },
-                "closing": {
-                    "type": "string",
-                    "description": "Closing phrase, default: 'Mit freundlichen Grüßen'",
-                },
-                "source_cross_ref": {
-                    "type": "string",
-                    "description": "Your reference ('Ihr Zeichen'): full designation with type prefix, e.g. 'Rechn. Nr. 260412' or 'Az. 2026-04-X' — always incl. the prefix, never just the number (optional)",
-                },
-                "src_doc_info": {
-                    "type": "string",
-                    "description": "Reference line: short title of the referenced document, e.g. 'Rechnung Nr. 260412 vom 12.05.2026' (optional, leave empty if unknown)",
-                },
-                "reference_doc_id": {
-                    "type": "integer",
-                    "description": "Paperless document ID as reference (optional)",
-                },
-            },
-            "required": [
-                "recipient_name",
-                "recipient_street",
-                "recipient_postcode",
-                "recipient_city",
-                "subject",
-                "salutation",
-                "body_paras",
-            ],
-        },
-    },
-    {
-        "name": "create_email",
-        "description": (
-            "Creates an email template for copying. ONLY call when the user EXPLICITLY wants to write or send an email (e.g. 'write an email to …', 'draft an email', 'I want to inquire about … by email'). NEVER use for information search, questions or general tasks. After the call a dialog opens where the user can copy address and text."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "recipient_email": {
-                    "type": "string",
-                    "description": "Email address of the recipient (determine from documents/emails or ask the user)",
-                },
-                "recipient_name": {
-                    "type": "string",
-                    "description": "Name of the recipient",
-                },
-                "subject": {"type": "string", "description": "Subject of the email"},
-                "salutation": {
-                    "type": "string",
-                    "description": "Salutation, e.g. 'Sehr geehrte Damen und Herren,' (German letters keep German salutations)",
-                },
-                "body_paras": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Paragraphs of the email body (each entry = one paragraph). The last paragraph should contain an appropriate closing.",
-                },
-            },
-            "required": ["recipient_email", "subject", "salutation", "body_paras"],
         },
     },
     {
@@ -632,7 +527,7 @@ TOOL_DEFINITIONS: list[dict] = [
                     "type": "string",
                     "enum": ["general", "news", "science"],
                     "description": (
-                        "'news' for news/current events — returns real article links with dates instead of overview pages. 'science' searches academic sources (PubMed, Crossref, OpenAlex, arXiv, Semantic Scholar) — use it for studies, case reports, measurements and anything where a peer-reviewed source is the right kind of evidence; general web search rarely surfaces these. 'general' (default) for everything else. When time_range is set, 'news' is used automatically anyway."
+                        "'news' for news/current events (dated article links instead of overview pages); 'science' for studies, case reports and measurements (PubMed, Crossref, OpenAlex, arXiv, Semantic Scholar); 'general' (default) otherwise."
                     ),
                 },
             },
@@ -658,7 +553,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "calculate",
         "description": (
-            "Evaluates a mathematical expression and returns the exact result. ALWAYS use this for every calculation — never do mental arithmetic. Supports +, -, *, /, **, %, parentheses and all math.* functions (sqrt, log, sin, cos, pi, e etc.)."
+            "Evaluates a mathematical expression exactly. Supports +, -, *, /, **, %, parentheses and all math.* functions (sqrt, log, sin, cos, pi, e …)."
         ),
         "input_schema": {
             "type": "object",
@@ -673,20 +568,20 @@ TOOL_DEFINITIONS: list[dict] = [
     },
     {
         "name": "get_current_date",
-        "description": "Returns the current date and time.",
+        "description": "Returns the current time (today's date is in your instructions).",
         "input_schema": {"type": "object", "properties": {}},
     },
     {
         "name": "search_emails",
         "description": (
-            "Searches the user's emails via IMAP (inbox and sent mail). Use when the user asks about an email, order, booking confirmation or correspondence. Requires a configured IMAP account (settings). On Gmail all parameters run as native Gmail search (fast, precise). For sent emails (e.g. 'when did I write/send X'): set to_addr. For 'latest/newest email': leave all fields empty, set max_results=1 — returns the newest email without filtering. The default search ALREADY covers every folder (all mail) — 'folder' only narrows it down. If a search returns nothing, do NOT guess folder names: retry with a shorter or different search term, or with from_addr. IMPORTANT: NEVER reference emails with #N (e.g. '#3', '#15') — that syntax is reserved exclusively for Paperless documents and would open wrong documents. Instead use 'email 3', 'the third email', '[E3]' or similar."
+            "Searches the user's emails via IMAP — every folder, inbox and sent mail (needs an IMAP account in the settings). Sent emails ('when did I write X'): set to_addr. Nothing found: retry with a shorter or different term or with from_addr — never by guessing folder names. NEVER refer to an email as #N: that opens a Paperless document; write 'email 3' or '[E3]'."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Full-text search term (subject + body). On Gmail: Gmail syntax allowed.",
+                    "description": "Full-text term (subject + body); Gmail syntax on Gmail.",
                 },
                 "subject": {
                     "type": "string",
@@ -714,29 +609,29 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
                 "max_results": {
                     "type": "integer",
-                    "description": "Number of emails per page (default: 20). Combine with 'offset' for pagination.",
+                    "description": "Emails per page (default 20).",
                 },
                 "offset": {
                     "type": "integer",
-                    "description": "Start position for pagination (default: 0). If the result shows '[N more available — offset=X]': call again with offset=X.",
+                    "description": "Next page: the offset=X the result names.",
                 },
                 "detail": {
                     "type": "string",
                     "enum": ["headers", "snippet", "full"],
                     "description": (
-                        "Level of detail of the email content. 'headers': only date/from/subject, no body text — fastest overview for many hits. 'snippet': first ~300 characters of the body (default). 'full': complete email text for detailed analysis."
+                        "'headers' (date/from/subject only), 'snippet' (default, ~300 chars of the body) or 'full' (whole text)."
                     ),
                 },
                 "folder": {
                     "type": "string",
                     "description": (
-                        "Restrict the search to one IMAP folder, in plain text exactly as 'list_folders_only' printed it (e.g. 'INBOX', 'Archive', 'Bestellvorgänge'). Default (recommended): omit — all mail is searched anyway."
+                        "Narrow to one folder, spelled as list_folders_only printed it. Usually omit."
                     ),
                 },
                 "list_folders_only": {
                     "type": "boolean",
                     "description": (
-                        "List all available IMAP folders (no search). Only useful to restrict a search that already works — it is never the fix for a search that found nothing."
+                        "List the IMAP folders instead of searching. Never the fix for an empty result."
                     ),
                 },
             },
@@ -745,7 +640,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "search_calendar",
         "description": (
-            "Searches the user's calendar entries (title, description, location, date). For time-based questions (e.g. 'in June', 'next week') set date_from+date_to and leave query empty. For keywords (e.g. 'doctor', 'orthopedist') set query. Requires a configured calendar account (settings)."
+            "Searches the user's calendar entries (title, description, location, date). Needs a calendar account in the settings."
         ),
         "input_schema": {
             "type": "object",
@@ -769,7 +664,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "get_actions",
         "description": (
-            "Returns actions / deadlines from all documents (from the index.json). Use 'upcoming_only=true' for future deadlines, or filter with 'after' / 'before' (YYYY-MM-DD) for a time range. Returns document ID, description, deadline and whether the deadline date is certain."
+            "Returns actions and deadlines from all documents, with document ID, description, deadline and whether the date is certain. Filter with upcoming_only or after/before (YYYY-MM-DD)."
         ),
         "input_schema": {
             "type": "object",
@@ -821,7 +716,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "remember_fact",
         "description": (
-            "Stores a fact in YOUR OWN long-term memory — a separate store you curate, not the user's notes (those are read-only for you, see vault_search). Use this tool when the user explicitly tells you something, or when you draw a reliable conclusion from documents that would be useful in future conversations. This is also the right tool when the user wants something 'noted down' about themselves, their contracts or their belongings. Do NOT use for speculative assumptions."
+            "Stores a fact in YOUR OWN long-term memory — not the user's notes (read-only, see vault_search). For what the user tells you, what they want noted down about themselves, and reliable conclusions from documents worth keeping. Never for speculation."
         ),
         "input_schema": {
             "type": "object",
@@ -858,13 +753,13 @@ TOOL_DEFINITIONS: list[dict] = [
                     ),
                 },
             },
-            "required": ["text", "tags", "confidence", "filename_topic"],
+            "required": ["text", "filename_topic"],
         },
     },
     {
         "name": "search_memory",
         "description": (
-            "Semantic search in long-term memory. Call this tool FIRST when the question is factual or personal — e.g. deadlines, amounts, owners, people, things already said. Skip it for pure document searches like 'show all Telekom invoices'."
+            "Semantic search in your own long-term memory. Only when the user asks what you remember, or before correcting a fact — 'search' already shows memory hints."
         ),
         "input_schema": {
             "type": "object",
@@ -920,7 +815,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "vault_search",
         "description": (
-            "READ-ONLY search of the user's personal notes (Obsidian vault). These notes belong to the user: there is no tool to create, edit, append to, rename or delete one, so never offer to write anything into a note — say where it would go and let the user do it, or offer remember_fact instead. Two modes: (1) search via 'query' — matches both by meaning (semantic) and by note title/filename; notes whose title matches are listed first and marked '(title match)'. (2) full retrieval via 'pbrain_id' — reads all chunks of one specific note completely. Not for Paperless documents or memory facts."
+            "READ-ONLY search of the user's own notes (Obsidian vault). There is no tool to create, edit, rename or delete a note, so never offer to write into one. Two modes: 'query' searches by meaning and by title (title matches first, marked '(title match)'); 'pbrain_id' reads one note completely. Not for Paperless documents or memory facts."
         ),
         "input_schema": {
             "type": "object",
@@ -931,59 +826,13 @@ TOOL_DEFINITIONS: list[dict] = [
                 },
                 "pbrain_id": {
                     "type": "string",
-                    "description": "The pbrain_id of a note — reads all chunks completely (mode 2). This is the UUID printed as 'pbrain_id: …' in a previous search result; copy that value verbatim. NEVER pass the distance score (the number in parentheses).",
+                    "description": "The UUID printed as 'pbrain_id: …' in a search result, copied verbatim — never the distance score in parentheses.",
                 },
                 "max_results": {
                     "type": "integer",
                     "description": "Number of results for mode 1 (default: 5)",
                 },
             },
-        },
-    },
-    {
-        "name": "generate_chat_pdf",
-        "description": (
-            "Creates a structured PDF document from the current conversation content and stores it in Paperless as an AI-generated information document. Use this tool when the user wants to permanently archive information from the chat — e.g. email analyses, research results, summaries or deadline overviews. Compose a complete, well-structured Markdown text with all relevant information before calling the tool. If it is unclear what should be saved, ask the user first. After the call a review dialog opens before saving."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "description": "Document title, e.g. 'Email history John Miller' or 'Calendar overview May 2026'",
-                },
-                "content_markdown": {
-                    "type": "string",
-                    "description": "Complete document content in Markdown. Well structured with headings, lists and tables.",
-                },
-                "filename_topic": {
-                    "type": "string",
-                    "description": "Short filename part without special characters, max. 30 characters, e.g. 'Email_History_J_Miller'",
-                },
-            },
-            "required": ["title", "content_markdown", "filename_topic"],
-        },
-    },
-    {
-        "name": "create_kanban_task",
-        "description": (
-            "Creates an autonomous deep-research task in the background. Use this tool when the user mentions a complex task that requires multi-step research, document analysis or synthesis work — i.e. too extensive for a single chat step. IMPORTANT: Write a short, goal-oriented request (3–6 sentences). No detailed plan, no method prescriptions, no pre-researched data — the agent researches on its own. Provide only the goal, context and relevant Paperless document IDs. CRITICAL: After calling this tool, do NOTHING ELSE. No web search, no own research, no generate_chat_pdf — the deep-research agent takes over the work completely. After the call a confirmation dialog opens — the user can still adjust the request and pick the model before it starts."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "description": "Short title, max. 6 words, e.g. 'Insurance contract overview 2026'",
-                },
-                "request": {
-                    "type": "string",
-                    "description": (
-                        "Short work order, max. 6 sentences. Contains: what should be determined/created, which Paperless document IDs are relevant (if known), the desired output format. Does NOT contain: research methodology, step-by-step plans, pre-researched data, comparison criteria — the agent works that out itself."
-                    ),
-                },
-            },
-            "required": ["title", "request"],
         },
     },
     {
@@ -1050,16 +899,11 @@ def _tool_label(name: str) -> str:
         "create_note": _("🗒 Saving note..."),
         "search_emails": _("📧 Searching emails..."),
         "search_calendar": _("📅 Searching calendar..."),
-        "trigger_docx_generation": _("📝 Creating letter template..."),
-        "create_email": _("📧 Creating email template..."),
         "remember_fact": _("🧠 Saving fact..."),
         "search_memory": _("🧠 Searching memory..."),
         "update_brain_fact": _("🧠 Updating fact..."),
         "delete_brain_fact": _("🧠 Deleting fact..."),
         "vault_search": _("📓 Searching notes..."),
-        "generate_chat_pdf": _("💾 Creating document..."),
-        "download_document": _("⬇️ Preparing download..."),
-        "create_kanban_task": _("⚙️ Starting deep research..."),
         "use_skill": _("Loading skill..."),
     }
     return labels.get(name, name)
@@ -1091,30 +935,6 @@ async def execute_tool(
 async def _execute_tool_dispatch(
     name: str, inputs: dict
 ) -> tuple[str, list[DocumentResult], list]:
-    if name == "trigger_docx_generation":
-        text = (
-            "Letter parameters received. A dialog window opens where you can adjust sender details and download the finished letter."
-        )
-        return text, [], [DocxRequestEvent(params=inputs)]
-    if name == "create_email":
-        text = (
-            "Email template created. A dialog opens where you can copy address, subject and message to the clipboard."
-        )
-        return text, [], [EmailRequestEvent(params=inputs)]
-    if name == "generate_chat_pdf":
-        text = (
-            "Document prepared. A dialog opens where you can review title and content and save the document to Paperless."
-        )
-        return text, [], [PdfSaveRequestEvent(params=inputs)]
-    if name == "create_kanban_task":
-        return "Task recorded.", [], [KanbanTaskRequestEvent(params=inputs)]
-    if name == "download_document":
-        text = (
-            f"A download button for document #{inputs.get('document_id')} is now shown in the chat. "
-            "The download starts only after the user clicks it. Do NOT claim the download has already "
-            "started — tell the user to click the button to download the file."
-        )
-        return text, [], [DownloadRequestEvent(params=inputs)]
     if name == "show_document_image":
         text, event = await _tool_show_document_image(inputs)
         if not event:
@@ -1203,61 +1023,126 @@ def _tool_use_skill(inputs: dict) -> str:
 _BOOL_OPS = {"OR", "AND", "NOT", "UND", "ODER"}
 
 
-def _identifier_atoms(query: str) -> list[str] | None:
-    """If the query looks like a single separator-bearing identifier (license
-    plate, invoice/reference number, …), return its atoms split on whitespace
-    AND hyphens; else None.
+# Characters an identifier is written with, in some spelling or other:
+# "DE89 3704 0044", "DE89370400440532", "KA-ZY 244", "65822/61741".
+_ID_SEP = r"[\s\-./:]*"
+_ID_EDGE = ",;:()[]\"'„“”‚‘’«»"
+_LETTER_GROUP = re.compile(r"[A-Za-zÄÖÜäöüß]{1,3}\.?")
+_CODE_TOKEN = re.compile(r"[\w\-./:]+")
+_RUN_SEPARATORS = {"/", "-", "–", "."}
 
-    Atoms must each be a short letter group (1-3) or a digit group (1-6), with
-    at least one of each, 2-4 atoms total. This catches 'KA-AA 1331',
-    'KA AA 1331', 'RE-2024-001' but not normal prose like 'Rechnung Vodafone'.
-    Atomizing on both space and hyphen means 'KA AA 1331' and 'KA-AA 1331'
-    produce the identical atom list — and therefore identical results.
+
+def _code_runs(query: str) -> list[list[str]]:
+    """The identifiers in a query: maximal runs of code-like tokens (anything with
+    a digit, letter groups of 1-3, lone separators) that contain a digit.
+
+    'Rechnung VR 1000631423' → [['VR', '1000631423']]; 'MAU044 GRG 915 / 2021'
+    is one run. Prose words end a run and are not part of any.
     """
-    atoms = [a for a in re.split(r"[\s\-]+", query.strip()) if a]
-    if not (2 <= len(atoms) <= 4):
-        return None
-    has_alpha = has_digit = False
-    for a in atoms:
-        if re.fullmatch(r"[A-Za-zÄÖÜäöü]{1,3}", a):
-            has_alpha = True
-        elif re.fullmatch(r"[0-9]{1,6}", a):
-            has_digit = True
+    runs: list[list[str]] = []
+    cur: list[str] = []
+    tokens: list[str] = []
+    for raw in query.split():
+        tok = raw.strip(_ID_EDGE)
+        parts = [p for p in tok.split("-") if p]
+        # 'KA-ZY' or 'RE-2024-001' is code, 'Kfz-Haftpflicht' is a word.
+        if len(parts) > 1 and all(_LETTER_GROUP.fullmatch(p) or re.search(r"\d", p) for p in parts):
+            tokens.extend(parts)
         else:
-            return None
-    return atoms if (has_alpha and has_digit) else None
+            tokens.append(tok)
+    for tok in tokens:
+        if tok in _RUN_SEPARATORS:
+            if cur:
+                cur.append(tok)
+            continue
+        if tok and re.search(r"\d", tok) and _CODE_TOKEN.fullmatch(tok):
+            cur.append(tok)
+        elif _LETTER_GROUP.fullmatch(tok) and tok.rstrip(".").upper() not in _BOOL_OPS:
+            cur.append(tok.rstrip("."))
+        else:
+            if cur:
+                runs.append(cur)
+            cur = []
+    if cur:
+        runs.append(cur)
+    out = []
+    for run in runs:
+        while run and run[-1] in _RUN_SEPARATORS:
+            run.pop()
+        if any(re.search(r"\d", t) for t in run):
+            out.append(run)
+    return out
 
 
-def _separator_variants(atoms: list[str]) -> list[str]:
-    """Join atoms with every separator ('', '-', ' ') between adjacent atoms.
+def _is_letters(tok: str) -> bool:
+    return not re.search(r"\d", tok) and tok not in _RUN_SEPARATORS
 
-    'KA-AA 1331' (stored form) and 'KAAA1331' etc. are all generated, so the
-    filter matches the document regardless of how the user spaced/hyphenated it.
-    """
-    seps = ("", "-", " ")
-    variants = {atoms[0]}
-    for atom in atoms[1:]:
-        variants = {prefix + sep + atom for prefix in variants for sep in seps}
-    return sorted(variants)
+
+def _run_variants(run: list[str]) -> list[str]:
+    """Spellings of one identifier run to search for: the whole run, and the run
+    without its leading letter groups ('Nr', 'VR', a stray 'von') one at a time.
+    A variant too weak to be an identifier — no digit, or fewer than 5 digits and
+    fewer than 4 characters in all — is dropped: '244' alone matches everything.
+    Trailing letter groups are always dropped from the shorter variants."""
+    core = list(run)
+    while core and _is_letters(core[-1]):
+        core.pop()
+    variants = ["".join(run)]
+    lead = 0
+    while lead < len(core) and _is_letters(core[lead]):
+        lead += 1
+    for i in range(lead + 1):
+        variants.append("".join(core[i:]))
+    out = []
+    for v in dict.fromkeys(variants):
+        alnum = re.sub(r"[^\w]", "", v)
+        digits = sum(c.isdigit() for c in alnum)
+        if digits and (digits >= 5 or len(alnum) >= 4):
+            out.append(v)
+    return out
+
+
+def _id_pattern(text: str) -> str:
+    """Case-insensitive regex for an identifier, with any spaces or separators
+    (or none) between every two of its characters."""
+    chars = [c for c in text if c.isalnum()]
+    return "(?i)" + _ID_SEP.join(re.escape(c) for c in chars)
+
+
+def _word_pattern(word: str) -> str:
+    """Case-insensitive regex for a word; a hyphen in it also matches a space or nothing."""
+    parts = [re.escape(p) for p in re.split(r"[\s\-]+", word) if p]
+    return "(?i)" + _ID_SEP.join(parts)
+
+
+def literal_variants(query: str) -> list[str]:
+    """Every identifier spelling `_build_where_document` searches for (also the
+    keys for the cross-reference lookup)."""
+    return [v for run in _code_runs(query) for v in _run_variants(run)]
 
 
 def _build_where_document(query: str) -> dict | None:
-    atoms = _identifier_atoms(query)
-    if atoms:
-        # Tight phrase match across separator variants — avoids the loose
-        # single-token OR ('KA' OR 'AA') that floods candidates and lets the
-        # vector ranking bury the real identifier hits.
-        variants = _separator_variants(atoms)
-        if len(variants) == 1:
-            return {"$contains": variants[0]}
-        return {"$or": [{"$contains": v} for v in variants]}
+    """Chroma document filter for a literal text, robust to case, spaces and
+    separators.
 
-    words = [w for w in query.split() if len(w) > 1 and w.upper() not in _BOOL_OPS]
-    if not words:
+    An identifier in the text ('DE89 3704…', 'VR 1000631423', 'KA-ZY 244') is
+    matched in every spelling of it; prose words around it are left out, they
+    would match half the archive. Text without an identifier: each word of 3+
+    characters, any of them, ignoring case.
+    """
+    variants = literal_variants(query)
+    if variants:
+        pats = [_id_pattern(v) for v in variants]
+    else:
+        words = [w.strip(_ID_EDGE) for w in query.split()]
+        words = [w for w in words if len(w) > 2 and w.upper() not in _BOOL_OPS]
+        pats = [_word_pattern(w) for w in dict.fromkeys(words)]
+    pats = list(dict.fromkeys(p for p in pats if p != "(?i)"))
+    if not pats:
         return None
-    if len(words) == 1:
-        return {"$contains": words[0]}
-    return {"$or": [{"$contains": w} for w in words]}
+    if len(pats) == 1:
+        return {"$regex": pats[0]}
+    return {"$or": [{"$regex": p} for p in pats]}
 
 
 async def _tool_search(inputs: dict) -> tuple[str, list[DocumentResult]]:
@@ -1707,7 +1592,9 @@ async def _tool_search_exact(inputs: dict) -> tuple[str, list[DocumentResult]]:
 
     # ── Fold in structured cross-reference matches for the literal value ─────
     if text:
-        ref_ids = cross_ref_index.find_by_value(text)
+        ref_ids: set[int] = set(cross_ref_index.find_by_value(text))
+        for v in literal_variants(text):
+            ref_ids |= cross_ref_index.find_by_value(v)
         have = {r.document.id for r in results}
         missing = [pid for pid in ref_ids if pid not in have]
         if missing:
@@ -2185,7 +2072,7 @@ async def _web_search_archive_hint(query: str) -> str:
             if doc_id in seen or doc_id is None or int(doc_id) not in visible:
                 continue
             seen.add(doc_id)
-            snippet = (h.get("document") or "").replace("\n", " ")[:160]
+            snippet = strip_context_prefix(h.get("document")).replace("\n", " ")[:160]
             lines.append(f"- Document #{doc_id}: {snippet}")
         if not lines:
             return ""
@@ -2894,7 +2781,16 @@ async def _tool_create_deadline(inputs: dict) -> tuple[str, list]:
     pbrain_id = await vault_brain_writer.create_deadline(
         text=text, due=due, user=user, tags=inputs.get("tags") or None
     )
-    return f"Deadline stored ({due}, ID: {pbrain_id}).", []
+    # With proactive on, a finding carries the reminders; the note stays the record.
+    reminder = ""
+    try:
+        from proactive import deadlines as _pro_deadlines
+
+        if await _pro_deadlines.manual(user, text, due, pbrain_id) is not None:
+            reminder = " Push reminders are scheduled at the user's reminder offsets."
+    except Exception:
+        _log.warning("create_deadline: reminder finding failed", exc_info=True)
+    return f"Deadline stored ({due}, ID: {pbrain_id}).{reminder}", []
 
 
 async def _tool_search_memory(inputs: dict) -> tuple[str, list, list]:
@@ -3332,6 +3228,20 @@ _ANSWER_HEADROOM = 8_000
 DEFAULT_MAX_OUTPUT_TOKENS = 16_384
 
 
+def _transcript(system: str, tools: list[dict] | None, working: list[dict], answer: str = "") -> TranscriptEvent:
+    """`TranscriptEvent` for the messages a backend sent, without thinking."""
+    msgs: list[dict] = []
+    for m in working:
+        c = m.get("content")
+        if isinstance(c, list):
+            c = [b for b in c if not (isinstance(b, dict) and b.get("type") in ("thinking", "redacted_thinking"))]
+            m = {**m, "content": c}
+        msgs.append(m)
+    if answer:
+        msgs.append({"role": "assistant", "content": answer})
+    return TranscriptEvent(system=system, tools=list(tools or []), messages=msgs)
+
+
 class ClaudeChatBackend:
     def __init__(
         self,
@@ -3444,6 +3354,8 @@ class ClaudeChatBackend:
             think_parts: list[str] = []
             think_yield_buf: list[str] = []
             loop_detected = False
+            _t0 = time.monotonic()
+            _t_first: list[float] = []
             async with self.client.messages.stream(
                 model=self.model,
                 system=system_blocks,
@@ -3456,6 +3368,8 @@ class ClaudeChatBackend:
                     if event.type != "content_block_delta":
                         continue
                     d = event.delta
+                    if not _t_first:
+                        _t_first.append(time.monotonic())
                     if d.type == "text_delta":
                         text_chunks.append(d.text)
                     elif d.type == "thinking_delta":
@@ -3494,10 +3408,22 @@ class ClaudeChatBackend:
                 + (getattr(_u, "cache_read_input_tokens", 0) or 0)
                 + (getattr(_u, "cache_creation_input_tokens", 0) or 0)
             )
+            _t_end = time.monotonic()
+            yield ModelCallEvent(
+                iteration=_i + 1,
+                input_tokens=_u.input_tokens or 0,
+                output_tokens=_u.output_tokens or 0,
+                cache_read=getattr(_u, "cache_read_input_tokens", 0) or 0,
+                cache_write=getattr(_u, "cache_creation_input_tokens", 0) or 0,
+                first_token_ms=int(((_t_first[0] if _t_first else _t_end) - _t0) * 1000),
+                total_ms=int((_t_end - _t0) * 1000),
+                stop=final.stop_reason or "",
+            )
 
             if final.stop_reason == "end_turn":
                 if accumulated:
                     yield TextTokenEvent(accumulated)
+                yield _transcript(system, active_tools, working, accumulated)
                 yield DoneEvent(input_tokens=usage, context_window=self.context_window)
                 return
 
@@ -3521,10 +3447,13 @@ class ClaudeChatBackend:
                         tool_name=block.name,
                         tool_input=block.input,
                     )
+                    _tt = time.monotonic()
                     result_text, docs, extras = await execute_tool(
                         block.name, block.input
                     )
-                    yield ToolResultEvent(tool_output=result_text[:2000])
+                    yield ToolResultEvent(
+                        tool_output=result_text, duration_ms=int((time.monotonic() - _tt) * 1000)
+                    )
                     if docs:
                         yield DocsRetrievedEvent(docs, merge=block.name in _DOC_READ_TOOLS)
                     for extra in extras:
@@ -3558,9 +3487,11 @@ class ClaudeChatBackend:
                 yield TextTokenEvent(
                     "\n\n*[Response was cut off at the token limit.]*"
                 )
+            yield _transcript(system, active_tools, working, accumulated)
             yield DoneEvent(input_tokens=usage, context_window=self.context_window)
             return
 
+        yield _transcript(system, active_tools, working)
         yield DoneEvent(input_tokens=usage, context_window=self.context_window)
 
 
@@ -3862,7 +3793,7 @@ class OpenAICompatibleChatBackend:
         offload_checked = False
         for _i in range(max_iterations):
             yield IterationEvent(_i + 1)
-            _wol_touch()
+            _yield_touch()
             _chat_touch()  # a proactive research run steps aside
 
             payload: dict = {
@@ -3892,18 +3823,20 @@ class OpenAICompatibleChatBackend:
             think_chars = 0
             loop_detected = False
 
-            from services import inference_activity
+            from services import inference_activity, model_host
 
             _est_prompt = estimate_prompt_tokens(working, active_tools)
             _t0 = time.monotonic()
+            # read: a wake-on-request proxy holds the first chunk while a
+            # sleeping host boots and loads the model.
             async with httpx.AsyncClient(
-                timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+                timeout=httpx.Timeout(connect=10.0, read=model_host.READ_TIMEOUT_S, write=10.0, pool=5.0)
             ) as client, inference_activity.track(self.base_url, self.model, "chat") as activity:
                 async with client.stream(
                     "POST",
                     f"{self.base_url}/chat/completions",
                     json=payload,
-                    headers=headers,
+                    headers={**headers, **model_host.headers()},
                 ) as resp:
                     if resp.status_code >= 400:
                         await resp.aread()
@@ -4024,6 +3957,15 @@ class OpenAICompatibleChatBackend:
                 self.model, _i + 1, _est_prompt, prompt_tokens, _first - _t0,
                 activity.tokens, _gen_s, activity.tokens / _gen_s if activity.tokens else 0.0,
             )
+            yield ModelCallEvent(
+                iteration=_i + 1,
+                input_tokens=prompt_tokens,
+                output_tokens=activity.tokens,
+                estimated_prompt=_est_prompt,
+                first_token_ms=int((_first - _t0) * 1000),
+                total_ms=int((_t_end - _t0) * 1000),
+                stop="loop" if loop_detected else ("tool_calls" if tool_calls_map else "stop"),
+            )
             prompt_tokens = reported_or_estimate(prompt_tokens, _est_prompt)
             if not offload_checked and not self._no_ps:
                 offload_checked = True
@@ -4088,6 +4030,7 @@ class OpenAICompatibleChatBackend:
                     continue
                 if content:
                     yield TextTokenEvent(content)
+                yield _transcript(system, active_tools, working[1:], content)
                 yield DoneEvent(
                     input_tokens=prompt_tokens, context_window=self.context_window
                 )
@@ -4134,8 +4077,11 @@ class OpenAICompatibleChatBackend:
                     tool_name=tool_name,
                     tool_input=tool_args,
                 )
+                _tt = time.monotonic()
                 result_text, docs, extras = await execute_tool(tool_name, tool_args)
-                yield ToolResultEvent(tool_output=result_text[:2000])
+                yield ToolResultEvent(
+                    tool_output=result_text, duration_ms=int((time.monotonic() - _tt) * 1000)
+                )
                 if docs:
                     yield DocsRetrievedEvent(docs, merge=tool_name in _DOC_READ_TOOLS)
                 for extra in extras:
@@ -4163,4 +4109,5 @@ class OpenAICompatibleChatBackend:
                     "content": answer_language_reminder(answer_language),
                 })
 
+        yield _transcript(system, active_tools, working[1:])
         yield DoneEvent(input_tokens=prompt_tokens, context_window=self.context_window)

@@ -99,7 +99,12 @@ def _load(name: str, exclusive: bool = False):
 
         t0 = time.perf_counter()
         try:
-            model = SentenceTransformer(name, device="cpu")
+            # float32: e5's weights ship as float16, and on a CPU that is ~4×
+            # slower (measured on the server: 0.8 s vs ~4 s for a 410-token
+            # chunk) for the same vectors (cosine ≥ 0.9998 to the float16 ones).
+            import torch
+
+            model = SentenceTransformer(name, device="cpu", model_kwargs={"dtype": torch.float32})
         except Exception as exc:  # noqa: BLE001
             raise EmbeddingError(f"could not load {name}: {exc}") from exc
         _models[name] = model
@@ -159,6 +164,41 @@ def unload(name: str | None = None) -> None:
         for n in [name] if name else list(_models):
             _models.pop(n, None)
         _free()
+
+
+MAX_CHUNK_TOKENS = 512
+_tokenizers: dict[str, tuple] = {}
+
+
+def token_budget(name: str) -> tuple:
+    """(token count of a text, window) for chunking for model `name`.
+
+    The window is the model's, capped at `MAX_CHUNK_TOKENS`: chunks are stored
+    once and copied to every model's index, and a chunk e5 can read whole is a
+    good retrieval unit for a model with a longer window too. Only the
+    tokenizer is loaded (no weights), from the loaded model when there is one.
+    `(None, MAX_CHUNK_TOKENS)` when no tokenizer is available — chunking then
+    falls back to its word budget.
+    """
+    if name in _tokenizers:
+        return _tokenizers[name]
+    tok, window = None, MAX_CHUNK_TOKENS
+    try:
+        model = _models.get(name)
+        if model is not None:
+            tok = model.tokenizer
+            window = min(int(model.max_seq_length or window), window)
+        else:
+            from transformers import AutoTokenizer
+
+            tok = AutoTokenizer.from_pretrained(name)
+            window = min(int(getattr(tok, "model_max_length", window) or window), window)
+    except Exception:  # noqa: BLE001 — a remote-only name, no network
+        log.warning("[embeddings] no tokenizer for %s; chunking by words", name, exc_info=True)
+        tok = None
+    counter = (lambda t: len(tok(t, add_special_tokens=True, verbose=False)["input_ids"])) if tok else None
+    _tokenizers[name] = (counter, window)
+    return _tokenizers[name]
 
 
 class LocalEmbedder:
@@ -227,25 +267,36 @@ class RemoteEmbedder:
         return f"remote:{self.base_url}|{self.model}"
 
     def _post(self, texts: list[str]) -> list[list[float]]:
+        from services import model_host
+
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        local = self._on_operator_host()
+        if local:
+            headers.update(model_host.headers())
+        timeout = model_host.read_timeout(REMOTE_TIMEOUT_S) if local else REMOTE_TIMEOUT_S
         try:
             r = httpx.post(f"{self.base_url}/embeddings", headers=headers,
-                           json={"model": self.model, "input": texts}, timeout=REMOTE_TIMEOUT_S)
+                           json={"model": self.model, "input": texts}, timeout=timeout)
             r.raise_for_status()
             data = sorted(r.json()["data"], key=lambda d: d.get("index", 0))
         except Exception as exc:  # noqa: BLE001
             raise EmbeddingError(f"{self.base_url}: {exc}") from exc
         if len(data) != len(texts):
             raise EmbeddingError(f"{self.base_url}: {len(data)} vectors for {len(texts)} texts")
-        try:
-            from services.ollama_watchdog import touch
-            from services.wol import wakes
+        if local:
+            from services import gpu_yield
 
-            if wakes(self.base_url):
-                touch()  # the host the watchdog sleeps is in use
-        except Exception:  # noqa: BLE001
-            pass
+            gpu_yield.touch()  # the shared local model host is in use
         return [d["embedding"] for d in data]
+
+    def _on_operator_host(self) -> bool:
+        """Is this endpoint the operator's local model host (`OLLAMA_SERVER`)?
+        Only that one may sit behind a wake-on-request proxy."""
+        from config.settings import settings
+        from services.model_host import _base
+
+        mine = _base(settings.ollama_server)
+        return bool(mine) and _base(self.base_url) == mine
 
     def _encode(self, texts: list[str]) -> list[list[float]]:
         out: list[list[float]] = []

@@ -171,6 +171,47 @@ async def findings_for(user: str, a: Analysis, *, doc_title: str, lang: str,
     return outcomes
 
 
+async def manual(user: str, text: str, due: str, note_id: str) -> findings.Finding | None:
+    """The finding behind a deadline the user set in chat (`create_deadline`).
+
+    The memory note stays the deadline's record — the dashboard, `get_actions`
+    and recall read it, with proactive on or off. This finding only carries
+    what the note cannot: the reminders at the user's offsets, the inbox entry
+    they bring back, and a page for the push tap. Written as "relevant": the
+    user just set it, so nothing is sent now; `remind` puts it in the inbox.
+    None when proactive is off, the user has not opted in, or the date is past.
+    """
+    from config.proactive import is_enabled
+
+    if not is_enabled():
+        return None
+    from proactive import prefs
+
+    p = prefs.get(user)
+    if not p.optin:
+        return None
+    today = clock.local_now().date()
+    d = Deadline(date=due, kind="informational", actionable=True, description=text, quote="")
+    if d.day < today:
+        return None
+    lang = p.content_language
+    f = findings.Finding(
+        finding_id="",
+        kind="deadline",
+        title=title_for(d, lang),
+        status="relevant",
+        urgency=urgency(d, today),
+        evidence_hash=findings.evidence_hash([], [due, text]),
+        deadline=due,
+        deadline_kind=d.kind,
+        finding_key=f"deadline:manual:{note_id}",
+        lang=lang,
+        body=findings.render_body(lang, summary=text),
+    )
+    out, _outcome = await findings.upsert(user, f)
+    return out
+
+
 def due_offsets(f: findings.Finding, offsets: list[int], today: date) -> list[int]:
     """Offsets that have come due and were not sent yet."""
     dd = f.deadline_date

@@ -38,12 +38,10 @@ def _wrap_pre(html: str) -> str:
 
 
 def _strip_chunk_prefix(chunk: str) -> str:
-    """Remove the ingest-time context prefix 'Dokument: ..., ..., ... — ' if present."""
-    if chunk.startswith("Dokument: "):
-        idx = chunk.find(" — ")
-        if idx != -1:
-            return chunk[idx + 3 :]
-    return chunk
+    """Remove the ingest-time context header (`chunking.strip_context_prefix`)."""
+    from services.chunking import strip_context_prefix
+
+    return strip_context_prefix(chunk)
 
 
 def highlight_text(full_text: str, chunks: list[str], text_query: str = "") -> str:

@@ -56,10 +56,10 @@ def proactive_on(tmp_path, monkeypatch):
     from proactive import notify
 
     monkeypatch.setattr(notify, "quiet_delay", lambda user: timedelta(0))
-    # Nor may the developer's own app (its data/power_state.json) pause the worker.
-    from services import ollama_watchdog
+    # Nor may the developer's own app (its data/activity_state.json) pause the worker.
+    from services import gpu_yield
 
-    monkeypatch.setattr(ollama_watchdog, "app_busy", lambda now=None: False)
+    monkeypatch.setattr(gpu_yield, "app_busy", lambda now=None: False)
     cfg.proactive_settings.cache_clear()
     clock.reset()
     yield tmp_path / "proactive.db"

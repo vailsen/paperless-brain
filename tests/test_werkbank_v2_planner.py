@@ -76,16 +76,9 @@ def test_no_agent_can_write_anything():
     """A research run must not change the user's data — not even by accident."""
     reg = registry.load_defaults()
     writes = {"create_note", "create_deadline", "remember_fact",
-              "update_brain_fact", "delete_brain_fact", "create_kanban_task"}
+              "update_brain_fact", "delete_brain_fact"}
     for spec in reg.agents.values():
         assert not (set(spec.tools) & writes), spec.id
-
-
-def test_no_agent_gets_a_tool_that_needs_a_browser_dialog():
-    reg = registry.load_defaults()
-    dialogs = {"trigger_docx_generation", "create_email", "generate_chat_pdf"}
-    for spec in reg.agents.values():
-        assert not (set(spec.tools) & dialogs), spec.id
 
 
 def test_an_unconfigured_source_removes_its_agent():
