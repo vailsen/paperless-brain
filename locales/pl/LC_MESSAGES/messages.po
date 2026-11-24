@@ -1,16 +1,16 @@
-# Polish translations for PROJECT.
-# Copyright (C) 2026 ORGANIZATION
+# Polish translations for PaperlessBrain.
+# Copyright (C) 2026 PaperlessBrain contributors
 # This file is distributed under the same license as the PROJECT project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+# Michał Podgórski, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: PROJECT VERSION\n"
-"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"Project-Id-Version: PaperlessBrain\n"
+"Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-11-22 15:33+0100\n"
-"PO-Revision-Date: 2026-11-05 10:05+0100\n"
+"PO-Revision-Date: 2026-11-24 12:45+0100\n"
 "Last-Translator: Michał Podgórski\n"
-"Language-Team: pl <LL@li.org>\n"
+"Language-Team: Polish\n"
 "Language: pl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -62,9 +62,8 @@ msgstr "Gotowy"
 
 #: app_ui/pages/admin.py:89
 msgid "Settings for every user. Admins are named in ADMIN_USERS on the server."
-msgstr ""
-"Ustawienia wspólne dla wszystkich użytkowników. Administratorów określa "
-"zmienna ADMIN_USERS na serwerze."
+msgstr "Ustawienia wspólne dla wszystkich użytkowników. Dostęp administracyjny mają użytkownicy wskazani w zmiennej ADMIN_USERS na serwerze."
+
 
 #: app_ui/pages/admin.py:98
 msgid "Search reads the active model's index, for every user"
@@ -226,10 +225,8 @@ msgid ""
 "{n} documents have chunks of an older version (no title and summary in their "
 "header, or cut off by the model's window). Rebuilding them needs no vision "
 "model."
-msgstr ""
-"W przypadku {n} dokumentów fragmenty utworzono według starszej wersji zasad "
-"(bez tytułu i podsumowania w nagłówku albo z obcięciem do okna kontekstowego "
-"modelu). Ich przebudowa nie wymaga modelu wizyjnego."
+msgstr "Fragmenty {n} dokumentów utworzono według wcześniejszych zasad (bez tytułu i podsumowania w nagłówku lub z przycięciem do okna kontekstowego modelu). Ich przebudowa nie wymaga modelu wizyjnego."
+
 
 #: app_ui/pages/admin.py:373
 msgid ""
@@ -286,7 +283,8 @@ msgstr "Usunięto model oraz jego pliki z tego serwera ({gb} GB)."
 
 #: app_ui/pages/admin.py:457
 msgid "Model (Hugging Face id)"
-msgstr "Model (identyfikator Hugging Face)"
+msgstr "Identyfikator modelu w Hugging Face"
+
 
 #: app_ui/pages/admin.py:462
 msgid ""
@@ -301,10 +299,8 @@ msgstr ""
 msgid ""
 "Put before every search query, never before stored text. Empty = filled in "
 "for known models (e5-instruct, Qwen3-Embedding)."
-msgstr ""
-"Dodawana przed każdym zapytaniem wyszukiwania, nigdy przed zapisanym "
-"tekstem. Puste pole oznacza automatyczne uzupełnienie dla znanych modeli (e5-"
-"instruct, Qwen3-Embedding)."
+msgstr "Instrukcja jest dodawana przed każdym zapytaniem wyszukiwania, ale nie przed zapisywanym tekstem. Puste pole oznacza automatyczne uzupełnienie dla znanych modeli (e5-instruct, Qwen3-Embedding)."
+
 
 #: app_ui/pages/admin.py:482
 msgid ""
@@ -946,17 +942,16 @@ msgstr ""
 
 #: app_ui/ai_models_settings.py:272
 msgid "Require a tool for personal questions"
-msgstr "Wymaga narzędzia do pytań osobistych"
+msgstr "Wymagaj użycia narzędzia przy pytaniach o moje dane"
+
 
 #: app_ui/ai_models_settings.py:277
 msgid ""
 "For questions about your own documents, emails or purchases, the first "
 "request already demands a tool call. Switch on for models that answer such "
 "questions from memory."
-msgstr ""
-"W przypadku pytań dotyczących Twoich własnych dokumentów, e-maili lub "
-"zakupów, pierwsze zapytanie już wymaga wywołania narzędzia. Włącz modele, "
-"które odpowiadają na takie pytania z pamięci."
+msgstr "Przy pytaniach o Twoje dokumenty, wiadomości e-mail lub zakupy już pierwsze żądanie będzie wymagało wywołania narzędzia. Włącz tę opcję dla modeli, które próbują odpowiadać na takie pytania z pamięci."
+
 
 #: app_ui/ai_models_settings.py:286
 msgid "Model ID must not be empty."
@@ -987,13 +982,13 @@ msgstr "Czy usunąć usługę \"{name}\"?"
 msgid ""
 "Its {n} model(s) are deleted with it. Settings that use one of them lose "
 "their choice."
-msgstr ""
-"Jego/Jej {n} modele są usuwane razem z nim/nią. Ustawienia, które korzystają "
-"z jednego z nich, tracą swój wybór."
+msgstr "Wraz z usługą zostaną usunięte przypisane do niej modele ({n}). Ustawienia korzystające z tych modeli utracą dotychczasowy wybór."
+
 
 #: app_ui/ai_models_settings.py:369
 msgid "It has no models."
-msgstr "Nie ma modeli."
+msgstr "Ta usługa nie ma przypisanych modeli."
+
 
 #: app_ui/ai_models_settings.py:377
 msgid "Service deleted."
@@ -1069,13 +1064,8 @@ msgid ""
 "openrouter.ai/api/v1</code>), MiniMax, Moonshot, …<br><b>Anthropic-"
 "compatible</b>: Anthropic API (empty base URL), MiniMax and other providers "
 "with an Anthropic-compatible endpoint."
-msgstr ""
-"Jeden wpis na usługę, z dowolną liczbą modeli poniżej. Modele pojawiają się "
-"w rozwijanych listach w tej kolejności, pogrupowane według usługi."
-"<br><b>Kompatybilny z OpenAI</b>: Ollama (<code>http://host:11434/v1</"
-"code>), OpenRouter (<code>https://openrouter.ai/api/v1</code>), MiniMax, "
-"Moonshot, …<br><b>Kompatybilny z Anthropic</b>: Anthropic API (pusta baza "
-"URL), MiniMax i inni dostawcy z punktem końcowym kompatybilnym z Anthropic."
+msgstr "Każda usługa ma jeden wpis i może zawierać dowolną liczbę modeli. Modele pojawiają się na listach rozwijanych w tej kolejności, pogrupowane według usług.<br><b>Zgodne z OpenAI</b>: Ollama (<code>http://host:11434/v1</code>), OpenRouter (<code>https://openrouter.ai/api/v1</code>), MiniMax, Moonshot i inne.<br><b>Zgodne z Anthropic</b>: API Anthropic (pusty bazowy adres URL), MiniMax i inni dostawcy zgodni z API Anthropic."
+
 
 #: app_ui/chat_images.py:35
 msgid "Document page"
@@ -1133,7 +1123,8 @@ msgstr "{type}: {value}  ({n} dokumentów)"
 
 #: app_ui/cluster_dialog.py:286 app_ui/similar_dialog.py:113
 msgid "Loading…"
-msgstr "Ładowanie..."
+msgstr "Ładowanie…"
+
 
 #: app_ui/compose_dialogs.py:162 app_ui/pages/chat.py:945
 #: app_ui/pages/chat.py:2183
@@ -1358,7 +1349,8 @@ msgstr "+{n} więcej w zakładce \"Daty / Referencje\""
 
 #: app_ui/document_dialog.py:599
 msgid "No extracted text available."
-msgstr "Brak dostępnego tekstu."
+msgstr "Brak wyodrębnionego tekstu."
+
 
 #: app_ui/document_dialog.py:613
 msgid "Actions"
@@ -1387,11 +1379,13 @@ msgstr "Nie"
 
 #: app_ui/document_dialog.py:653
 msgid "No actions detected."
-msgstr "Nie wykryto żadnych akcji."
+msgstr "Nie wykryto działań do wykonania."
+
 
 #: app_ui/document_dialog.py:658
 msgid "Cross-references"
-msgstr "Odwołania krzyżowe"
+msgstr "Powiązania między dokumentami"
+
 
 #: app_ui/document_dialog.py:738
 #, python-brace-format
@@ -1421,11 +1415,13 @@ msgstr "PDF nie może zostać wyświetlony."
 #: app_ui/document_dialog.py:887 app_ui/pages/browser.py:536
 #, python-brace-format
 msgid "Relevance: {score:.0%}"
-msgstr "Znaczenie: {score:.0%}"
+msgstr "Trafność: {score:.0%}"
+
 
 #: app_ui/document_dialog.py:901
 msgid "Cross-reference cluster"
-msgstr "Klaster odwołań krzyżowych"
+msgstr "Grupa powiązanych dokumentów"
+
 
 #: app_ui/document_dialog.py:911
 msgid "Similar documents"
@@ -1446,7 +1442,8 @@ msgstr "Otwórz w Paperless-ngx"
 #: app_ui/document_dialog.py:953
 #, python-brace-format
 msgid "Re-ingest document #{id}?"
-msgstr "Ponowne wczytanie dokumentu #{id}?"
+msgstr "Przetworzyć ponownie dokument #{id}?"
+
 
 #: app_ui/document_dialog.py:956
 msgid ""
@@ -1492,12 +1489,14 @@ msgstr "Ponowne przetwarzanie dokumentu #{id} ..."
 #: app_ui/document_dialog.py:1019
 #, python-brace-format
 msgid "#{id} re-ingested."
-msgstr "#{id} ponownie załadowany."
+msgstr "Ponownie przetworzono dokument #{id}."
+
 
 #: app_ui/document_dialog.py:1024
 #, python-brace-format
 msgid "Error during re-ingest: {err}"
-msgstr "Błąd podczas ponownego importowania: {err}"
+msgstr "Błąd podczas ponownego przetwarzania: {err}"
+
 
 #: app_ui/document_dialog.py:1032
 msgid "Re-ingest (extraction + embedding)"
@@ -1535,7 +1534,8 @@ msgstr "Teczka sprawy"
 
 #: app_ui/dossier_save.py:74 app_ui/pages/findings.py:1750
 msgid "Name of the new dossier"
-msgstr "Nazwa nowego akt"
+msgstr "Nazwa nowej teczki sprawy"
+
 
 #: app_ui/dossier_save.py:80
 msgid "This answer"
@@ -1631,7 +1631,8 @@ msgstr "Nowe otwarte pytania"
 
 #: app_ui/dossier_save.py:195
 msgid "Name the new dossier first."
-msgstr "Najpierw nazwij nowy dossier."
+msgstr "Najpierw nadaj nazwę nowej teczce sprawy."
+
 
 #: app_ui/dossier_save.py:199 app_ui/pages/experts.py:664
 #: app_ui/skill_wizard_dialog.py:197
@@ -1643,10 +1644,8 @@ msgid ""
 "Fitting it into the dossier — this can take a minute. Please wait: the "
 "preview opens here when the model is done, and nothing is saved before you "
 "press Save."
-msgstr ""
-"Wprowadzanie do dossier — może to potrwać minutę. Proszę czekać: podgląd "
-"otworzy się tutaj, gdy model będzie gotowy, a nic nie zostanie zapisane, "
-"zanim naciśniesz Zapisz."
+msgstr "Włączanie treści do teczki sprawy może potrwać minutę. Poczekaj na podgląd, który pojawi się po zakończeniu pracy modelu. Nic nie zostanie zapisane, dopóki nie klikniesz „Zapisz”."
+
 
 #: app_ui/dossier_save.py:215
 msgid ""
@@ -1675,7 +1674,8 @@ msgstr "Teczka spraw o tej nazwie już istnieje."
 
 #: app_ui/dossier_save.py:277
 msgid "Give the dossier a name."
-msgstr "Nadaj dossier nazwę."
+msgstr "Nadaj nazwę teczce sprawy."
+
 
 #: app_ui/dossier_save.py:277 app_ui/pages/findings.py:1763
 #: app_ui/pages/findings.py:2076 app_ui/pages/findings.py:2120
@@ -1786,11 +1786,8 @@ msgid ""
 "the last sync ran, the AI host (on, off, what it is generating), upcoming "
 "deadlines and pinned documents. Sync Paperless or the vault by hand, and let "
 "'Dreaming' tidy up the assistant's memory."
-msgstr ""
-"Stan systemu w pigułce: ile dokumentów jest indeksowanych i kiedy ostatnio "
-"zakończyła się synchronizacja, host AI (włączony, wyłączony, co generuje), "
-"nadchodzące terminy i przypięte dokumenty. Synchronizuj Paperless lub sejf "
-"ręcznie, a pozwól 'Dreaming' uporządkować pamięć asystenta."
+msgstr "Przegląd stanu systemu: liczba zindeksowanych dokumentów, czas ostatniej synchronizacji, stan hosta AI i wykonywane zadania, nadchodzące terminy oraz przypięte dokumenty. Możesz ręcznie synchronizować Paperless-ngx lub repozytorium notatek, a funkcja „Dreaming” pomoże uporządkować pamięć asystenta."
+
 
 #: app_ui/help_dialog.py:20 app_ui/inference_status.py:14 app_ui/layout.py:76
 #: app_ui/pages/chat.py:2077 app_ui/pages/experts.py:261
@@ -1825,12 +1822,8 @@ msgid ""
 "binder per matter with its state, timeline, open questions, documents, "
 "research and the chat answers you saved. The chat on the right (below on a "
 "phone) talks about what you are looking at."
-msgstr ""
-"Co system zauważył w Twoich dokumentach, gdy Cię nie było — terminy, zmiany "
-"cen, kontrakty warte uwagi — jako skrzynkę odbiorczą, plus akta: jeden "
-"segregator na sprawę z jej stanem, harmonogramem, otwartymi pytaniami, "
-"dokumentami, badaniami i zapisanych odpowiedziami z czatu. Czat po prawej "
-"stronie (poniżej na telefonie) mówi o tym, na co patrzysz."
+msgstr "System wykrywa w dokumentach istotne sprawy, takie jak terminy, zmiany cen czy umowy wymagające uwagi. Ustalenia trafiają do listy „Do przejrzenia”, a teczki spraw gromadzą stan sprawy, oś czasu, pytania, dokumenty, analizy i zapisane odpowiedzi z czatu. Czat po prawej stronie (na telefonie poniżej) uwzględnia aktualnie wyświetlaną treść."
+
 
 #: app_ui/help_dialog.py:33 app_ui/layout.py:77
 msgid "Note vault"
@@ -2028,9 +2021,8 @@ msgstr "Przytrzymaj, aby nagrywać, przesuwaj w górę, aby zablokować"
 #: app_ui/memo_dialog.py:275
 msgid ""
 "With review: check the text before saving. Quick memo: filed automatically."
-msgstr ""
-"Z recenzją: sprawdź tekst przed zapisaniem. Szybka notatka: zarchiwizowano "
-"automatycznie."
+msgstr "Z weryfikacją: sprawdź tekst przed zapisaniem. Szybka notatka: automatyczny zapis bez weryfikacji."
+
 
 #: app_ui/memo_dialog.py:282
 msgid "Upload audio file"
@@ -2064,7 +2056,8 @@ msgstr "Transkrybowanie…"
 
 #: app_ui/memo_dialog.py:406 app_ui/memo_dialog.py:526
 msgid "AI is tidying it up …"
-msgstr "AI porządkuje to …"
+msgstr "AI porządkuje notatkę…"
+
 
 #: app_ui/memo_dialog.py:421 app_ui/memo_dialog.py:532
 #: app_ui/pages/chat.py:2632
@@ -2211,7 +2204,8 @@ msgstr ""
 
 #: app_ui/note_voice_dialog.py:305
 msgid "The note could not be revised."
-msgstr "Nie można było zrewidować notatki."
+msgstr "Nie udało się poprawić notatki."
+
 
 #: app_ui/proactive_settings.py:37
 msgid "Background access"
@@ -2243,7 +2237,8 @@ msgstr "Twój token został odrzucony — zaloguj się ponownie, aby go odnowić
 
 #: app_ui/proactive_settings.py:64
 msgid "Background access allowed."
-msgstr "Dostęp do tła dozwolony."
+msgstr "Zezwolono na dostęp w tle."
+
 
 #: app_ui/proactive_settings.py:73
 msgid "Background access withdrawn. Proactive features are off."
@@ -2432,9 +2427,8 @@ msgstr "Wyłączone dla tego urządzenia."
 msgid ""
 "This browser cannot receive push messages. On an iPhone, open the app from "
 "the home screen."
-msgstr ""
-"Ten przeglądarka nie może odbierać wiadomości push. Na iPhonie otwórz "
-"aplikację z ekranu głównego."
+msgstr "Ta przeglądarka nie obsługuje powiadomień push. Na iPhonie uruchom aplikację z ekranu głównego."
+
 
 #: app_ui/proactive_settings.py:331
 msgid "Notifications are blocked for this site in the browser settings."
@@ -2476,7 +2470,8 @@ msgstr "Gdy synchronizacja się zakończy"
 
 #: app_ui/proactive_settings.py:378
 msgid "When a Werkbank run is done"
-msgstr "Kiedy uruchomienie Werkbank zostanie zakończone"
+msgstr "Po zakończeniu zadania Werkbank"
+
 
 #: app_ui/proactive_settings.py:457
 msgid "Analyse the archive now"
@@ -2487,10 +2482,8 @@ msgid ""
 "Normally your existing documents are analysed at night. Choose how many to "
 "analyse right away — about 15 seconds each on the GPU. A chat always goes "
 "first; the analysis continues afterwards."
-msgstr ""
-"Normalnie Twoje istniejące dokumenty są analizowane w nocy. Wybierz, ile "
-"chcesz przeanalizować od razu — około 15 sekund każde na GPU. Czat zawsze "
-"odbywa się jako pierwszy; analiza kontynuowana jest później."
+msgstr "Istniejące dokumenty są zwykle analizowane w nocy. Wybierz, ile chcesz przeanalizować teraz. Na GPU zajmuje to około 15 sekund na dokument. Rozmowy na czacie mają pierwszeństwo, a analiza zostaje później wznowiona."
+
 
 #: app_ui/proactive_settings.py:468
 msgid "All documents are analysed."
@@ -2544,7 +2537,8 @@ msgstr "Podaj pełne liczby dni, oddzielone przecinkami."
 
 #: app_ui/proactive_settings.py:535
 msgid "Quiet hours"
-msgstr "Godziny ciszy"
+msgstr "Godziny wyciszenia"
+
 
 #: app_ui/proactive_settings.py:537
 msgid "From"
@@ -2558,9 +2552,8 @@ msgstr "Do"
 msgid ""
 "Reminders and insights found in this time are sent when it ends. The same "
 "time twice = no quiet hours."
-msgstr ""
-"Przypomnienia i spostrzeżenia z tego czasu zostaną wysłane, gdy się "
-"zakończy. Ten sam czas dwa razy = brak godzin ciszy."
+msgstr "Przypomnienia i spostrzeżenia wykryte w tym okresie zostaną wysłane po jego zakończeniu. Ustawienie tej samej godziny początku i końca wyłącza wyciszenie."
+
 
 #: app_ui/proactive_settings.py:554
 msgid "Enter times as HH:MM."
@@ -2576,7 +2569,8 @@ msgstr "Tak samo jak w aplikacji"
 
 #: app_ui/proactive_settings.py:570
 msgid "Saved — applies to new findings."
-msgstr "Zapisano — dotyczy nowych znalezisk."
+msgstr "Zapisano. Zmiana dotyczy nowych ustaleń."
+
 
 #: app_ui/proactive_settings.py:582
 msgid "nothing sent yet"
@@ -2626,7 +2620,8 @@ msgstr "Podobne do #{id} — {n} dokumentów"
 
 #: app_ui/pages/experts.py:178 app_ui/skill_wizard_dialog.py:36
 msgid "Skill wizard"
-msgstr "Asystent umiejętności"
+msgstr "Kreator umiejętności"
+
 
 #: app_ui/skill_wizard_dialog.py:43 app_ui/skill_wizard_dialog.py:52
 msgid "Next"
@@ -2693,11 +2688,13 @@ msgstr ""
 
 #: app_ui/skill_wizard_dialog.py:75
 msgid "No questions — continue to the draft."
-msgstr "Żadnych pytań — kontynuuj do szkicu."
+msgstr "Brak pytań. Przejdź do wersji roboczej."
+
 
 #: app_ui/skill_wizard_dialog.py:77
 msgid "A few questions to sharpen the skill. Skip any you like."
-msgstr "Kilka pytań, aby doszlifować umiejętności. Możesz pominąć dowolne."
+msgstr "Kilka pytań pomoże doprecyzować umiejętność. Możesz pominąć dowolne z nich."
+
 
 #: app_ui/pages/experts.py:772 app_ui/skill_wizard_dialog.py:93
 msgid "When to use it"
@@ -2727,7 +2724,8 @@ msgstr "Za długi tekst — zostanie wykorzystanych tylko pierwszych {n} znaków
 #: app_ui/pages/experts.py:847 app_ui/skill_wizard_dialog.py:105
 #, python-brace-format
 msgid "No such tool: {t}. The model would try to call it and fail."
-msgstr "Brak takiego narzędzia: {t}. Model spróbowałby to wywołać i zawiódł."
+msgstr "Nie ma narzędzia „{t}”. Próba jego wywołania przez model zakończyłaby się błędem."
+
 
 #: app_ui/pages/experts.py:848 app_ui/skill_wizard_dialog.py:106
 #, python-brace-format
@@ -2739,9 +2737,8 @@ msgstr ""
 msgid ""
 "Ask the example question twice — without and with the skill — and compare. "
 "Read-only tools only: a trial changes nothing."
-msgstr ""
-"Zapytaj o przykładowe pytanie dwa razy — bez i z użyciem umiejętności — i "
-"porównaj. Tylko narzędzia tylko do odczytu: okres próbny nic nie zmienia."
+msgstr "Zadaj przykładowe pytanie dwukrotnie, bez umiejętności i z nią, a następnie porównaj odpowiedzi. Test używa wyłącznie narzędzi do odczytu i nie wprowadza zmian."
+
 
 #: app_ui/pages/chat.py:2114 app_ui/pages/experts.py:259
 #: app_ui/skill_wizard_dialog.py:126
@@ -2766,7 +2763,8 @@ msgstr "Z umiejętnością"
 
 #: app_ui/skill_wizard_dialog.py:147
 msgid "Enter a question and pick a model first."
-msgstr "Wprowadź pytanie i wybierz model najpierw."
+msgstr "Najpierw wpisz pytanie i wybierz model."
+
 
 #: app_ui/skill_wizard_dialog.py:203
 msgid "Describe what the skill should do."
@@ -2779,7 +2777,8 @@ msgstr "Model myśli o pytaniach…"
 #: app_ui/skill_wizard_dialog.py:212
 #, python-brace-format
 msgid "The model could not ask questions ({err}) — continuing without."
-msgstr "Model nie mógł zadać pytań ({err}) — kontynuowanie bez tego."
+msgstr "Model nie mógł przygotować pytań ({err}). Kontynuowanie bez pytań."
+
 
 #: app_ui/skill_wizard_dialog.py:218
 msgid "The model is writing the draft …"
@@ -2813,11 +2812,8 @@ msgid ""
 "After every sync, PaperlessBrain replaces the title of each newly analysed "
 "document with a name built from your template. The old title is kept in "
 "PaperlessBrain's record of renames, not in Paperless."
-msgstr ""
-"Po każdej synchronizacji PaperlessBrain zastępuje tytuł każdego nowo "
-"przeanalizowanego dokumentu nazwą zbudowaną na podstawie Twojej szablony. "
-"Stary tytuł jest przechowywany w rejestrze zmian nazw w PaperlessBrain, a "
-"nie w Paperless."
+msgstr "Po każdej synchronizacji PaperlessBrain zmienia tytuły nowo przeanalizowanych dokumentów zgodnie z Twoim szablonem. Poprzednie tytuły są przechowywane w historii zmian nazw PaperlessBrain, a nie w Paperless-ngx."
+
 
 #: app_ui/title_rename_settings.py:70
 msgid ""
@@ -2893,9 +2889,8 @@ msgstr ""
 msgid ""
 "Paperless' own download button always prefixes the date and the "
 "correspondent; the name above is the one on disk."
-msgstr ""
-"Własny przycisk pobierania Paperless zawsze poprzedza datę i odpowiadający "
-"jej plik; nazwa powyżej jest tą zapisana na dysku."
+msgstr "Przycisk pobierania w Paperless-ngx zawsze dodaje na początku nazwy datę i korespondenta. Powyżej widoczna jest nazwa pliku na dysku."
+
 
 #: app_ui/title_rename_settings.py:173 app_ui/title_rename_settings.py:217
 msgid "Rename existing documents"
@@ -2907,10 +2902,8 @@ msgid ""
 "First, a dry run: the ingestion model names {n} documents that have not been "
 "renamed yet, and you see each old title next to its new one. Nothing is "
 "changed in Paperless."
-msgstr ""
-"Najpierw, próba sucha: model ingestyjny nazywa {n} dokumenty, które jeszcze "
-"nie zostały przemianowane, a ty widzisz każdy stary tytuł obok jego nowego. "
-"Nic nie jest zmienione w Paperless."
+msgstr "Najpierw przeprowadzany jest test bez zapisywania zmian: model przetwarzający dokumenty proponuje nowe nazwy dla {n} dokumentów. Zobaczysz stare i nowe tytuły obok siebie. Nic nie zostanie zmienione w Paperless-ngx."
+
 
 #: app_ui/title_rename_settings.py:180
 msgid ""
@@ -2974,16 +2967,16 @@ msgstr ""
 #: app_ui/title_rename_settings.py:367
 #, python-brace-format
 msgid "Named {done} of {total} …"
-msgstr "Nazwane {done} z {total} …"
+msgstr "Nadano nazwy: {done} z {total}…"
+
 
 #: app_ui/title_rename_settings.py:382
 #, python-brace-format
 msgid ""
 "{total} documents have not been renamed yet. These are the first {n} as they "
 "would be named — nothing has been changed in Paperless."
-msgstr ""
-"{total} dokumenty nie zostały jeszcze przemianowane. Oto pierwsze {n} w "
-"nazwie, jakby zostały nazwane — nic nie zostało zmienione w Paperless."
+msgstr "Dokumenty, których nazw jeszcze nie zmieniono: {total}. Poniżej pokazano propozycje nazw dla pierwszych {n}. W Paperless-ngx nie wprowadzono żadnych zmian."
+
 
 #: app_ui/title_rename_settings.py:386
 msgid "Every analysed document has already been renamed."
@@ -3013,7 +3006,8 @@ msgstr "domyślny"
 
 #: app_ui/pages/admin.py:579
 msgid "Max. search results"
-msgstr "Maks. liczba wyników wyszukiwania"
+msgstr "Maks. liczba wyników"
+
 
 #: app_ui/pages/admin.py:585 app_ui/pages/experts.py:371
 #: app_ui/pages/experts.py:513 app_ui/pages/experts.py:575
@@ -3029,7 +3023,8 @@ msgstr "OK"
 
 #: app_ui/pages/brain.py:303
 msgid "Saving …"
-msgstr "Zapisywanie..."
+msgstr "Zapisywanie…"
+
 
 #: app_ui/pages/brain.py:304
 msgid "Unsaved changes"
@@ -3062,11 +3057,13 @@ msgstr "Nie zindeksowano jeszcze"
 
 #: app_ui/pages/brain.py:436
 msgid "This note no longer exists."
-msgstr "Ta notatka nie istnieje już."
+msgstr "Ta notatka już nie istnieje."
+
 
 #: app_ui/pages/brain.py:608
 msgid "The note could not be found anywhere in the vault."
-msgstr "Notatka nie mogła zostać znaleziona nigdzie w sejfie."
+msgstr "Nie znaleziono notatki w repozytorium."
+
 
 #: app_ui/pages/brain.py:617 app_ui/pages/brain.py:642
 msgid "Save as new note"
@@ -3155,9 +3152,8 @@ msgstr "Wykluczony z indeksu wyszukiwania."
 msgid ""
 "Shared with every user: their chat can use it, and it is listed under Shared "
 "by others. The file stays in your vault."
-msgstr ""
-"Udostępnione wszystkim użytkownikom: ich czat może go używać, a jest ono "
-"wymienione pod 'Udostępnione przez innych'. Plik pozostaje w Twojej skrytce."
+msgstr "Udostępnione wszystkim użytkownikom. Mogą korzystać z tej notatki na czacie i zobaczą ją w sekcji „Udostępnione przez innych”. Plik pozostaje w Twoim repozytorium."
+
 
 #: app_ui/pages/brain.py:867
 #, python-brace-format
@@ -3176,7 +3172,8 @@ msgstr "{action} w {folder}"
 #: app_ui/pages/brain.py:932
 #, python-brace-format
 msgid "{action} in the vault root"
-msgstr "{action} w głównym sejfie"
+msgstr "{action} w katalogu głównym repozytorium"
+
 
 #: app_ui/pages/brain.py:936 app_ui/pages/brain.py:1091
 msgid "New note"
@@ -3212,7 +3209,8 @@ msgstr "Indeksowanie nie powiodło się: {err}"
 
 #: app_ui/pages/brain.py:1027
 msgid "Vault indexed."
-msgstr "Archiwum zindeksowane."
+msgstr "Zindeksowano repozytorium."
+
 
 #: app_ui/pages/brain.py:1059
 msgid "Select a note first."
@@ -3389,7 +3387,8 @@ msgstr "Wymagana akcja"
 
 #: app_ui/pages/browser.py:564
 msgid "Show cross-reference cluster"
-msgstr "Pokaż klaster odwołań krzyżowych"
+msgstr "Pokaż grupę powiązanych dokumentów"
+
 
 #: app_ui/pages/browser.py:573
 msgid "Pinned — click to unpin"
@@ -3455,7 +3454,8 @@ msgstr "Notatki dokumentu"
 
 #: app_ui/pages/chat.py:939
 msgid "What can you do?"
-msgstr "Co możesz zrobić?"
+msgstr "Co potrafisz?"
+
 
 #: app_ui/pages/chat.py:939
 msgid "Show me what you can do! List all your capabilities and tools."
@@ -3607,7 +3607,8 @@ msgstr "Czat działa"
 
 #: app_ui/pages/chat.py:1815 app_ui/pages/chat.py:4020
 msgid "No model selected"
-msgstr "Żaden model nie został wybrany"
+msgstr "Nie wybrano modelu"
+
 
 #: app_ui/pages/chat.py:1849
 msgid "Compressing…"
@@ -3680,11 +3681,13 @@ msgstr "Synchronizacja trwa — czat jest zablokowany"
 
 #: app_ui/pages/chat.py:2265
 msgid "No chat model configured"
-msgstr "Brak skonfigurowanego modelu czatu"
+msgstr "Nie skonfigurowano modelu czatu"
+
 
 #: app_ui/pages/chat.py:2269
 msgid "Set one up"
-msgstr "Ustaw jeden"
+msgstr "Skonfiguruj model"
+
 
 #: app_ui/pages/chat.py:2288 app_ui/pages/experts.py:269
 msgid "Tools"
@@ -3878,7 +3881,8 @@ msgstr "Zapisz do Paperless"
 
 #: app_ui/pages/chat.py:3876
 msgid "Start deep research"
-msgstr "Rozpocznij dogłębne wyszukiwanie"
+msgstr "Rozpocznij pogłębioną analizę"
+
 
 #: app_ui/pages/chat.py:3880
 msgid "Review and adjust the task, then choose the model."
@@ -3915,7 +3919,8 @@ msgstr "Synchronizacja jest w trakcie — proszę czekać"
 
 #: app_ui/pages/chat.py:4206
 msgid "📓 Synchronizing vault …"
-msgstr "📓 Synchronizowanie skarbnicy …"
+msgstr "📓 Synchronizowanie repozytorium…"
+
 
 #: app_ui/pages/chat.py:4286
 msgid "Thoughts"
@@ -4023,7 +4028,8 @@ msgstr "Repozytorium Brain"
 
 #: app_ui/pages/dashboard.py:456
 msgid "Synchronize vault now"
-msgstr "Synchronizuj magazyn teraz"
+msgstr "Synchronizuj repozytorium teraz"
+
 
 #: app_ui/pages/dashboard.py:462
 msgid "Analyze and clean up memory"
@@ -4142,9 +4148,8 @@ msgstr "Zatrzymanie po bieżącym dokumencie…"
 msgid ""
 "No model configured for dreaming. Please set one in Settings > Memory "
 "maintenance."
-msgstr ""
-"Nie skonfigurowano modelu do snu. Proszę ustawić go w Ustawienia > "
-"Utrzymanie pamięci."
+msgstr "Nie skonfigurowano modelu do porządkowania pamięci. Wybierz model w Ustawieniach → Konserwacja pamięci."
+
 
 #: app_ui/pages/dashboard.py:1055
 msgid "No memory entries available."
@@ -4230,11 +4235,13 @@ msgstr "Żaden użytkownik nie jest zalogowany."
 
 #: app_ui/pages/dashboard.py:1230
 msgid "📂 Synchronizing vault…"
-msgstr "📂 Synchronizacja sejfu…"
+msgstr "📂 Synchronizowanie repozytorium…"
+
 
 #: app_ui/pages/dashboard.py:1240
 msgid "Vault synchronized."
-msgstr "Skrzynia zsynchronizowana."
+msgstr "Zsynchronizowano repozytorium."
+
 
 #: app_ui/pages/dashboard.py:1243
 #, python-brace-format
@@ -4268,7 +4275,8 @@ msgstr "W toku"
 
 #: app_ui/pages/dashboard.py:1305
 msgid "No sign of life"
-msgstr "Brak śladów życia"
+msgstr "Brak odpowiedzi"
+
 
 #: app_ui/pages/dashboard.py:1308
 #, python-brace-format
@@ -4355,7 +4363,8 @@ msgstr "Strona {page} / {total} · {count} wpisów"
 
 #: app_ui/pages/experts.py:122
 msgid "The vault is not writable — experts cannot be saved."
-msgstr "Skarbiec nie jest zapisywalny — ekspertów nie można zapisać."
+msgstr "Repozytorium jest tylko do odczytu. Nie można zapisać ekspertów."
+
 
 #: app_ui/pages/experts.py:168 app_ui/pages/experts.py:267
 #: app_ui/pages/experts.py:753
@@ -4436,9 +4445,8 @@ msgstr "Użyj jako domyślnego eksperta"
 msgid ""
 "New chats, and a dossier's chat without an expert of its own, start with it. "
 "Only one expert is the default."
-msgstr ""
-"Nowe czaty, a czat dossieru bez własnego eksperta, zaczynają się od niego. "
-"Tylko jeden ekspert jest domyślny."
+msgstr "Nowe rozmowy oraz czaty teczek spraw bez przypisanego eksperta rozpoczynają się z tym ekspertem. Domyślny może być tylko jeden ekspert."
+
 
 #: app_ui/pages/experts.py:308
 msgid "Icon"
@@ -4490,11 +4498,13 @@ msgstr "— wybór czatu —"
 
 #: app_ui/pages/experts.py:360 app_ui/pages/experts.py:868
 msgid "Another expert already has that name."
-msgstr "Inny ekspert już ma tę nazwę."
+msgstr "Ekspert o tej nazwie już istnieje."
+
 
 #: app_ui/pages/experts.py:361 app_ui/pages/experts.py:869
 msgid "Give the expert a name."
-msgstr "Nadaj ekspertowi imię."
+msgstr "Nadaj nazwę ekspertowi."
+
 
 #: app_ui/pages/experts.py:364 app_ui/pages/experts.py:472
 #: app_ui/pages/experts.py:511 app_ui/pages/experts.py:573
@@ -4692,9 +4702,8 @@ msgstr "Zatrzymano. Poprzednie podsumowanie pozostaje bez zmian."
 #: app_ui/pages/experts.py:644
 #, python-brace-format
 msgid "Studies all {n} documents it sees · about {c} model calls"
-msgstr ""
-"Analizuje wszystkie {n} dokumenty, które widzi · dotyczące {c} wywołań "
-"modelu."
+msgstr "Analizuje wszystkie dostępne dokumenty ({n}) · około {c} wywołań modelu"
+
 
 #: app_ui/pages/experts.py:648
 #, python-brace-format
@@ -4712,7 +4721,8 @@ msgstr "Nowe dokumenty od przygotowania wprowadzenia: {n}"
 
 #: app_ui/pages/experts.py:656
 msgid "Access changed since the briefing — rebuild it"
-msgstr "Dostęp został zmieniony od czasu briefingu — odbuduj go"
+msgstr "Dostęp zmienił się od przygotowania wprowadzenia. Wygeneruj je ponownie."
+
 
 #: app_ui/pages/experts.py:673
 msgid "Update"
@@ -4767,7 +4777,8 @@ msgstr "nie wskazano dokumentu źródłowego"
 
 #: app_ui/pages/experts.py:722
 msgid "date not valid"
-msgstr "data nieprawidłowe"
+msgstr "nieprawidłowa data"
+
 
 #: app_ui/pages/experts.py:722
 msgid "empty"
@@ -4776,7 +4787,8 @@ msgstr "puste"
 #: app_ui/pages/experts.py:723
 #, python-brace-format
 msgid "Checks: {n} statements dropped"
-msgstr "Sprawdzenia: {n} stwierdzenia zostały pominięte"
+msgstr "Kontrola: odrzucone stwierdzenia: {n}"
+
 
 #: app_ui/pages/experts.py:737
 msgid "Delete briefing"
@@ -4797,7 +4809,8 @@ msgstr ""
 
 #: app_ui/pages/experts.py:765
 msgid "Let the wizard help"
-msgstr "Niech czarodziej pomoże"
+msgstr "Skorzystaj z kreatora"
+
 
 #: app_ui/pages/experts.py:773
 msgid "Use when …"
@@ -4850,9 +4863,8 @@ msgstr "Usunąć eksperta {name}?"
 msgid ""
 "Its file and briefing are removed from your vault. Conversations with it "
 "stay; they continue with the Universal expert."
-msgstr ""
-"Jego plik i briefing zostały usunięte z Twojej skrytki. Konwersacje z nim "
-"pozostają; kontynuują się z Uniwersalnym ekspertem."
+msgstr "Plik eksperta i jego wprowadzenie zostaną usunięte z repozytorium. Dotychczasowe rozmowy pozostaną i będą kontynuowane z ekspertem uniwersalnym."
+
 
 #: app_ui/pages/findings.py:122
 #, python-brace-format
@@ -4922,7 +4934,8 @@ msgstr "Bez koloru"
 #: app_ui/pages/findings.py:422 app_ui/pages/findings.py:1407
 #: app_ui/pages/findings.py:1745
 msgid "File in a dossier"
-msgstr "Plik w dossierze"
+msgstr "Przypisz do teczki sprawy"
+
 
 #: app_ui/pages/findings.py:919
 msgid "Navigator"
@@ -4934,7 +4947,8 @@ msgstr "Podgląd"
 
 #: app_ui/pages/findings.py:937
 msgid "Search findings & dossiers"
-msgstr "Wyszukaj wyniki i akta"
+msgstr "Wyszukaj ustalenia i teczki spraw"
+
 
 #: app_ui/pages/findings.py:986
 msgid "Searching …"
@@ -4966,7 +4980,8 @@ msgstr "Pilne"
 
 #: app_ui/pages/findings.py:1038 app_ui/pages/findings.py:1347
 msgid "Not in a dossier"
-msgstr "Nie w dossierie"
+msgstr "Poza teczką sprawy"
+
 
 #: app_ui/pages/findings.py:1058 app_ui/pages/findings.py:2351
 msgid "New dossier"
@@ -4976,9 +4991,8 @@ msgstr "Nowa teczka sprawy"
 msgid ""
 "No dossiers yet. They appear when the system follows a matter — or make one "
 "yourself."
-msgstr ""
-"Jeszcze nie ma akt. Pojawiają się, gdy system śledzi sprawę — lub stwórz "
-"własny."
+msgstr "Nie ma jeszcze teczek spraw. Powstają, gdy system zaczyna śledzić daną sprawę. Możesz też utworzyć teczkę samodzielnie."
+
 
 #: app_ui/pages/findings.py:1091 app_ui/pages/findings.py:2145
 msgid "Rescan pending"
@@ -5021,7 +5035,8 @@ msgstr "Usuń folder"
 
 #: app_ui/pages/findings.py:1146
 msgid "Empty. Move dossiers here, or make a new one."
-msgstr "Puste. Przenieś akta tutaj lub utwórz nowy."
+msgstr "Tutaj jest pusto. Przenieś teczki spraw lub utwórz nową."
+
 
 #: app_ui/pages/findings.py:1190
 msgid ""
@@ -5033,16 +5048,16 @@ msgstr ""
 
 #: app_ui/pages/findings.py:1195
 msgid "No overview yet. It is written in the night, or now."
-msgstr "Jeszcze żadny przegląd. Jest pisany w nocy, albo teraz."
+msgstr "Nie ma jeszcze przeglądu. Zostanie przygotowany w nocy lub możesz utworzyć go teraz."
+
 
 #: app_ui/pages/findings.py:1197
 #, python-brace-format
 msgid ""
 "The dossiers inside changed since the overview of {date} — it is rewritten "
 "in the night, or now."
-msgstr ""
-"Dokumenty wewnątrz zmieniły się od przeglądu z {date} — są przepisane w nocy "
-"lub teraz."
+msgstr "Teczki spraw zmieniły się od przeglądu z {date}. Przegląd zostanie zaktualizowany w nocy lub możesz zrobić to teraz."
+
 
 #: app_ui/pages/findings.py:1200
 #, python-brace-format
@@ -5074,9 +5089,8 @@ msgstr "Przegląd dodano do kolejki."
 msgid ""
 "The folder holds notes that are not dossiers — it stays. Remove them in your "
 "vault first."
-msgstr ""
-"Folder zawiera notatki, które nie są dossierami — pozostają. Najpierw usuń "
-"je w swojej skrytce."
+msgstr "Folder zawiera również notatki, które nie są teczkami spraw, dlatego nie zostanie usunięty. Najpierw usuń te notatki z repozytorium."
+
 
 #: app_ui/pages/findings.py:1229 app_ui/pages/findings.py:2335
 msgid "Not a valid folder."
@@ -5089,20 +5103,21 @@ msgstr "Usunięto folder."
 #: app_ui/pages/findings.py:1232
 #, python-brace-format
 msgid "{n} dossiers moved up."
-msgstr "{n} dossierów przesunięto w górę."
+msgstr "Przeniesiono teczki spraw o poziom wyżej: {n}."
+
 
 #: app_ui/pages/findings.py:1237
 #, python-brace-format
 msgid ""
 "Delete the folder “{name}”? Its dossiers move one level up; nothing else "
 "changes."
-msgstr ""
-"Czy usunąć folder “{name}”? Jego dossier przeniosą się o jeden poziom wyżej; "
-"nic innego się nie zmieni."
+msgstr "Usunąć folder „{name}”? Znajdujące się w nim teczki spraw zostaną przeniesione o poziom wyżej. Pozostałe dane nie ulegną zmianie."
+
 
 #: app_ui/pages/findings.py:1247
 msgid "Only the folder's name changes; the dossiers in it stay as they are."
-msgstr "Tylko nazwa folderu się zmienia; dossier w nim pozostają bez zmian."
+msgstr "Zmieni się tylko nazwa folderu. Znajdujące się w nim teczki spraw pozostaną bez zmian."
+
 
 #: app_ui/pages/findings.py:1268
 msgid "Back to the list"
@@ -5147,9 +5162,8 @@ msgstr "Temat: {t}"
 msgid ""
 "Open findings whose topic has no dossier. File one into a dossier with the "
 "folder icon; its documents join that dossier."
-msgstr ""
-"Otwórz ustalenia, których temat nie ma akt. Zapisz jeden do akt z ikoną "
-"folderu; jego dokumenty dołączą do tych akt."
+msgstr "Otwarte ustalenia dotyczące tematów bez teczki sprawy. Użyj ikony folderu, aby przypisać ustalenie do teczki. Powiązane dokumenty również zostaną do niej dodane."
+
 
 #: app_ui/pages/findings.py:1379 app_ui/pages/findings.py:2183
 msgid "Nothing here."
@@ -5161,7 +5175,8 @@ msgstr "Pobierz ustalenie jako PDF"
 
 #: app_ui/pages/findings.py:1407
 msgid "Move to another dossier"
-msgstr "Przejdź do innego akt"
+msgstr "Przenieś do innej teczki sprawy"
+
 
 #: app_ui/pages/findings.py:1411 proactive/reactions.py:56
 msgid "This item no longer exists."
@@ -5181,11 +5196,13 @@ msgstr ""
 
 #: app_ui/pages/findings.py:1440
 msgid "Research running — it gives way while you chat."
-msgstr "Badanie jest w toku — ustępuje, gdy czatujesz."
+msgstr "Trwa analiza. Podczas rozmowy na czacie zadanie ustępuje jej pierwszeństwa."
+
 
 #: app_ui/pages/findings.py:1443 app_ui/pages/findings.py:1463
 msgid "Research queued — it starts as soon as the model is free."
-msgstr "Badanie w kolejce — rozpocznie się, gdy tylko model będzie wolny."
+msgstr "Analiza czeka w kolejce i rozpocznie się, gdy model będzie dostępny."
+
 
 #: app_ui/pages/findings.py:1446
 msgid "No research is running for this item."
@@ -5268,7 +5285,8 @@ msgstr "Przenieś do folderu"
 
 #: app_ui/pages/findings.py:1609
 msgid "Merge into another dossier …"
-msgstr "Połącz do innego akt…"
+msgstr "Scal z inną teczką sprawy…"
+
 
 #: app_ui/pages/findings.py:1613
 msgid "Default expert for its chat"
@@ -5303,9 +5321,8 @@ msgstr ""
 msgid ""
 "{n} documents of this matter are not in the dossier yet (added by you or "
 "from its findings)."
-msgstr ""
-"{n} dokumentów tej sprawy jeszcze nie są w aktach (dodane przez Ciebie lub z "
-"jego ustaleń)."
+msgstr "Dokumenty tej sprawy, których jeszcze nie ma w teczce: {n} (dodane przez Ciebie lub powiązane z ustaleniami)."
+
 
 #: app_ui/pages/findings.py:1658
 msgid ""
@@ -5329,9 +5346,8 @@ msgstr ""
 
 #: app_ui/pages/findings.py:1673
 msgid "This dossier has no documents yet. Add some, or file a finding into it."
-msgstr ""
-"Ten dossier nie zawiera jeszcze żadnych dokumentów. Dodaj kilka, lub załącz "
-"do niego ustalenie."
+msgstr "Ta teczka sprawy nie zawiera jeszcze dokumentów. Dodaj dokumenty lub przypisz do niej ustalenie."
+
 
 #: app_ui/pages/findings.py:1679
 msgid ""
@@ -5366,7 +5382,8 @@ msgstr "już w tej teczce"
 
 #: app_ui/pages/findings.py:1729
 msgid "Added. Press Rescan to have the model read them."
-msgstr "Dodano. Naciśnij Ponowne skanowanie, aby odczytać modele."
+msgstr "Dodano. Kliknij „Przeskanuj ponownie”, aby model odczytał dokumenty."
+
 
 #: app_ui/pages/findings.py:1735 werkbank/v2/ui/brief_dialog.py:76
 msgid "Add"
@@ -5386,7 +5403,8 @@ msgstr "Ta nazwa jest zajęta."
 
 #: app_ui/pages/findings.py:1762 app_ui/pages/findings.py:2334
 msgid "Enter a name."
-msgstr "Podaj imię."
+msgstr "Podaj nazwę."
+
 
 #: app_ui/pages/findings.py:1767
 #, python-brace-format
@@ -5408,7 +5426,8 @@ msgstr ""
 
 #: app_ui/pages/findings.py:1794
 msgid "Save insights from the chat to fill this dossier."
-msgstr "Zapisz spostrzeżenia z czatu, aby wypełnić to dossier."
+msgstr "Zapisuj spostrzeżenia z czatu w tej teczce sprawy."
+
 
 #: app_ui/pages/findings.py:1801
 msgid "Latest insight"
@@ -5535,7 +5554,8 @@ msgstr "jeszcze nie przeanalizowano"
 
 #: app_ui/pages/findings.py:2061
 msgid "There is no other dossier yet — make one first."
-msgstr "Nie ma jeszcze innego dossier — utwórz go najpierw."
+msgstr "Nie ma jeszcze innej teczki sprawy. Najpierw ją utwórz."
+
 
 #: app_ui/pages/findings.py:2064
 #, python-brace-format
@@ -5555,7 +5575,8 @@ msgstr ""
 #: app_ui/pages/findings.py:2079
 #, python-brace-format
 msgid "Moved. {n} findings went along."
-msgstr "Przeniesiono. {n} znaleziska zostało przeniesione."
+msgstr "Przeniesiono. Wraz z dokumentami przeniesiono także ustalenia: {n}."
+
 
 #: app_ui/pages/findings.py:2079
 msgid "Moved."
@@ -5574,13 +5595,13 @@ msgstr "Wyjęte z akt."
 msgid ""
 "Take {n} documents out of “{name}”? A rescan does not bring them back; their "
 "findings stay where they are."
-msgstr ""
-"Czy wyciągnąć {n} dokumentów z „{name}”? Ponowne skanowanie ich nie "
-"przywróci; ich wyniki pozostają tam, gdzie są."
+msgstr "Usunąć {n} dokumentów z teczki „{name}”? Ponowne skanowanie ich nie przywróci. Powiązane ustalenia pozostaną na miejscu."
+
 
 #: app_ui/pages/findings.py:2104
 msgid "There is no other dossier to merge with."
-msgstr "Nie ma innego pliku do połączenia."
+msgstr "Nie ma innej teczki sprawy, z którą można scalić tę teczkę."
+
 
 #: app_ui/pages/findings.py:2107
 #, python-brace-format
@@ -5594,11 +5615,8 @@ msgid ""
 "and research, and keeps its name as an alias: a new document the model files "
 "under “{name}” lands there too. “{name}” itself is kept as a record under "
 "“Deleted dossiers”."
-msgstr ""
-"Akt, który wybierasz, przejmuje jego ustalenia, dokumenty, wnioski, pytania "
-"i badania, zachowując swoją nazwę jako alias: nowy dokument, który model "
-"archiwizuje pod nazwą “{name}”, również tam trafia. Sam “{name}” jest "
-"przechowywany jako rekord w sekcji „Usunięte akta”."
+msgstr "Wybrana teczka przejmie ustalenia, dokumenty, spostrzeżenia, pytania i analizy. Nazwa „{name}” zostanie zachowana jako alias, więc nowe dokumenty przypisane do niej przez model trafią do teczki docelowej. Oryginalna teczka „{name}” pozostanie jako wpis w sekcji „Usunięte teczki spraw”."
+
 
 #: app_ui/pages/findings.py:2123
 #, python-brace-format
@@ -5612,9 +5630,8 @@ msgstr "Scal"
 #: app_ui/pages/findings.py:2134
 msgid ""
 "No research on this matter yet. “Start research” on one of its findings."
-msgstr ""
-"Na ten temat jeszcze nie ma badań. „Rozpocznij badanie” na podstawie jednego "
-"z jego wyników."
+msgstr "Nie przeprowadzono jeszcze analizy tej sprawy. Wybierz „Rozpocznij analizę” przy jednym z ustaleń."
+
 
 #: app_ui/pages/findings.py:2147
 msgid "Rescan all"
@@ -5686,7 +5703,8 @@ msgstr "nowych od tego czasu: {n}"
 
 #: app_ui/pages/findings.py:2201
 msgid "Unarchive"
-msgstr "Odarchiwizuj"
+msgstr "Przywróć z archiwum"
+
 
 #: app_ui/pages/findings.py:2203 app_ui/pages/findings.py:2208
 msgid "Back in your dossiers."
@@ -5739,11 +5757,8 @@ msgid ""
 "Delete “{name}”? Its findings stay (they show as not in a dossier), and "
 "nothing is read again. A record — name, documents, insights — is kept under "
 "“Deleted dossiers”, so you can restore or reset it later."
-msgstr ""
-"Czy usunąć „{name}”? Jego wyniki pozostaną (będą widoczne jako niebędące w "
-"dossierie), a nic nie zostanie ponownie przeczytane. Zapis — nazwa, "
-"dokumenty, wnioski — jest przechowywany pod nazwą „Usunięte dossiery”, więc "
-"możesz go później przywrócić lub zresetować."
+msgstr "Usunąć teczkę „{name}”? Jej ustalenia pozostaną, ale będą wyświetlane jako nieprzypisane do teczki. Dokumenty nie zostaną ponownie przeanalizowane. Zapis nazwy, dokumentów i spostrzeżeń pozostanie w sekcji „Usunięte teczki spraw”, skąd można przywrócić lub zresetować teczkę."
+
 
 #: app_ui/pages/findings.py:2275
 msgid ""
@@ -5768,11 +5783,8 @@ msgid ""
 "Reset “{name}”? The dossier and its {n} findings are deleted — notes and "
 "research results in those findings too — and the worker reads its documents "
 "again as if new. A record of the dossier is kept under “Deleted dossiers”."
-msgstr ""
-"Czy zresetować „{name}”? Akt i jego {n} ustalenia zostaną usunięte — wraz z "
-"notatkami i wynikami badań zawartymi w tych ustaleniach — a pracownik "
-"ponownie przeczyta jego dokumenty, jakby były nowe. Zapis aktu jest "
-"przechowywany pod nazwą „Usunięte akta”."
+msgstr "Zresetować teczkę „{name}”? Teczka i powiązane ustalenia ({n}), wraz z notatkami i wynikami analiz, zostaną usunięte. Proces działający w tle ponownie odczyta dokumenty jak nowe. Zapis teczki pozostanie w sekcji „Usunięte teczki spraw”."
+
 
 #: app_ui/pages/findings.py:2306
 msgid "Reset"
@@ -6092,7 +6104,8 @@ msgstr "AI"
 
 #: app_ui/pages/settings.py:411
 msgid "Models, providers and deep research"
-msgstr "Modele, dostawcy i dogłębne wyszukiwanie"
+msgstr "Modele, dostawcy i pogłębiona analiza"
+
 
 #: app_ui/pages/settings.py:412
 msgid "Processing, write-back and tags"
@@ -6132,7 +6145,8 @@ msgstr "Importuj i eksportuj swoje ustawienia"
 
 #: app_ui/pages/settings.py:430
 msgid "Reminders, insights and notification channels"
-msgstr "Przypomnienia, wglądy i kanały powiadomień"
+msgstr "Przypomnienia, spostrzeżenia i kanały powiadomień"
+
 
 #: app_ui/pages/settings.py:441
 msgid "Proactive system"
@@ -6140,7 +6154,8 @@ msgstr "System proaktywny"
 
 #: app_ui/pages/settings.py:442
 msgid "Deadline reminders and insights while you are away"
-msgstr "Przypomnienia o terminach i spostrzeżenia, gdy jesteś poza biurem"
+msgstr "Przypomnienia o terminach i spostrzeżenia, gdy nie korzystasz z aplikacji"
+
 
 #: app_ui/pages/settings.py:450
 msgid "Language"
@@ -6187,7 +6202,8 @@ msgstr "Przetwarzanie nowych dokumentów"
 
 #: app_ui/pages/settings.py:512
 msgid "Vision model for OCR / page extraction (ChromaDB embeddings)"
-msgstr "Model wizyjny do OCR / ekstrakcji stron (osadzanie ChromaDB)"
+msgstr "Model wizyjny do OCR i ekstrakcji stron (embeddingi ChromaDB)"
+
 
 #: app_ui/pages/settings.py:537 app_ui/pages/settings.py:540
 msgid "Vision model"
@@ -6219,15 +6235,15 @@ msgstr ""
 
 #: app_ui/pages/settings.py:573
 msgid "No-ingest tag"
-msgstr "Tag wykluczający z ingestu"
+msgstr "Tag wykluczający z przetwarzania"
+
 
 #: app_ui/pages/settings.py:577
 msgid ""
 "Documents with this Paperless tag are <b>not</b> embedded into ChromaDB "
 "during sync."
-msgstr ""
-"Dokumenty z tym tagiem Paperless <b>nie</b> są osadzane do ChromaDB podczas "
-"synchronizacji."
+msgstr "Dokumenty z tym tagiem w Paperless-ngx <b>nie</b> otrzymują embeddingów w ChromaDB podczas synchronizacji."
+
 
 #: app_ui/pages/settings.py:592
 msgid "Extraction profile"
@@ -6500,7 +6516,8 @@ msgstr ""
 
 #: app_ui/pages/settings.py:1005
 msgid "Use experts"
-msgstr "Użyj ekspertów"
+msgstr "Korzystaj z ekspertów"
+
 
 #: app_ui/pages/settings.py:1008
 msgid ""
@@ -6515,11 +6532,13 @@ msgstr ""
 
 #: app_ui/pages/settings.py:1014
 msgid "Open Experts"
-msgstr "Otwórz Ekspertów"
+msgstr "Otwórz panel Eksperci"
+
 
 #: app_ui/pages/settings.py:1022 werkbank/v2/ui/page.py:545
 msgid "AI deep research"
-msgstr "Głębokie badania AI"
+msgstr "Pogłębiona analiza AI"
+
 
 #: app_ui/pages/settings.py:1023
 msgid "System prompts and token limits for the pipeline roles"
@@ -6569,7 +6588,8 @@ msgstr "Przywrócono prompt."
 
 #: app_ui/pages/settings.py:1082
 msgid "Deep research settings saved."
-msgstr "Zapisano ustawienia dogłębnego wyszukiwania."
+msgstr "Zapisano ustawienia pogłębionej analizy."
+
 
 #: app_ui/pages/settings.py:1089
 msgid "All prompts reset."
@@ -6634,7 +6654,8 @@ msgstr "Wklej tutaj ciąg eksportu"
 #: app_ui/pages/settings.py:1185 app_ui/pages/settings.py:1220
 #, python-brace-format
 msgid "Import failed: {err}"
-msgstr "Importacja nie powiodła się: {err}"
+msgstr "Import nie powiódł się: {err}"
+
 
 #: app_ui/pages/settings.py:1190
 msgid "The string contains no importable settings."
@@ -6679,7 +6700,8 @@ msgstr "Gdzie PaperlessBrain oczekuje plików pamięci i Twoich notatek"
 
 #: app_ui/pages/settings.py:1261
 msgid "Vault directory (Obsidian vault root)"
-msgstr "Katalog repozytorium (katalog główny vaulta Obsidian)"
+msgstr "Katalog repozytorium (katalog główny repozytorium Obsidian)"
+
 
 #: app_ui/pages/settings.py:1264
 msgid "Memory subfolder (Brain)"
@@ -6700,12 +6722,14 @@ msgstr ""
 
 #: app_ui/pages/settings.py:1285
 msgid "Reindexing vault …"
-msgstr "Reindeksowanie magazynu…"
+msgstr "Ponowne indeksowanie repozytorium…"
+
 
 #: app_ui/pages/settings.py:1289
 #, python-brace-format
 msgid "Reindexing vault … {done} of {total} files"
-msgstr "Ponowne indeksowanie sejfu... {done} z {total} plików"
+msgstr "Ponowne indeksowanie repozytorium… {done} z {total} plików"
+
 
 #: app_ui/pages/settings.py:1299
 #, python-brace-format
@@ -6807,7 +6831,8 @@ msgstr "Notatka ({date})"
 #: proactive/findings.py:145
 #, python-brace-format
 msgid "Original finding ({date})"
-msgstr "Oryginalne znalezisko ({date})"
+msgstr "Pierwotne ustalenie ({date})"
+
 
 #: proactive/findings.py:407
 msgid "Evidence"
@@ -6823,9 +6848,8 @@ msgstr "Rekomendacja"
 
 #: proactive/findings.py:491
 msgid "Not financial or investment advice. Check the recommendation yourself."
-msgstr ""
-"Nie jest to porada finansowa ani inwestycyjna. Sprawdź rekomendację "
-"samodzielnie."
+msgstr "To nie jest porada finansowa ani inwestycyjna. Samodzielnie zweryfikuj rekomendację."
+
 
 #: proactive/reactions.py:47
 msgid "Noted — a closer look is being prepared."
@@ -6904,12 +6928,14 @@ msgstr "{n} nowe, podczas Twojej nieobecności."
 #: proactive/tasks/insights.py:166
 #, python-brace-format
 msgid "Research done: {title}"
-msgstr "Przeprowadzone badania: {title}"
+msgstr "Analiza zakończona: {title}"
+
 
 #: proactive/tasks/insights.py:221
 #, python-brace-format
 msgid "Research result ({date})"
-msgstr "Wynik badań ({date})"
+msgstr "Wynik analizy ({date})"
+
 
 #: proactive/tasks/insights.py:223
 msgid "Full report"
@@ -6918,11 +6944,13 @@ msgstr "Pełny raport"
 #: proactive/tasks/insights.py:225
 #, python-brace-format
 msgid "[Full report in deep research]({url})"
-msgstr "[Pełny raport w głębokim badaniu]({url})"
+msgstr "[Pełny raport w pogłębionej analizie]({url})"
+
 
 #: proactive/tasks/insights.py:266
 msgid "What you may have missed"
-msgstr "To, co mogłeś/mogłaś przegapić"
+msgstr "Co mogło umknąć Twojej uwadze"
+
 
 #: proactive/tasks/notify.py:61
 msgid "PaperlessBrain test message"
@@ -6972,7 +7000,8 @@ msgstr "Najnowsze: {list}"
 
 #: services/briefings.py:251
 msgid "What this is about"
-msgstr "O czym to jest"
+msgstr "Czego dotyczy sprawa"
+
 
 #: services/briefings.py:252
 msgid "Key parties"
@@ -7148,7 +7177,8 @@ msgstr "Przywróć ustawienia domyślne"
 
 #: werkbank/ui/archetype_dialog.py:227
 msgid "Puts the shipped archetypes back. Your own are untouched."
-msgstr "Przywraca wysłane archetypy. Twoje pozostają nietknięte."
+msgstr "Przywraca archetypy dostarczone z aplikacją. Twoje własne pozostają bez zmian."
+
 
 #: werkbank/ui/archetype_dialog.py:246
 msgid "Select an archetype or create a new one."
@@ -7248,10 +7278,8 @@ msgid ""
 "Your request left these points open, so the AI decided them. Correct "
 "anything that is wrong — otherwise the run researches the wrong thing and "
 "still looks right."
-msgstr ""
-"Twój wniosek pozostawił te punkty otwarte, więc AI je ustaliło. Popraw "
-"wszystko, co jest nie tak — w przeciwnym razie proces badawczy zajmie się "
-"złą rzeczą i nadal będzie wyglądał poprawnie."
+msgstr "W Twoim poleceniu nie doprecyzowano tych kwestii, dlatego AI przyjęła własne założenia. Popraw błędne założenia, aby analiza nie dotyczyła niewłaściwego zagadnienia."
+
 
 #: werkbank/v2/ui/brief_dialog.py:108
 msgid "Assumption"
@@ -7296,11 +7324,13 @@ msgstr "Nie udało się utworzyć briefu: {err}"
 
 #: werkbank/v2/ui/page.py:148 werkbank/v2/ui/page.py:287
 msgid "Run not found."
-msgstr "Nie znaleziono uruchomienia."
+msgstr "Nie znaleziono zadania."
+
 
 #: werkbank/v2/ui/page.py:163
 msgid "Run started."
-msgstr "Uruchomiono."
+msgstr "Uruchomiono zadanie."
+
 
 #: werkbank/v2/ui/page.py:170
 #, python-brace-format
@@ -7318,11 +7348,13 @@ msgstr "Niepowodzenie: {detail}"
 
 #: werkbank/v2/ui/page.py:205
 msgid "Preparing the PDF…"
-msgstr "Przygotowywanie pliku PDF..."
+msgstr "Przygotowywanie pliku PDF…"
+
 
 #: werkbank/v2/ui/page.py:210
 msgid "Research report"
-msgstr "Raport badawczy"
+msgstr "Raport z analizy"
+
 
 #: werkbank/v2/ui/page.py:220
 #, python-brace-format
@@ -7331,11 +7363,13 @@ msgstr "Nie udało się utworzyć pliku PDF: {err}"
 
 #: werkbank/v2/ui/page.py:243
 msgid "Run deleted."
-msgstr "Usunięto uruchomienie."
+msgstr "Usunięto zadanie."
+
 
 #: werkbank/v2/ui/page.py:249
 msgid "Delete this run?"
-msgstr "Usuń to uruchomienie?"
+msgstr "Usunąć to zadanie?"
+
 
 #: werkbank/v2/ui/page.py:254
 msgid "It is still running — it will be stopped."
@@ -7369,7 +7403,8 @@ msgstr "Zadanie"
 #: werkbank/v2/ui/page.py:348
 #, python-brace-format
 msgid "The report is a note in your vault: {folder}"
-msgstr "Raport jest notatką w Twojej skrytce: {folder}"
+msgstr "Raport zapisano jako notatkę w repozytorium: {folder}"
+
 
 #: werkbank/v2/ui/page.py:355
 msgid "The report appears when the run has finished."
@@ -7377,12 +7412,14 @@ msgstr "Raport pojawia się, gdy wykonanie się zakończy."
 
 #: werkbank/v2/ui/page.py:419
 msgid "No runs yet."
-msgstr "Brak uruchomień."
+msgstr "Nie uruchomiono jeszcze żadnych zadań."
+
 
 #: werkbank/v2/ui/page.py:459
 #, python-brace-format
 msgid "{done}/{total} subtasks"
-msgstr "{done}/{total} podzadania"
+msgstr "Podzadania: {done}/{total}"
+
 
 #: werkbank/v2/ui/page.py:466
 msgid "Review"
@@ -7422,7 +7459,8 @@ msgstr "Agenci"
 
 #: werkbank/v2/ui/page.py:556
 msgid "New run"
-msgstr "Nowe uruchomienie"
+msgstr "Nowe zadanie"
+
 
 #: werkbank/v2/ui/style.py:98
 msgid "waiting"
