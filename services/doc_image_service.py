@@ -6,7 +6,11 @@ The single gate is the user's own Paperless access: sidecars and the render
 cache below have no access control of their own, so every request first asks
 Paperless with the *user's* token whether the document is visible to them. Not
 visible and not existing look the same from outside (``None`` → 404), so a
-request never confirms that someone else's document exists.
+request never confirms that someone else's document exists. A "yes" is kept
+for ``ACCESS_TTL_S`` per token and document: a 60-page source pane asked
+Paperless 120 times in a few seconds (picture and text layer of every page).
+A "no" is never kept, and the file itself is always fetched with the user's
+token.
 
 Renders are cached on disk under ``data/image_cache/{doc_id}/{modified}/``. The
 document's ``modified`` timestamp is part of the path, so a re-scanned or
@@ -21,7 +25,9 @@ import base64
 import logging
 import os
 import re
+import hashlib
 import threading
+import time
 from pathlib import Path
 
 from config.settings import settings
@@ -36,6 +42,13 @@ CACHE_MAX_BYTES = 500 * 1024 * 1024
 # the 2600 px ingest render would be 4× the bytes for nothing.
 PAGE_LONG_SIDE = 1600
 CROP_LONG_SIDE = 1200
+# The Source pane beside the chat is a few hundred pixels wide: a page there
+# needs a third of the bytes. The full-screen viewer swaps in the large one.
+SMALL_LONG_SIDE = 1000
+
+ACCESS_TTL_S = 60.0
+_ACCESS: dict[tuple[str, int], tuple[float, object, object]] = {}
+_ACCESS_MAX = 512
 
 # pdfium is not thread-safe; renders run off the event loop but one at a time.
 pdfium_lock = threading.Lock()
@@ -103,6 +116,21 @@ async def _visible_doc(doc_id: int, token: str):
     """``(client, document)`` when the user behind ``token`` may see it, else None."""
     if not token:
         return None
+    key = (hashlib.sha256(token.encode()).hexdigest(), int(doc_id))
+    hit = _ACCESS.get(key)
+    if hit is not None and time.monotonic() - hit[0] < ACCESS_TTL_S:
+        return hit[1], hit[2]
+    found = await _ask_paperless(doc_id, token)
+    if found is None:
+        _ACCESS.pop(key, None)
+        return None
+    if len(_ACCESS) >= _ACCESS_MAX:
+        _ACCESS.pop(next(iter(_ACCESS)))
+    _ACCESS[key] = (time.monotonic(), *found)
+    return found
+
+
+async def _ask_paperless(doc_id: int, token: str):
     from services.paperless import PaperlessClient
 
     client = PaperlessClient(settings.paperless_url, token)
@@ -162,6 +190,7 @@ async def get_image(
     index: int | None,
     token: str,
     cache_dir: Path | None = None,
+    small: bool = False,
 ) -> bytes | None:
     """JPEG of a page or of one picture on it, or None when the user may not see it.
 
@@ -178,7 +207,8 @@ async def get_image(
 
     base = _base(doc_id, doc, cache_dir)
     bbox = crop_bbox(doc_id, page, index)
-    name = f"{page}_{index}.jpg" if bbox else f"{page}.jpg"
+    small = small and not bbox
+    name = f"{page}_{index}.jpg" if bbox else (f"{page}_s.jpg" if small else f"{page}.jpg")
     target = base / name
     if target.is_file():
         _touch(target)
@@ -198,7 +228,7 @@ async def get_image(
                     pdf_bytes,
                     page,
                     bbox,
-                    long_side=CROP_LONG_SIDE if bbox else PAGE_LONG_SIDE,
+                    long_side=CROP_LONG_SIDE if bbox else (SMALL_LONG_SIDE if small else PAGE_LONG_SIDE),
                 )
 
         try:
@@ -216,9 +246,11 @@ async def get_image(
     return data
 
 
-def image_url(doc_id: int, page: int, index: int | None = None) -> str:
+def image_url(doc_id: int, page: int, index: int | None = None, small: bool = False) -> str:
     url = f"/api/doc-image/{int(doc_id)}/{int(page)}"
-    return f"{url}?i={int(index)}" if index is not None else url
+    if index is not None:
+        return f"{url}?i={int(index)}"
+    return f"{url}?s=1" if small else url
 
 
 # ![alt](/api/doc-image/12/3?i=0) — what show_document_image puts into answers.

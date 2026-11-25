@@ -17,6 +17,12 @@ Back (Android) closes the viewer.
 
 Every page frame also gets a text layer (`/api/doc-words`): the PDF's words,
 invisible, over the picture, so text can be selected and copied.
+
+Pages and text layers load only when they come near the screen (`data-pb-src`,
+one IntersectionObserver). A 60-page contract used to ask for 60 renders and 60
+text layers the moment its Source pane opened — and the viewer then set every
+page to load at once. In the viewer, a page of the Source pane (a small render,
+`?s=1`) is swapped for the full one when it comes into view.
 """
 
 PAGE_VIEWER_HTML = """<style>
@@ -181,7 +187,12 @@ PAGE_VIEWER_HTML = """<style>
     open: function (nodes, start) {
       show(Array.prototype.map.call(nodes, function (n) {
         var c = n.cloneNode(true);
-        c.querySelectorAll('img[loading]').forEach(function (i) { i.loading = 'eager'; });
+        c.querySelectorAll('img').forEach(function (i) {
+          var u = i.getAttribute('data-pb-src') || i.getAttribute('src') || '';
+          i.removeAttribute('loading');
+          // the small render stays as a placeholder until the full one is near
+          if (u) i.setAttribute('data-pb-src', u.replace(/[?&]s=1(?=$|&)/, ''));
+        });
         return c;
       }), start);
     },
@@ -192,8 +203,9 @@ PAGE_VIEWER_HTML = """<style>
         f.className = 'pb-src-page';
         f.style.cssText = 'position:relative;background:#fff;aspect-ratio:0.7071;';
         var img = document.createElement('img');
-        img.src = '/api/doc-image/' + docId + '/' + n;
-        img.loading = Math.abs(n - 1 - (start || 0)) <= 1 ? 'eager' : 'lazy';
+        var u = '/api/doc-image/' + docId + '/' + n;
+        if (Math.abs(n - 1 - (start || 0)) <= 1) img.src = u;
+        img.setAttribute('data-pb-src', u);
         img.onload = function () {
           if (this.naturalWidth) this.parentNode.style.aspectRatio = this.naturalWidth / this.naturalHeight;
         };
@@ -242,13 +254,37 @@ PAGE_VIEWER_HTML = """<style>
     if (window.ResizeObserver) new ResizeObserver(function () { fit(frame, tl); }).observe(frame);
     fit(frame, tl);
   }
+  // Near the screen: an image gets its picture, a frame its text layer.
+  var near = window.IntersectionObserver ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      near.unobserve(e.target);
+      arrive(e.target);
+    });
+  }, { rootMargin: '600px 0px' }) : null;
+  function arrive(t) {
+    if (t.tagName === 'IMG') {
+      var u = t.getAttribute('data-pb-src');
+      if (u && t.getAttribute('src') !== u) t.setAttribute('src', u);
+    } else if (t.__pbTlUrl) {
+      var url = t.__pbTlUrl;
+      t.__pbTlUrl = null;
+      words(t, url);
+    }
+  }
+  function soon(t) { if (near) near.observe(t); else arrive(t); }
   function layer(frame) {
     if (frame.querySelector('.pb-txl')) { watch(frame); return; }
     if (frame.__pbTl) return;
-    var img = frame.querySelector('img'), m = img && SRC.exec(img.getAttribute('src') || '');
+    var img = frame.querySelector('img');
+    var m = img && SRC.exec(img.getAttribute('src') || img.getAttribute('data-pb-src') || '');
     if (!m) return;
     frame.__pbTl = true;
-    fetch('/api/doc-words/' + m[1] + '/' + m[2], { credentials: 'same-origin' })
+    frame.__pbTlUrl = '/api/doc-words/' + m[1] + '/' + m[2];
+    soon(frame);
+  }
+  function words(frame, url) {
+    fetch(url, { credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d || !d.words || !d.words.length || frame.querySelector('.pb-txl')) return;
@@ -291,6 +327,8 @@ PAGE_VIEWER_HTML = """<style>
     var up = root.closest && root.closest('.pb-src-page');
     if (up) layer(up);
     root.querySelectorAll('.pb-src-page').forEach(layer);
+    if (root.tagName === 'IMG' && root.hasAttribute('data-pb-src')) soon(root);
+    root.querySelectorAll('img[data-pb-src]').forEach(soon);
   }
   new MutationObserver(function (ms) {
     ms.forEach(function (m) {
@@ -298,7 +336,7 @@ PAGE_VIEWER_HTML = """<style>
       m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scan(n); });
     });
   }).observe(document.documentElement, { childList: true, subtree: true, attributes: true,
-                                          attributeFilter: ['src'] });
+                                          attributeFilter: ['src', 'data-pb-src'] });
   document.addEventListener('DOMContentLoaded', function () { scan(document); });
 })();
 </script>"""

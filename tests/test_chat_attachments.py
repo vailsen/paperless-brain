@@ -178,3 +178,39 @@ def test_mailto_url_encodes_subject_and_body():
     url = cd.mailto_url("a@b.de", "Frage & Antwort", "Zeile 1\nZeile 2")
     assert url.startswith("mailto:a@b.de?")
     assert "Frage%20%26%20Antwort" in url and "Zeile%201%0AZeile%202" in url
+
+
+# ── Email conversation ───────────────────────────────────────────────────────
+
+
+def test_email_chat_knows_the_conversation_and_the_draft_form():
+    system = cd.build_email_chat_system([{"role": "user", "content": "Kündigung Vodafone?"},
+                                         {"role": "assistant", "content": "Frist: 3 Monate."}])
+    assert "Kündigung Vodafone?" in system and "Frist: 3 Monate." in system
+    assert "<email>" in system and "{conversation}" not in system and "{today}" not in system
+
+
+def test_a_question_back_is_no_draft():
+    reply = "Wem soll die Mail gehen — dem Vermieter oder der Hausverwaltung?"
+    assert cd.email_draft(reply) is None
+    assert cd.visible_reply(reply) == reply
+
+
+def test_the_draft_block_becomes_the_preview_and_leaves_the_bubble():
+    reply = ('Hier ist der Entwurf.\n<email>{"to": "info@example.org", "subject": "Zählerstände",'
+             ' "body": "Sehr geehrte Damen und Herren,\n\nbitte …\n\nMit freundlichen Grüßen"}</email>')
+    d = cd.email_draft(reply)
+    assert d == {"to": "info@example.org", "subject": "Zählerstände",
+                 "body": "Sehr geehrte Damen und Herren,\n\nbitte …\n\nMit freundlichen Grüßen"}
+    assert cd.visible_reply(reply) == "Hier ist der Entwurf."
+
+
+def test_draft_tolerates_fences_thinking_and_a_missing_close_tag():
+    reply = '<think>hmm</think>Ok.\n<email>```json\n{"subject": "S", "body_paras": ["A", "B"]}\n```'
+    assert cd.email_draft(reply) == {"to": "", "subject": "S", "body": "A\n\nB"}
+    assert cd.visible_reply(reply) == "Ok."
+
+
+def test_streaming_hides_a_half_arrived_tag():
+    assert cd.visible_reply("Hier der Entwurf.\n<ema") == "Hier der Entwurf."
+    assert cd.email_draft('<email>{"to": ""}</email>') is None   # nothing to show

@@ -18,14 +18,14 @@ def _not_found() -> Response:
 
 
 @ng_app.get("/api/doc-image/{doc_id}/{page}")
-async def doc_image(doc_id: int, page: int, i: int | None = None):
+async def doc_image(doc_id: int, page: int, i: int | None = None, s: int = 0):
     try:
         token = get_session_token()
     except Exception:  # no session context
         token = ""
     if not token:
         return _not_found()
-    data = await doc_image_service.get_image(doc_id, page, i, token)
+    data = await doc_image_service.get_image(doc_id, page, i, token, small=bool(s))
     if data is None:
         return _not_found()
     return Response(

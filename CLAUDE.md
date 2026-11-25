@@ -172,9 +172,15 @@ letter or an email (2026-11-15) are items in the conversation "…" menu and qui
 icon on its row in an answer's source box (`/api/doc-download/{id}`, the user's own access
 check). The tools `generate_chat_pdf`, `create_kanban_task`, `download_document`,
 `trigger_docx_generation` and `create_email` are gone — each was a tool schema the model read
-on every call only to open a dialog. The letter / email dialog (`app_ui/compose_dialogs.py`)
+on every call only to open a dialog. The letter dialog (`app_ui/compose_dialogs.py`)
 drafts from the conversation with **one model call without tools**, only when opened; the
-fields stay editable and nothing is sent or saved without the user.
+fields stay editable and nothing is sent or saved without the user. **The email is a small
+conversation of its own** (2026-11-25, `open_email_dialog`): still no tools, the chat it came
+from in its system prompt; the model asks back until it knows enough and **decides when the
+draft is ready** by answering with an `<email>{to, subject, body}</email>` block
+(`email_draft`), which switches the dialog to the editable preview (copy, open in the mail
+app). "Ask for changes" goes back; a preview the user edited is sent along with the next
+request, so the model revises the user's version.
 
 ### The fixed part of every model call
 
@@ -307,12 +313,15 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   text layer just shows the page. A filled-in form stores its values at the end of the text
   stream, far from their labels; for a short passage no window holds both, so `_anchor_boxes`
   marks the passage's tokens that occur exactly once on the page (a number, or two long words).
-- **A number is one source page, so every tap on it marks the same set**: the passages of all
-  sentences carrying that number in the bubble (`locate(other_claims=…)`, `.pb-src-hl.is-other`),
-  the tapped sentence's one strongest. Marking only the tapped sentence's passage made one
-  number mean a different place each time.
-  A number without a page (`[^361]`) gets its one page from all its sentences together
-  (`document_page`); picked per tapped sentence, one "1" went to pages 2, 1, 5 and 5.
+- **Every citation has its own number, 1 … n in reading order** (`number_citations`, since
+  2026-11-25). One number per page put the same "1" behind five sentences, and a reader
+  could not tell which one a tap showed. The source box groups by page instead
+  (`group_sources`: one chip "1, 4, 7 · p. 3"). A tap marks the tapped sentence's passage
+  and, fainter, the passages of every other sentence citing the same page
+  (`locate(other_claims=…)`, gathered by `data-cite`, `.pb-src-hl.is-other`), so the page
+  shows everything taken from it.
+  A citation without a page (`[^361]`) gets its one page from all sentences citing the
+  document together (`document_page`); picked per tapped sentence, they went to pages 2, 1, 5 and 5.
 - **Titles in the source box come from Paperless as the user** (`_resolve_cite_titles`), never
   from the sidecar: a made-up `[^id]` must not reveal the title of a document they cannot see.
 - **A picture is a passage too.** On an X-ray page the text is a header and "Seite 5 von 5";
@@ -368,6 +377,12 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   copied. Not SVG text: Chrome painted selected SVG text white over the page. A click
   that ends a selection does not open the viewer. A scan without a text layer
   has none.
+- **Pages load only near the screen** (`page_viewer`: `data-pb-src` + one
+  IntersectionObserver, for pictures and text layers alike). The Source pane shows a small
+  render (`?s=1`, `SMALL_LONG_SIDE`); the viewer swaps in the full one per page as it comes
+  into view. A 60-page contract used to request every page and every text layer at once,
+  and the viewer then forced all pages to load — it never finished. Paperless' "yes" to the
+  access check is kept `ACCESS_TTL_S` (60 s) per token and document; a "no" never is.
 - **A finding's evidence carries reference numbers** (`findings.cite_evidence`,
   page by `page_for` at render time — no rescan): a tap opens the dock chat's
   own source viewer over the chat (`chat-src-overlay`, "Back to the chat"),
