@@ -213,9 +213,15 @@ without filing it.
 - **No reference numbers**: the block tells the model to cite the upload in words; `[^…]`
   belongs to Paperless documents only.
 
-**Tool history** (`app_ui/tool_trace.py`, an answer's "…" menu): every model request
-(tokens, first token, total time — `ModelCallEvent`) and tool call (duration, the whole
-result), each result rendered only when expanded. Downloads: the history, and the raw
+**Tool history** (`app_ui/tool_trace.py`, `TraceView`): its own icon in the answer's footer
+from the moment the turn starts, beside the "…" menu that joins it when the answer is done.
+It holds the turn's lists and redraws while open (`update()` per event), so the user watches
+the loop work. Steps on the left — each model request, then the tools it asked for, with a
+duration bar — and the chosen step on the right (a phone shows one at a time, with "All
+steps"); only the chosen step's result reaches the browser. Several tools under one request
+are parallel tool use: one answer asked for all of them, so they are one step, not several
+iterations. Every model request (tokens, first token, total time — `ModelCallEvent`) and
+tool call (duration, the whole result). Downloads: the history, and the raw
 request of the last model call (`TranscriptEvent`: system prompt, tool schemas, messages;
 thinking removed). Live only — nothing is stored. The trace's `output` stays capped at
 2 000 chars: provenance, web links and skills read it at that length; `output_full` is

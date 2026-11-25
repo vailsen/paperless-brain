@@ -73,3 +73,41 @@ def test_transcript_event_drops_thinking():
     flat = str(ev.messages)
     assert "SECRET" not in flat and "redacted" not in flat and "visible" in flat
     assert ev.messages[-1] == {"role": "assistant", "content": "answer"}
+
+
+def test_steps_put_parallel_tools_under_their_one_request():
+    from app_ui.tool_trace import step_list
+
+    calls = [{"iteration": 1, "total_ms": 4400}, {"iteration": 2, "total_ms": 900}]
+    trace = [{"iter": 1, "name": "search", "duration_ms": 5},
+             {"iter": 1, "name": "analytical_search", "duration_ms": 3},
+             {"iter": 2, "name": "get_document_details", "duration_ms": 9}]
+    steps = step_list(trace, calls)
+    assert [(s["kind"], s["iter"]) for s in steps] == [
+        ("model", 1), ("tool", 1), ("tool", 1), ("model", 2), ("tool", 2)]
+    assert steps[0]["n_tools"] == 2 and not any(s["running"] for s in steps)
+
+
+def test_live_steps_show_the_request_and_tool_in_progress():
+    from app_ui.tool_trace import step_list
+
+    calls = [{"iteration": 1, "total_ms": 4400}]
+    trace = [{"iter": 1, "name": "search"}]          # no result yet
+    steps = step_list(trace, calls, running=True, iteration=1)
+    assert steps[-1]["kind"] == "tool" and steps[-1]["running"]
+    trace[0]["duration_ms"] = 12
+    steps = step_list(trace, calls, running=True, iteration=2)   # next request under way
+    assert steps[-1] == {"kind": "model", "key": "m2", "iter": 2, "call": None, "n_tools": 0, "running": True}
+    assert not step_list(trace, calls, running=False, iteration=2)[-1]["running"]
+
+
+def test_sources_beyond_three_fold_away(monkeypatch):
+    from app_ui.pages import chat
+
+    monkeypatch.setattr(chat, "get_translator", lambda: (lambda s: s))
+    few = chat._citation_list([(1, 7, 1), (2, 8, 0)], {})
+    assert "pb-cite-more" not in few
+    many = chat._citation_list([(1, 7, 1), (2, 7, 1), (3, 8, 0), (4, 9, 2), (5, 10, 1)], {})
+    head, _sep, folded = many.partition('<details class="pb-cite-more">')
+    assert head.count("pb-cite-doc\"") == 3 and folded.count("pb-cite-doc\"") == 1
+    assert "Show 1 more" in many and "<b>1, 2</b>" in many

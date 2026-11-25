@@ -229,6 +229,10 @@ def _inject_doc_links(
     return text.rstrip() + "\n\n" + _citation_list(sources, titles or {}, web) + "\n"
 
 
+#: Source rows shown before "Show more".
+SOURCES_SHOWN = 3
+
+
 def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str],
                    web: dict[str, tuple[int, str]] | None = None) -> str:
     """The source box under an answer: one row per document, its cited pages as
@@ -283,7 +287,16 @@ def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str],
             f'rel="noopener"><b>{n}</b></a></span></div>'
         )
     head = _html.escape(_("Sources"))
-    return f'<div class="pb-cite-list"><div class="pb-cite-head">{head}</div>{"".join(rows)}</div>'
+    body = "".join(rows)
+    if len(rows) > SOURCES_SHOWN:
+        # The first few stay in sight; the rest behind "Show n more" — a long
+        # answer's box pushed the next question off the screen.
+        more = _html.escape(_("Show {n} more").format(n=len(rows) - SOURCES_SHOWN))
+        less = _html.escape(_("Show less"))
+        body = ("".join(rows[:SOURCES_SHOWN])
+                + f'<details class="pb-cite-more"><summary><span class="m">{more}</span>'
+                f'<span class="l">{less}</span></summary>{"".join(rows[SOURCES_SHOWN:])}</details>')
+    return f'<div class="pb-cite-list"><div class="pb-cite-head">{head}</div>{body}</div>'
 
 
 async def _resolve_vault_wiki_links(text: str, index: dict, username: str) -> None:
@@ -748,6 +761,11 @@ html, body { overflow: hidden !important; }
 }
 .chat-md a.pb-cite-dl:hover { color: var(--c-text); }
 .pb-cite-item.is-active b { background: var(--c-accent); color: #fff; }
+.pb-cite-more > summary { list-style: none; cursor: pointer; font-size: .72rem;
+    color: var(--c-text-muted); padding: 2px 0; }
+.pb-cite-more > summary::-webkit-details-marker { display: none; }
+.pb-cite-more > summary:hover { color: var(--c-text); }
+.pb-cite-more[open] > summary .m, .pb-cite-more:not([open]) > summary .l { display: none; }
 .pb-drawer-tabbar {
     position: absolute; top: 0; left: 0; right: 0; height: 40px; gap: 4px;
     padding: 0 8px; align-items: center; flex-wrap: nowrap;
@@ -3369,11 +3387,14 @@ window.__openVaultNote = function(noteId) {{
 
         return _click
 
-    def _answer_menu(idx: int, bubble_el, content: str, trace_dlg=None) -> None:
+    def _answer_menu(idx: int, bubble_el, content: str, *, inline: bool = False) -> None:
+        """The answer's "…" menu (and, in the dock, "Save to dossier"). With
+        `inline` it goes into the caller's row — the live bubble's footer,
+        beside the tool history button."""
         if _embed and content and _dossiers_on and idx >= 0:
-            _answer_menu_embed(idx, bubble_el, content, trace_dlg)
+            _answer_menu_embed(idx, bubble_el, content, inline=inline)
             return
-        _answer_menu_full(idx, bubble_el, content, trace_dlg)
+        _answer_menu_full(idx, bubble_el, content, inline=inline)
 
     def _sel_snapshot_js(bubble_el) -> str:
         return ("() => { var s = window.getSelection(); var el = document.getElementById("
@@ -3381,25 +3402,27 @@ window.__openVaultNote = function(noteId) {{
                 " window.__pbSelSnap = (s && !s.isCollapsed && el && el.contains(s.anchorNode))"
                 " ? {id: el.id, text: s.toString()} : null; }")
 
-    def _answer_menu_embed(idx: int, bubble_el, content: str, trace_dlg=None) -> None:
+    def _answer_menu_embed(idx: int, bubble_el, content: str, *, inline: bool = False) -> None:
         """In the findings dock, saving to the dossier is what an answer is
         for: its own button, next to the "…" menu with the rest."""
-        with ui.row().classes("justify-end items-center w-full mt-1 gap-1 no-wrap"):
+        from contextlib import nullcontext
+
+        with (nullcontext() if inline else ui.row().classes("justify-end items-center w-full mt-1 gap-1 no-wrap")):
             sv = ui.button(_("Save to dossier"), icon="create_new_folder", color=None).props(
                 "flat dark dense no-caps").classes("text-gray-500 text-xs").tooltip(
                 _("Select text first to save only that part"))
             sv.on("mousedown", js_handler=_sel_snapshot_js(bubble_el))
             sv.on_click(_save_action(idx, bubble_el))
-            _answer_menu_full(idx, bubble_el, content, trace_dlg, with_save=False, inline=True)
+            _answer_menu_full(idx, bubble_el, content, with_save=False, inline=True)
 
-    def _answer_menu_full(idx: int, bubble_el, content: str, trace_dlg=None, *, with_save: bool = True,
+    def _answer_menu_full(idx: int, bubble_el, content: str, *, with_save: bool = True,
                           inline: bool = False) -> None:
         """One "…" button under an answer: Markdown, CSV per table, save to
-        dossier, tool history. Four buttons in a row did not line up and
-        crowded a phone."""
+        dossier. Four buttons in a row did not line up and crowded a phone.
+        The tool history is its own icon beside it (live, from the turn's start)."""
         csvs = _extract_markdown_csvs(content) if content else []
         save = _save_action(idx, bubble_el) if (with_save and content and _dossiers_on and idx >= 0) else None
-        if not (content or csvs or trace_dlg):
+        if not (content or csvs):
             return
 
         def _dl_md() -> None:
@@ -3432,8 +3455,6 @@ window.__openVaultNote = function(noteId) {{
                 if save is not None:
                     _item("create_new_folder", _("Save to dossier (select text first to save only that part)"),
                           save)
-                if trace_dlg is not None:
-                    _item("info_outline", _("Show tool history"), trace_dlg.open)
 
     def _on_insight_saved(topic: str) -> None:
         if _embed:
@@ -4276,6 +4297,8 @@ window.__openVaultNote = function(noteId) {{
         thinking_content_el: list = [None]  # ui.html inside persistent <details>
         status_badge: list = [None]
         bubble: list = [None]
+        foot: list = [None]       # the bubble's footer row
+        menu_slot: list = [None]  # where the "…" menu goes when the answer is done
 
         with messages_container:
             with ui.row().classes("justify-start w-full"):
@@ -4311,6 +4334,12 @@ window.__openVaultNote = function(noteId) {{
                     streaming_label[0] = ui.markdown(
                         "", sanitize=False, extras=_MD_EXTRAS
                     ).classes("chat-md")
+                    # Footer: the tool history button from the first moment (the
+                    # history grows while the model works); the "…" menu joins it
+                    # on the left once the answer is finished.
+                    with ui.row().classes("justify-end items-center w-full mt-1 gap-1 no-wrap") as _f:
+                        foot[0] = _f
+                        menu_slot[0] = ui.row().classes("items-center gap-1 no-wrap")
 
         await _scroll_bottom()
         await asyncio.sleep(0)
@@ -4373,6 +4402,25 @@ window.__openVaultNote = function(noteId) {{
         _model_calls: list[dict] = []  # ModelCallEvent per model request, for the tool history
         _transcript: list = [None]     # TranscriptEvent: what the model was sent, for the download
         _shown_images: list[ImageDisplayEvent] = []  # show_document_image, in call order
+
+        # The tool history, live: it holds the lists above and redraws itself
+        # (when open) as events arrive.
+        from app_ui.tool_trace import TraceView
+
+        with bubble[0]:
+            _tv = TraceView(_tool_trace, _model_calls, lambda: _transcript[0],
+                            model=_s.get("chat_model_name", ""), question=_question)
+        _tv.running = True
+        with foot[0]:
+            _tv_btn = ui.button(icon="info_outline", color=None, on_click=_tv.open).props(
+                "flat dark dense round").classes("text-gray-600").tooltip(_("Tool history"))
+
+        def _tv_update() -> None:
+            try:
+                with bubble[0]:
+                    _tv.update()
+            except Exception:  # noqa: BLE001 — the history must never cost the answer
+                _log.warning("tool history update failed", exc_info=True)
 
         backend = _reg_backends.get(
             _s["chat_model_name"],
@@ -4489,6 +4537,8 @@ window.__openVaultNote = function(noteId) {{
 
                 elif isinstance(event, IterationEvent):
                     _iter[0] = event.iteration
+                    _tv.iteration = event.iteration
+                    _tv_update()
 
                 elif isinstance(event, ToolCallEvent):
                     _tool_calls[0] += 1
@@ -4524,6 +4574,7 @@ window.__openVaultNote = function(noteId) {{
                     hint = _activity_hint(event.tool_name, event.tool_input)
                     activity_label.set_text(f"{event.label}{hint}")
                     activity_row.set_visibility(True)
+                    _tv_update()
                     await asyncio.sleep(0)
 
                 elif isinstance(event, ToolResultEvent):
@@ -4534,9 +4585,11 @@ window.__openVaultNote = function(noteId) {{
                         _tool_trace[-1]["output"] = event.tool_output[:2000]
                         _tool_trace[-1]["output_full"] = event.tool_output
                         _tool_trace[-1]["duration_ms"] = event.duration_ms
+                        _tv_update()
 
                 elif isinstance(event, ModelCallEvent):
                     _model_calls.append(dataclasses.asdict(event))
+                    _tv_update()
 
                 elif isinstance(event, TranscriptEvent):
                     _transcript[0] = event
@@ -4661,22 +4714,14 @@ window.__openVaultNote = function(noteId) {{
                 _update_context_progress()  # re-estimate now that assistant msg is in history
             _md_raw = accumulated[0]
 
-            # ── Tool history dialog (opened from the answer's "…" menu) ──
-            trace_dlg = None
-            if _tool_trace or _model_calls:
-                from app_ui.tool_trace import build_dialog as _build_trace_dialog
-
-                with bubble[0]:
-                    trace_dlg = _build_trace_dialog(
-                        list(_tool_trace), list(_model_calls), _transcript[0],
-                        model=_s.get("chat_model_name", ""), question=_question,
-                    )
-
-            # ── Footer: one "…" menu (Markdown, CSV…, dossier, tool history) ──
-            if _md_raw or trace_dlg:
-                with bubble[0]:
-                    _answer_menu(len(_s["messages"]) - 1 if _md_raw else -1, bubble[0], _md_raw or "",
-                                 trace_dlg)
+            # ── Footer: the "…" menu joins the tool history button ──
+            _tv.running = False
+            _tv_update()
+            if not (_tool_trace or _model_calls):
+                _tv_btn.delete()
+            if _md_raw:
+                with menu_slot[0]:
+                    _answer_menu(len(_s["messages"]) - 1, bubble[0], _md_raw, inline=True)
 
             send_btn.props(add="icon=send color=primary")
             _s["running"] = False
