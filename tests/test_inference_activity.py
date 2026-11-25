@@ -89,11 +89,13 @@ def test_the_compute_lines():
             "last": {"tps": 41.4, "kind": "stream", "purpose": "chat", "at": now - 130}}
     out = lines(_, models, snap, now)
     assert out[0] == ("bolt", "Generating — Deep research · qwen3.8:30b · 0:42")
-    assert out[1] == ("memory", "In memory: qwen3.8:30b · 18.2 GB")  # no unload time while generating
+    assert out[1] == ("memory", "In memory: qwen3.8:30b · 18.2 GB")
     assert out[2] == ("speed", "Last: 41 tokens/s · Chat · 2 min ago")
     idle = lines(_, models, {"running": [], "last": {**snap["last"], "kind": "estimate"}}, now)
     assert idle[0] == ("hourglass_empty", "Idle")
-    assert idle[1][1].endswith("unloads in 3 min") and idle[2][1].startswith("Last: ≈ 41")
+    # Ollama's keep_alive countdown is not shown: it restarts on every request
+    # and read as the app's own shutdown timer.
+    assert idle[1][1] == "In memory: qwen3.8:30b · 18.2 GB" and idle[2][1].startswith("Last: ≈ 41")
     assert lines(_, [], {"running": [], "last": None}, now) == [
         ("hourglass_empty", "Idle"), ("memory", "No model in memory")]
 
