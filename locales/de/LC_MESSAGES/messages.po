@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-25 19:42+0100\n"
+"POT-Creation-Date: 2026-11-25 21:21+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -542,7 +542,7 @@ msgstr "Grußformel"
 
 #: app_ui/compose_dialogs.py:309 app_ui/pages/chat.py:1038
 #: app_ui/pages/chat.py:3861 app_ui/pages/chat.py:3970
-#: app_ui/pages/chat.py:4655 app_ui/pages/dashboard.py:1205
+#: app_ui/pages/chat.py:4659 app_ui/pages/dashboard.py:1205
 #: app_ui/pages/settings.py:279 app_ui/similar_dialog.py:123
 #, python-brace-format
 msgid "Error: {err}"
@@ -2372,152 +2372,160 @@ msgstr ""
 msgid "Every analysed document has already been renamed."
 msgstr "Alle analysierten Dokumente wurden bereits umbenannt."
 
-#: app_ui/tool_trace.py:274
+#: app_ui/tool_trace.py:299
 msgid "tool-history.md"
 msgstr "tool-verlauf.md"
 
-#: app_ui/tool_trace.py:279
+#: app_ui/tool_trace.py:304
 msgid "Available when the answer is finished."
 msgstr "Verfügbar, sobald die Antwort fertig ist."
 
-#: app_ui/tool_trace.py:282
+#: app_ui/tool_trace.py:307
 msgid "raw-conversation.md"
 msgstr "roh-gespraech.md"
 
-#: app_ui/pages/chat.py:4416 app_ui/tool_trace.py:288
+#: app_ui/pages/chat.py:4418 app_ui/tool_trace.py:313
 msgid "Tool history"
 msgstr "Tool-Verlauf"
 
-#: app_ui/tool_trace.py:291
+#: app_ui/tool_trace.py:316
 msgid "Download tool history (.md)"
 msgstr "Tool-Verlauf herunterladen (.md)"
 
-#: app_ui/tool_trace.py:294
+#: app_ui/tool_trace.py:319
 msgid "Download raw conversation with system prompt, without thinking (.md)"
 msgstr "Rohes Gespräch mit Systemprompt herunterladen, ohne Denkprozess (.md)"
 
-#: app_ui/tool_trace.py:307
+#: app_ui/tool_trace.py:332
 #, python-brace-format
 msgid ""
-"{calls} model requests ({model_s}) · {tools} tool calls ({tool_s}) · "
-"tokens in {tin} / out {tout}"
+"{calls} rounds · model {model_s} · {tools} tool calls ({tool_s}) · tokens"
+" in {tin} / out {tout}"
 msgstr ""
-"{calls} Modellaufrufe ({model_s}) · {tools} Tool-Aufrufe ({tool_s}) · "
+"{calls} Runden · Modell {model_s} · {tools} Tool-Aufrufe ({tool_s}) · "
 "Tokens rein {tin} / raus {tout}"
 
-#: app_ui/tool_trace.py:354
+#: app_ui/tool_trace.py:382
 msgid "Waiting for the model …"
 msgstr "Warte auf das Modell …"
 
-#: app_ui/tool_trace.py:370 app_ui/tool_trace.py:398
-#, python-brace-format
-msgid "Model request {n}"
-msgstr "Modellanfrage {n}"
-
-#: app_ui/tool_trace.py:372
-#, python-brace-format
-msgid "{n} tools at once"
-msgstr "{n} Tools gleichzeitig"
-
 #: app_ui/tool_trace.py:387
+#, python-brace-format
+msgid "Round {n}"
+msgstr "Runde {n}"
+
+#: app_ui/tool_trace.py:403 app_ui/tool_trace.py:429
+msgid "Final answer"
+msgstr "Antwort"
+
+#: app_ui/tool_trace.py:403 app_ui/tool_trace.py:429 app_ui/tool_trace.py:468
+#: app_ui/tool_trace.py:473
+msgid "Thinking"
+msgstr "Denken"
+
+#: app_ui/tool_trace.py:418
 msgid "All steps"
 msgstr "Alle Schritte"
 
-#: app_ui/tool_trace.py:402
-msgid "The model is working on this request …"
-msgstr "Das Modell arbeitet an dieser Anfrage …"
+#: app_ui/tool_trace.py:430
+#, python-brace-format
+msgid "Round {n} · {what}"
+msgstr "Runde {n} · {what}"
 
-#: app_ui/tool_trace.py:403
-msgid "No timing reported for this request."
-msgstr "Für diese Anfrage wurden keine Zeiten gemeldet."
+#: app_ui/tool_trace.py:435
+msgid "The model is working on this round …"
+msgstr "Das Modell arbeitet an dieser Runde …"
 
-#: app_ui/tool_trace.py:407
+#: app_ui/tool_trace.py:436
+msgid "No timing reported for this round."
+msgstr "Für diese Runde wurden keine Zeiten gemeldet."
+
+#: app_ui/tool_trace.py:440
 msgid "evaluated"
 msgstr "ausgewertet"
 
-#: app_ui/tool_trace.py:410
+#: app_ui/tool_trace.py:443
 msgid "Prompt tokens"
 msgstr "Prompt-Tokens"
 
-#: app_ui/tool_trace.py:411
+#: app_ui/tool_trace.py:444
 msgid "Output tokens"
 msgstr "Ausgabe-Tokens"
 
-#: app_ui/tool_trace.py:412
-msgid "First token after"
-msgstr "Erstes Token nach"
+#: app_ui/tool_trace.py:445
+msgid "Reading the prompt"
+msgstr "Prompt lesen"
 
-#: app_ui/tool_trace.py:413
-msgid "Total time"
-msgstr "Gesamtzeit"
+#: app_ui/tool_trace.py:446
+msgid "Writing"
+msgstr "Schreiben"
 
-#: app_ui/tool_trace.py:416
+#: app_ui/tool_trace.py:447
+msgid "Model time"
+msgstr "Modellzeit"
+
+#: app_ui/tool_trace.py:450
+msgid "Tools after it"
+msgstr "Tools danach"
+
+#: app_ui/tool_trace.py:452
 msgid "Cache read / written"
 msgstr "Cache gelesen / geschrieben"
 
-#: app_ui/tool_trace.py:419
+#: app_ui/tool_trace.py:455
 msgid "Speed"
 msgstr "Geschwindigkeit"
 
-#: app_ui/tool_trace.py:421
-msgid "Ended with"
-msgstr "Beendet mit"
-
-#: app_ui/tool_trace.py:421
-msgid "tool calls"
-msgstr "Tool-Aufrufen"
-
-#: app_ui/tool_trace.py:429
-#, python-brace-format
-msgid "Asked for {n} tool(s) in this one answer:"
-msgstr "Hat in dieser einen Antwort {n} Tool(s) angefordert:"
-
-#: app_ui/tool_trace.py:434
+#: app_ui/tool_trace.py:461
 msgid ""
-"Several tools in one request are one step: the model asked for all of "
-"them at once, and its next request sees all their results together."
+"Model time is the model alone: reading the prompt until the first token, "
+"then thinking and writing its tool calls. The tools ran after it."
 msgstr ""
-"Mehrere Tools in einer Anfrage sind ein Schritt: Das Modell hat sie alle "
-"auf einmal angefordert, und seine nächste Anfrage sieht alle Ergebnisse "
-"zusammen."
+"Modellzeit ist nur das Modell: den Prompt lesen bis zum ersten Token, "
+"dann denken und die Tool-Aufrufe schreiben. Die Tools liefen danach."
 
-#: app_ui/tool_trace.py:438
-msgid "No tools — this request wrote the answer."
-msgstr "Keine Tools – diese Anfrage hat die Antwort geschrieben."
+#: app_ui/pages/findings.py:1916 app_ui/tool_trace.py:470
+msgid "Answer"
+msgstr "Antwort"
 
-#: app_ui/tool_trace.py:449
+#: app_ui/pages/dashboard.py:1098 app_ui/tool_trace.py:471
+#: app_ui/tool_trace.py:507
+msgid "(empty)"
+msgstr "(leer)"
+
+#: app_ui/tool_trace.py:477
+msgid "The model showed no thinking in this round."
+msgstr "Das Modell hat in dieser Runde kein Denken gezeigt."
+
+#: app_ui/tool_trace.py:488
 #, python-brace-format
-msgid "Tool {name} · model request {n}"
-msgstr "Tool {name} · Modellanfrage {n}"
+msgid "Tool {name} · round {n}"
+msgstr "Tool {name} · Runde {n}"
 
-#: app_ui/tool_trace.py:451
+#: app_ui/tool_trace.py:490
 msgid "Input"
 msgstr "Eingabe"
 
-#: app_ui/tool_trace.py:453
+#: app_ui/tool_trace.py:492
 msgid "(no parameters)"
 msgstr "(keine Parameter)"
 
-#: app_ui/tool_trace.py:459
+#: app_ui/tool_trace.py:498
 msgid "Running …"
 msgstr "Läuft …"
 
-#: app_ui/tool_trace.py:462
+#: app_ui/tool_trace.py:501
 #, python-brace-format
 msgid "Result · {n} characters"
 msgstr "Ergebnis · {n} Zeichen"
 
-#: app_ui/pages/brain.py:817 app_ui/tool_trace.py:466
+#: app_ui/pages/brain.py:817 app_ui/tool_trace.py:505
 msgid "Copied"
 msgstr "Kopiert"
 
-#: app_ui/tool_trace.py:467
+#: app_ui/tool_trace.py:506
 msgid "Copy result"
 msgstr "Ergebnis kopieren"
-
-#: app_ui/pages/dashboard.py:1098 app_ui/tool_trace.py:468
-msgid "(empty)"
-msgstr "(leer)"
 
 #: app_ui/pages/admin.py:70
 msgid "Admins only"
@@ -4027,16 +4035,16 @@ msgstr "Gedanken"
 msgid "{n} calls"
 msgstr "{n} Aufrufe"
 
-#: app_ui/pages/chat.py:4434
+#: app_ui/pages/chat.py:4436
 msgid "No model configured — please set one up in Settings > AI Models."
 msgstr "Kein Modell konfiguriert — bitte in Einstellungen > KI-Modelle einrichten."
 
-#: app_ui/pages/chat.py:4494
+#: app_ui/pages/chat.py:4496
 #, python-brace-format
 msgid "The model host is starting… {s} s"
 msgstr "Der Modell-Rechner startet … {s} s"
 
-#: app_ui/pages/chat.py:4637
+#: app_ui/pages/chat.py:4641
 #, python-brace-format
 msgid ""
 "{model} runs partly on the CPU of its host ({pct} %), which makes it "
@@ -4047,13 +4055,13 @@ msgstr ""
 "deshalb langsam. Ein weiteres Modell im Speicher oder ein großes "
 "Kontextfenster nimmt der GPU den Platz."
 
-#: app_ui/pages/chat.py:4684
+#: app_ui/pages/chat.py:4688
 msgid "The model ended without an answer. Please send your message again."
 msgstr ""
 "Das Modell hat ohne Antwort aufgehört. Bitte schick deine Nachricht noch "
 "einmal."
 
-#: app_ui/pages/chat.py:4748
+#: app_ui/pages/chat.py:4752
 msgid "The answer is still being written …"
 msgstr "Die Antwort wird noch geschrieben …"
 
@@ -5642,10 +5650,6 @@ msgstr "Gehört nicht hierher — entfernen"
 #: app_ui/pages/findings.py:1913
 msgid "Open again"
 msgstr "Wieder öffnen"
-
-#: app_ui/pages/findings.py:1916
-msgid "Answer"
-msgstr "Antwort"
 
 #: app_ui/pages/findings.py:1918
 msgid "Add a question of your own"
@@ -7985,4 +7989,41 @@ msgstr "nicht erfüllt"
 
 #~ msgid "Show tool history"
 #~ msgstr "Tool-Verlauf anzeigen"
+
+#~ msgid "Model request {n}"
+#~ msgstr "Modellanfrage {n}"
+
+#~ msgid "{n} tools at once"
+#~ msgstr "{n} Tools gleichzeitig"
+
+#~ msgid "First token after"
+#~ msgstr "Erstes Token nach"
+
+#~ msgid "Total time"
+#~ msgstr "Gesamtzeit"
+
+#~ msgid "Ended with"
+#~ msgstr "Beendet mit"
+
+#~ msgid "tool calls"
+#~ msgstr "Tool-Aufrufen"
+
+#~ msgid "Asked for {n} tool(s) in this one answer:"
+#~ msgstr "Hat in dieser einen Antwort {n} Tool(s) angefordert:"
+
+#~ msgid ""
+#~ "Several tools in one request are "
+#~ "one step: the model asked for all"
+#~ " of them at once, and its next"
+#~ " request sees all their results "
+#~ "together."
+#~ msgstr ""
+#~ "Mehrere Tools in einer Anfrage sind "
+#~ "ein Schritt: Das Modell hat sie "
+#~ "alle auf einmal angefordert, und seine"
+#~ " nächste Anfrage sieht alle Ergebnisse "
+#~ "zusammen."
+
+#~ msgid "No tools — this request wrote the answer."
+#~ msgstr "Keine Tools – diese Anfrage hat die Antwort geschrieben."
 

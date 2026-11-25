@@ -23,7 +23,7 @@ CALLS = [
 def test_history_holds_the_whole_result_not_the_capped_one():
     md = trace_markdown(TRACE, CALLS, model="Opus", question="Where is my car insurance?", now=NOW)
     assert "x" * 5000 + " END" in md
-    assert "## Iteration 1" in md and "## Iteration 2" in md
+    assert "## Round 1" in md and "## Round 2" in md
     assert "420 ms" in md and "1.5 s" in md
     assert "model Opus" in md and "Where is my car insurance?" in md
 
@@ -75,30 +75,56 @@ def test_transcript_event_drops_thinking():
     assert ev.messages[-1] == {"role": "assistant", "content": "answer"}
 
 
-def test_steps_put_parallel_tools_under_their_one_request():
+def test_steps_put_parallel_tools_under_their_one_round():
     from app_ui.tool_trace import step_list
 
-    calls = [{"iteration": 1, "total_ms": 4400}, {"iteration": 2, "total_ms": 900}]
+    calls = [{"iteration": 1, "total_ms": 4400, "stop": "tool_calls"},
+             {"iteration": 2, "total_ms": 900, "stop": "stop"}]
     trace = [{"iter": 1, "name": "search", "duration_ms": 5},
-             {"iter": 1, "name": "analytical_search", "duration_ms": 3},
-             {"iter": 2, "name": "get_document_details", "duration_ms": 9}]
+             {"iter": 1, "name": "analytical_search", "duration_ms": 3}]
     steps = step_list(trace, calls)
     assert [(s["kind"], s["iter"]) for s in steps] == [
-        ("model", 1), ("tool", 1), ("tool", 1), ("model", 2), ("tool", 2)]
-    assert steps[0]["n_tools"] == 2 and not any(s["running"] for s in steps)
+        ("round", 1), ("model", 1), ("tool", 1), ("tool", 1), ("round", 2), ("model", 2)]
+    assert steps[0]["ms"] == 4408                       # model + tools
+    assert not steps[1]["final"] and steps[5]["final"]  # thinking, then the answer
+    assert not any(s["running"] for s in steps)
 
 
-def test_live_steps_show_the_request_and_tool_in_progress():
+def test_live_steps_show_the_round_and_tool_in_progress():
     from app_ui.tool_trace import step_list
 
-    calls = [{"iteration": 1, "total_ms": 4400}]
+    calls = [{"iteration": 1, "total_ms": 4400, "stop": "tool_calls"}]
     trace = [{"iter": 1, "name": "search"}]          # no result yet
     steps = step_list(trace, calls, running=True, iteration=1)
-    assert steps[-1]["kind"] == "tool" and steps[-1]["running"]
+    assert steps[-1]["kind"] == "tool" and steps[-1]["running"] and steps[0]["running"]
     trace[0]["duration_ms"] = 12
     steps = step_list(trace, calls, running=True, iteration=2)   # next request under way
-    assert steps[-1] == {"kind": "model", "key": "m2", "iter": 2, "call": None, "n_tools": 0, "running": True}
+    assert [s["kind"] for s in steps[-2:]] == ["round", "model"]
+    assert steps[-1]["running"] and not steps[-1]["final"] and steps[-2]["ms"] is None
     assert not step_list(trace, calls, running=False, iteration=2)[-1]["running"]
+
+
+def test_reopened_history_redraws(monkeypatch):
+    """Closed mid-turn and opened again, the dialog shows the steps since."""
+    from app_ui import tool_trace
+
+    tv = tool_trace.TraceView.__new__(tool_trace.TraceView)
+    drawn = []
+
+    class _Dlg:
+        value = False
+        def open(self): self.value = True
+
+    tv.dlg = _Dlg()
+    tv.trace, tv.calls, tv.thinking = [], [], {}
+    tv.running, tv.iteration, tv.sel, tv.phone_detail, tv._sig = True, 1, None, False, None
+    for name in ("_head", "_nav", "_detail"):
+        monkeypatch.setattr(tv, name, type("R", (), {"refresh": lambda self, n=name: drawn.append(n)})(),
+                            raising=False)
+    tv.update()                        # closed: nothing drawn
+    assert drawn == []
+    tv.open()
+    assert drawn == ["_head", "_nav", "_detail"]
 
 
 def test_sources_beyond_three_fold_away(monkeypatch):
