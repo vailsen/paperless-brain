@@ -4018,11 +4018,6 @@ window.__openVaultNote = function(noteId) {{
         async def _draft(k: str, instruction: str) -> dict:
             if backend is None:
                 raise RuntimeError(_("No model selected"))
-            rm = next((m for m in _reg_models if m["name"] == _s.get("chat_model_name")), None)
-            if rm and rm.get("backend") != "anthropic" and rm.get("lane") == "local":
-                from services.wol import ensure_awake
-
-                await ensure_awake(rm.get("base_url", ""), why="a letter draft")
             system, request = _cd.build_draft_request(k, _s["messages"], instruction)
             parts: list[str] = []
             async for ev in backend.run_turn(
@@ -4410,33 +4405,31 @@ window.__openVaultNote = function(noteId) {{
             expert_blocks=_te.blocks,
         )
 
-        async def _no_events():  # the turn stopped before the model was asked
-            return
-            yield
-
-        async def _wake_local_host() -> str:
-            """A local model whose host is off: wake it (WoL) and wait for it,
-            instead of failing on a refused connection. "" = go ahead."""
+        def _host_starting_hint() -> asyncio.Task | None:
+            """A local model's host may be asleep behind a wake-on-request
+            proxy, which holds the request while the host boots. Say so instead
+            of a silent wait: right away when `/proxy/status` reports
+            asleep/waking, otherwise after ~5 s without a first token. The
+            caller cancels the task at the first event."""
             m = next((m for m in _reg_models if m["name"] == _s["chat_model_name"]), None)
             if not m or m.get("backend") == "anthropic" or m.get("lane") != "local":
-                return ""
-            from config.settings import settings as _settings
-            from services.wol import ensure_awake
+                return None
+            import time as _time
 
-            def _waiting(secs: int) -> None:
-                activity_label.set_text(
-                    _("The model host was off — waking it up… {s} s").format(s=secs))
-                activity_row.set_visibility(True)
+            from services import model_host
 
-            outcome = await ensure_awake(
-                m.get("base_url", ""), on_wait=_waiting, should_stop=lambda: _s["stop_requested"])
-            activity_row.set_visibility(False)
-            if outcome == "stopped":
-                return "stopped"
-            if outcome == "timeout":
-                return _("The model host was woken but did not answer within {s} s. "
-                         "Please send your message again in a moment.").format(s=_settings.ollama_wake_timeout_s)
-            return ""
+            async def _hint() -> None:
+                started = _time.monotonic()
+                st = await model_host.proxy_status(m.get("base_url", ""))
+                if not (st and st.get("host") in ("asleep", "waking")):
+                    await asyncio.sleep(max(0.0, 5.0 - (_time.monotonic() - started)))
+                while True:
+                    activity_label.set_text(_("The model host is starting… {s} s").format(
+                        s=int(_time.monotonic() - started)))
+                    activity_row.set_visibility(True)
+                    await asyncio.sleep(2)
+
+            return asyncio.create_task(_hint())
 
         _turn_tools = _active_tools(use_skill=_te.needs_use_skill)
         # The part of every request that is not the stored conversation: the
@@ -4446,18 +4439,20 @@ window.__openVaultNote = function(noteId) {{
             + max(0, sum(len(str(m.get("content", ""))) for m in llm_messages)
                   - sum(len(str(m.get("content", ""))) for m in _s["messages"])))
         _update_context_progress()
+        _starting = _host_starting_hint()
         try:
-            _wake_err = await _wake_local_host()
-            if _wake_err and _wake_err != "stopped":
-                raise RuntimeError(_wake_err)
-            async for event in (_no_events() if _wake_err else backend.run_turn(
+            async for event in backend.run_turn(
                 llm_messages,
                 _system,
                 _s["temperature"],
                 tools=_turn_tools,
                 max_iterations=_s["max_iterations"],
                 answer_language=_lang,
-            )):
+            ):
+                if _starting is not None:
+                    _starting.cancel()
+                    _starting = None
+                    activity_row.set_visibility(False)
                 if _s["stop_requested"]:
                     break
                 if isinstance(event, ThinkingEvent):
@@ -4590,6 +4585,8 @@ window.__openVaultNote = function(noteId) {{
             streaming_label[0].set_content(escape_intraword_underscores(accumulated[0]))
 
         finally:
+            if _starting is not None:
+                _starting.cancel()
             status_badge[0].style("display:none;")
             activity_row.set_visibility(False)
             if thinking_chunks[0] and _s["show_thinking"]:

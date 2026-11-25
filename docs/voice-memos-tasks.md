@@ -85,9 +85,8 @@ Append to `CLAUDE.md` once agreed:
 
 Not shipped with the app. Documented in the README and in the settings section.
 
-**Deployment note:** do not run this on a Wake-on-LAN GPU host. The idle watchdog shuts that
-machine down, so the first memo of the evening would wait 30–60s for a boot — which destroys
-quick capture. Run it on the app host, CPU.
+**Deployment note:** do not run this on a GPU host that sleeps. The first memo of the evening
+would wait 30–60s for a boot — which destroys quick capture. Run it on the app host, CPU.
 
 Reference target: AMD Ryzen 7 6800H (8c/16t, Zen3+, AVX2), CPU only.
 

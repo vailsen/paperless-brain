@@ -87,44 +87,65 @@ own Paperless token, so it only touches documents you may edit.
   is never touched again, so a title you change later stays. The old and new
   titles are kept in `data/title_renames.json`.
 
-## Power management (optional)
+## Sleeping GPU host
 
-For homelab GPU servers: the app can wake the Ollama host via Wake-on-LAN on
-first use and shut it down over SSH after idle. Set
-`OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` and `OLLAMA_SSH_USER` to enable — with Docker
-this needs `network_mode: host` (magic packets don't cross the bridge network).
+paperless-brain talks to any Ollama- or OpenAI-compatible endpoint. It does no
+power management of its own: no Wake-on-LAN, no idle shutdown, no power
+buttons.
 
-Waking happens three ways: the dashboard button; a chat with a local model
-while the host is off (the chat says it is waking the host and answers once it
-is up, waiting at most `OLLAMA_WAKE_TIMEOUT_S`); and the proactive worker inside
-its night window. Back to sleep after the idle time of whoever woke it: 30 min
-for the button (`OLLAMA_IDLE_SHUTDOWN_MINUTES`), 10 for a chat
-(`OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES`), 5 for the worker. A host that was on
-already is never shut down.
+If your GPU host sleeps, put a **wake-on-request proxy** in front of it and
+point `OLLAMA_SERVER` (and the base URL of the local models in
+*Settings > AI Models*) at the proxy instead of the host.
 
-The shutdown half (dashboard button *and* the idle watchdog) runs
-`ssh <OLLAMA_SSH_USER>@<ollama host> "sudo shutdown -h now"` non-interactively —
-no password prompt is possible, so both steps below are mandatory:
+### Proxy contract
 
-1. **Key-based SSH login** from the app to the Ollama host. On the app host:
-   `ssh-copy-id <OLLAMA_SSH_USER>@<ollama host>`. In Docker the container has no
-   identity of its own — mount the key read-only (see the commented line in
-   `docker-compose.yml`):
-   `- /root/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro`
-2. **Passwordless sudo for shutdown** on the Ollama host. `visudo` and add:
-   ```
-   <OLLAMA_SSH_USER> ALL=(ALL) NOPASSWD: /usr/bin/shutdown
-   ```
-   Without it the SSH call fails with `sudo: a password is required`.
+What paperless-brain relies on:
 
-Verify without powering anything off:
+- **Hold inference requests while the host wakes**, then forward them
+  (streaming passes through). paperless-brain's read timeouts for local
+  inference are 330 s, enough for a 240 s wake plus model load.
+- **Answer `/api/tags`, `/api/version`, `/v1/models` and `/api/ps` without
+  waking the host** (from a cache while it sleeps), and without counting them
+  as activity. The dashboard and the worker poll these.
+- **Only shut down what the proxy itself woke.** A host someone switched on
+  stays on.
 
-```bash
-ssh -o BatchMode=yes <OLLAMA_SSH_USER>@<ollama host> "sudo -n /usr/bin/shutdown --help >/dev/null && echo READY"
-```
+Optional, used when present (a plain Ollama ignores the headers):
 
-(Inside Docker: prefix with `docker exec <container> `.) `READY` means both the
-button and the idle watchdog will work.
+- `GET /proxy/status` → `{"host": "asleep|waking|up|shutting_down", …}`.
+  The dashboard shows that state, the chat shows "The model host is starting…"
+  while it wakes, and the proactive worker decides with it: inside a sweep
+  window a sleeping host counts as ready (the job's request wakes it), outside
+  a window only a host that is up does.
+- `X-Idle-Profile: background` on every request of the proactive worker, so
+  the proxy can shut a host it woke for background work down sooner.
+- `X-No-Wake: 1` on the worker's requests outside a sweep window: if the host
+  is asleep the proxy answers `503` instead of waking it.
+
+Without `/proxy/status` the chat shows the generic hint after about 5 s
+without a first token, and the worker falls back to probing the endpoint.
+
+### Migrating from the built-in Wake-on-LAN
+
+Earlier versions woke and shut down the host themselves. To move to a proxy:
+
+1. **First** empty `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` and `OLLAMA_SSH_USER`
+   (better: remove all of the settings below) and restart. Do this before the
+   proxy goes live: two watchdogs would otherwise shut down the same host,
+   one of them without knowing about the other's requests.
+2. Set `OLLAMA_SERVER=http://<proxy>:11434`.
+3. Change the base URL of every local model in *Settings > AI Models* from the
+   host to the proxy. Each user's models are stored encrypted with their own
+   Paperless token, so each user changes their own.
+4. Remove the SSH key mount and `network_mode: host` from your
+   `docker-compose.yml` if they were only there for Wake-on-LAN, and the app's
+   key from the GPU host's `authorized_keys`.
+
+These settings no longer do anything; if one is still set, the app logs a
+warning once at start: `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL`, `OLLAMA_SSH_USER`,
+`OLLAMA_IDLE_SHUTDOWN_MINUTES`, `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES`,
+`OLLAMA_WAKE_TIMEOUT_S`, `SHUTDOWN_PASSWORD`, `PROACTIVE_WOL_AUTO`,
+`PROACTIVE_IDLE_SHUTDOWN_MINUTES`.
 
 ## Security notes
 

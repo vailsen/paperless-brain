@@ -64,8 +64,8 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
 - `OLLAMA_SERVER`, `OLLAMA_INGEST_MODEL` — *optional*, vision LLM for ingestion
   (both also settable in Settings > Processing, which wins). Chat and Werkbank
   never read them — those use per-user models with their own `base_url`.
-  `OLLAMA_SERVER` additionally names the host the WoL/shutdown buttons control;
-  without it that is inferred from the first local-lane model in the registry.
+  A sleeping GPU host sits behind a wake-on-request proxy; `OLLAMA_SERVER` and
+  the models' `base_url` then point at the proxy (docs/operations.md).
 - **Every Anthropic SDK client comes from `services/anthropic_client.async_client`.**
   SDK 2.x sends the key as `Authorization: Bearer`; for a custom base URL the
   factory moves it back to `X-Api-Key` (gateways read that). Sampling parameters
@@ -202,7 +202,7 @@ without filing it.
   cache valid. The bubble shows a chip (`attachments.split`); titles, the tool history heading
   and exports use `strip_for_title`.
 - **The text layer first; vision only for pages without one and for pictures** — the ingestion
-  model with the ingest extraction prompt (`build_vision_client`), woken via WoL if needed.
+  model with the ingest extraction prompt (`build_vision_client`); a sleeping host is woken by the proxy in front of it.
   Caps: `MAX_BYTES`, `MAX_PAGES`, `MAX_CHARS` (the block says when it was cut).
 - **No reference numbers**: the block tells the model to cite the upload in words; `[^…]`
   belongs to Paperless documents only.
@@ -382,11 +382,15 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   valid JSON escapes (form feed, tab, backspace) — a model that forgets to double the backslash
   loses the command without any parse error.
 
-### Ollama watchdog
+### Sleeping GPU host, GPU yield
 
-`services/ollama_watchdog.py`: shuts the Ollama host down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity, but only a host that was woken via WoL. `touch()` resets the idle timer. The state (woken?, last activity, host) lives in `data/power_state.json`, not in module globals: the proactive worker is a second process sending inference requests, and the app's watchdog must see them. Waking goes through `services/wol.wake()` — the dashboard button and the worker's LLM gate (`proactive/gate.py`) both use it. A shutdown counts only when ssh says so (`BatchMode=yes`, exit status checked) and is verified a few minutes later; a *failed* command keeps `wol_active` and is retried (`watchdog_step`), every decision logged as `[watchdog]`. **The watchdog never shuts down a machine someone is using.** The remote command is `SHUTDOWN_CMD`: it refuses (exit `IN_USE`) while a logind session is class user, on a seat, active and not idle — the watchdog then hands the host back (`wol_active` off). A host that is up again after an *accepted* shutdown is someone's who switched it back on: it is left on, never shut down a second time. (Both happened: the retry shut the owner's PC down at 01:14 while they used it.) A host the worker woke (`wol_by: worker`) goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (5) instead; any `touch()` from the app hands it back to the normal idle time.
+**paperless-brain has no power management.** No Wake-on-LAN, no idle shutdown, no power buttons (removed — a wake-on-request proxy in front of the GPU host does that; contract in docs/operations.md, "Sleeping GPU host"). Do not add any back. Leftover settings only log a warning once (`config/deprecations.py`).
 
-A chat with a local-lane model whose host does not answer wakes it before the turn (`wol.ensure_awake`, called from the chat page): only the host WoL controls (`wol.wakes`: MAC set, and `OLLAMA_SERVER`'s or the recorded host — else the model's own), then waits up to `OLLAMA_WAKE_TIMEOUT_S` with a status line; stop ends the wait. That wake is `wol_by: chat` and sleeps after `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES` (10); the app's `touch()` keeps it a chat's wake, so a dashboard wake still gets the normal idle time. A Werkbank run does the same before it briefs or starts (`pipeline.ensure_host`) — interactive, chat hand-off and the proactive deep dive alike — because the worker's gate wakes only the `OLLAMA_SERVER` host and the run itself talks to the model's own `base_url`. A run that stops keeps why (`pipeline.fail_run` → `RunState.error` / `error_kind`); the run list and the finding show it.
+`services/model_host.py` is all the app knows of that proxy: `proxy_status(url)` (`GET /proxy/status` → `{"host": "asleep|waking|up|shutting_down"}`, None for a plain server), `headers()` for local inference (`X-Idle-Profile: background` in the worker process, `X-No-Wake: 1` inside `no_wake()`), and `READ_TIMEOUT_S` (330 s: a held request waits for boot + model load — every local-inference read timeout must cover it). Requests to a local model host merge `model_host.headers()` into their own (llm_lane, vision, embeddings, chat stream).
+
+The proactive gate (`proactive/gate.py`) decides by `/proxy/status`: with `may_wake` (inside a sweep window or a fresh user request) `asleep`/`waking` count as ready — the job's request wakes the host; otherwise only `up`. The worker runs a job outside a window inside `model_host.no_wake()`, so a host that fell asleep meanwhile is not woken. Without a proxy the gate probes the endpoint. The chat shows "The model host is starting…" (right away when the proxy says asleep/waking, else after ~5 s without a first token); a Werkbank run checks its endpoint first (`pipeline.ensure_host`: a proxy counts as there, a plain server must answer).
+
+`services/gpu_yield.py` is *not* power logic: the app stamps its inference requests (`touch()`, only in the app process) into `data/activity_state.json`; the worker starts no LLM job while `app_busy()` (within `APP_YIELD_S`). `chat_touch`/`chat_busy` are process-local (Werkbank runs, embedding syncs wait for a chatting user). The worker calls `set_role("worker")` at start.
 
 ### Compute status
 
@@ -798,14 +802,14 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - Every recommendation needs a verbatim document quote and a web URL fetched in the same run; otherwise the recommendation is dropped by the validator.
 - Every proactive web query passes the code-level query guard. Prompt instructions are not a substitute.
 - Default notification content is title + urgency + link. Full text only with per-channel user opt-in.
-- Waking and shutting down the inference host goes through the existing WoL / idle-shutdown mechanism only. The worker never shuts the host down itself.
+- The worker never wakes or shuts down the inference host itself. A proxy in front of a sleeping host does; the worker only marks its requests (`X-Idle-Profile: background`, outside windows `X-No-Wake: 1`).
 - No admin role. Operator settings live in `.env`; channels, model, offsets, quiet hours, findings language and opt-in are per-user settings.
 - **No weekly message limit** (removed 2026-10-27): every finding over the push threshold is sent; a busy week while the archive is swept is accepted. What stays held: low priority and muted topics (critical ones are never held).
 - **Push and email are send-only.** A message is a title, the urgency and one link to the finding; answers happen on the finding page. Nothing reads a mailbox: the IMAP reply poller moved every unread mail of a personal inbox into its "processed" folder, and was removed (2026-10-27).
 - Model resolution order: `PROACTIVE_MODEL_FIXED` → user choice (must be in `PROACTIVE_MODEL_ALLOWLIST` if set) → `PROACTIVE_MODEL_DEFAULT` → chat model. Resolved in one function only. LLM jobs are grouped by model within a window.
 - No proactive LLM job runs on a cloud backend unless `PROACTIVE_CLOUD_ALLOWED=true`, and then within the per-user daily cap.
 - Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget — or when the user asks for it ("Analyse now", `sweep.start_now`, one document per job on the same cursor).
-- **A chatting user gets the GPU first.** The worker starts no LLM job while the app made an inference request within `ollama_watchdog.APP_YIELD_S` (`app_busy`); a running job finishes first. A deep dive runs in the app, so it yields on its own: `werkbank.llm_lane.yield_to_chat` makes every local-lane call of that run wait while `chat_busy()` (a chat request within `APP_YIELD_S`, process-local).
+- **A chatting user gets the GPU first.** The worker starts no LLM job while the app made an inference request within `gpu_yield.APP_YIELD_S` (`app_busy`); a running job finishes first. A deep dive runs in the app, so it yields on its own: `werkbank.llm_lane.yield_to_chat` makes every local-lane call of that run wait while `chat_busy()` (a chat request within `APP_YIELD_S`, process-local).
 - **A deep dive does not hold a request open for the length of a run.** `deep_dive` starts the Werkbank run in the app (listed at once, status "running"), writes `research_run` into the finding, and `deep_dive_poll` (not gated: the run keeps `app_busy` true) asks for the result. A deleted run leaves the finding interested and unresearched; a run nothing works on (app restart) waits for the user to resume it in the Werkbank. Every "Interesting" clears `research_run`/`research_note` — a new interest is a new research (reusing a deleted run's id polled nothing forever); the finding page offers "Research again" when nothing runs or is queued. Links to a deleted run or note render as deleted.
 - **The user sees an inbox: open, relevant, done, dismissed** (`states.DISPLAY` / `display_status`). The stored statuses stay — new / surfaced / held / snoozed are the notification bookkeeping behind "open", relevant / interested / researched sit behind "relevant" — but no UI lists them as statuses; the notification and the research are hints on the card (`findings_view.notice` / `research`). "Relevant" takes a finding out of the inbox and counts as interest for its topic; a deadline reminder puts it back (`remind` → surfaced). "Later" is no longer offered (the reaction stays for old message links).
 - **A finding body is a timeline, newest first** (`findings.split_timeline` / `join_timeline`): research results (`## Research result (date)`) and the user's notes (`## Note (date)`, `findings.add_note`), each closed by `---`, above the original finding, which has no heading of its own in the file (the page and the PDF label it `original_heading`). A second research — "Research again" on a researched finding, `researched → interested` — stacks above the first instead of replacing it. Series merges rebuild only the original and keep the entries above it. The research request carries the user's notes and ends with the findings language (`RESEARCH_LANGUAGE`): the request is English, and every Werkbank role answers "in the language of the request".

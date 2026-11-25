@@ -84,9 +84,9 @@ def _locked():
 
 def _default_purpose() -> str:
     try:
-        from services.ollama_watchdog import _role
+        from services import gpu_yield
 
-        return "proactive" if _role == "worker" else "background"
+        return "proactive" if gpu_yield.role() == "worker" else "background"
     except Exception:  # noqa: BLE001
         return "background"
 

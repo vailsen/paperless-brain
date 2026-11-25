@@ -534,19 +534,6 @@ async def map_batch(call, system: str, batch: list[tuple[int, str]]) -> list[dic
     return out
 
 
-async def _ensure_host(model: str, user: str, token: str, j: Job) -> None:
-    from services.model_registry import get_by_name
-
-    cfg = get_by_name(model, user, token) or {}
-    if cfg.get("backend") == "anthropic" or cfg.get("lane") != "local":
-        return
-    from services.wol import ensure_awake
-
-    outcome = await ensure_awake(cfg.get("base_url", ""), on_wait=lambda s: None, should_stop=lambda: j.stop)
-    if outcome == "timeout":
-        raise RuntimeError("model host did not wake up")
-
-
 async def _run(j: Job, token: str, expert, model: str, lang: str, incremental: bool) -> None:
     from i18n import translator_for
     from services.clients import sidecar_service
@@ -576,7 +563,6 @@ async def _run(j: Job, token: str, expert, model: str, lang: str, incremental: b
             studied[d.id] = material(d, sc)
         batches = [list(studied.items())[i:i + BATCH] for i in range(0, len(studied), BATCH)]
         j.total, j.phase = len(batches) + 1, "reading"
-        await _ensure_host(model, j.user, token, j)
         notes: list[dict] = []
         if old is not None:
             # Incremental: the old orientation is the starting point.

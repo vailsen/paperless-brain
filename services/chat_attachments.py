@@ -153,19 +153,6 @@ def is_pdf(data: bytes, filename: str, content_type: str) -> bool:
     return data[:5] == b"%PDF-" or content_type == "application/pdf" or filename.lower().endswith(".pdf")
 
 
-async def _wake(client) -> None:
-    base_url = getattr(client, "base_url", "") or ""
-    if not base_url:
-        return
-    from services import wol
-
-    try:
-        if wol.wakes(base_url):
-            await wol.ensure_awake(base_url, why="reading an uploaded file")
-    except Exception:
-        _log.info("could not wake the vision host", exc_info=True)
-
-
 async def extract(
     data: bytes,
     filename: str,
@@ -202,7 +189,6 @@ async def extract(
         from services.vision import build_vision_client
 
         vision = build_vision_client(username, token)
-        await _wake(vision)
         jpeg = await asyncio.to_thread(_image_jpeg, data, _) if is_image else None
         for n, i in enumerate(scans):
             if on_progress:
