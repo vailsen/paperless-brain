@@ -69,6 +69,12 @@ async def react(user: str, finding_id: str, action: str, *, channel: str) -> str
         if nxt is None:
             return None
         changes: dict = {"status": nxt}
+        if action == "relevant":
+            changes["marked_relevant"] = True
+        elif action in ("dismiss", "never", "wrong", "done"):
+            changes["marked_relevant"] = False
+            changes["pressing"] = False
+            changes["remind_on"] = None
         if action == "later":
             changes["snoozed_until"] = (clock.local_now().date() + timedelta(days=SNOOZE_DAYS)).isoformat()
         if action == "interested":
@@ -112,6 +118,38 @@ async def react(user: str, finding_id: str, action: str, *, channel: str) -> str
             user, finding_id, f.doc_ids, f.deadline, f.deadline_kind,
         )
     return _message(f.lang, action)
+
+
+async def set_pressing(user: str, finding_id: str, on: bool) -> findings.Finding | None:
+    """The user marks a finding pressing (or takes their mark back). A flag,
+    not a status: it survives reminders and status changes until closed."""
+    return await findings.update(user, finding_id, lambda f: (
+        {"pressing": bool(on)} if f.pressing != bool(on) else None))
+
+
+async def set_reminder(user: str, finding_id: str, days: int | None) -> findings.Finding | None:
+    """Remind the user of a deadline again in `days` days (None takes the
+    reminder back). Only for an open deadline, never past its date: returns
+    None when the finding is gone or the request does not fit."""
+    from proactive.states import DISPLAY
+
+    open_ = DISPLAY["open"] | DISPLAY["relevant"]
+    today = clock.local_now().date()
+
+    def mutate(f: findings.Finding) -> dict | None:
+        if days is None:
+            return {"remind_on": None} if f.remind_on else None
+        dd = f.deadline_date
+        if f.kind != "deadline" or f.status not in open_ or dd is None:
+            return None
+        if not 1 <= int(days) <= (dd - today).days:
+            return None
+        return {"remind_on": (today + timedelta(days=int(days))).isoformat()}
+
+    out = await findings.update(user, finding_id, mutate)
+    if out is None or (days is not None and not out.remind_on):
+        return None
+    return out
 
 
 async def surface(

@@ -198,6 +198,8 @@ def _meta_line(f, *, topic: bool = True, status: bool = True) -> str:
     parts.append(_("Urgency: {urgency}").format(urgency=_(URGENCY_LABELS.get(f.urgency, f.urgency))))
     if f.deadline:
         parts.append(_("Due {date}").format(date=f.deadline))
+    if getattr(f, "remind_on", None):
+        parts.append(_("Reminder on {date}").format(date=f.remind_on))
     if topic and f.topic:
         parts.append(f.topic_display)
     return " · ".join(parts)
@@ -660,6 +662,8 @@ def _bucket_items(items: list, bucket: str, today, dossier_topics: set[str]) -> 
         return [f for f in items if f.status in fv.OPEN_STATUSES and fv.is_pressing(f, today)]
     if bucket == "unfiled":
         return [f for f in items if display_status(f.status) == "open" and f.topic not in dossier_topics]
+    if bucket == "relevant":
+        return [f for f in items if fv.is_relevant(f)]
     return [f for f in items if display_status(f.status) == bucket]
 
 
@@ -1496,6 +1500,9 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                             label = _(ACTION_LABELS[a])
                         ui.button(label, on_click=lambda a=a: _do(a)).props("flat dense")
 
+            if f.status in fv.OPEN_STATUSES:
+                _own_marks(f)
+
             with ui.expansion(_("Add a note"), icon="edit_note").classes("w-full").props("dense"):
                 box = ui.textarea(placeholder=_("e.g. The operation took place in April 2024.")).props(
                     "outlined dense autogrow").classes("w-full")
@@ -1533,6 +1540,79 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                     with ui.element("div").classes("pb-tl-item w-full min-w-0"):
                         ui.label(head).classes("pb-tl-head")
                         ui.markdown(_in_app_links(text.strip(), user)).classes("chat-md finding-md w-full min-w-0")
+
+    def _own_marks(f) -> None:
+        """What the user sets on an open finding beyond its status: "pressing",
+        and for a deadline one reminder of their own on top of the offsets."""
+        from proactive import clock, reactions
+
+        today = clock.local_now().date()
+        fid = f.finding_id
+
+        async def _pressing(on: bool) -> None:
+            await reactions.set_pressing(user, fid, on)
+            ui.notify(_("Marked pressing.") if on else _("No longer marked pressing."), type="positive")
+            nav_body.refresh()
+            viewer_body.refresh()
+
+        async def _remind(days: int | None) -> None:
+            out = await reactions.set_reminder(user, fid, days)
+            if days is None:
+                ui.notify(_("Reminder removed."), type="positive")
+            elif out is None:
+                ui.notify(_("A reminder has to fall on or before the deadline."), type="warning")
+                return
+            else:
+                ui.notify(_("Reminder set for {date}.").format(date=out.remind_on), type="positive")
+            viewer_body.refresh()
+
+        def _ask_days(limit: int) -> None:
+            with _page_dialog() as dlg, ui.card().classes("w-full").style(
+                    "max-width:360px;background:var(--c-surface)"):
+                ui.label(_("Remind me again in …")).classes("text-base font-semibold")
+                num = ui.number(label=_("Days"), value=min(5, limit), min=1, max=limit, step=1,
+                                format="%d").props("outlined dense").classes("w-full")
+                ui.label(_("At most {n} days — the deadline is {date}.").format(n=limit, date=f.deadline)).classes(
+                    "pbm-hint")
+
+                async def _ok() -> None:
+                    try:
+                        n = int(num.value or 0)
+                    except (TypeError, ValueError):
+                        n = 0
+                    if not 1 <= n <= limit:
+                        ui.notify(_("Enter a number from 1 to {n}.").format(n=limit), type="warning")
+                        return
+                    dlg.close()
+                    await _remind(n)
+
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button(_("Cancel"), on_click=dlg.close).props("flat dense no-caps")
+                    ui.button(_("Set reminder"), on_click=_ok).props("unelevated dense no-caps color=primary")
+            dlg.open()
+
+        with ui.row().classes("gap-2 flex-wrap items-center"):
+            if f.pressing:
+                ui.button(_("Not pressing"), icon="priority_high",
+                          on_click=lambda: _pressing(False)).props("flat dense no-caps")
+            elif not fv.is_pressing(f, today):
+                ui.button(_("Mark pressing"), icon="priority_high",
+                          on_click=lambda: _pressing(True)).props("flat dense no-caps")
+            left = fv.days_left(f, today)
+            if f.kind == "deadline" and left is not None and left >= 1:
+                if f.remind_on:
+                    ui.label(_("Reminder on {date}").format(date=f.remind_on)).classes("text-xs").style(
+                        "color:var(--c-text-2)")
+                    ui.button(icon="close", on_click=lambda: _remind(None)).props(
+                        "flat dense round size=sm").classes("card-action-btn").tooltip(_("Remove reminder"))
+                with ui.button(_("Remind me in …") if not f.remind_on else _("Change reminder"),
+                               icon="notifications").props("flat dense no-caps"):
+                    with ui.menu():
+                        for n in (1, 3, 7, 14):
+                            if n <= left:
+                                ui.menu_item(_("{n} days").format(n=n) if n > 1 else _("1 day"),
+                                             on_click=lambda n=n: _remind(n))
+                        ui.menu_item(_("Other …"), on_click=lambda lim=left: _ask_days(lim))
 
     def _finding_docs(ids: list[int]) -> None:
         """The finding's documents as the document dialog shows them: title,

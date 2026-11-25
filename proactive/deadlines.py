@@ -16,6 +16,9 @@ findings, and from those to reminders.
   sent lives in the finding's `reminders_sent`, so a restart or a deleted
   `proactive.db` never sends one twice. A worker that was down past several
   offsets sends one reminder, not a burst.
+- On top of the offsets, one reminder the user asked for on the finding page
+  ("remind me in 5 days", `remind_on`). Sent once, then cleared; never after
+  the deadline.
 - Urgency by code: ≤ 1 day or a legally binding window (cancellation,
   objection) is `critical`; critical reminders are never held back (Phase 7).
 - The reminder run needs no LLM: it reads the ledger, so reminders go out
@@ -200,6 +203,7 @@ async def manual(user: str, text: str, due: str, note_id: str) -> findings.Findi
         kind="deadline",
         title=title_for(d, lang),
         status="relevant",
+        marked_relevant=True,
         urgency=urgency(d, today),
         evidence_hash=findings.evidence_hash([], [due, text]),
         deadline=due,
@@ -221,6 +225,12 @@ def due_offsets(f: findings.Finding, offsets: list[int], today: date) -> list[in
     return [o for o in offsets if left <= o and o not in f.reminders_sent]
 
 
+def own_reminder_due(f: findings.Finding, today: date) -> bool:
+    """The user's own reminder has come due (and the deadline has not passed)."""
+    dd = f.deadline_date
+    return bool(f.remind_on) and dd is not None and dd >= today and str(f.remind_on) <= today.isoformat()
+
+
 async def remind(user: str, offsets: list[int]) -> int:
     """Send the reminders that are due for one user. Returns how many."""
     from proactive import reactions
@@ -231,24 +241,30 @@ async def remind(user: str, offsets: list[int]) -> int:
         if f.kind != "deadline" or f.status not in ("new", "surfaced", "held", "snoozed", "relevant"):
             continue
         due = due_offsets(f, offsets, today)
-        if not due:
+        own = own_reminder_due(f, today)
+        if not due and not own:
             continue
-        if f.status == "snoozed" and (f.snoozed_until or "") > today.isoformat():
+        # A snooze holds the offsets back; a reminder the user set does not.
+        if not own and f.status == "snoozed" and (f.snoozed_until or "") > today.isoformat():
             continue
         crit = is_critical(f, today)
         left = (f.deadline_date - today).days
 
         def mark(x: findings.Finding, due=due) -> dict | None:
             missing = [o for o in due if o not in x.reminders_sent]
-            if not missing:
+            mine = own_reminder_due(x, today)
+            if not missing and not mine:
                 return None  # another run got here first
-            return {
-                "reminders_sent": sorted(set(x.reminders_sent) | set(missing), reverse=True),
-                "urgency": "critical" if crit else x.urgency,
-            }
+            changes: dict = {"urgency": "critical" if crit else x.urgency}
+            if missing:
+                changes["reminders_sent"] = sorted(set(x.reminders_sent) | set(missing), reverse=True)
+            if mine:
+                changes["remind_on"] = None
+            return changes
 
         updated = await findings.update(user, f.finding_id, mark)
-        if updated is None or sorted(updated.reminders_sent) == sorted(f.reminders_sent):
+        if updated is None or (sorted(updated.reminders_sent) == sorted(f.reminders_sent)
+                               and updated.remind_on == f.remind_on):
             continue
         from i18n import translator_for
 
@@ -261,7 +277,8 @@ async def remind(user: str, offsets: list[int]) -> int:
         else:
             await _resend(user, updated, text, counts=not crit)
         sent += 1
-        log.info("%s: reminder for finding %s (%d days left, offsets %s)", user, f.finding_id, left, due)
+        log.info("%s: reminder for finding %s (%d days left, offsets %s%s)", user, f.finding_id, left, due,
+                 ", own reminder" if own else "")
     return sent
 
 
