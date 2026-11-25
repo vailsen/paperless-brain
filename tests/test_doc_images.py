@@ -192,6 +192,7 @@ def paperless(monkeypatch, sidecar):
 
     pdf = _pdf()
     _FakePaperless.downloads = 0
+    doc_image_service._ACCESS.clear()
     monkeypatch.setattr(
         paperless_mod, "PaperlessClient", lambda url, token: _FakePaperless(pdf=pdf)
     )
@@ -230,6 +231,35 @@ def test_crop_differs_from_page_and_bad_index_falls_back_to_page(paperless, tmp_
     assert _FakePaperless.downloads == 1
 
 
+def test_small_render_for_the_source_pane(paperless, tmp_path):
+    small = _run(doc_image_service.get_image(7, 1, None, "tok", cache_dir=tmp_path, small=True))
+    assert max(_jpeg(small)) == pytest.approx(doc_image_service.SMALL_LONG_SIDE, abs=2)
+    assert doc_image_service.image_url(7, 1, small=True) == "/api/doc-image/7/1?s=1"
+
+
+def test_access_yes_is_kept_briefly_no_is_never(monkeypatch, tmp_path):
+    from services import paperless as paperless_mod
+
+    asked = []
+
+    class _Counting(_FakePaperless):
+        async def list_documents(self, ids=None, **_):
+            asked.append(ids)
+            return await super().list_documents(ids=ids)
+
+    doc_image_service._ACCESS.clear()
+    monkeypatch.setattr(paperless_mod, "PaperlessClient", lambda url, token: _Counting(pdf=_pdf()))
+    for _ in range(3):
+        assert _run(doc_image_service._visible_doc(7, "tok")) is not None
+        assert _run(doc_image_service._visible_doc(8, "tok")) is None
+    assert asked.count([7]) == 1 and asked.count([8]) == 3
+    assert _run(doc_image_service._visible_doc(7, "other")) is not None   # per token
+    assert asked.count([7]) == 2
+    monkeypatch.setattr(doc_image_service, "ACCESS_TTL_S", 0.0)
+    _run(doc_image_service._visible_doc(7, "tok"))
+    assert asked.count([7]) == 3
+
+
 def test_missing_page_gets_nothing(paperless, tmp_path):
     assert _run(doc_image_service.get_image(7, 9, None, "tok", cache_dir=tmp_path)) is None
 
@@ -252,7 +282,7 @@ def test_route_without_session_is_404(monkeypatch):
 def test_route_serves_jpeg_privately(monkeypatch):
     monkeypatch.setattr(doc_image_routes, "get_session_token", lambda: "tok")
 
-    async def _fake(doc_id, page, index, token):
+    async def _fake(doc_id, page, index, token, small=False):
         return b"\xff\xd8jpeg" if (doc_id, token) == (7, "tok") else None
 
     monkeypatch.setattr(doc_image_service, "get_image", _fake)

@@ -22,7 +22,7 @@ from config.chat_prompts import build_system_prompt
 from config.proactive import is_enabled as proactive_enabled
 from werkbank.settings_store import get_archive_language
 from i18n import DEFAULT_LANG, detect_language, get_translator
-from services.citations import number_citations
+from services.citations import group_sources, number_citations
 from models.brain_fact_result import BrainFactResult
 from models.result_document import DocumentResult
 from models.vault_note_result import VaultNoteResult
@@ -237,18 +237,19 @@ def _citation_list(sources: list[tuple[int, int, int]], titles: dict[int, str],
     _ = get_translator()
     page_label = _("p. {n}")
     dl_label = _html.escape(_("Download original file"), quote=True)
-    by_doc: dict[int, list[tuple[int, int]]] = {}
-    for n, doc, page in sources:
-        by_doc.setdefault(doc, []).append((n, page))
+    # One chip per cited page, carrying every number that cites it; a tap
+    # opens the page with the passage of its first number.
+    by_doc: dict[int, list[tuple[int, list[int]]]] = {}
+    for doc, page, ns in group_sources(sources):
+        by_doc.setdefault(doc, []).append((page, ns))
     rows = []
     for doc, cited in by_doc.items():
         chips = "".join(
-            f'<span class="pb-cite-item" data-cite="{doc}-{page}" data-n="{n}">'
-            f"<b>{n}</b>{_html.escape(page_label.format(n=page))}</span>"
-            if page
-            else f'<span class="pb-cite-item is-bare" data-cite="{doc}-0" data-n="{n}">'
-            f"<b>{n}</b></span>"
-            for n, page in cited
+            f'<span class="pb-cite-item{"" if page else " is-bare"}" data-cite="{doc}-{page}" data-n="{ns[0]}">'
+            f"<b>{', '.join(map(str, ns))}</b>"
+            + (_html.escape(page_label.format(n=page)) if page else "")
+            + "</span>"
+            for page, ns in cited
         )
         title = _html.escape(titles.get(doc, ""))
         rows.append(
@@ -2926,9 +2927,13 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                     ) as frame:
                         frame._props["data-page"] = str(n)
                         img = ui.element("img").classes("pb-src-img")
-                        img._props["src"] = doc_image_service.image_url(t.doc_id, n)
-                        img._props["alt"] = _("Page {n}").format(n=n)
-                        img._props["loading"] = "eager" if abs(n - t.page) <= 1 else "lazy"
+                        # A small render, and only near the screen: the
+                        # page viewer's observer sets `src` from `data-pb-src`.
+                        url = doc_image_service.image_url(t.doc_id, n, small=True)
+                        img._props["data-pb-src"] = url
+                        if abs(n - t.page) <= 1:
+                            img._props["src"] = url
+                        img._props["alt"] = ""
                         if n == t.page:
                             marks = [(b, "pb-src-hl is-other") for b in t.other_boxes]
                             marks += [(b, "pb-src-hl") for b in t.boxes]
@@ -3097,7 +3102,10 @@ window.__openCite = function(el) {{
     }});
     var md = el.closest('.chat-md');
     var claim = window.__citeClaim(el);
-    if (md) md.querySelectorAll('[data-n="' + el.getAttribute('data-n') + '"]').forEach(function(x) {{
+    var cite = el.getAttribute('data-cite');
+    // The tapped number, and the source box's chip of its page.
+    if (md) md.querySelectorAll('sup.pb-cite[data-n="' + el.getAttribute('data-n') + '"],'
+                                + '.pb-cite-item[data-cite="' + cite + '"]').forEach(function(x) {{
         x.classList.add('is-active');
     }});
     window.socket.emit('event', {{
@@ -3105,11 +3113,12 @@ window.__openCite = function(el) {{
         client_id: window.clientId,
         listener_id: '{_cite_listener_id}',
         args: [JSON.stringify({{
-            c: el.getAttribute('data-cite'),
+            c: cite,
             claim: claim,
-            // The same number behind other sentences: their passages are marked too.
+            // Other sentences citing the same page: their passages are marked
+            // too, fainter (`is-other`), so the page shows everything taken from it.
             others: md ? Array.prototype.map.call(
-                md.querySelectorAll('sup.pb-cite[data-n="' + el.getAttribute('data-n') + '"]'),
+                md.querySelectorAll('sup.pb-cite[data-cite="' + cite + '"]'),
                 window.__citeClaim).filter(function(x) {{ return x && x !== claim; }}) : []
         }})]
     }});
@@ -4028,12 +4037,22 @@ window.__openVaultNote = function(noteId) {{
                     parts.append(ev.text)
             return _cd.parse_draft("".join(parts), k)
 
+        async def _email_chat(system: str, msgs: list[dict]):
+            async for ev in backend.run_turn(
+                system=system, messages=msgs, tools=[], temperature=0.3, max_iterations=1,
+            ):
+                if isinstance(ev, TextTokenEvent):
+                    yield ev.text
+
+        if kind == "email":
+            # A conversation of its own; the model asks back and decides when
+            # the draft is ready (compose_dialogs.open_email_dialog).
+            _cd.open_email_dialog(_dlg_host, _, chat_fn=_email_chat if backend is not None else None,
+                                  context=list(_s["messages"]))
+            return
         draft_fn = _draft if backend is not None else None
-        if kind == "letter":
-            sender = (load_credentials(_u, _t) if _u and _t else {}).get("sender_profile", {})
-            run = _cd.open_letter_dialog(_dlg_host, _, sender=sender, draft_fn=draft_fn)
-        else:
-            run = _cd.open_email_dialog(_dlg_host, _, draft_fn=draft_fn)
+        sender = (load_credentials(_u, _t) if _u and _t else {}).get("sender_profile", {})
+        run = _cd.open_letter_dialog(_dlg_host, _, sender=sender, draft_fn=draft_fn)
         if run is not None and has_chat:
             asyncio.ensure_future(run())
 

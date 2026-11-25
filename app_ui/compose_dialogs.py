@@ -1,4 +1,4 @@
-"""Letter (DIN 5008, DOCX) and email draft — buttons in the chat's "…" menu.
+"""Letter (DIN 5008, DOCX) and email — buttons in the chat's "…" menu.
 
 They used to be model tools (`trigger_docx_generation`, `create_email`): two
 schemas, ~3 000 characters, read by the model on every call of every turn so
@@ -7,6 +7,13 @@ explicitly asks for, so the user opens it (2026-11-15). The draft is one model
 call without tools, made only when the dialog opens, from the conversation the
 user is looking at — the dialog shows it in editable fields, nothing is sent
 or saved without the user.
+
+The email is a small conversation of its own (2026-11-25): the user says what
+the mail is about, the model may ask back (recipient, purpose, facts), and the
+model decides when the draft is ready — it then answers with an
+`<email>{…}</email>` block, which the dialog turns into the preview (editable,
+copy, open in the mail app). The chat the user came from is in its system
+prompt as context. Still no tools, and nothing leaves the dialog by itself.
 """
 
 from __future__ import annotations
@@ -15,7 +22,7 @@ import json
 import logging
 import re
 import urllib.parse
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import date
 
 from nicegui import ui
@@ -112,6 +119,78 @@ def parse_draft(raw: str, kind: str) -> dict:
 
 
 DraftFn = Callable[[str, str], Awaitable[dict]]
+#: (system, messages) → the reply, streamed as text pieces.
+ChatFn = Callable[[str, list[dict]], AsyncIterator[str]]
+
+_EMAIL_CHAT_SYSTEM = """You help the user write an email. You are part of their document \
+assistant; the conversation they just had with it is below, as context.
+
+How to work:
+- When you know what the email should say, write it right away. Otherwise ask: one short \
+question per reply, only what you really need (recipient, purpose, the key facts, tone). The \
+user may also simply tell you.
+- Use only facts from the conversation or from the user. Never invent an email address, a \
+name, a number, a date or a reference. An address you do not know stays empty.
+- Answer in the language the user writes to you in. The email itself is in that language \
+too, unless the user asks for another.
+- When the draft is ready for the user to check, end your reply with it in exactly this \
+form, and write at most one short sentence before it:
+<email>{"to": "", "subject": "", "body": ""}</email>
+  `body` is the whole text with salutation and closing, paragraphs separated by \\n\\n.
+- When the user asks for changes, answer with the complete revised draft in the same form.
+
+Today is {today}.
+
+Conversation (context):
+{conversation}"""
+
+_EMAIL_BLOCK_RE = re.compile(r"<email>(.*?)(?:</email>|$)", re.S | re.I)
+
+
+def build_email_chat_system(messages: list[dict]) -> str:
+    """The system prompt of the email conversation: the rules, then the chat
+    the user came from (its newest part)."""
+    conv = conversation_excerpt(messages) or "(none — the user starts from scratch)"
+    return _EMAIL_CHAT_SYSTEM.replace("{today}", date.today().isoformat()).replace("{conversation}", conv)
+
+
+def visible_reply(text: str) -> str:
+    """What the bubble shows of a (partial) reply: no thinking, no draft
+    block, no half-arrived "<ema" at the end."""
+    text = re.sub(r"<think>.*?(?:</think>|$)", "", text or "", flags=re.S)
+    cut = text.lower().find("<email")
+    if cut >= 0:
+        text = text[:cut]
+    return re.sub(r"<[a-zA-Z]{0,5}$", "", text).strip()
+
+
+def email_draft(text: str) -> dict | None:
+    """The draft of a finished reply — ``{to, subject, body}`` — or None when
+    the model is still asking."""
+    text = re.sub(r"<think>.*?</think>", "", text or "", flags=re.S)
+    m = _EMAIL_BLOCK_RE.search(text)
+    if not m:
+        return None
+    raw = m.group(1).strip()
+    raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw)
+    start, end = raw.find("{"), raw.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        data = json.loads(raw[start:end + 1], strict=False)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    body = data.get("body")
+    if body is None and isinstance(data.get("body_paras"), list):
+        body = "\n\n".join(str(p) for p in data["body_paras"])
+    out = {
+        "to": str(data.get("to") or data.get("recipient_email") or "").strip(),
+        "subject": str(data.get("subject") or "").strip(),
+        "body": str(body or "").strip(),
+    }
+    return out if out["subject"] or out["body"] else None
 
 
 def _section(label: str) -> None:
@@ -251,45 +330,138 @@ def mailto_url(to: str, subject: str, body: str) -> str:
     )
 
 
-def open_email_dialog(host, _, *, draft_fn: DraftFn | None) -> Callable | None:
+def open_email_dialog(host, _, *, chat_fn: ChatFn | None, context: list[dict]) -> None:
+    """The email conversation: chat with the model until it shows a draft,
+    then the preview. Back to the conversation for changes at any time."""
     host.clear()
-    with host, ui.dialog().props("persistent") as dlg, ui.card().style(
-        "background:var(--c-surface); width:min(520px, 95vw); max-height:90vh; overflow-y:auto;"
+    system = build_email_chat_system(context)
+    history: list[dict] = []          # what the model sees
+    st = {"draft": None, "busy": False}
+    with host, ui.dialog().props("persistent") as dlg, ui.card().classes("pb-mail gap-2").style(
+        "background:var(--c-surface); width:min(560px, 95vw); height:min(720px, 88vh);"
+        "display:flex; flex-direction:column; flex-wrap:nowrap; padding:12px;"
     ):
+        ui.add_css(
+            ".pb-mail-log{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;"
+            "flex-direction:column;gap:8px;padding:2px}"
+            ".pb-mail-msg{max-width:88%;min-width:0;padding:6px 10px;border-radius:10px;font-size:.9rem;"
+            "overflow-wrap:anywhere}"
+            ".pb-mail-msg.is-user{align-self:flex-end;background:var(--c-accent-soft);color:var(--c-text)}"
+            ".pb-mail-msg.is-model{align-self:flex-start;background:var(--c-surface-2, rgba(127,127,127,.12));"
+            "color:var(--c-text)}"
+            ".pb-mail-msg p{margin:0 0 .4em}.pb-mail-msg p:last-child{margin:0}"
+        )
         with ui.row().classes("w-full items-center justify-between no-wrap"):
-            ui.label(_("Write an email")).classes("text-base font-semibold text-gray-100")
-            ui.button(icon="close", on_click=dlg.close).props("flat dark dense").classes("text-gray-400")
+            ui.label(_("Write an email")).classes("text-base font-semibold").style("color:var(--c-text)")
+            ui.button(icon="close", on_click=dlg.close).props("flat dense round").classes("card-action-btn")
 
-        to = ui.input(_("To")).props("outlined dark dense").classes("w-full")
-        subject = ui.input(_("Subject")).props("outlined dark dense").classes("w-full")
-        body = ui.textarea(_("Message")).props("outlined dark dense rows=9").classes("w-full")
+        # ── conversation ─────────────────────────────────────────────────────
+        talk = ui.column().classes("w-full gap-2 no-wrap").style("flex:1;min-height:0;")
+        with talk:
+            log = ui.element("div").classes("pb-mail-log w-full")
+            with log:
+                with ui.element("div").classes("pb-mail-msg is-model"):
+                    ui.markdown(_(
+                        "What should the email be about, and to whom? I know the conversation you "
+                        "came from. I'll ask if something is missing."
+                    ))
+            if chat_fn is None:
+                ui.label(_("No model selected")).classes("text-xs").style("color:var(--c-warn)")
+            with ui.row().classes("w-full items-end gap-2 no-wrap"):
+                box = ui.textarea(placeholder=_("e.g. To the landlord: ask for the meter readings")).props(
+                    "outlined dense autogrow rows=1").classes("flex-1 min-w-0")
+                send = ui.button(icon="send").props("flat dense round color=primary")
+                to_preview = ui.button(icon="preview").props("flat dense round").classes("card-action-btn")
+                to_preview.tooltip(_("Show the draft"))
+                to_preview.set_visibility(False)
 
-        def _apply(d: dict) -> None:
-            if d.get("recipient_email"):
-                to.set_value(d["recipient_email"])
-            if d.get("subject"):
-                subject.set_value(d["subject"])
-            paras = ([d["salutation"]] if d.get("salutation") else []) + list(d.get("body_paras") or [])
-            if paras:
-                body.set_value("\n\n".join(paras))
+        # ── preview ──────────────────────────────────────────────────────────
+        prev = ui.column().classes("w-full gap-2 no-wrap").style("flex:1;min-height:0;overflow-y:auto;")
+        with prev:
+            ui.label(_("Check the draft — every field can be edited.")).classes("text-xs").style(
+                "color:var(--c-text-muted)")
+            to = ui.input(_("To")).props("outlined dense").classes("w-full")
+            subject = ui.input(_("Subject")).props("outlined dense").classes("w-full")
+            body = ui.textarea(_("Message")).props("outlined dense autogrow").classes("w-full")
 
-        # Above the fields, as in the letter dialog.
-        with ui.element("div").classes("w-full") as bar:
-            run = _draft_bar(_, "email", draft_fn, _apply)
-        bar.move(target_index=1)
+            async def _copy(value: str, msg: str) -> None:
+                await ui.run_javascript(f"navigator.clipboard.writeText({json.dumps(value)})")
+                ui.notify(msg, timeout=1200)
 
-        async def _copy(value: str, msg: str) -> None:
-            await ui.run_javascript(f"navigator.clipboard.writeText({json.dumps(value)})")
-            ui.notify(msg, timeout=1200)
+            with ui.row().classes("w-full justify-between items-center gap-2 flex-wrap"):
+                ui.button(_("Ask for changes"), icon="chat",
+                          on_click=lambda: _show(False)).props("flat dense no-caps")
+                with ui.row().classes("gap-2 flex-wrap justify-end"):
+                    ui.button(_("Copy message"), icon="content_copy",
+                              on_click=lambda: _copy(body.value or "", _("Message copied!"))).props(
+                        "flat dense no-caps")
+                    ui.button(
+                        _("Open in mail app"), icon="open_in_new",
+                        on_click=lambda: ui.run_javascript(
+                            "window.location.href = "
+                            + json.dumps(mailto_url(to.value or "", subject.value or "", body.value or ""))),
+                    ).props("unelevated dense no-caps color=primary")
+        prev.set_visibility(False)
 
-        with ui.row().classes("w-full justify-end gap-2 mt-3"):
-            ui.button(_("Copy message"), icon="content_copy",
-                      on_click=lambda: _copy(body.value or "", _("Message copied!"))).props(
-                "flat dark dense").classes("text-gray-400")
-            ui.button(
-                _("Open in mail app"), icon="open_in_new",
-                on_click=lambda: ui.run_javascript(
-                    f"window.location.href = {json.dumps(mailto_url(to.value or '', subject.value or '', body.value or ''))}"),
-            ).props("unelevated dark").classes("bg-primary text-white")
+        def _show(preview: bool) -> None:
+            prev.set_visibility(preview)
+            talk.set_visibility(not preview)
+            to_preview.set_visibility(st["draft"] is not None)
+
+        def _bubble(role: str, text: str = ""):
+            with log:
+                el = ui.element("div").classes(f"pb-mail-msg is-{role}")
+                with el:
+                    md = ui.markdown(text)
+            ui.run_javascript(
+                f"(function(){{var l=document.getElementById('c{log.id}');if(l)l.scrollTop=l.scrollHeight}})()")
+            return md
+
+        async def _send() -> None:
+            text = (box.value or "").strip()
+            if not text or st["busy"] or chat_fn is None:
+                return
+            box.set_value("")
+            _bubble("user", text)
+            content = text
+            d = st["draft"]
+            if d is not None:
+                now = {"to": to.value or "", "subject": subject.value or "", "body": body.value or ""}
+                if now != d:
+                    # The user edited the preview: the model revises that, not its own version.
+                    content += "\n\n(The draft as I edited it:\n" + json.dumps(now, ensure_ascii=False) + ")"
+            history.append({"role": "user", "content": content})
+            st["busy"] = True
+            send.disable()
+            md = _bubble("model", "…")
+            parts: list[str] = []
+            try:
+                async for piece in chat_fn(system, list(history)):
+                    parts.append(piece)
+                    md.set_content(visible_reply("".join(parts)) or "…")
+            except Exception as exc:  # noqa: BLE001 — shown, never fatal
+                _log.warning("email chat failed", exc_info=True)
+                md.set_content(_("The model did not answer: {err}").format(err=exc))
+                history.pop()
+                return
+            finally:
+                st["busy"] = False
+                send.enable()
+            reply = "".join(parts)
+            history.append({"role": "assistant", "content": reply})
+            draft = email_draft(reply)
+            shown = visible_reply(reply)
+            if draft is None:
+                md.set_content(shown or _("(no answer)"))
+                return
+            md.set_content(shown or _("Here is the draft."))
+            st["draft"] = draft
+            to.set_value(draft["to"])
+            subject.set_value(draft["subject"])
+            body.set_value(draft["body"])
+            _show(True)
+
+        send.on_click(_send)
+        to_preview.on_click(lambda: _show(True))
+        box.on("keydown.enter.exact.prevent", _send)
     dlg.open()
-    return run

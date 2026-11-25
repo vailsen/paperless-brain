@@ -45,26 +45,40 @@ def cite_ref(doc_id: int, page: int | None = None) -> str:
 
 
 def number_citations(text: str, render) -> tuple[str, list[tuple[int, int, int]]]:
-    """Replace every marker with ``render(n, doc_id, page)``; number by first use.
+    """Replace every marker with ``render(n, doc_id, page)``, numbered 1, 2, 3 …
+    in reading order.
 
-    The same source cited twice keeps its number; ``page`` is 0 for a citation
-    of the whole document. A marker repeated right after itself is dropped.
-    Returns the new text and the sources as ``[(n, doc_id, page), …]``.
+    Every citation gets its own number, also when it names a page cited
+    before: one number per page made "1" stand behind five different
+    sentences, and a reader could not tell which of them a tap showed. What
+    belongs together is the source (``doc_id``, ``page``; page 0 = the whole
+    document) — the source box groups by it. A marker repeated right after
+    itself is dropped. Returns the new text and ``[(n, doc_id, page), …]``.
     """
-    numbers: dict[tuple[int, int], int] = {}
+    sources: list[tuple[int, int, int]] = []
     last_end = [-1]
     last_key = [None]
 
     def sub(m: re.Match) -> str:
         key = (int(m.group(1)), int(m.group(2) or 0))
-        if key not in numbers:
-            numbers[key] = len(numbers) + 1
         repeat = m.start() == last_end[0] and key == last_key[0]
         last_end[0], last_key[0] = m.end(), key
-        return "" if repeat else render(numbers[key], *key)
+        if repeat:
+            return ""
+        sources.append((len(sources) + 1, *key))
+        return render(len(sources), *key)
 
     out = CITE_RE.sub(sub, text or "")
-    return out, [(n, doc, page) for (doc, page), n in numbers.items()]
+    return out, sources
+
+
+def group_sources(sources: list[tuple[int, int, int]]) -> list[tuple[int, int, list[int]]]:
+    """``[(doc_id, page, [n, …]), …]`` — each cited page once, in order of
+    first use, with the numbers that cite it."""
+    groups: dict[tuple[int, int], list[int]] = {}
+    for n, doc, page in sources:
+        groups.setdefault((doc, page), []).append(n)
+    return [(doc, page, ns) for (doc, page), ns in groups.items()]
 
 
 def plain_citations(text: str, page_label: str = "p. {n}") -> str:
@@ -75,8 +89,8 @@ def plain_citations(text: str, page_label: str = "p. {n}") -> str:
     if not sources:
         return out
     items = "  \n".join(
-        f"<sup>{n}</sup> #{doc}" + (" · " + page_label.format(n=page) if page else "")
-        for n, doc, page in sources
+        f"<sup>{', '.join(map(str, ns))}</sup> #{doc}" + (" · " + page_label.format(n=page) if page else "")
+        for doc, page, ns in group_sources(sources)
     )
     return f"{out.rstrip()}\n\n---\n\n{items}\n"
 
