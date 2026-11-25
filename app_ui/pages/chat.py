@@ -4299,6 +4299,7 @@ window.__openVaultNote = function(noteId) {{
         bubble: list = [None]
         foot: list = [None]       # the bubble's footer row
         menu_slot: list = [None]  # where the "…" menu goes when the answer is done
+        busy_dots: list = [None]  # animated in the footer for the whole turn
 
         with messages_container:
             with ui.row().classes("justify-start w-full"):
@@ -4308,12 +4309,8 @@ window.__openVaultNote = function(noteId) {{
                     "display:flex;flex-direction:column;gap:6px;"
                 ) as b:
                     bubble[0] = b
-                    status_badge[0] = ui.html(
-                        '<div class="typing-dots">'
-                        "<span></span><span></span><span></span>"
-                        "</div>",
-                        sanitize=False,
-                    )
+                    # The current tool, once one runs; the busy dots are in the footer.
+                    status_badge[0] = ui.html("", sanitize=False).style("display:none;")
                     # Persistent <details> — browser owns open/closed state; we only
                     # update the inner content div, so state is never lost on refresh.
                     with ui.element("details").classes("pb-thoughts").style(
@@ -4339,6 +4336,11 @@ window.__openVaultNote = function(noteId) {{
                     # on the left once the answer is finished.
                     with ui.row().classes("justify-end items-center w-full mt-1 gap-1 no-wrap") as _f:
                         foot[0] = _f
+                        # Busy until the answer is finished: the dots at the top
+                        # give way to the tool label at the first tool call.
+                        busy_dots[0] = ui.html(
+                            '<div class="typing-dots"><span></span><span></span><span></span></div>',
+                            sanitize=False).classes("mr-auto")
                         menu_slot[0] = ui.row().classes("items-center gap-1 no-wrap")
 
         await _scroll_bottom()
@@ -4664,6 +4666,10 @@ window.__openVaultNote = function(noteId) {{
             if _starting is not None:
                 _starting.cancel()
             status_badge[0].style("display:none;")
+            try:
+                busy_dots[0].delete()
+            except Exception:  # noqa: BLE001 — the page may be gone; the answer is stored below
+                pass
             activity_row.set_visibility(False)
             if thinking_chunks[0] and _s["show_thinking"]:
                 _update_thinking()
