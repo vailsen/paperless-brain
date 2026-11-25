@@ -228,6 +228,14 @@ class Finding:
     #: The topic as the model wrote it ("Kfz-Versicherung"). `topic` is the key
     #: derived from it (`interests.slugify`) and what everything matches on.
     topic_label: str = ""
+    #: The user said "Relevant". Sticky: a deadline reminder puts the finding
+    #: back in the inbox (status `surfaced`) and it stays relevant too.
+    marked_relevant: bool = False
+    #: The user marked it pressing, whatever its urgency or deadline.
+    pressing: bool = False
+    #: A reminder the user asked for ("remind me in 5 days"), ISO date. Sent
+    #: by the daily run on top of the fixed offsets, then cleared.
+    remind_on: str | None = None
     # not in frontmatter
     user: str = ""
     rel: str = ""  # vault-relative path
@@ -268,6 +276,12 @@ class Finding:
             d["research_note"] = self.research_note
         if self.topic_label:
             d["topic_label"] = self.topic_label
+        if self.marked_relevant:
+            d["marked_relevant"] = True
+        if self.pressing:
+            d["pressing"] = True
+        if self.remind_on:
+            d["remind_on"] = self.remind_on
         return d
 
     @property
@@ -364,6 +378,9 @@ def parse(text: str, *, user: str = "", rel: str = "") -> Finding | None:
         research_run=_s(m.get("research_run")),
         research_note=_s(m.get("research_note")),
         topic_label=str(m.get("topic_label") or ""),
+        marked_relevant=m.get("marked_relevant") is True,
+        pressing=m.get("pressing") is True,
+        remind_on=_s(m.get("remind_on")),
         user=user,
         rel=rel,
         body=note.body,
@@ -710,6 +727,7 @@ async def upsert(user: str, f: Finding) -> tuple[Finding, str]:
         fields.update(status="new", surfaced_at=None, snoozed_until=None)
         if f.kind == "deadline":
             fields["reminders_sent"] = []
+            fields["remind_on"] = None
 
     def mutate(cur: Finding) -> dict:
         if not reopen and cur.status != existing.status:

@@ -601,6 +601,11 @@ page `app_ui/pages/experts.py`.
 - **A finding's dock chat is about that finding** (its dossier comes along as
   context), a fresh conversation per finding, and pins nothing: pins are the
   user's across every chat, and the inbox left each finding's documents there.
+- **The user's own marks are flags, not statuses** (`proactive/findings.py`): `marked_relevant`
+  keeps a finding under "Relevant" after a reminder put it back in the inbox; `pressing`
+  (`reactions.set_pressing`) puts it under "Pressing" whatever its urgency; `remind_on`
+  (`reactions.set_reminder`, deadlines only, never past the date) is one extra reminder on top
+  of the offsets, sent by the daily run and then cleared. Closing a finding clears all three.
 - **Saving to a dossier never proposes questions** — the model only says which
   existing ones the excerpt answers; its new ones were invented.
 - **The chat never offers to change a finding or dossier** (`chat._CTX_READ_ONLY`
