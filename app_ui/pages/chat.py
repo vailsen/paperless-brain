@@ -4401,6 +4401,7 @@ window.__openVaultNote = function(noteId) {{
         _tool_trace: list[dict] = []
         _model_calls: list[dict] = []  # ModelCallEvent per model request, for the tool history
         _transcript: list = [None]     # TranscriptEvent: what the model was sent, for the download
+        _thinking_by_round: dict[int, str] = {}  # the model's thinking per round, for the tool history
         _shown_images: list[ImageDisplayEvent] = []  # show_document_image, in call order
 
         # The tool history, live: it holds the lists above and redraws itself
@@ -4409,7 +4410,8 @@ window.__openVaultNote = function(noteId) {{
 
         with bubble[0]:
             _tv = TraceView(_tool_trace, _model_calls, lambda: _transcript[0],
-                            model=_s.get("chat_model_name", ""), question=_question)
+                            model=_s.get("chat_model_name", ""), question=_question,
+                            thinking=_thinking_by_round, answer=lambda: accumulated[0])
         _tv.running = True
         with foot[0]:
             _tv_btn = ui.button(icon="info_outline", color=None, on_click=_tv.open).props(
@@ -4524,6 +4526,8 @@ window.__openVaultNote = function(noteId) {{
                     break
                 if isinstance(event, ThinkingEvent):
                     thinking_chunks[0].append({"text": event.text, "iter_label": ""})
+                    _thinking_by_round[_iter[0]] = _thinking_by_round.get(_iter[0], "") + event.text
+                    _tv_update()
                     if _s["show_thinking"]:
                         _update_thinking()
                         messages_scroll.scroll_to(percent=1.0)

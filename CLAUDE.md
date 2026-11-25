@@ -216,11 +216,14 @@ without filing it.
 **Tool history** (`app_ui/tool_trace.py`, `TraceView`): its own icon in the answer's footer
 from the moment the turn starts, beside the "…" menu that joins it when the answer is done.
 It holds the turn's lists and redraws while open (`update()` per event), so the user watches
-the loop work. Steps on the left — each model request, then the tools it asked for, with a
-duration bar — and the chosen step on the right (a phone shows one at a time, with "All
-steps"); only the chosen step's result reaches the browser. Several tools under one request
-are parallel tool use: one answer asked for all of them, so they are one step, not several
-iterations. Every model request (tokens, first token, total time — `ModelCallEvent`) and
+the loop work. Steps on the left, one **round** per model request: "Thinking" (the model's
+own time — reading the prompt, thinking, writing its tool calls — with its thinking text),
+then the tools it asked for, which run after it; the last round's step is "Final answer",
+with the answer. The round heading carries model + tools. The chosen step is on the right
+(a phone shows one at a time, with "All steps"); only its content reaches the browser.
+Several tools in one round are parallel tool use: one answer asked for all of them.
+`open()` opens before it draws — `update()` draws only an open dialog, so a history closed
+mid-turn and reopened showed nothing new. Every model request (tokens, first token, total time — `ModelCallEvent`) and
 tool call (duration, the whole result). Downloads: the history, and the raw
 request of the last model call (`TranscriptEvent`: system prompt, tool schemas, messages;
 thinking removed). Live only — nothing is stored. The trace's `output` stays capped at

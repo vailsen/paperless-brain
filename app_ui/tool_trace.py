@@ -89,12 +89,12 @@ def trace_markdown(trace: list[dict], calls: list[dict], *, model: str = "", que
     meta = [f"{(now or datetime.now()):%Y-%m-%d %H:%M}"]
     if model:
         meta.append(f"model {model}")
-    meta.append(f"{tot['calls']} model requests ({_secs(tot['model_ms'])})")
+    meta.append(f"{tot['calls']} rounds (model {_secs(tot['model_ms'])})")
     meta.append(f"{tot['tools']} tool calls ({_secs(tot['tool_ms'])})")
     meta.append(f"tokens in {tot['input']:,} / out {tot['output']:,}".replace(",", " "))
     out += ["*" + " · ".join(meta) + "*", ""]
     for i, call, tools in _steps(trace, calls):
-        out += [f"## Iteration {i}", ""]
+        out += [f"## Round {i}", ""]
         if call:
             out += [f"Model: {call_summary(call)}", ""]
         for t in tools:
@@ -164,28 +164,44 @@ def transcript_markdown(system: str, tools: list[dict], messages: list[dict], *,
     return "\n".join(out).rstrip() + "\n"
 
 
+_TOOL_STOPS = ("tool_calls", "tool_use")
+
+
 def step_list(trace: list[dict], calls: list[dict], *, running: bool = False,
               iteration: int = 0) -> list[dict]:
-    """The steps the dialog lists, in order: each model request, then the tools
-    it asked for. While a turn runs, the request being made now is a step too
-    (``running``), and so is a tool without a result yet.
+    """The steps the dialog lists, in order, one round per model request:
 
-    Several tools under one request are not several iterations: the model
-    asked for all of them in one answer (parallel tool use); they run, and
-    the next request sees all their results at once.
+    - ``round`` — a heading, the round's whole time (model + tools);
+    - ``model`` — the model's own part: reading the prompt, thinking and
+      writing its tool calls (``final`` False), or writing the answer
+      (``final`` True);
+    - ``tool`` — each tool it asked for, run after the model was done.
+
+    While a turn runs, the request being made now is a step too (``running``),
+    and so is a tool without a result yet. Several tools in one round are not
+    several rounds: the model asked for all of them in one answer (parallel
+    tool use), and the next round sees all their results at once.
     """
     out: list[dict] = []
-    seen_iters = set()
-    for i, call, tools in _steps(trace, calls):
-        seen_iters.add(i)
-        out.append({"kind": "model", "key": f"m{i}", "iter": i, "call": call, "n_tools": len(tools),
+    seen = set()
+
+    def _round(i: int, call: dict | None, tools: list[dict]) -> None:
+        seen.add(i)
+        busy = running and (call is None or any(t.get("duration_ms") is None for t in tools))
+        ms = (call or {}).get("total_ms", 0) + sum(t.get("duration_ms") or 0 for t in tools)
+        final = bool(call) and not tools and (call.get("stop") or "") not in _TOOL_STOPS
+        out.append({"kind": "round", "key": f"r{i}", "iter": i, "ms": ms if call else None,
+                    "running": busy})
+        out.append({"kind": "model", "key": f"m{i}", "iter": i, "call": call, "final": final,
                     "running": call is None and running})
         for k, t in enumerate(tools):
             out.append({"kind": "tool", "key": f"t{i}.{k}", "iter": i, "step": t,
                         "running": running and t.get("duration_ms") is None})
-    if running and iteration and iteration not in seen_iters:
-        out.append({"kind": "model", "key": f"m{iteration}", "iter": iteration, "call": None,
-                    "n_tools": 0, "running": True})
+
+    for i, call, tools in _steps(trace, calls):
+        _round(i, call, tools)
+    if running and iteration and iteration not in seen:
+        _round(iteration, None, [])
     return out
 
 
@@ -196,7 +212,10 @@ _CSS = """
   min-width:0;color:var(--c-text-2)}
 .pb-tt-item:hover{background:var(--c-surface-3)}
 .pb-tt-item.is-sel{background:var(--c-accent-soft);color:var(--c-text)}
-.pb-tt-item.is-tool{margin-left:14px}
+.pb-tt-item.is-sub{margin-left:14px}
+.pb-tt-round{display:flex;align-items:center;gap:6px;padding:8px 8px 2px;font-size:.72rem;
+  font-weight:600;color:var(--c-text-muted)}
+.pb-tt-round:first-child{padding-top:2px}
 .pb-tt-row{display:flex;align-items:center;gap:6px;min-width:0;font-size:.78rem}
 .pb-tt-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pb-tt-dur{flex-shrink:0;font-size:.7rem;color:var(--c-text-muted);font-variant-numeric:tabular-nums}
@@ -227,13 +246,16 @@ class TraceView:
     """
 
     def __init__(self, trace: list[dict], calls: list[dict], transcript=None, *,
-                 model: str = "", question: str = ""):
+                 model: str = "", question: str = "", thinking: dict[int, str] | None = None,
+                 answer=None):
         from i18n import get_translator
 
         self._ = get_translator()
         self.trace, self.calls = trace, calls
         self.transcript = transcript      # callable → TranscriptEvent | None, or the event
         self.model, self.question = model, question
+        self.thinking = thinking if thinking is not None else {}   # round → thinking text
+        self.answer = answer              # callable → the answer text so far
         self.running = False
         self.iteration = 0
         self.sel: str | None = None       # None: follow the newest step
@@ -243,16 +265,19 @@ class TraceView:
 
     # ── public ───────────────────────────────────────────────────────────────
     def open(self) -> None:
+        # Open first: update() draws only an open dialog, so drawing before
+        # opening left a dialog closed mid-turn showing what it had then.
+        self.dlg.open()
         self._sig = None
         self.update()
-        self.dlg.open()
 
     def update(self) -> None:
         """Redraw if open and something changed (cheap to call per event)."""
         if not self.dlg.value:
             return
         sig = (len(self.trace), len(self.calls), self.running, self.iteration, self.sel, self.phone_detail,
-               sum(1 for t in self.trace if t.get("duration_ms") is not None))
+               sum(1 for t in self.trace if t.get("duration_ms") is not None),
+               sum(len(v) for v in self.thinking.values()))
         if sig == self._sig:
             return
         self._sig = sig
@@ -304,7 +329,7 @@ class TraceView:
     def _head(self) -> None:
         _ = self._
         tot = totals(self.trace, self.calls)
-        text = _("{calls} model requests ({model_s}) · {tools} tool calls ({tool_s}) · "
+        text = _("{calls} rounds · model {model_s} · {tools} tool calls ({tool_s}) · "
                  "tokens in {tin} / out {tout}").format(
             calls=tot["calls"], model_s=_secs(tot["model_ms"]), tools=tot["tools"],
             tool_s=_secs(tot["tool_ms"]), tin=f"{tot['input']:,}".replace(",", " "),
@@ -318,6 +343,7 @@ class TraceView:
         return step_list(self.trace, self.calls, running=self.running, iteration=self.iteration)
 
     def _selected(self, steps: list[dict]) -> dict | None:
+        steps = [s for s in steps if s["kind"] != "round"]
         if not steps:
             return None
         if self.sel:
@@ -339,6 +365,8 @@ class TraceView:
 
     @staticmethod
     def _ms(step: dict) -> int | None:
+        if step["kind"] == "round":
+            return step["ms"]
         if step["kind"] == "model":
             return (step["call"] or {}).get("total_ms")
         return step["step"].get("duration_ms")
@@ -348,28 +376,31 @@ class TraceView:
         _ = self._
         steps = self._steps_now()
         cur = self._selected(steps)
-        longest = max([self._ms(s) or 0 for s in steps] + [1])
+        longest = max([self._ms(s) or 0 for s in steps if s["kind"] != "round"] + [1])
         with ui.element("div").classes("pb-tt-nav"):
             if not steps:
                 ui.label(_("Waiting for the model …")).classes("text-xs").style("color:var(--c-text-muted)")
             for s in steps:
-                cls = "pb-tt-item" + (" is-tool" if s["kind"] == "tool" else "") + (
-                    " is-sel" if cur and s["key"] == cur["key"] else "")
+                ms = self._ms(s)
+                if s["kind"] == "round":
+                    with ui.element("div").classes("pb-tt-round"):
+                        ui.label(_("Round {n}").format(n=s["iter"])).classes("pb-tt-name")
+                        if ms is not None and not s["running"]:
+                            ui.label(_secs(ms)).classes("pb-tt-dur")
+                    continue
+                cls = "pb-tt-item is-sub" + (" is-sel" if cur and s["key"] == cur["key"] else "")
                 el = ui.element("div").classes(cls)
                 el.on("click", lambda _e, k=s["key"]: self._pick(k))
-                ms = self._ms(s)
                 with el:
                     with ui.element("div").classes("pb-tt-row"):
                         if s["running"]:
                             ui.spinner(size="0.9em")
                         elif s["kind"] == "model":
-                            ui.icon("psychology", size="1rem")
+                            ui.icon("edit_note" if s["final"] else "psychology", size="1rem")
                         else:
                             ui.icon("build", size="0.9rem")
                         if s["kind"] == "model":
-                            name = _("Model request {n}").format(n=s["iter"])
-                            if s["n_tools"] > 1:
-                                name += " · " + _("{n} tools at once").format(n=s["n_tools"])
+                            name = _("Final answer") if s["final"] else _("Thinking")
                         else:
                             name = (s["step"].get("label") or s["step"].get("name") or "").rstrip(".")
                         ui.label(name).classes("pb-tt-name")
@@ -395,12 +426,14 @@ class TraceView:
 
     def _model_detail(self, s: dict) -> None:
         _ = self._
-        ui.label(_("Model request {n}").format(n=s["iter"])).classes("text-sm font-semibold").style(
-            "color:var(--c-text)")
+        title = _("Final answer") if s["final"] else _("Thinking")
+        ui.label(_("Round {n} · {what}").format(n=s["iter"], what=title)).classes(
+            "text-sm font-semibold").style("color:var(--c-text)")
         call = s["call"]
+        tools = [t for t in self.trace if t["iter"] == s["iter"]]
         if call is None:
-            ui.label(_("The model is working on this request …") if s["running"]
-                     else _("No timing reported for this request.")).classes("text-xs").style(
+            ui.label(_("The model is working on this round …") if s["running"]
+                     else _("No timing reported for this round.")).classes("text-xs").style(
                 "color:var(--c-text-muted)")
         else:
             gen_s = (call.get("total_ms", 0) - call.get("first_token_ms", 0)) / 1000
@@ -409,33 +442,39 @@ class TraceView:
             rows = [
                 (_("Prompt tokens"), prompt.replace(",", " ")),
                 (_("Output tokens"), f"{call.get('output_tokens', 0):,}".replace(",", " ")),
-                (_("First token after"), _secs(call.get("first_token_ms", 0))),
-                (_("Total time"), _secs(call.get("total_ms", 0))),
+                (_("Reading the prompt"), _secs(call.get("first_token_ms", 0))),
+                (_("Writing"), _secs(max(0, call.get("total_ms", 0) - call.get("first_token_ms", 0)))),
+                (_("Model time"), _secs(call.get("total_ms", 0))),
             ]
+            if tools and all(t.get("duration_ms") is not None for t in tools):
+                rows.append((_("Tools after it"), _secs(sum(t["duration_ms"] for t in tools))))
             if call.get("cache_read") or call.get("cache_write"):
                 rows.append((_("Cache read / written"),
                              f"{call.get('cache_read', 0):,} / {call.get('cache_write', 0):,}".replace(",", " ")))
             if call.get("output_tokens") and gen_s > 0.2:
                 rows.append((_("Speed"), f"{call['output_tokens'] / gen_s:.0f} tok/s"))
-            if call.get("stop"):
-                rows.append((_("Ended with"), _("tool calls") if call["stop"] in ("tool_calls", "tool_use")
-                             else call["stop"]))
             with ui.element("div").classes("pb-tt-grid"):
                 for k, v in rows:
                     ui.label(k).classes("pb-tt-k")
                     ui.label(v)
-        tools = [t for t in self.trace if t["iter"] == s["iter"]]
-        if tools:
-            ui.label(_("Asked for {n} tool(s) in this one answer:").format(n=len(tools))).classes(
-                "text-xs mt-2").style("color:var(--c-text-muted)")
-            for t in tools:
-                ui.label("· " + (t.get("label") or t.get("name") or "").rstrip(".")).classes("text-xs")
-            if len(tools) > 1:
-                ui.label(_("Several tools in one request are one step: the model asked for all of them "
-                           "at once, and its next request sees all their results together.")).classes(
+            if not s["final"]:
+                ui.label(_("Model time is the model alone: reading the prompt until the first token, "
+                           "then thinking and writing its tool calls. The tools ran after it.")).classes(
                     "text-xs").style("color:var(--c-text-muted)")
-        elif call and not s["running"]:
-            ui.label(_("No tools — this request wrote the answer.")).classes("text-xs mt-2").style(
+        thought = (self.thinking.get(s["iter"]) or "").strip()
+        if s["final"]:
+            answer = (self.answer() if callable(self.answer) else self.answer) or ""
+            if thought:
+                ui.label(_("Thinking")).classes("pb-tt-k mt-1")
+                ui.label(thought).classes("pb-tt-pre")
+            ui.label(_("Answer")).classes("pb-tt-k mt-1")
+            ui.label(answer.strip() or _("(empty)")).classes("pb-tt-pre is-out")
+            return
+        ui.label(_("Thinking")).classes("pb-tt-k mt-1")
+        if thought:
+            ui.label(thought).classes("pb-tt-pre is-out")
+        elif not s["running"]:
+            ui.label(_("The model showed no thinking in this round.")).classes("text-xs").style(
                 "color:var(--c-text-muted)")
 
     def _tool_detail(self, s: dict) -> None:
@@ -446,7 +485,7 @@ class TraceView:
                 "color:var(--c-text)")
             if t.get("duration_ms") is not None:
                 ui.label(_secs(t["duration_ms"])).classes("pb-tt-dur")
-        ui.label(_("Tool {name} · model request {n}").format(name=t.get("name", ""), n=t["iter"])).classes(
+        ui.label(_("Tool {name} · round {n}").format(name=t.get("name", ""), n=t["iter"])).classes(
             "pb-tt-k")
         ui.label(_("Input")).classes("pb-tt-k mt-1")
         inp = t.get("input")
@@ -468,6 +507,8 @@ class TraceView:
         ui.label(full or _("(empty)")).classes("pb-tt-pre is-out")
 
 
-def build_dialog(trace: list[dict], calls: list[dict], transcript, *, model: str = "", question: str = ""):
+def build_dialog(trace: list[dict], calls: list[dict], transcript, *, model: str = "", question: str = "",
+                 thinking: dict[int, str] | None = None, answer=None):
     """The dialog of a finished turn (kept for callers that have no live view)."""
-    return TraceView(trace, calls, transcript, model=model, question=question).dlg
+    return TraceView(trace, calls, transcript, model=model, question=question,
+                     thinking=thinking, answer=answer).dlg
