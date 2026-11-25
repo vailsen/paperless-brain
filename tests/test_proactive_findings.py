@@ -441,6 +441,31 @@ def test_timeline_split_join_and_notes(vaults):
     assert md.index("Zweite Notiz") < md.index("## Ursprünglicher Hinweis") < md.index("### Summary")
 
 
+def test_a_note_can_be_edited_and_deleted(vaults):
+    from proactive import findings
+
+    f, _o = asyncio.run(findings.upsert("alice", findings.Finding(
+        finding_id="", kind="insight", title="t", topic="x", doc_ids=[1], lang="en",
+        finding_key="x:1", body="Original.\n")))
+    asyncio.run(findings.add_note("alice", f.finding_id, "first"))
+    asyncio.run(findings.add_note("alice", f.finding_id, "second"))
+    entries, _rest = findings.split_timeline(findings.get("alice", f.finding_id).body, "en")
+    first = entries[1]
+    assert findings.is_note_entry(first, "en")
+
+    out = asyncio.run(findings.change_note("alice", f.finding_id, first, "first, corrected\n---\nmore"))
+    assert out is not None
+    assert findings.notes_text(out.body, "en") == ["first, corrected\n***\nmore", "second"]
+    assert findings.split_timeline(out.body, "en")[0][1].split("\n", 1)[0] == first.split("\n", 1)[0]  # date kept
+    # The old wording is gone: changing it again by the stale text does nothing.
+    assert asyncio.run(findings.change_note("alice", f.finding_id, first, "x")) is None
+
+    second = findings.split_timeline(out.body, "en")[0][0]
+    out = asyncio.run(findings.change_note("alice", f.finding_id, second, None))
+    assert findings.notes_text(out.body, "en") == ["first, corrected\n***\nmore"]
+    assert findings.split_timeline(out.body, "en")[1].strip() == "Original."
+
+
 def test_series_merge_keeps_the_timeline(vaults):
     from proactive import findings
 
