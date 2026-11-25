@@ -1534,12 +1534,52 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             entries, original = findings.split_timeline(
                 cite_evidence(f.body), f.lang)
             tl = [(e.split("\n", 1)[0][3:].strip(), e.split("\n", 1)[1] if "\n" in e else "") for e in entries]
+            # The note as stored (the shown text has reference numbers in it).
+            raw = findings.split_timeline(f.body, f.lang)[0]
+            notes = [r if len(raw) == len(entries) and findings.is_note_entry(r, f.lang) else None for r in raw]
+            notes += [None] * (len(tl) + 1 - len(notes))
             tl.append((findings.original_heading(f), original))
             with ui.element("div").classes("pb-tl w-full min-w-0"):
-                for head, text in tl:
+                for (head, text), note in zip(tl, notes):
                     with ui.element("div").classes("pb-tl-item w-full min-w-0"):
-                        ui.label(head).classes("pb-tl-head")
+                        with ui.row().classes("items-center gap-1 no-wrap w-full"):
+                            ui.label(head).classes("pb-tl-head")
+                            if note:
+                                ui.button(icon="edit", color=None,
+                                          on_click=lambda n=note: _edit_note(f, n)).props(
+                                    "flat dense round size=sm").classes("card-action-btn").tooltip(
+                                    _("Edit or delete note"))
                         ui.markdown(_in_app_links(text.strip(), user)).classes("chat-md finding-md w-full min-w-0")
+
+    def _edit_note(f, entry: str) -> None:
+        """Edit or delete one of the user's own notes on a finding."""
+        fid = f.finding_id
+        current = entry.strip("\n").split("\n", 1)[1].strip() if "\n" in entry.strip("\n") else ""
+        with _page_dialog() as dlg, ui.card().classes("w-full").style(
+                "max-width:560px;background:var(--c-surface)"):
+            ui.label(entry.strip("\n").split("\n", 1)[0][3:].strip()).classes("text-base font-semibold")
+            box = ui.textarea(value=current).props("outlined dense autogrow autofocus").classes("w-full")
+
+            async def _apply(text: str | None) -> None:
+                out = await findings.change_note(user, fid, entry, text)
+                dlg.close()
+                if out is None:
+                    ui.notify(_("The note changed meanwhile — reload and try again."), type="warning")
+                else:
+                    ui.notify(_("Note saved.") if text else _("Note deleted."), type="positive")
+                viewer_body.refresh()
+
+            async def _save() -> None:
+                text = (box.value or "").strip()
+                await _apply(text or None)
+
+            with ui.row().classes("w-full justify-between items-center"):
+                ui.button(_("Delete note"), icon="delete", on_click=lambda: _apply(None)).props(
+                    "flat dense no-caps").style("color:var(--c-warn)")
+                with ui.row().classes("gap-1"):
+                    ui.button(_("Cancel"), on_click=dlg.close).props("flat dense no-caps")
+                    ui.button(_("Save"), on_click=_save).props("unelevated dense no-caps color=primary")
+        dlg.open()
 
     def _own_marks(f) -> None:
         """What the user sets on an open finding beyond its status: "pressing",

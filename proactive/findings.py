@@ -111,14 +111,18 @@ def join_timeline(entries: list[str], original: str) -> str:
     return "".join(e.strip("\n") + "\n" + ENTRY_SEP + "\n" for e in entries) + original.lstrip("\n")
 
 
+def _safe_note(text: str) -> str:
+    """A line of three dashes would end the entry early: another rule instead."""
+    return re.sub(r"(?m)^\s*-{3,}\s*$", "***", text.strip())
+
+
 def note_entry(lang: str, text: str, day: str) -> str:
     """The user's note as a timeline entry. A line of three dashes would end
     the entry early, so it becomes a different rule."""
     from i18n import translator_for
 
     _ = translator_for(lang)
-    text = re.sub(r"(?m)^\s*-{3,}\s*$", "***", text.strip())
-    return f"## {_('Note ({date})').format(date=day)}\n\n{text}\n"
+    return f"## {_('Note ({date})').format(date=day)}\n\n{_safe_note(text)}\n"
 
 
 async def add_note(user: str, finding_id: str, text: str) -> "Finding | None":
@@ -135,6 +139,44 @@ async def add_note(user: str, finding_id: str, text: str) -> "Finding | None":
         return join_timeline([note_entry(cur.lang, text, day), *entries], original)
 
     return await update(user, finding_id, lambda _cur: None, body=body)
+
+
+def _note_heads(lang: str) -> set[str]:
+    from i18n import translator_for
+
+    return {h for h in (translator_for(c)("Note ({date})").split("(")[0].strip() for c in {"en", lang or "en"}) if h}
+
+
+def is_note_entry(entry: str, lang: str) -> bool:
+    """A timeline entry the user wrote (`## Note (date)`), not a research result."""
+    first = entry.lstrip("\n").split("\n", 1)[0]
+    return first.startswith("## ") and any(first[3:].startswith(h) for h in _note_heads(lang))
+
+
+async def change_note(user: str, finding_id: str, entry: str, text: str | None) -> "Finding | None":
+    """Edit (``text``) or delete (``text`` None or empty) one of the user's
+    notes. The note is named by its whole entry as read, not by its position:
+    a research result landing on top meanwhile shifts every position. A note
+    that is no longer there exactly so is left alone (None)."""
+    target = entry.strip("\n")
+    hit = [False]
+
+    def body(cur: "Finding") -> str:
+        hit[0] = False
+        entries, original = split_timeline(cur.body, cur.lang)
+        out = []
+        for e in entries:
+            if hit[0] or e.strip("\n") != target or not is_note_entry(e, cur.lang):
+                out.append(e)
+                continue
+            hit[0] = True
+            if text and text.strip():
+                head = e.strip("\n").split("\n", 1)[0]
+                out.append(f"{head}\n\n{_safe_note(text)}\n")
+        return join_timeline(out, original) if hit[0] else cur.body
+
+    f = await update(user, finding_id, lambda _cur: None, body=body)
+    return f if hit[0] else None
 
 
 def original_heading(f: "Finding") -> str:
