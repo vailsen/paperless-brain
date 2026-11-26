@@ -865,7 +865,7 @@ html, body { overflow: hidden !important; }
 .pb-st .h { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     color:var(--c-text-muted); }
 .pb-st.is-now { color:var(--c-text); animation:pb-st-in .35s ease-out; }
-.pb-st.age-1 { opacity:.6; } .pb-st.age-2 { opacity:.3; }
+.pb-st.age-1 { opacity:.6; } .pb-st.age-2 { opacity:.35; } .pb-st.age-3 { opacity:.14; }
 .pb-st-meta { font-size:0.66rem; color:var(--c-text-muted); padding-left:20px; }
 @keyframes pb-st-spin { to { transform:rotate(360deg); } }
 @keyframes pb-st-in { from { opacity:0; transform:translateY(5px); } }
@@ -4431,12 +4431,12 @@ window.__openVaultNote = function(noteId) {{
                 "flat dark dense round").classes("text-gray-600").tooltip(_("Behind the answer"))
 
         # The live steps at the top of the bubble: the current one at the bottom
-        # with a spinner, the two before it above, done and fading — stations on
+        # with a spinner, the three before it above, done and fading (the oldest barely) — stations on
         # one line. Only while the loop works; the history keeps everything.
         _live_steps: list[dict] = []
 
         def _render_steps() -> None:
-            rows = _live_steps[-3:]
+            rows = _live_steps[-4:]
             out = []
             for k, st in enumerate(rows):
                 age = len(rows) - 1 - k
