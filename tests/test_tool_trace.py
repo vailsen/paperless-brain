@@ -118,7 +118,7 @@ def test_reopened_history_redraws(monkeypatch):
         def open(self): self.value = True
 
     tv.dlg = _Dlg()
-    tv.trace, tv.calls, tv.thinking, tv.prompt = [], [], {}, []
+    tv.trace, tv.calls, tv.thinking, tv.prompt, tv.prompt_open = [], [], {}, [], False
     tv.running, tv.iteration, tv.sel, tv.phone_detail, tv._sig = True, 1, None, False, None
     for name in ("_head", "_nav", "_detail"):
         monkeypatch.setattr(tv, name, type("R", (), {"refresh": lambda self, n=name: drawn.append(n)})(),
@@ -185,3 +185,4 @@ def test_prompt_section_comes_first():
     steps = step_list([], [{"iteration": 1, "total_ms": 5, "stop": "stop"}], prompt=prompt)
     assert [s["kind"] for s in steps] == ["section", "prompt", "prompt", "round", "model"]
     assert steps[0]["chars"] == 5
+

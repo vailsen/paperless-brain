@@ -257,6 +257,8 @@ _CSS = """
 .pb-tt-round{display:flex;align-items:center;gap:6px;padding:8px 8px 2px;font-size:.72rem;
   font-weight:600;color:var(--c-text-muted)}
 .pb-tt-round:first-child{padding-top:2px}
+.pb-tt-round.is-toggle{cursor:pointer;border-radius:8px;padding-left:4px}
+.pb-tt-round.is-toggle:hover{background:var(--c-surface-3)}
 .pb-tt-row{display:flex;align-items:center;gap:6px;min-width:0;font-size:.78rem}
 .pb-tt-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pb-tt-dur{flex-shrink:0;font-size:.7rem;color:var(--c-text-muted);font-variant-numeric:tabular-nums}
@@ -303,6 +305,7 @@ class TraceView:
         self.running = False
         self.iteration = 0
         self.sel: str | None = None       # None: follow the newest step
+        self.prompt_open = False          # the Prompt section starts folded
         self.phone_detail = False
         self._sig = None
         self._build()
@@ -321,7 +324,7 @@ class TraceView:
             return
         sig = (len(self.trace), len(self.calls), self.running, self.iteration, self.sel, self.phone_detail,
                sum(1 for t in self.trace if t.get("duration_ms") is not None),
-               sum(len(v) for v in self.thinking.values()), len(self.prompt))
+               sum(len(v) for v in self.thinking.values()), len(self.prompt), self.prompt_open)
         if sig == self._sig:
             return
         self._sig = sig
@@ -403,6 +406,10 @@ class TraceView:
         self._grid.classes(add="show-detail")
         self.update()
 
+    def _toggle_prompt(self) -> None:
+        self.prompt_open = not self.prompt_open
+        self.update()
+
     def _back(self) -> None:
         self.phone_detail = False
         self._grid.classes(remove="show-detail")
@@ -427,9 +434,14 @@ class TraceView:
                 ui.label(_("Waiting for the model …")).classes("text-xs").style("color:var(--c-text-muted)")
             for s in steps:
                 if s["kind"] == "section":
-                    with ui.element("div").classes("pb-tt-round"):
+                    head = ui.element("div").classes("pb-tt-round is-toggle")
+                    head.on("click", lambda _e: self._toggle_prompt())
+                    with head:
+                        ui.icon("expand_more" if self.prompt_open else "chevron_right", size="1rem")
                         ui.label(_("Prompt")).classes("pb-tt-name")
                         ui.label(prompt_tokens(s["chars"]) + " tok").classes("pb-tt-dur")
+                    continue
+                if s["kind"] == "prompt" and not self.prompt_open:
                     continue
                 if s["kind"] == "prompt":
                     cls = "pb-tt-item is-sub" + (" is-sel" if cur and s["key"] == cur["key"] else "")

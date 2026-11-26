@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-26 10:02+0100\n"
+"POT-Creation-Date: 2026-11-26 10:21+0100\n"
 "PO-Revision-Date: 2026-07-18 19:48+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -543,7 +543,7 @@ msgstr "Grußformel"
 
 #: app_ui/compose_dialogs.py:309 app_ui/pages/chat.py:1039
 #: app_ui/pages/chat.py:3915 app_ui/pages/chat.py:4024
-#: app_ui/pages/chat.py:4727 app_ui/pages/dashboard.py:1205
+#: app_ui/pages/chat.py:4736 app_ui/pages/dashboard.py:1205
 #: app_ui/pages/settings.py:279 app_ui/similar_dialog.py:123
 #, python-brace-format
 msgid "Error: {err}"
@@ -2373,32 +2373,32 @@ msgstr ""
 msgid "Every analysed document has already been renamed."
 msgstr "Alle analysierten Dokumente wurden bereits umbenannt."
 
-#: app_ui/tool_trace.py:343
+#: app_ui/tool_trace.py:346
 msgid "tool-history.md"
 msgstr "tool-verlauf.md"
 
-#: app_ui/tool_trace.py:348
+#: app_ui/tool_trace.py:351
 msgid "Available when the answer is finished."
 msgstr "Verfügbar, sobald die Antwort fertig ist."
 
-#: app_ui/tool_trace.py:351
+#: app_ui/tool_trace.py:354
 msgid "raw-conversation.md"
 msgstr "roh-gespraech.md"
 
 #: app_ui/pages/chat.py:1517 app_ui/pages/chat.py:4481
-#: app_ui/pages/chat.py:4837 app_ui/tool_trace.py:357
+#: app_ui/pages/chat.py:4846 app_ui/tool_trace.py:360
 msgid "Tool history"
 msgstr "Tool-Verlauf"
 
-#: app_ui/tool_trace.py:360
+#: app_ui/tool_trace.py:363
 msgid "Download tool history (.md)"
 msgstr "Tool-Verlauf herunterladen (.md)"
 
-#: app_ui/tool_trace.py:363
+#: app_ui/tool_trace.py:366
 msgid "Download raw conversation with system prompt, without thinking (.md)"
 msgstr "Rohes Gespräch mit Systemprompt herunterladen, ohne Denkprozess (.md)"
 
-#: app_ui/tool_trace.py:376
+#: app_ui/tool_trace.py:379
 #, python-brace-format
 msgid ""
 "{calls} rounds · model {model_s} · {tools} tool calls ({tool_s}) · tokens"
@@ -2407,100 +2407,100 @@ msgstr ""
 "{calls} Runden · Modell {model_s} · {tools} Tool-Aufrufe ({tool_s}) · "
 "Tokens rein {tin} / raus {tout}"
 
-#: app_ui/tool_trace.py:427
+#: app_ui/tool_trace.py:434
 msgid "Waiting for the model …"
 msgstr "Warte auf das Modell …"
 
-#: app_ui/tool_trace.py:431
+#: app_ui/tool_trace.py:441
 msgid "Prompt"
 msgstr "Prompt"
 
-#: app_ui/tool_trace.py:446
+#: app_ui/tool_trace.py:458
 #, python-brace-format
 msgid "Round {n}"
 msgstr "Runde {n}"
 
-#: app_ui/tool_trace.py:462 app_ui/tool_trace.py:505
+#: app_ui/tool_trace.py:474 app_ui/tool_trace.py:517
 msgid "Final answer"
 msgstr "Antwort"
 
-#: app_ui/tool_trace.py:462 app_ui/tool_trace.py:505 app_ui/tool_trace.py:544
-#: app_ui/tool_trace.py:549
+#: app_ui/tool_trace.py:474 app_ui/tool_trace.py:517 app_ui/tool_trace.py:556
+#: app_ui/tool_trace.py:561
 msgid "Thinking"
 msgstr "Denken"
 
-#: app_ui/tool_trace.py:477
+#: app_ui/tool_trace.py:489
 msgid "All steps"
 msgstr "Alle Schritte"
 
-#: app_ui/pages/brain.py:817 app_ui/tool_trace.py:495 app_ui/tool_trace.py:581
+#: app_ui/pages/brain.py:817 app_ui/tool_trace.py:507 app_ui/tool_trace.py:593
 msgid "Copied"
 msgstr "Kopiert"
 
-#: app_ui/pages/settings.py:1161 app_ui/tool_trace.py:496
+#: app_ui/pages/settings.py:1161 app_ui/tool_trace.py:508
 msgid "Copy"
 msgstr "Kopieren"
 
-#: app_ui/tool_trace.py:497
+#: app_ui/tool_trace.py:509
 #, python-brace-format
 msgid "{chars} characters · {tok} tokens (estimate)"
 msgstr "{chars} Zeichen · {tok} Tokens (geschätzt)"
 
-#: app_ui/pages/dashboard.py:1098 app_ui/tool_trace.py:501
-#: app_ui/tool_trace.py:547 app_ui/tool_trace.py:583
+#: app_ui/pages/dashboard.py:1098 app_ui/tool_trace.py:513
+#: app_ui/tool_trace.py:559 app_ui/tool_trace.py:595
 msgid "(empty)"
 msgstr "(leer)"
 
-#: app_ui/tool_trace.py:506
+#: app_ui/tool_trace.py:518
 #, python-brace-format
 msgid "Round {n} · {what}"
 msgstr "Runde {n} · {what}"
 
-#: app_ui/tool_trace.py:511
+#: app_ui/tool_trace.py:523
 msgid "The model is working on this round …"
 msgstr "Das Modell arbeitet an dieser Runde …"
 
-#: app_ui/tool_trace.py:512
+#: app_ui/tool_trace.py:524
 msgid "No timing reported for this round."
 msgstr "Für diese Runde wurden keine Zeiten gemeldet."
 
-#: app_ui/tool_trace.py:516
+#: app_ui/tool_trace.py:528
 msgid "evaluated"
 msgstr "ausgewertet"
 
-#: app_ui/tool_trace.py:519
+#: app_ui/tool_trace.py:531
 msgid "Prompt tokens"
 msgstr "Prompt-Tokens"
 
-#: app_ui/tool_trace.py:520
+#: app_ui/tool_trace.py:532
 msgid "Output tokens"
 msgstr "Ausgabe-Tokens"
 
-#: app_ui/tool_trace.py:521
+#: app_ui/tool_trace.py:533
 msgid "Reading the prompt"
 msgstr "Prompt lesen"
 
-#: app_ui/tool_trace.py:522
+#: app_ui/tool_trace.py:534
 msgid "Writing"
 msgstr "Schreiben"
 
-#: app_ui/tool_trace.py:523
+#: app_ui/tool_trace.py:535
 msgid "Model time"
 msgstr "Modellzeit"
 
-#: app_ui/tool_trace.py:526
+#: app_ui/tool_trace.py:538
 msgid "Tools after it"
 msgstr "Tools danach"
 
-#: app_ui/tool_trace.py:528
+#: app_ui/tool_trace.py:540
 msgid "Cache read / written"
 msgstr "Cache gelesen / geschrieben"
 
-#: app_ui/tool_trace.py:531
+#: app_ui/tool_trace.py:543
 msgid "Speed"
 msgstr "Geschwindigkeit"
 
-#: app_ui/tool_trace.py:537
+#: app_ui/tool_trace.py:549
 msgid ""
 "Model time is the model alone: reading the prompt until the first token, "
 "then thinking and writing its tool calls. The tools ran after it."
@@ -2508,37 +2508,37 @@ msgstr ""
 "Modellzeit ist nur das Modell: den Prompt lesen bis zum ersten Token, "
 "dann denken und die Tool-Aufrufe schreiben. Die Tools liefen danach."
 
-#: app_ui/pages/findings.py:1961 app_ui/tool_trace.py:546
+#: app_ui/pages/findings.py:1961 app_ui/tool_trace.py:558
 msgid "Answer"
 msgstr "Antwort"
 
-#: app_ui/tool_trace.py:553
+#: app_ui/tool_trace.py:565
 msgid "The model showed no thinking in this round."
 msgstr "Das Modell hat in dieser Runde kein Denken gezeigt."
 
-#: app_ui/tool_trace.py:564
+#: app_ui/tool_trace.py:576
 #, python-brace-format
 msgid "Tool {name} · round {n}"
 msgstr "Tool {name} · Runde {n}"
 
-#: app_ui/tool_trace.py:566
+#: app_ui/tool_trace.py:578
 msgid "Input"
 msgstr "Eingabe"
 
-#: app_ui/tool_trace.py:568
+#: app_ui/tool_trace.py:580
 msgid "(no parameters)"
 msgstr "(keine Parameter)"
 
-#: app_ui/tool_trace.py:574
+#: app_ui/tool_trace.py:586
 msgid "Running …"
 msgstr "Läuft …"
 
-#: app_ui/tool_trace.py:577
+#: app_ui/tool_trace.py:589
 #, python-brace-format
 msgid "Result · {n} characters"
 msgstr "Ergebnis · {n} Zeichen"
 
-#: app_ui/tool_trace.py:582
+#: app_ui/tool_trace.py:594
 msgid "Copy result"
 msgstr "Ergebnis kopieren"
 
@@ -4119,16 +4119,24 @@ msgstr "Gedanken"
 msgid "{n} calls"
 msgstr "{n} Aufrufe"
 
-#: app_ui/pages/chat.py:4499
+#: app_ui/pages/chat.py:4511
 msgid "No model configured — please set one up in Settings > AI Models."
 msgstr "Kein Modell konfiguriert — bitte in Einstellungen > KI-Modelle einrichten."
 
-#: app_ui/pages/chat.py:4559
+#: app_ui/pages/chat.py:4571
 #, python-brace-format
 msgid "The model host is starting… {s} s"
 msgstr "Der Modell-Rechner startet … {s} s"
 
-#: app_ui/pages/chat.py:4709
+#: app_ui/pages/chat.py:4618
+msgid "Writing the answer …"
+msgstr "Schreibt die Antwort …"
+
+#: app_ui/pages/chat.py:4669
+msgid "Thinking …"
+msgstr "Denkt nach …"
+
+#: app_ui/pages/chat.py:4718
 #, python-brace-format
 msgid ""
 "{model} runs partly on the CPU of its host ({pct} %), which makes it "
@@ -4139,13 +4147,13 @@ msgstr ""
 "deshalb langsam. Ein weiteres Modell im Speicher oder ein großes "
 "Kontextfenster nimmt der GPU den Platz."
 
-#: app_ui/pages/chat.py:4760
+#: app_ui/pages/chat.py:4769
 msgid "The model ended without an answer. Please send your message again."
 msgstr ""
 "Das Modell hat ohne Antwort aufgehört. Bitte schick deine Nachricht noch "
 "einmal."
 
-#: app_ui/pages/chat.py:4828
+#: app_ui/pages/chat.py:4837
 msgid "The answer is still being written …"
 msgstr "Die Antwort wird noch geschrieben …"
 
