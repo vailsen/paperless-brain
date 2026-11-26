@@ -4480,6 +4480,18 @@ window.__openVaultNote = function(noteId) {{
             _tv_btn = ui.button(icon="info_outline", color=None, on_click=_tv.open).props(
                 "flat dark dense round").classes("text-gray-600").tooltip(_("Tool history"))
 
+        def _set_status(label: str, hint: str = "") -> None:
+            """What the turn does now — a tool, or the model between and after them."""
+            status_badge[0].set_content(
+                f'<span style="font-size:0.72rem;color:var(--c-accent-text);font-family:inherit;">'
+                f"{_html.escape(label)} · {_iter[0]}/{_s['max_iterations']}"
+                f" · {_calls_lbl.format(n=_tool_calls[0])}"
+                f"</span>"
+            )
+            status_badge[0].style("display:block;")
+            activity_label.set_text(f"{label}{hint}")
+            activity_row.set_visibility(True)
+
         def _tv_update() -> None:
             try:
                 with bubble[0]:
@@ -4602,6 +4614,8 @@ window.__openVaultNote = function(noteId) {{
                         await asyncio.sleep(0)
 
                 elif isinstance(event, TextTokenEvent):
+                    if not accumulated[0] and _tool_calls[0]:
+                        _set_status(_("Writing the answer …"))
                     accumulated[0] += event.text
                     streaming_label[0].set_content(_build_display())
                     messages_scroll.scroll_to(percent=1.0)
@@ -4636,16 +4650,7 @@ window.__openVaultNote = function(noteId) {{
                             "output": "",
                         }
                     )
-                    status_badge[0].set_content(
-                        f'<span style="font-size:0.72rem;color:var(--c-accent-text);font-family:inherit;">'
-                        f"{event.label} · {_iter[0]}/{_s['max_iterations']}"
-                        f" · {_calls_lbl.format(n=_tool_calls[0])}"
-                        f"</span>"
-                    )
-                    status_badge[0].style("display:block;")
-                    hint = _activity_hint(event.tool_name, event.tool_input)
-                    activity_label.set_text(f"{event.label}{hint}")
-                    activity_row.set_visibility(True)
+                    _set_status(event.label, _activity_hint(event.tool_name, event.tool_input))
                     _tv_update()
                     await asyncio.sleep(0)
 
@@ -4658,6 +4663,10 @@ window.__openVaultNote = function(noteId) {{
                         _tool_trace[-1]["output_full"] = event.tool_output
                         _tool_trace[-1]["duration_ms"] = event.duration_ms
                         _tv_update()
+                    # Every tool of the round is back: the model works now, not
+                    # the last tool ("Calculating …" stayed up for the answer).
+                    if all(t.get("duration_ms") is not None for t in _tool_trace if t["iter"] == _iter[0]):
+                        _set_status(_("Thinking …"))
 
                 elif isinstance(event, ModelCallEvent):
                     _model_calls.append(dataclasses.asdict(event))
