@@ -266,9 +266,11 @@ class ChromaClient:
         limit: int | None = None,
         offset: int | None = None,
         include: list[str] | None = None,
+        where_document: dict | None = None,
     ) -> list[dict]:
         """
-        Fetch documents by ID or metadata filter (no similarity ranking).
+        Fetch documents by ID, metadata filter and/or text filter
+        (``where_document``, e.g. ``{"$regex": …}``) — no similarity ranking.
 
         Returns:
             List of dicts with keys: id, document, metadata.
@@ -278,6 +280,8 @@ class ChromaClient:
             kwargs["ids"] = ids
         if where:
             kwargs["where"] = where
+        if where_document:
+            kwargs["where_document"] = where_document
         if limit is not None:
             kwargs["limit"] = limit
         if offset is not None:

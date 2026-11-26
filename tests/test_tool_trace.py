@@ -1,5 +1,7 @@
 """Tool history downloads: every model request and tool call, the raw request."""
 
+import asyncio
+import re
 from datetime import datetime
 
 from app_ui.tool_trace import call_summary, totals, trace_markdown, transcript_markdown
@@ -116,7 +118,7 @@ def test_reopened_history_redraws(monkeypatch):
         def open(self): self.value = True
 
     tv.dlg = _Dlg()
-    tv.trace, tv.calls, tv.thinking = [], [], {}
+    tv.trace, tv.calls, tv.thinking, tv.prompt = [], [], {}, []
     tv.running, tv.iteration, tv.sel, tv.phone_detail, tv._sig = True, 1, None, False, None
     for name in ("_head", "_nav", "_detail"):
         monkeypatch.setattr(tv, name, type("R", (), {"refresh": lambda self, n=name: drawn.append(n)})(),
@@ -137,3 +139,49 @@ def test_sources_beyond_three_fold_away(monkeypatch):
     head, _sep, folded = many.partition('<details class="pb-cite-more">')
     assert head.count("pb-cite-doc\"") == 3 and folded.count("pb-cite-doc\"") == 1
     assert "Show 1 more" in many and "<b>1, 2</b>" in many
+
+
+def test_vault_text_mode_finds_a_word_literally(monkeypatch):
+    """'testnote' is a word, not a meaning: semantic search ranks it anywhere."""
+    from services import chat_service as cs
+    from services import clients
+
+    seen = {}
+
+    class _Fake:
+        async def get(self, where=None, where_document=None, **_kw):
+            seen["where"], seen["doc"] = where, where_document
+            rx = re.compile(where_document["$regex"][4:], re.IGNORECASE)
+            rows = [("a", "Notices/x.md", 0, "## Notiz\n\nDIES IST EINE TESTNOTE"),
+                    ("a", "Notices/x.md", 1, "testnote again"),
+                    ("b", "Notes/y.md", 0, "nothing")]
+            return [{"document": d, "metadata": {"pbrain_id": p, "path": path, "chunk_index": i, "user": "v"}}
+                    for p, path, i, d in rows if rx.search(d)]
+
+    monkeypatch.setattr(clients, "vault_chroma", _Fake())
+    cs._current_owner.set("v")
+    out, notes = asyncio.run(cs._tool_vault_search({"text": "TestNote"}))
+    assert seen["where"] == {"user": {"$eq": "v"}}
+    assert [n.pbrain_id for n in notes] == ["a"] and "literal match" in out and "TESTNOTE" in out
+    out, notes = asyncio.run(cs._tool_vault_search({"text": "absent"}))
+    assert notes == [] and "No note contains" in out
+
+
+def test_history_is_kept_per_answer_and_capped():
+    from app_ui import tool_trace
+
+    tool_trace._KEPT.clear()
+    for n in range(tool_trace.MAX_KEPT + 5):
+        tool_trace.keep(("u", "c", n), {"n": n})
+    assert tool_trace.kept(("u", "c", 0)) is None
+    assert tool_trace.kept(("u", "c", tool_trace.MAX_KEPT + 4)) == {"n": tool_trace.MAX_KEPT + 4}
+    assert len(tool_trace._KEPT) == tool_trace.MAX_KEPT
+
+
+def test_prompt_section_comes_first():
+    from app_ui.tool_trace import step_list
+
+    prompt = [{"title": "System prompt", "text": "abc"}, {"title": "Tool definitions (2)", "text": "[]"}]
+    steps = step_list([], [{"iteration": 1, "total_ms": 5, "stop": "stop"}], prompt=prompt)
+    assert [s["kind"] for s in steps] == ["section", "prompt", "prompt", "round", "model"]
+    assert steps[0]["chars"] == 5

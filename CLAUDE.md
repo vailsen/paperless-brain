@@ -190,6 +190,10 @@ whenever a local model's prompt cache misses (prefill ~3 700 tok/s on the 27B). 
 - **Each rule lives in one place.** How a tool and its parameters work → its description;
   priorities between tools, citation, honesty → the prompt. `tests/test_chat_slim_prompt.py`
   fails on a prompt identifier that is no tool or parameter, and on size creep.
+- **Earlier turns are sent as questions and answers only** — their tool results are not
+  (context window, prefill). `_CORE` says so and tells the model to read a document again
+  when a follow-up needs more than its answer said; without it, the model wondered in every
+  follow-up whether the tools behind its own `[^…]` markers had ever run.
 - **Nothing in the prompt changes between turns but its tail.** Today's date is the last line
   (`today_line`, so "newest"/"next week" need no `get_current_date` round trip). The archive
   map in the prompt is compact (`briefings.map_markdown(compact=True)`: counts and names — no
@@ -223,7 +227,12 @@ with the answer. The round heading carries model + tools. The chosen step is on 
 (a phone shows one at a time, with "All steps"); only its content reaches the browser.
 Several tools in one round are parallel tool use: one answer asked for all of them.
 `open()` opens before it draws — `update()` draws only an open dialog, so a history closed
-mid-turn and reopened showed nothing new. Every model request (tokens, first token, total time — `ModelCallEvent`) and
+mid-turn and reopened showed nothing new. A **Prompt** section comes first (`chat._prompt_parts`):
+the system prompt, the expert's additions cut out of it, this question's context prefix, the
+earlier messages exactly as sent, the tool definitions. **One record per answer**
+(`tool_trace.keep` / `kept` / `view_for`, keyed user + conversation + message index, the last
+`MAX_KEPT` in process memory): the live bubble, a /chat page reopened mid-turn (`_LIVE_TURNS`
+entry `trace_rec`) and the stored answer after a reload all show it; a restart forgets it. Every model request (tokens, first token, total time — `ModelCallEvent`) and
 tool call (duration, the whole result). Downloads: the history, and the raw
 request of the last model call (`TranscriptEvent`: system prompt, tool schemas, messages;
 thinking removed). Live only — nothing is stored. The trace's `output` stays capped at
@@ -841,6 +850,12 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - **Every proactive message waits out the user's quiet hours** (`notify.quiet_wait`, per user, default 22:00–07:00); only the test message, which the user just asked for, does not. App events (sync, Werkbank) are not proactive messages.
 - **Triage judges from today, in the findings language.** It gets today's date and a rule that an option whose window has closed is history; the language instruction is repeated last, because a German document otherwise pulls the answer into German. Findings language is its own per-user setting (`content_language`), not the app language.
 - **A background process gets a user's token only from `services/background_access.token_for(user)`** — an explicit, revocable grant the user made in their own session. No grant (None) → skip the user; a 401 → `mark_needs_reauth()`. Never persist a token anywhere else, never create a grant without the user's action.
+- **`_interests.md` survives a sync client's conflict copy** (`interests._backups`): OneDrive's
+  Linux client, when the file changed during an upload, renamed it to
+  `_interests-<host>-safeBackup-0001.md`, and the app started a new file from zero
+  (2026-11-07). Such copies are read with the file and folded in on the next write, then
+  deleted — added up when they are another record (`pbrain_id`), the larger count when they
+  are a copy of the same one.
 - **The vault lock is cross-process** (`vault/locks.py`: `asyncio.Lock` + `flock` on `data/vault_locks/{user}.lock`). Worker and app both take `get_user_lock(user)` for every vault write and sync.
 
 ### Do not
@@ -997,6 +1012,11 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
   memory (`remember_fact` / `update_brain_fact` / `delete_brain_fact`), the user's notes
   (`vault_search`, read).
 - Brain **read** tools (`brain_search`) stay byte-identical. New `vault_search` mirrors them.
+- **`vault_search` has a literal mode** (`text`: case-insensitive, any whitespace between the
+  words, `_vault_text_matches`) next to `query` (meaning + title) — "testnote" is a word, not
+  a meaning. It searches the vault *index* (`where_document $regex`), so it sees exactly what
+  semantic search sees, the findings folder only as `index_meta` lets it in. Not merged into
+  `search_exact`: Paperless documents and the user's notes stay separate tools.
 - Brain **write** tools keep their signatures but are re-implemented on the file+git+embed
   primitive (no direct Chroma upsert).
 - The Chroma-direct memory UI is gone. `/brain` is a **file-backed note explorer** over the

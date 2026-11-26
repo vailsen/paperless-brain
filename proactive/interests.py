@@ -104,11 +104,58 @@ def render_table(i: Interests) -> str:
     return "".join(lines)
 
 
+def _backups(user: str) -> list:
+    """Copies a sync client left beside the file. OneDrive's Linux client,
+    when the file changed during an upload, renames the local file to
+    `_interests-<host>-safeBackup-0001.md` — the app then found no
+    `_interests.md` and started from zero (2026-11-07: every count before it
+    was gone). Their rows belong to the counts."""
+    root = findings_root(user)
+    stem = INTERESTS.removesuffix(".md")
+    try:
+        return sorted(p for p in root.glob(f"{stem}-*.md") if "safebackup" in p.name.lower())
+    except OSError:
+        return []
+
+
+def merge(a: Interests, b: Interests, *, same_record: bool = False) -> Interests:
+    """Two records kept apart: separate ones (a new file was started) add up;
+    two copies of one record (same `pbrain_id`) take the larger count, or
+    every count would double. Mutes join."""
+    out = Interests(muted=set(a.muted) | set(b.muted))
+    for src in (a, b):
+        for topic, r in src.rows.items():
+            t = out.rows.setdefault(topic, Row())
+            for col in COLUMNS:
+                v = getattr(r, col)
+                setattr(t, col, max(getattr(t, col), v) if same_record else getattr(t, col) + v)
+            t.last_reaction = max(t.last_reaction, r.last_reaction)
+    return out
+
+
+def _record_id(text: str) -> str:
+    from vault.note_text import properties, split_note
+
+    return str(properties(split_note(text).fm_raw).get("pbrain_id") or "")
+
+
+def _with_backups(user: str, i: Interests, own_id: str = "") -> Interests:
+    for p in _backups(user):
+        try:
+            text = p.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        bid = _record_id(text)
+        i = merge(i, parse(text), same_record=bool(bid) and bid == own_id)
+    return i
+
+
 def load(user: str) -> Interests:
     try:
-        return parse(_path(user).read_text(encoding="utf-8"))
+        text = _path(user).read_text(encoding="utf-8")
     except OSError:
-        return Interests()
+        return _with_backups(user, Interests())
+    return _with_backups(user, parse(text), _record_id(text))
 
 
 async def record(user: str, topic: str, *events: str, mute: bool = False, unmute: bool = False) -> Interests:
@@ -140,9 +187,19 @@ async def record(user: str, topic: str, *events: str, mute: bool = False, unmute
 
     path = _path(user)
     rel = path.relative_to(vault_path(user)).as_posix()
+    backups = _backups(user)
+
+    def _drop_backups() -> None:
+        # Folded into the file just written; gone, so they never count twice.
+        for p in backups:
+            try:
+                p.unlink()
+            except OSError:
+                pass
+
     for _attempt in range(2):
         if not path.exists():
-            i = _apply(Interests())
+            i = _apply(_with_backups(user, Interests()))
 
             def _create() -> bool:
                 if path.exists():
@@ -156,17 +213,20 @@ async def record(user: str, topic: str, *events: str, mute: bool = False, unmute
 
             async with get_user_lock(user):
                 if await asyncio.to_thread(_create):
+                    _drop_backups()
                     return i
             continue
         snap = await read_note(user, rel)
-        i = _apply(parse(snap.text))
+        own = parse(snap.text)
+        i = _apply(_with_backups(user, own, _record_id(snap.text)))
         note = split_note(snap.text)
         fm_raw = note.fm_raw
-        if mute or unmute:
+        if mute or unmute or i.muted != own.muted:
             fm_raw = apply_edits(fm_raw, set_={"muted": sorted(i.muted)})
         text = join_note(type(note)(fm_raw, render_table(i), note.open_fence, note.close_fence))
         try:
             await save_note(user, rel, text, expected_sha=snap.sha, base_text=snap.text)
+            _drop_backups()
             return i
         except NoteConflict:
             continue

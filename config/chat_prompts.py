@@ -24,6 +24,9 @@ purchases, appointments, deadlines or contracts — every ID, amount, date, name
 come from a tool result of THIS conversation. If a tool finds nothing, say so; never fill the gap \
 from your own knowledge. Answering without a tool call is fine only for small talk and general \
 comprehension questions.
+- Earlier turns show only the questions and your answers; their tool results are not sent again. \
+When a follow-up needs more than your earlier answer says, read the document again — the \
+references in that answer name it.
 - Too few results: rephrase and search again. Going in circles over the same document: decide and \
 call the next tool.
 - Write document IDs as #NNN ("document #123"), never "document 123" or "ID 123".
