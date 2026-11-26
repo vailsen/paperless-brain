@@ -226,9 +226,9 @@ then the tools it asked for, which run after it; the last round's step is "Final
 with the answer — its thinking a step of its own before it. The Prompt section starts folded.
 The bubble's old "Thoughts" box and its setting are gone: the thinking lives here. While the loop
 works, the top of the bubble shows **live steps** (`_live_steps`): the current step with a
-spinner at the bottom, the two before it above, done and fading, on one line with station
+spinner at the bottom, the three before it above, done and fading (the oldest barely), on one line with station
 dots — tool, "💭 Thinking" once a round's tools are back, "✍️ Writing the answer"; removed
-when the answer is done. The round heading carries model + tools. The chosen step is on the right
+when the answer is done. The round heading carries model + tools. The step list is one scroll box that outlives its refresh (re-created, it jumped to the top on every pick). The chosen step is on the right
 (a phone shows one at a time, with "All steps"); only its content reaches the browser.
 Several tools in one round are parallel tool use: one answer asked for all of them.
 `open()` opens before it draws — `update()` draws only an open dialog, so a history closed

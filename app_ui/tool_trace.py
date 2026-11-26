@@ -374,7 +374,10 @@ class TraceView:
             self._head()
             self._grid = ui.element("div").classes("pb-tt w-full")
             with self._grid:
-                self._nav()
+                # The scroll box outlives the refresh: re-created, it jumped back to the
+                # top on every pick and every live event.
+                with ui.element("div").classes("pb-tt-nav"):
+                    self._nav()
                 self._detail()
 
     @ui.refreshable_method
@@ -436,60 +439,59 @@ class TraceView:
         steps = self._steps_now()
         cur = self._selected(steps)
         longest = max([self._ms(s) or 0 for s in steps if s["kind"] in ("model", "tool")] + [1])
-        with ui.element("div").classes("pb-tt-nav"):
-            if not steps:
-                ui.label(_("Waiting for the model …")).classes("text-xs").style("color:var(--c-text-muted)")
-            for s in steps:
-                if s["kind"] == "section":
-                    head = ui.element("div").classes("pb-tt-round is-toggle")
-                    head.on("click", lambda _e: self._toggle_prompt())
-                    with head:
-                        ui.icon("expand_more" if self.prompt_open else "chevron_right", size="1rem")
-                        ui.label(_("Prompt")).classes("pb-tt-name")
-                        ui.label(prompt_tokens(s["chars"]) + " tok").classes("pb-tt-dur")
-                    continue
-                if s["kind"] == "prompt" and not self.prompt_open:
-                    continue
-                if s["kind"] == "prompt":
-                    cls = "pb-tt-item is-sub" + (" is-sel" if cur and s["key"] == cur["key"] else "")
-                    el = ui.element("div").classes(cls)
-                    el.on("click", lambda _e, k=s["key"]: self._pick(k))
-                    with el, ui.element("div").classes("pb-tt-row"):
-                        ui.icon(s["part"].get("icon") or "description", size="0.95rem")
-                        ui.label(s["part"]["title"]).classes("pb-tt-name")
-                        ui.label(prompt_tokens(len(s["part"]["text"]))).classes("pb-tt-dur")
-                    continue
-                ms = self._ms(s)
-                if s["kind"] == "round":
-                    with ui.element("div").classes("pb-tt-round"):
-                        ui.label(_("Round {n}").format(n=s["iter"])).classes("pb-tt-name")
-                        if ms is not None and not s["running"]:
-                            ui.label(_secs(ms)).classes("pb-tt-dur")
-                    continue
+        if not steps:
+            ui.label(_("Waiting for the model …")).classes("text-xs").style("color:var(--c-text-muted)")
+        for s in steps:
+            if s["kind"] == "section":
+                head = ui.element("div").classes("pb-tt-round is-toggle")
+                head.on("click", lambda _e: self._toggle_prompt())
+                with head:
+                    ui.icon("expand_more" if self.prompt_open else "chevron_right", size="1rem")
+                    ui.label(_("Prompt")).classes("pb-tt-name")
+                    ui.label(prompt_tokens(s["chars"]) + " tok").classes("pb-tt-dur")
+                continue
+            if s["kind"] == "prompt" and not self.prompt_open:
+                continue
+            if s["kind"] == "prompt":
                 cls = "pb-tt-item is-sub" + (" is-sel" if cur and s["key"] == cur["key"] else "")
                 el = ui.element("div").classes(cls)
                 el.on("click", lambda _e, k=s["key"]: self._pick(k))
-                with el:
-                    with ui.element("div").classes("pb-tt-row"):
-                        if s["running"]:
-                            ui.spinner(size="0.9em")
-                        elif s["kind"] == "think":
-                            ui.icon("psychology", size="1rem")
-                        elif s["kind"] == "model":
-                            ui.icon("edit_note" if s["final"] else "psychology", size="1rem")
-                        else:
-                            ui.icon("build", size="0.9rem")
-                        if s["kind"] == "think":
-                            name = _("Thinking")
-                        elif s["kind"] == "model":
-                            name = _("Final answer") if s["final"] else _("Thinking")
-                        else:
-                            name = (s["step"].get("label") or s["step"].get("name") or "").rstrip(".")
-                        ui.label(name).classes("pb-tt-name")
-                        if ms is not None:
-                            ui.label(_secs(ms)).classes("pb-tt-dur")
-                    if ms:
-                        ui.element("div").classes("pb-tt-bar").style(f"width:{max(2, 100 * ms / longest):.0f}%")
+                with el, ui.element("div").classes("pb-tt-row"):
+                    ui.icon(s["part"].get("icon") or "description", size="0.95rem")
+                    ui.label(s["part"]["title"]).classes("pb-tt-name")
+                    ui.label(prompt_tokens(len(s["part"]["text"]))).classes("pb-tt-dur")
+                continue
+            ms = self._ms(s)
+            if s["kind"] == "round":
+                with ui.element("div").classes("pb-tt-round"):
+                    ui.label(_("Round {n}").format(n=s["iter"])).classes("pb-tt-name")
+                    if ms is not None and not s["running"]:
+                        ui.label(_secs(ms)).classes("pb-tt-dur")
+                continue
+            cls = "pb-tt-item is-sub" + (" is-sel" if cur and s["key"] == cur["key"] else "")
+            el = ui.element("div").classes(cls)
+            el.on("click", lambda _e, k=s["key"]: self._pick(k))
+            with el:
+                with ui.element("div").classes("pb-tt-row"):
+                    if s["running"]:
+                        ui.spinner(size="0.9em")
+                    elif s["kind"] == "think":
+                        ui.icon("psychology", size="1rem")
+                    elif s["kind"] == "model":
+                        ui.icon("edit_note" if s["final"] else "psychology", size="1rem")
+                    else:
+                        ui.icon("build", size="0.9rem")
+                    if s["kind"] == "think":
+                        name = _("Thinking")
+                    elif s["kind"] == "model":
+                        name = _("Final answer") if s["final"] else _("Thinking")
+                    else:
+                        name = (s["step"].get("label") or s["step"].get("name") or "").rstrip(".")
+                    ui.label(name).classes("pb-tt-name")
+                    if ms is not None:
+                        ui.label(_secs(ms)).classes("pb-tt-dur")
+                if ms:
+                    ui.element("div").classes("pb-tt-bar").style(f"width:{max(2, 100 * ms / longest):.0f}%")
 
     @ui.refreshable_method
     def _detail(self) -> None:
