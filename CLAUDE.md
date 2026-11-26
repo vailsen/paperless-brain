@@ -228,7 +228,7 @@ with the answer. The round heading carries model + tools. The chosen step is on 
 Several tools in one round are parallel tool use: one answer asked for all of them.
 `open()` opens before it draws — `update()` draws only an open dialog, so a history closed
 mid-turn and reopened showed nothing new. A **Prompt** section comes first (`chat._prompt_parts`):
-the system prompt, the expert's additions cut out of it, this question's context prefix, the
+the system prompt, then each per-user block cut out of it and named (`TurnExpert.kinds`: expert scope, briefing, archive map, skills; personality), this question's context prefix, the
 earlier messages exactly as sent, the tool definitions. **One record per answer**
 (`tool_trace.keep` / `kept` / `view_for`, keyed user + conversation + message index, the last
 `MAX_KEPT` in process memory): the live bubble, a /chat page reopened mid-turn (`_LIVE_TURNS`
@@ -551,6 +551,9 @@ page `app_ui/pages/experts.py`.
   every later turn of that conversation (`chat_turn_meta.skills`) — the history
   keeps only answer text, so the loaded body would otherwise be gone. The wizard drafts; only the user saves. Its lint flags tool
   names that do not exist; its trial runs read-only tools only.
+- **The Universal expert's map is counts, not a study** (`briefings.MAP_HEADER`, not
+  `BRIEFING_HEADER`): the top names spelled as in Paperless and the date range, so a
+  filter hits on the first try; a name it lacks is answered by the tool's own name hint.
 - **A briefing is a map, not evidence.** Archive map = code; orientation =
   model, checked by `briefings.validate` (studied ids only, numbers must be in
   the cited summaries, facts need a source) — dropped items are shown in the
