@@ -98,6 +98,9 @@ def test_prompt_map_keeps_names_and_drops_series_and_newest():
     assert "Finanzamt 80" in block and "Rechnung 169" in block and "Steuererklärung 206" in block
     assert "Recurring" not in block
     assert "Newest" not in block and "#734" not in block
+    # Nothing was studied for it: the header says counted by code, and keeps the warning.
+    assert block.startswith(briefings.MAP_HEADER) and "studying" not in block
+    assert "MAP, not evidence" in block
 
 
 def test_full_map_still_has_them_for_the_briefing_tab():

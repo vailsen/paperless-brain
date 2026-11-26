@@ -444,11 +444,21 @@ def prompt_block(b: Briefing | None, *, ctx_window: int = 0) -> str:
     return f"{BRIEFING_HEADER}\n\n{body}"
 
 
+# The Universal expert studied nothing: its block is counts, made by code.
+MAP_HEADER = (
+    "An overview of the documents you can see, counted by code: the most frequent "
+    "correspondents, document types and tags, spelled as in Paperless, and the date range. "
+    "It is a MAP, not evidence: use it to write better searches and filters. Never state a "
+    "fact from it without reading the document through a tool in this conversation and "
+    "citing that tool result."
+)
+
+
 def map_only_block(docs_map: dict, _=lambda s: s) -> str:
     """Universal expert without a studied briefing: the code-made map only."""
     if not docs_map or not docs_map.get("total"):
         return ""
-    return f"{BRIEFING_HEADER}\n\n{map_markdown(docs_map, _, compact=True)}"[:PROMPT_CHARS]
+    return f"{MAP_HEADER}\n\n{map_markdown(docs_map, _, compact=True)}"[:PROMPT_CHARS]
 
 
 # ── Study job ─────────────────────────────────────────────────────────────────

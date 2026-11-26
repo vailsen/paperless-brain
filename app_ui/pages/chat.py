@@ -3404,18 +3404,27 @@ window.__openVaultNote = function(noteId) {{
         context, the earlier messages and the tool definitions."""
         from config.chat_prompts import CUSTOM_INSTRUCTIONS_HEADER, MAX_CUSTOM_INSTRUCTIONS_CHARS
 
-        extra = [b for b in (te.blocks or []) if b and b.strip()]
+        titles = {"scope": _("Expert scope"), "briefing": _("Expert briefing"), "map": _("Archive map"),
+                  "skills": _("Skills")}
+        icons = {"scope": "filter_alt", "briefing": "school", "map": "map", "skills": "construction"}
+        kinds = list(getattr(te, "kinds", []) or [])
+        extra: list[tuple[str, str, str]] = []  # (title, icon, text), in prompt order
+        for k, b in enumerate(te.blocks or []):
+            if b and b.strip():
+                kind = kinds[k] if k < len(kinds) else ""
+                extra.append((titles.get(kind, _("Expert block")), icons.get(kind, "school"), b))
         if (te.personality or "").strip():
-            extra.append(f"{CUSTOM_INSTRUCTIONS_HEADER}\n\n"
-                         f"{te.personality.strip()[:MAX_CUSTOM_INSTRUCTIONS_CHARS]}")
+            extra.append((_("Personality"), "person",
+                          f"{CUSTOM_INSTRUCTIONS_HEADER}\n\n"
+                          f"{te.personality.strip()[:MAX_CUSTOM_INSTRUCTIONS_CHARS]}"))
         base = system
-        for piece in extra:
+        for _t, _i, piece in extra:
             base = base.replace("\n\n" + piece, "", 1)
         out = [{"title": _("System prompt"), "text": base, "icon": "article",
-                "note": _("The expert's additions are part of it, shown on their own below.") if extra else ""}]
-        if extra:
-            out.append({"title": _("Expert: {name}").format(name=exp.name) if not exp.builtin
-                        else _("Expert additions"), "text": "\n\n".join(extra), "icon": "school"})
+                "note": _("The blocks below are part of it, shown on their own: they depend on you and "
+                          "the expert{name}.").format(name=f" ({exp.name})" if exp.name else "") if extra else ""}]
+        for title, icon, text in extra:
+            out.append({"title": title, "text": text, "icon": icon})
         last, own = llm_messages[-1], (_s["messages"][-1] if _s["messages"] else {})
         lc, oc = str(last.get("content") or ""), str(own.get("content") or "")
         if lc != oc and lc.endswith(oc):
