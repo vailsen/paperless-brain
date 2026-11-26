@@ -565,3 +565,25 @@ def test_own_reminder_never_past_the_deadline(env, fake_llm):
     assert asyncio.run(reactions.set_reminder("alice", pay.finding_id, 20)).remind_on == "2026-11-15"
     asyncio.run(reactions.set_reminder("alice", pay.finding_id, None))
     assert findings.get("alice", pay.finding_id).remind_on is None
+
+
+def test_overview_topic_tap_lists_what_the_overview_counted():
+    """The overview counts open and relevant findings per topic; a topic whose
+    findings were all relevant opened an empty inbox."""
+    from datetime import date
+    from types import SimpleNamespace as F
+
+    from app_ui import findings_chart
+    from app_ui.pages.findings import _bucket_items
+
+    items = [F(status="relevant", topic="schornsteinfeger-heizung", marked_relevant=False, topic_label="",
+               topic_display="Schornsteinfeger-Heizung", kind="deadline", deadline="2027-05-15",
+               urgency="low", pressing=False),
+             F(status="done", topic="schornsteinfeger-heizung", marked_relevant=False, topic_label="",
+               topic_display="Schornsteinfeger-Heizung", kind="deadline", deadline="2029-01-01",
+               urgency="low", pressing=False)]
+    today = date(2026, 11, 26)
+    counted = findings_chart.topics(items, today)[0]["open"]
+    assert counted == 1
+    assert _bucket_items(items, "open", today, set()) == []
+    assert len(_bucket_items(items, "live", today, set())) == counted

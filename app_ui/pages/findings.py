@@ -664,6 +664,8 @@ def _bucket_items(items: list, bucket: str, today, dossier_topics: set[str]) -> 
         return [f for f in items if display_status(f.status) == "open" and f.topic not in dossier_topics]
     if bucket == "relevant":
         return [f for f in items if fv.is_relevant(f)]
+    if bucket == "live":  # what the overview counts per topic: open and relevant
+        return [f for f in items if f.status in fv.OPEN_STATUSES]
     return [f for f in items if display_status(f.status) == bucket]
 
 
@@ -1333,8 +1335,10 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if d is not None:
             select("dossier", d.pbrain_id)
         else:
+            # The overview counts open *and* relevant findings; the inbox alone
+            # showed a topic whose findings were all relevant as empty.
             st["list_topic"] = topic
-            select("list", "open")
+            select("list", "live")
 
     def _list_view(bucket: str) -> None:
         items, ds = _data()
@@ -1348,7 +1352,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         sort = view_pref.get("sort", fv.DEFAULT_VIEW["sort"])
         group = view_pref.get("group", fv.DEFAULT_VIEW["group"])
         title = {"open": _("Inbox"), "pressing": _("Pressing"), "relevant": _("Relevant"),
-                 "unfiled": _("Not in a dossier"), "done": _("Done"), "dismissed": _("Dismissed")}.get(bucket, bucket)
+                 "unfiled": _("Not in a dossier"), "done": _("Done"), "dismissed": _("Dismissed"),
+                 "live": _("Open and relevant")}.get(bucket, bucket)
         with ui.column().classes("pbm-panel gap-2"):
             with ui.row().classes("w-full items-center gap-2"):
                 ui.label(title).classes("text-xl font-bold flex-1").style("color:var(--c-text)")
@@ -1385,7 +1390,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 if g.kind != "none":
                     _heading(g, top=True)
                 for f in g.items:
-                    _card(f, today, topic=g.kind != "topic", status=bucket in ("pressing", "unfiled"),
+                    _card(f, today, topic=g.kind != "topic", status=bucket in ("pressing", "unfiled", "live"),
                           on_open=lambda fid: select("finding", fid),
                           on_file=_file_finding if bucket == "unfiled" else None)
 
