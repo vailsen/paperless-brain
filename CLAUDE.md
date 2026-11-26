@@ -217,13 +217,18 @@ without filing it.
 - **No reference numbers**: the block tells the model to cite the upload in words; `[^…]`
   belongs to Paperless documents only.
 
-**Tool history** (`app_ui/tool_trace.py`, `TraceView`): its own icon in the answer's footer
+**Behind the answer** (the tool history, `app_ui/tool_trace.py`, `TraceView`; the name since 2026-11-26 — it holds prompt, thinking, tools and answer): its own icon in the answer's footer
 from the moment the turn starts, beside the "…" menu that joins it when the answer is done.
 It holds the turn's lists and redraws while open (`update()` per event), so the user watches
 the loop work. Steps on the left, one **round** per model request: "Thinking" (the model's
 own time — reading the prompt, thinking, writing its tool calls — with its thinking text),
 then the tools it asked for, which run after it; the last round's step is "Final answer",
-with the answer. The round heading carries model + tools. The chosen step is on the right
+with the answer — its thinking a step of its own before it. The Prompt section starts folded.
+The bubble's old "Thoughts" box and its setting are gone: the thinking lives here. While the loop
+works, the top of the bubble shows **live steps** (`_live_steps`): the current step with a
+spinner at the bottom, the two before it above, done and fading, on one line with station
+dots — tool, "💭 Thinking" once a round's tools are back, "✍️ Writing the answer"; removed
+when the answer is done. The round heading carries model + tools. The chosen step is on the right
 (a phone shows one at a time, with "All steps"); only its content reaches the browser.
 Several tools in one round are parallel tool use: one answer asked for all of them.
 `open()` opens before it draws — `update()` draws only an open dialog, so a history closed

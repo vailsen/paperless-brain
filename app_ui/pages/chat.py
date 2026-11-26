@@ -847,6 +847,28 @@ html, body { overflow: hidden !important; }
 .web-card { transition: transform .12s, box-shadow .12s; }
 .web-card:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(0,0,0,0.45) !important; }
 .web-card-link { text-decoration: none !important; display: block; width: 100%; }
+/* Live steps at the top of a bubble while the loop works */
+.pb-steps { display:flex; flex-direction:column; font-size:0.74rem; margin:0 0 2px; min-width:0; }
+.pb-st { display:flex; align-items:center; gap:8px; min-width:0; line-height:1.55; color:var(--c-text-2); }
+.pb-st .rail { position:relative; width:12px; align-self:stretch; flex-shrink:0; }
+.pb-st .rail::before { content:''; position:absolute; left:5px; top:0; bottom:0; width:2px;
+    background:var(--c-border); }
+.pb-st:first-child .rail::before { top:50%; }
+.pb-st:nth-last-child(2) .rail::before { bottom:50%; }
+.pb-st:first-child:nth-last-child(2) .rail::before { display:none; }
+.pb-st .dot { position:absolute; left:1px; top:50%; width:10px; height:10px; margin-top:-5px;
+    border-radius:50%; box-sizing:border-box; background:var(--c-text-muted);
+    border:2px solid var(--c-text-muted); }
+.pb-st.is-now .dot { background:var(--c-surface); border-color:var(--c-accent);
+    border-top-color:transparent; animation:pb-st-spin .8s linear infinite; }
+.pb-st .t { flex-shrink:0; }
+.pb-st .h { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    color:var(--c-text-muted); }
+.pb-st.is-now { color:var(--c-text); animation:pb-st-in .35s ease-out; }
+.pb-st.age-1 { opacity:.6; } .pb-st.age-2 { opacity:.3; }
+.pb-st-meta { font-size:0.66rem; color:var(--c-text-muted); padding-left:20px; }
+@keyframes pb-st-spin { to { transform:rotate(360deg); } }
+@keyframes pb-st-in { from { opacity:0; transform:translateY(5px); } }
 /* Typing indicator */
 .typing-dots { display:inline-flex; align-items:center; gap:4px; padding:2px 0; }
 .typing-dots span {
@@ -1345,7 +1367,6 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         "tools_panel_open": False,
         "max_iterations": int(_chat_cfg.get("max_iterations", 16)),
         "web_fetch_mode": _chat_cfg.get("web_fetch_mode", "hybrid"),
-        "show_thinking": _chat_cfg.get("show_thinking", True),
         "expert_id": _initial_expert_id,
         "dossier_ctx": None,
         # Per assistant message (index in "messages"): its turn's provenance,
@@ -1514,7 +1535,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 with _sb:
                                     _rtv = _tool_trace_mod.view_for(_rec)
                                 ui.button(icon="info_outline", color=None, on_click=_rtv.open).props(
-                                    "flat dark dense round").classes("text-gray-600").tooltip(_("Tool history"))
+                                    "flat dark dense round").classes("text-gray-600").tooltip(_("Behind the answer"))
 
     async def _resolve_cite_titles(texts: list[str]) -> dict[int, str]:
         """Titles of the documents cited in ``texts`` — asked of Paperless as
@@ -2374,15 +2395,6 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                             _chat_cfg["max_iterations"] = val
                                             _save_chat_settings()
                                         _max_iter_input.on_value_change(_on_max_iter_change)
-                                    _think_cb = ui.checkbox(
-                                        _("Show thinking log"), value=_s["show_thinking"]
-                                    ).classes("text-gray-300 chat-tool-cb")
-                                    def _on_think_toggle(e) -> None:
-                                        _s["show_thinking"] = e.value
-                                        _chat_cfg["show_thinking"] = e.value
-                                        _save_chat_settings()
-                                    _think_cb.on_value_change(_on_think_toggle)
-
                                     def _on_quick_toggle(e) -> None:
                                         set_pref("chat_quick_bar", bool(e.value))
                                         quick_strip.set_visibility(bool(e.value))
@@ -3061,14 +3073,6 @@ document.addEventListener('click', function(e) {{
     // A web source in an answer opens beside the chat, never in its place.
     var ext = e.target.closest('.chat-md a[href^="http"]');
     if (ext) {{ e.preventDefault(); window.open(ext.getAttribute('href'), '_blank', 'noopener'); return; }}
-    // Open thoughts can be long: a tap anywhere in them folds them again
-    // (not while selecting text), and the bubble's top comes back into view.
-    var th = e.target.closest('details.pb-thoughts[open]');
-    if (th && !e.target.closest('summary') && !String(window.getSelection() || '')) {{
-        th.open = false;
-        var s = th.querySelector('summary');
-        if (s && s.getBoundingClientRect().top < 0) s.scrollIntoView({{block: 'nearest'}});
-    }}
 }});
 window.__openDocById = function(docId) {{
     if (!window.socket || !window.did_handshake) {{
@@ -4348,7 +4352,6 @@ window.__openVaultNote = function(noteId) {{
 
         # Create assistant bubble with streaming label
         streaming_label: list = [None]
-        thinking_content_el: list = [None]  # ui.html inside persistent <details>
         status_badge: list = [None]
         bubble: list = [None]
         foot: list = [None]       # the bubble's footer row
@@ -4363,25 +4366,9 @@ window.__openVaultNote = function(noteId) {{
                     "display:flex;flex-direction:column;gap:6px;"
                 ) as b:
                     bubble[0] = b
-                    # The current tool, once one runs; the busy dots are in the footer.
+                    # The live steps (`_live_steps`), while the loop works; the busy
+                    # dots are in the footer. Gone when the answer is done.
                     status_badge[0] = ui.html("", sanitize=False).style("display:none;")
-                    # Persistent <details> — browser owns open/closed state; we only
-                    # update the inner content div, so state is never lost on refresh.
-                    with ui.element("details").classes("pb-thoughts").style(
-                        "margin-bottom:8px;border-left:2px solid var(--c-border);"
-                        "padding-left:8px;display:none"
-                    ) as _thinking_details_el:
-                        with ui.element("summary").style(
-                            "color:var(--c-text-muted);font-size:0.72rem;cursor:pointer;"
-                            "list-style:none;display:flex;align-items:center;gap:4px"
-                        ):
-                            ui.html(
-                                '&#x1F4AD; ' + _("Thoughts")
-                                + '<span style="font-size:0.6rem;margin-left:2px;'
-                                'opacity:0.7">▼</span>',
-                                sanitize=False,
-                            )
-                        thinking_content_el[0] = ui.html("", sanitize=False)
                     streaming_label[0] = ui.markdown(
                         "", sanitize=False, extras=_MD_EXTRAS
                     ).classes("chat-md")
@@ -4404,8 +4391,6 @@ window.__openVaultNote = function(noteId) {{
         if _u and not _embed and _s.get("conv_id"):
             _LIVE_TURNS[_u] = {"conv_id": _s["conv_id"], "acc": accumulated,
                                       "state": _s, "done": False}
-        thinking_chunks: list = [[]]  # list of {"text": str, "iter_label": str}
-        _STRIP_THINK = re.compile(r"</?think(?:ing)?>", re.IGNORECASE)
 
         def _build_display() -> str:
             # Pictures stream in as the tools return, so they show up while the
@@ -4414,41 +4399,6 @@ window.__openVaultNote = function(noteId) {{
             return escape_intraword_underscores(
                 with_images(accumulated[0], _shown_images, _)
             )
-
-        def _fmt_tool_call_label(label: str, tool_input: dict, iteration: int) -> str:
-            clean = label.rstrip(".")
-            if tool_input:
-                arg_parts = []
-                for k, v in list(tool_input.items())[:3]:
-                    v_str = f'"{v}"' if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
-                    if len(v_str) > 40:
-                        v_str = v_str[:37] + "…"
-                    arg_parts.append(f'"{k}": {v_str}')
-                return f"Iter {iteration} → {clean} ({', '.join(arg_parts)})"
-            return f"Iter {iteration} → {clean}"
-
-        def _update_thinking() -> None:
-            if not _s["show_thinking"] or not thinking_chunks[0]:
-                return
-            parts = []
-            for chunk in thinking_chunks[0]:
-                text = _STRIP_THINK.sub("", chunk["text"]).strip()
-                if text:
-                    esc = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                    parts.append(
-                        f'<pre style="color:var(--c-text-muted);font-size:0.7rem;white-space:pre-wrap;'
-                        f'margin:0 0 2px 0">{esc}</pre>'
-                    )
-                if chunk["iter_label"]:
-                    lbl = chunk["iter_label"].replace("<", "&lt;").replace(">", "&gt;")
-                    parts.append(
-                        f'<div style="color:#60a5fa;font-size:0.68rem;border-top:1px solid '
-                        f'var(--c-border);padding:3px 0 6px 0">{lbl}</div>'
-                    )
-            thinking_content_el[0].set_content(
-                f'<div style="margin-top:4px">{"".join(parts)}</div>'
-            )
-            _thinking_details_el.style(remove="display:none")
 
         _iter = [1]
         _tool_calls = [0]  # actual tool invocations, ≥ _iter when calls run in parallel
@@ -4478,19 +4428,41 @@ window.__openVaultNote = function(noteId) {{
             _tv = _tt.view_for(_trace_rec)
         with foot[0]:
             _tv_btn = ui.button(icon="info_outline", color=None, on_click=_tv.open).props(
-                "flat dark dense round").classes("text-gray-600").tooltip(_("Tool history"))
+                "flat dark dense round").classes("text-gray-600").tooltip(_("Behind the answer"))
+
+        # The live steps at the top of the bubble: the current one at the bottom
+        # with a spinner, the two before it above, done and fading — stations on
+        # one line. Only while the loop works; the history keeps everything.
+        _live_steps: list[dict] = []
+
+        def _render_steps() -> None:
+            rows = _live_steps[-3:]
+            out = []
+            for k, st in enumerate(rows):
+                age = len(rows) - 1 - k
+                cls = "pb-st" + (" is-now" if not st["done"] else " is-done") + f" age-{age}"
+                hint = (f'<span class="h">{_html.escape(st["hint"].lstrip(": "))}</span>'
+                        if st["hint"] else "")
+                out.append(f'<div class="{cls}"><span class="rail"><span class="dot"></span></span>'
+                           f'<span class="t">{_html.escape(st["label"].rstrip("."))}</span>{hint}</div>')
+            meta = _("Round {n}").format(n=_iter[0]) + " · " + _calls_lbl.format(n=_tool_calls[0])
+            status_badge[0].set_content(f'<div class="pb-steps">{"".join(out)}'
+                                        f'<div class="pb-st-meta">{_html.escape(meta)}</div></div>')
+            status_badge[0].style("display:block;")
 
         def _set_status(label: str, hint: str = "") -> None:
-            """What the turn does now — a tool, or the model between and after them."""
-            status_badge[0].set_content(
-                f'<span style="font-size:0.72rem;color:var(--c-accent-text);font-family:inherit;">'
-                f"{_html.escape(label)} · {_iter[0]}/{_s['max_iterations']}"
-                f" · {_calls_lbl.format(n=_tool_calls[0])}"
-                f"</span>"
-            )
-            status_badge[0].style("display:block;")
-            activity_label.set_text(f"{label}{hint}")
-            activity_row.set_visibility(True)
+            """A new step starts: everything before it is done."""
+            if _live_steps and not _live_steps[-1]["done"] and _live_steps[-1]["label"] == label:
+                return
+            for st in _live_steps:
+                st["done"] = True
+            _live_steps.append({"label": label, "hint": hint, "done": False})
+            _render_steps()
+
+        def _step_finished() -> None:
+            if _live_steps and not _live_steps[-1]["done"]:
+                _live_steps[-1]["done"] = True
+                _render_steps()
 
         def _tv_update() -> None:
             try:
@@ -4605,17 +4577,12 @@ window.__openVaultNote = function(noteId) {{
                 if _s["stop_requested"]:
                     break
                 if isinstance(event, ThinkingEvent):
-                    thinking_chunks[0].append({"text": event.text, "iter_label": ""})
                     _thinking_by_round[_iter[0]] = _thinking_by_round.get(_iter[0], "") + event.text
                     _tv_update()
-                    if _s["show_thinking"]:
-                        _update_thinking()
-                        messages_scroll.scroll_to(percent=1.0)
-                        await asyncio.sleep(0)
 
                 elif isinstance(event, TextTokenEvent):
-                    if not accumulated[0] and _tool_calls[0]:
-                        _set_status(_("Writing the answer …"))
+                    if not accumulated[0]:
+                        _set_status(_("✍️ Writing the answer …"))
                     accumulated[0] += event.text
                     streaming_label[0].set_content(_build_display())
                     messages_scroll.scroll_to(percent=1.0)
@@ -4624,23 +4591,12 @@ window.__openVaultNote = function(noteId) {{
                 elif isinstance(event, IterationEvent):
                     _iter[0] = event.iteration
                     _tv.iteration = _trace_rec["iteration"] = event.iteration
+                    if event.iteration == 1:
+                        _set_status(_("💭 Thinking …"))
                     _tv_update()
 
                 elif isinstance(event, ToolCallEvent):
                     _tool_calls[0] += 1
-                    # One iteration can emit several tool calls (parallel tool
-                    # use). Writing the label onto the last chunk dropped every
-                    # call but the last, and an empty chunk list dropped the
-                    # call entirely — so attach to a free chunk or make one.
-                    _label = _fmt_tool_call_label(
-                        event.label, event.tool_input, _iter[0]
-                    )
-                    if thinking_chunks[0] and not thinking_chunks[0][-1]["iter_label"]:
-                        thinking_chunks[0][-1]["iter_label"] = _label
-                    else:
-                        thinking_chunks[0].append({"text": "", "iter_label": _label})
-                    if _s["show_thinking"]:
-                        _update_thinking()
                     _tool_trace.append(
                         {
                             "iter": _iter[0],
@@ -4663,10 +4619,11 @@ window.__openVaultNote = function(noteId) {{
                         _tool_trace[-1]["output_full"] = event.tool_output
                         _tool_trace[-1]["duration_ms"] = event.duration_ms
                         _tv_update()
+                    _step_finished()
                     # Every tool of the round is back: the model works now, not
                     # the last tool ("Calculating …" stayed up for the answer).
                     if all(t.get("duration_ms") is not None for t in _tool_trace if t["iter"] == _iter[0]):
-                        _set_status(_("Thinking …"))
+                        _set_status(_("💭 Thinking …"))
 
                 elif isinstance(event, ModelCallEvent):
                     _model_calls.append(dataclasses.asdict(event))
@@ -4746,8 +4703,6 @@ window.__openVaultNote = function(noteId) {{
             except Exception:  # noqa: BLE001 — the page may be gone; the answer is stored below
                 pass
             activity_row.set_visibility(False)
-            if thinking_chunks[0] and _s["show_thinking"]:
-                _update_thinking()
             if _shown_images:
                 accumulated[0] = with_images(accumulated[0], _shown_images, _)
             if accumulated[0]:
@@ -4843,7 +4798,7 @@ window.__openVaultNote = function(noteId) {{
                     if live_tv is not None:
                         with ui.row().classes("justify-end w-full"):
                             ui.button(icon="info_outline", color=None, on_click=live_tv.open).props(
-                                "flat dark dense round").classes("text-gray-600").tooltip(_("Tool history"))
+                                "flat dark dense round").classes("text-gray-600").tooltip(_("Behind the answer"))
         _scroll_bottom_later()
         seen = [""]
 

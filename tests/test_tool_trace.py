@@ -186,3 +186,13 @@ def test_prompt_section_comes_first():
     assert [s["kind"] for s in steps] == ["section", "prompt", "prompt", "round", "model"]
     assert steps[0]["chars"] == 5
 
+
+
+def test_the_answering_round_has_its_own_thinking_step():
+    from app_ui.tool_trace import step_list
+
+    calls = [{"iteration": 1, "total_ms": 5, "stop": "tool_calls"}, {"iteration": 2, "total_ms": 9, "stop": "stop"}]
+    trace = [{"iter": 1, "name": "search", "duration_ms": 3}]
+    kinds = [s["kind"] for s in step_list(trace, calls, thinking={1: "a", 2: "now I answer"})]
+    assert kinds == ["round", "model", "tool", "round", "think", "model"]
+    assert "think" not in [s["kind"] for s in step_list(trace, calls, thinking={1: "a"})]

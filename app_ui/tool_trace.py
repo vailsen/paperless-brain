@@ -1,6 +1,6 @@
-"""The tool history of one chat answer: dialog and two downloads.
+"""Behind the answer — the history of one chat answer: dialog and two downloads.
 
-- **Tool history (.md)** — every model request (tokens, time to the first
+- **Behind the answer (.md)** — every model request (tokens, time to the first
   token, total time) and every tool call (input, duration, the whole result).
 - **Raw conversation (.md)** — what the model was sent on its last request:
   system prompt, tool schemas and every message of the loop, its answer
@@ -84,7 +84,7 @@ def _steps(trace: list[dict], calls: list[dict]) -> list[tuple[int, dict | None,
 def trace_markdown(trace: list[dict], calls: list[dict], *, model: str = "", question: str = "",
                    now: datetime | None = None) -> str:
     tot = totals(trace, calls)
-    out = ["# Tool history", ""]
+    out = ["# Behind the answer", ""]
     if question:
         out += [f"> {' '.join(question.split())[:300]}", ""]
     meta = [f"{(now or datetime.now()):%Y-%m-%d %H:%M}"]
@@ -169,7 +169,8 @@ _TOOL_STOPS = ("tool_calls", "tool_use")
 
 
 def step_list(trace: list[dict], calls: list[dict], *, running: bool = False,
-              iteration: int = 0, prompt: list[dict] | None = None) -> list[dict]:
+              iteration: int = 0, prompt: list[dict] | None = None,
+              thinking: dict[int, str] | None = None) -> list[dict]:
     """The steps the dialog lists, in order, one round per model request:
 
     - ``round`` — a heading, the round's whole time (model + tools);
@@ -198,6 +199,10 @@ def step_list(trace: list[dict], calls: list[dict], *, running: bool = False,
         final = bool(call) and not tools and (call.get("stop") or "") not in _TOOL_STOPS
         out.append({"kind": "round", "key": f"r{i}", "iter": i, "ms": ms if call else None,
                     "running": busy})
+        if final and (thinking or {}).get(i, "").strip():
+            # The answering round thought too: its own step, as in every other
+            # round, not folded into the answer.
+            out.append({"kind": "think", "key": f"k{i}", "iter": i, "running": False})
         out.append({"kind": "model", "key": f"m{i}", "iter": i, "call": call, "final": final,
                     "running": call is None and running})
         for k, t in enumerate(tools):
@@ -343,7 +348,7 @@ class TraceView:
         def _dl_trace() -> None:
             ui.download(trace_markdown(self.trace, self.calls, model=self.model,
                                        question=self.question).encode("utf-8"),
-                        _("tool-history.md"), media_type="text/markdown")
+                        _("behind-the-answer.md"), media_type="text/markdown")
 
         def _dl_raw() -> None:
             tx = self._tx()
@@ -357,10 +362,10 @@ class TraceView:
                 "background:var(--c-surface); width:min(980px, 96vw); max-width:none; height:min(760px, 90vh);"
                 "display:flex; flex-direction:column; flex-wrap:nowrap; padding:12px;"):
             with ui.row().classes("items-center justify-between w-full no-wrap"):
-                ui.label(_("Tool history")).classes("text-sm font-semibold").style("color:var(--c-text)")
+                ui.label(_("Behind the answer")).classes("text-sm font-semibold").style("color:var(--c-text)")
                 with ui.row().classes("items-center gap-1 no-wrap"):
                     ui.button(icon="download", color=None, on_click=_dl_trace).props(
-                        "flat dense round").classes("card-action-btn").tooltip(_("Download tool history (.md)"))
+                        "flat dense round").classes("card-action-btn").tooltip(_("Download as Markdown (.md)"))
                     ui.button(icon="description", color=None, on_click=_dl_raw).props(
                         "flat dense round").classes("card-action-btn").tooltip(
                         _("Download raw conversation with system prompt, without thinking (.md)"))
@@ -388,7 +393,7 @@ class TraceView:
 
     def _steps_now(self) -> list[dict]:
         return step_list(self.trace, self.calls, running=self.running, iteration=self.iteration,
-                         prompt=self.prompt)
+                         prompt=self.prompt, thinking=self.thinking)
 
     def _selected(self, steps: list[dict]) -> dict | None:
         steps = [s for s in steps if s["kind"] not in ("round", "section")]
@@ -417,6 +422,8 @@ class TraceView:
 
     @staticmethod
     def _ms(step: dict) -> int | None:
+        if step["kind"] == "think":
+            return None
         if step["kind"] == "round":
             return step["ms"]
         if step["kind"] == "model":
@@ -466,11 +473,15 @@ class TraceView:
                     with ui.element("div").classes("pb-tt-row"):
                         if s["running"]:
                             ui.spinner(size="0.9em")
+                        elif s["kind"] == "think":
+                            ui.icon("psychology", size="1rem")
                         elif s["kind"] == "model":
                             ui.icon("edit_note" if s["final"] else "psychology", size="1rem")
                         else:
                             ui.icon("build", size="0.9rem")
-                        if s["kind"] == "model":
+                        if s["kind"] == "think":
+                            name = _("Thinking")
+                        elif s["kind"] == "model":
                             name = _("Final answer") if s["final"] else _("Thinking")
                         else:
                             name = (s["step"].get("label") or s["step"].get("name") or "").rstrip(".")
@@ -492,10 +503,20 @@ class TraceView:
                 return
             if cur["kind"] == "prompt":
                 self._prompt_detail(cur["part"])
+            elif cur["kind"] == "think":
+                self._think_detail(cur)
             elif cur["kind"] == "model":
                 self._model_detail(cur)
             else:
                 self._tool_detail(cur)
+
+    def _think_detail(self, s: dict) -> None:
+        _ = self._
+        ui.label(_("Round {n} · {what}").format(n=s["iter"], what=_("Thinking"))).classes(
+            "text-sm font-semibold").style("color:var(--c-text)")
+        ui.label(_("Before the answer. Its time is part of the final answer's model time.")).classes(
+            "text-xs").style("color:var(--c-text-muted)")
+        ui.label((self.thinking.get(s["iter"]) or "").strip()).classes("pb-tt-pre is-out")
 
     def _prompt_detail(self, part: dict) -> None:
         _ = self._
@@ -552,9 +573,6 @@ class TraceView:
         thought = (self.thinking.get(s["iter"]) or "").strip()
         if s["final"]:
             answer = (self.answer() if callable(self.answer) else self.answer) or ""
-            if thought:
-                ui.label(_("Thinking")).classes("pb-tt-k mt-1")
-                ui.label(thought).classes("pb-tt-pre")
             ui.label(_("Answer")).classes("pb-tt-k mt-1")
             ui.label(answer.strip() or _("(empty)")).classes("pb-tt-pre is-out")
             return
