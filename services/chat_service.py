@@ -815,7 +815,7 @@ TOOL_DEFINITIONS: list[dict] = [
     {
         "name": "vault_search",
         "description": (
-            "READ-ONLY search of the user's own notes (Obsidian vault). There is no tool to create, edit, rename or delete a note, so never offer to write into one. Two modes: 'query' searches by meaning and by title (title matches first, marked '(title match)'); 'pbrain_id' reads one note completely. Not for Paperless documents or memory facts."
+            "READ-ONLY search of the user's own notes (Obsidian vault). There is no tool to create, edit, rename or delete a note, so never offer to write into one. Three modes: 'query' searches by meaning and by title (title matches first, marked '(title match)'); 'text' finds notes containing exactly these words (any case) — for a word, name or number the user wants found literally; 'pbrain_id' reads one note completely. Not for Paperless documents or memory facts."
         ),
         "input_schema": {
             "type": "object",
@@ -823,6 +823,10 @@ TOOL_DEFINITIONS: list[dict] = [
                 "query": {
                     "type": "string",
                     "description": "Semantic search query (mode 1)",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "Literal text the note must contain (mode 2)",
                 },
                 "pbrain_id": {
                     "type": "string",
@@ -2964,6 +2968,52 @@ def _fmt_note_line(name: str, heading: str, psid: str, dist: float) -> str:
     )
 
 
+def _literal_regex(text: str) -> str:
+    """Case-insensitive, any whitespace between the words."""
+    return "(?i)" + r"\s+".join(re.escape(w) for w in text.split())
+
+
+async def _vault_text_matches(user: str, text: str, limit: int = 10) -> tuple[str, list]:
+    """Notes that contain ``text`` literally. Searches the index, so it sees
+    exactly what semantic search sees — the findings folder only as far as
+    `proactive.retrieval.index_meta` lets it in."""
+    from services.clients import vault_chroma
+
+    rx = _literal_regex(text)
+    try:
+        items = await vault_chroma.get(where={"user": {"$eq": user}}, where_document={"$regex": rx})
+    except Exception as e:
+        return f"Vault search failed: {e}", []
+    pat = re.compile(rx[4:], re.IGNORECASE)
+    by_note: dict[str, dict] = {}
+    for it in items:
+        m = it.get("metadata") or {}
+        pid = m.get("pbrain_id")
+        if pid and (pid not in by_note or m.get("chunk_index", 0)
+                    < (by_note[pid].get("metadata") or {}).get("chunk_index", 0)):
+            by_note[pid] = it
+    if not by_note:
+        return f"No note contains '{text}'.", []
+    notes: list[VaultNoteResult] = []
+    for pid, it in list(by_note.items())[:limit]:
+        m = it.get("metadata") or {}
+        doc = it.get("document") or ""
+        hit = pat.search(doc)
+        a = max(0, (hit.start() if hit else 0) - 140)
+        snippet = ("…" if a else "") + doc[a:a + 300].replace("\n", " ")
+        path = m.get("path", "")
+        notes.append(VaultNoteResult(
+            pbrain_id=pid, path=path, title=path.rsplit("/", 1)[-1].removesuffix(".md") if path else pid[:8],
+            snippet=snippet, distance=0.0, heading_path=m.get("heading_path", ""), user=user))
+    lines = [f"Vault: {len(by_note)} notes contain '{text}'"
+             + (f" (first {limit} shown)" if len(by_note) > limit else "") + "\n"]
+    for r in notes:
+        lines.append(f"• [[{r.title}]]" + (f" › {r.heading_path}" if r.heading_path else "")
+                     + f" — pbrain_id: {r.pbrain_id} (literal match)" + _finding_mark(r.path))
+        lines.append(f"  {r.snippet}")
+    return "\n".join(lines), notes
+
+
 async def _vault_title_matches(user: str, query: str, limit: int = 5) -> list[VaultNoteResult]:
     """Lexical title lookup: notes whose filename contains every query token.
 
@@ -3049,10 +3099,14 @@ async def _tool_vault_search(inputs: dict) -> tuple[str, list]:
         except Exception as e:
             return f"Vault retrieval failed: {e}", []
 
+    text = (inputs.get("text") or "").strip()
+    if text:
+        return await _vault_text_matches(user, text, int(inputs.get("max_results") or 10))
+
     # Modus 1: semantische Suche + lexikalische Titel-Treffer
     query = (inputs.get("query") or "").strip()
     if not query:
-        return "query or pbrain_id required.", []
+        return "query, text or pbrain_id required.", []
     k = int(inputs.get("max_results") or 5)
     try:
         total = await vault_chroma.count()

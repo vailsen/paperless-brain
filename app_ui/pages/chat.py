@@ -11,6 +11,7 @@ import urllib.parse
 from nicegui import app as ng_app
 from nicegui import ui
 
+from app_ui import tool_trace as _tool_trace_mod
 from app_ui.chat_images import with_images
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
@@ -1503,7 +1504,17 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         extras=_MD_EXTRAS,
                     ).classes("chat-md")
                     if (msg.get("content") or "").strip():
-                        _answer_menu(idx, _sb, msg["content"])
+                        _rec = _tool_trace_mod.kept(
+                            (_username, _s.get("conv_id"), idx)) if _s.get("conv_id") else None
+                        if _rec is None:
+                            _answer_menu(idx, _sb, msg["content"])
+                        else:
+                            with ui.row().classes("justify-end items-center w-full mt-1 gap-1 no-wrap"):
+                                _answer_menu(idx, _sb, msg["content"], inline=True)
+                                with _sb:
+                                    _rtv = _tool_trace_mod.view_for(_rec)
+                                ui.button(icon="info_outline", color=None, on_click=_rtv.open).props(
+                                    "flat dark dense round").classes("text-gray-600").tooltip(_("Tool history"))
 
     async def _resolve_cite_titles(texts: list[str]) -> dict[int, str]:
         """Titles of the documents cited in ``texts`` — asked of Paperless as
@@ -3387,6 +3398,40 @@ window.__openVaultNote = function(noteId) {{
 
         return _click
 
+    def _prompt_parts(system: str, te, exp, llm_messages: list[dict], tools: list[dict]) -> list[dict]:
+        """What the model is given this turn, in parts, for the tool history:
+        the system prompt, the expert's additions to it, this question's
+        context, the earlier messages and the tool definitions."""
+        from config.chat_prompts import CUSTOM_INSTRUCTIONS_HEADER, MAX_CUSTOM_INSTRUCTIONS_CHARS
+
+        extra = [b for b in (te.blocks or []) if b and b.strip()]
+        if (te.personality or "").strip():
+            extra.append(f"{CUSTOM_INSTRUCTIONS_HEADER}\n\n"
+                         f"{te.personality.strip()[:MAX_CUSTOM_INSTRUCTIONS_CHARS]}")
+        base = system
+        for piece in extra:
+            base = base.replace("\n\n" + piece, "", 1)
+        out = [{"title": _("System prompt"), "text": base, "icon": "article",
+                "note": _("The expert's additions are part of it, shown on their own below.") if extra else ""}]
+        if extra:
+            out.append({"title": _("Expert: {name}").format(name=exp.name) if not exp.builtin
+                        else _("Expert additions"), "text": "\n\n".join(extra), "icon": "school"})
+        last, own = llm_messages[-1], (_s["messages"][-1] if _s["messages"] else {})
+        lc, oc = str(last.get("content") or ""), str(own.get("content") or "")
+        if lc != oc and lc.endswith(oc):
+            out.append({"title": _("Context of this question"), "text": lc[: len(lc) - len(oc)].rstrip(),
+                        "icon": "push_pin",
+                        "note": _("Put in front of the question: an opened finding or dossier, pinned documents.")})
+        earlier = llm_messages[:-1]
+        if earlier:
+            out.append({"title": _("Earlier messages ({n})").format(n=len(earlier)), "icon": "forum",
+                        "text": "\n\n".join(f"── {m.get('role')} ──\n{m.get('content') or ''}" for m in earlier),
+                        "note": _("Only questions and answers: the tool results of earlier turns are not "
+                                  "sent again.")})
+        out.append({"title": _("Tool definitions ({n})").format(n=len(tools)), "icon": "build",
+                    "text": json.dumps(tools, ensure_ascii=False, indent=2)})
+        return out
+
     def _answer_menu(idx: int, bubble_el, content: str, *, inline: bool = False) -> None:
         """The answer's "…" menu (and, in the dock, "Save to dossier"). With
         `inline` it goes into the caller's row — the live bubble's footer,
@@ -4408,13 +4453,20 @@ window.__openVaultNote = function(noteId) {{
 
         # The tool history, live: it holds the lists above and redraws itself
         # (when open) as events arrive.
-        from app_ui.tool_trace import TraceView
+        # One record per answer: the live bubble, a /chat page opened again
+        # mid-turn (`_adopt_live`) and the stored answer after a reload all show
+        # its history (`tool_trace.keep`, process memory only).
+        from app_ui import tool_trace as _tt
 
+        _trace_rec = {"trace": _tool_trace, "calls": _model_calls, "transcript": _transcript,
+                      "thinking": _thinking_by_round, "answer": accumulated, "prompt": [],
+                      "model": _s.get("chat_model_name", ""), "question": _question,
+                      "iteration": 0, "done": False}
+        _live_entry = _LIVE_TURNS.get(_u) if _u else None
+        if _live_entry is not None and _live_entry.get("state") is _s:
+            _live_entry["trace_rec"] = _trace_rec
         with bubble[0]:
-            _tv = TraceView(_tool_trace, _model_calls, lambda: _transcript[0],
-                            model=_s.get("chat_model_name", ""), question=_question,
-                            thinking=_thinking_by_round, answer=lambda: accumulated[0])
-        _tv.running = True
+            _tv = _tt.view_for(_trace_rec)
         with foot[0]:
             _tv_btn = ui.button(icon="info_outline", color=None, on_click=_tv.open).props(
                 "flat dark dense round").classes("text-gray-600").tooltip(_("Tool history"))
@@ -4510,6 +4562,11 @@ window.__openVaultNote = function(noteId) {{
             + max(0, sum(len(str(m.get("content", ""))) for m in llm_messages)
                   - sum(len(str(m.get("content", ""))) for m in _s["messages"])))
         _update_context_progress()
+        try:
+            _trace_rec["prompt"].extend(_prompt_parts(_system, _te, _exp, llm_messages, _turn_tools))
+            _tv_update()
+        except Exception:  # noqa: BLE001 — the history must never cost the answer
+            _log.warning("prompt parts for the tool history failed", exc_info=True)
         _starting = _host_starting_hint()
         try:
             async for event in backend.run_turn(
@@ -4543,7 +4600,7 @@ window.__openVaultNote = function(noteId) {{
 
                 elif isinstance(event, IterationEvent):
                     _iter[0] = event.iteration
-                    _tv.iteration = event.iteration
+                    _tv.iteration = _trace_rec["iteration"] = event.iteration
                     _tv_update()
 
                 elif isinstance(event, ToolCallEvent):
@@ -4726,7 +4783,11 @@ window.__openVaultNote = function(noteId) {{
 
             # ── Footer: the "…" menu joins the tool history button ──
             _tv.running = False
+            _trace_rec["done"] = True
             _tv_update()
+            if (_s.get("conv_id") and (_tool_trace or _model_calls) and _s["messages"]
+                    and _s["messages"][-1].get("role") == "assistant"):
+                _tt.keep((_u, _s["conv_id"], len(_s["messages"]) - 1), _trace_rec)
             if not (_tool_trace or _model_calls):
                 _tv_btn.delete()
             if _md_raw:
@@ -4757,10 +4818,22 @@ window.__openVaultNote = function(noteId) {{
                         ui.spinner(size="xs").classes("pb-accent-text")
                         ui.label(_("The answer is still being written …")).classes("text-xs pb-accent-text")
                     live_md = ui.markdown("", sanitize=False, extras=_MD_EXTRAS).classes("chat-md")
+                    # The turn's history, still growing — the same record the
+                    # page that started the turn shows.
+                    _rec = live.get("trace_rec")
+                    live_tv = _tool_trace_mod.view_for(_rec) if _rec else None
+                    if live_tv is not None:
+                        with ui.row().classes("justify-end w-full"):
+                            ui.button(icon="info_outline", color=None, on_click=live_tv.open).props(
+                                "flat dark dense round").classes("text-gray-600").tooltip(_("Tool history"))
         _scroll_bottom_later()
         seen = [""]
 
         def _tick() -> None:
+            if live_tv is not None and _rec is not None:
+                live_tv.running = not _rec.get("done")
+                live_tv.iteration = _rec.get("iteration", 0)
+                live_tv.update()
             text = live["acc"][0] or ""
             if text != seen[0] and not live_md.is_deleted:
                 seen[0] = text

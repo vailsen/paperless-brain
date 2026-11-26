@@ -17,6 +17,7 @@ page — nothing here is stored.
 from __future__ import annotations
 
 import json
+from collections import OrderedDict
 from datetime import datetime
 
 from nicegui import ui
@@ -168,7 +169,7 @@ _TOOL_STOPS = ("tool_calls", "tool_use")
 
 
 def step_list(trace: list[dict], calls: list[dict], *, running: bool = False,
-              iteration: int = 0) -> list[dict]:
+              iteration: int = 0, prompt: list[dict] | None = None) -> list[dict]:
     """The steps the dialog lists, in order, one round per model request:
 
     - ``round`` — a heading, the round's whole time (model + tools);
@@ -184,6 +185,11 @@ def step_list(trace: list[dict], calls: list[dict], *, running: bool = False,
     """
     out: list[dict] = []
     seen = set()
+    if prompt:
+        out.append({"kind": "section", "key": "s0", "chars": sum(len(p["text"]) for p in prompt),
+                    "running": False})
+        for k, part in enumerate(prompt):
+            out.append({"kind": "prompt", "key": f"p{k}", "part": part, "running": False})
 
     def _round(i: int, call: dict | None, tools: list[dict]) -> None:
         seen.add(i)
@@ -203,6 +209,41 @@ def step_list(trace: list[dict], calls: list[dict], *, running: bool = False,
     if running and iteration and iteration not in seen:
         _round(iteration, None, [])
     return out
+
+
+# ── Kept per answer ───────────────────────────────────────────────────────────
+# The history of an answer is what its turn collected: the live lists, the
+# prompt parts, the answer. It is kept in this process for the last answers,
+# so a /chat page opened again — mid-turn or after — still has it. Never
+# written anywhere: a restart forgets it.
+
+MAX_KEPT = 100
+_KEPT: "OrderedDict[tuple, dict]" = OrderedDict()
+
+
+def keep(key: tuple, rec: dict) -> None:
+    _KEPT[key] = rec
+    _KEPT.move_to_end(key)
+    while len(_KEPT) > MAX_KEPT:
+        _KEPT.popitem(last=False)
+
+
+def kept(key: tuple) -> dict | None:
+    return _KEPT.get(key)
+
+
+def view_for(rec: dict) -> "TraceView":
+    """A history dialog over a kept record (its lists, live if still running)."""
+    tv = TraceView(rec["trace"], rec["calls"], lambda: rec["transcript"][0], model=rec.get("model", ""),
+                   question=rec.get("question", ""), thinking=rec["thinking"],
+                   answer=lambda: rec["answer"][0], prompt=rec.get("prompt"))
+    tv.running = not rec.get("done")
+    tv.iteration = rec.get("iteration", 0)
+    return tv
+
+
+def prompt_tokens(chars: int) -> str:
+    return f"≈{chars // 4:,}".replace(",", " ")
 
 
 _CSS = """
@@ -247,7 +288,7 @@ class TraceView:
 
     def __init__(self, trace: list[dict], calls: list[dict], transcript=None, *,
                  model: str = "", question: str = "", thinking: dict[int, str] | None = None,
-                 answer=None):
+                 answer=None, prompt: list[dict] | None = None):
         from i18n import get_translator
 
         self._ = get_translator()
@@ -256,6 +297,9 @@ class TraceView:
         self.model, self.question = model, question
         self.thinking = thinking if thinking is not None else {}   # round → thinking text
         self.answer = answer              # callable → the answer text so far
+        # [{"title", "text", "icon"?, "note"?}]: what the model was given. Kept by
+        # reference — the chat fills it once the prompt is built.
+        self.prompt = prompt if prompt is not None else []
         self.running = False
         self.iteration = 0
         self.sel: str | None = None       # None: follow the newest step
@@ -277,7 +321,7 @@ class TraceView:
             return
         sig = (len(self.trace), len(self.calls), self.running, self.iteration, self.sel, self.phone_detail,
                sum(1 for t in self.trace if t.get("duration_ms") is not None),
-               sum(len(v) for v in self.thinking.values()))
+               sum(len(v) for v in self.thinking.values()), len(self.prompt))
         if sig == self._sig:
             return
         self._sig = sig
@@ -340,10 +384,11 @@ class TraceView:
             ui.label(text).classes("text-xs min-w-0").style("color:var(--c-text-muted)")
 
     def _steps_now(self) -> list[dict]:
-        return step_list(self.trace, self.calls, running=self.running, iteration=self.iteration)
+        return step_list(self.trace, self.calls, running=self.running, iteration=self.iteration,
+                         prompt=self.prompt)
 
     def _selected(self, steps: list[dict]) -> dict | None:
-        steps = [s for s in steps if s["kind"] != "round"]
+        steps = [s for s in steps if s["kind"] not in ("round", "section")]
         if not steps:
             return None
         if self.sel:
@@ -376,11 +421,25 @@ class TraceView:
         _ = self._
         steps = self._steps_now()
         cur = self._selected(steps)
-        longest = max([self._ms(s) or 0 for s in steps if s["kind"] != "round"] + [1])
+        longest = max([self._ms(s) or 0 for s in steps if s["kind"] in ("model", "tool")] + [1])
         with ui.element("div").classes("pb-tt-nav"):
             if not steps:
                 ui.label(_("Waiting for the model …")).classes("text-xs").style("color:var(--c-text-muted)")
             for s in steps:
+                if s["kind"] == "section":
+                    with ui.element("div").classes("pb-tt-round"):
+                        ui.label(_("Prompt")).classes("pb-tt-name")
+                        ui.label(prompt_tokens(s["chars"]) + " tok").classes("pb-tt-dur")
+                    continue
+                if s["kind"] == "prompt":
+                    cls = "pb-tt-item is-sub" + (" is-sel" if cur and s["key"] == cur["key"] else "")
+                    el = ui.element("div").classes(cls)
+                    el.on("click", lambda _e, k=s["key"]: self._pick(k))
+                    with el, ui.element("div").classes("pb-tt-row"):
+                        ui.icon(s["part"].get("icon") or "description", size="0.95rem")
+                        ui.label(s["part"]["title"]).classes("pb-tt-name")
+                        ui.label(prompt_tokens(len(s["part"]["text"]))).classes("pb-tt-dur")
+                    continue
                 ms = self._ms(s)
                 if s["kind"] == "round":
                     with ui.element("div").classes("pb-tt-round"):
@@ -419,10 +478,27 @@ class TraceView:
                 "flat dense no-caps").classes("pb-tt-back self-start")
             if cur is None:
                 return
-            if cur["kind"] == "model":
+            if cur["kind"] == "prompt":
+                self._prompt_detail(cur["part"])
+            elif cur["kind"] == "model":
                 self._model_detail(cur)
             else:
                 self._tool_detail(cur)
+
+    def _prompt_detail(self, part: dict) -> None:
+        _ = self._
+        text = part["text"]
+        with ui.row().classes("items-center justify-between w-full no-wrap"):
+            ui.label(part["title"]).classes("text-sm font-semibold min-w-0").style("color:var(--c-text)")
+            ui.button(icon="content_copy", color=None, on_click=lambda t=text: (
+                ui.run_javascript(f"navigator.clipboard.writeText({json.dumps(t)})"),
+                ui.notify(_("Copied"), timeout=1000))).props("flat dense round size=sm").classes(
+                "card-action-btn").tooltip(_("Copy"))
+        ui.label(_("{chars} characters · {tok} tokens (estimate)").format(
+            chars=f"{len(text):,}".replace(",", " "), tok=prompt_tokens(len(text)))).classes("pb-tt-k")
+        if part.get("note"):
+            ui.label(part["note"]).classes("text-xs").style("color:var(--c-text-muted)")
+        ui.label(text or _("(empty)")).classes("pb-tt-pre is-out")
 
     def _model_detail(self, s: dict) -> None:
         _ = self._

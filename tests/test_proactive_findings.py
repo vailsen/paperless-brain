@@ -489,3 +489,44 @@ def test_research_again_from_researched():
 
     assert transition("researched", "interested") == "interested"
     assert "interested" in reactions_for("researched", "insight")
+
+
+def test_a_sync_clients_safe_backup_is_folded_back(vaults):
+    """OneDrive renamed `_interests.md` to a safeBackup during an upload; the
+    app started a new file from zero. The backup's counts come back on the
+    next write, and the backup is gone after it."""
+    from proactive import interests
+    from proactive.paths import findings_root
+
+    root = findings_root("alice")
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "_interests-openmediavault-safeBackup-0001.md").write_text(
+        "---\npbrain_id: old\nmuted: [riester]\n---\n"
+        + interests.HEADER + "| einkommensteuer | 4 | 9 | 0 | 0 | 2026-11-06 |\n"
+        + "| telekommunikation | 11 | 0 | 1 | 0 | 2026-10-28 |\n")
+    (root / "_interests.md").write_text(
+        "---\npbrain_id: new\nmuted: []\n---\n"
+        + interests.HEADER + "| einkommensteuer | 0 | 4 | 0 | 0 | 2026-11-25 |\n")
+
+    i = interests.load("alice")                    # reading already counts both
+    assert i.rows["einkommensteuer"].interested == 13 and "riester" in i.muted
+
+    asyncio.run(interests.record("alice", "einkommensteuer", "interested"))
+    assert not list(root.glob("*safeBackup*"))
+    i = interests.load("alice")
+    assert i.rows["einkommensteuer"].interested == 14
+    assert i.rows["einkommensteuer"].last_reaction >= "2026-11-25"
+    assert i.rows["telekommunikation"].dismissed == 1 and "riester" in i.muted
+    assert "pbrain_id: new" in (root / "_interests.md").read_text()
+
+
+def test_a_backup_copy_of_the_same_record_does_not_double(vaults):
+    from proactive import interests
+    from proactive.paths import findings_root
+
+    root = findings_root("alice")
+    root.mkdir(parents=True, exist_ok=True)
+    body = "---\npbrain_id: same\nmuted: []\n---\n" + interests.HEADER + "| steuer | 1 | 3 | 0 | 0 | 2026-11-01 |\n"
+    (root / "_interests-host-safeBackup-0001.md").write_text(body)
+    (root / "_interests.md").write_text(body.replace("| 1 | 3 |", "| 1 | 4 |"))
+    assert interests.load("alice").rows["steuer"].interested == 4
