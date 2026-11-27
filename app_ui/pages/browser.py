@@ -53,12 +53,6 @@ html, body { overflow: hidden !important; }
 .pbb-bar{padding:10px 14px 8px;border-bottom:1px solid var(--c-border);display:flex;flex-direction:column;gap:8px;min-width:0}
 .pbb-results{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
 .pbb-count{font-size:.75rem;color:var(--c-text-muted);white-space:nowrap}
-.pbb-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
-.pbb-chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;font-size:.75rem;padding:2px 4px 2px 9px;
-  border-radius:999px;border:1px solid var(--c-border);color:var(--c-text-2);background:var(--c-surface-2);cursor:pointer}
-.pbb-chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.pbb-chip.is-not .t{text-decoration:line-through}
-.pbb-chip .x{font-size:14px;line-height:1;color:var(--c-text-muted)}
 /* Facets */
 .pbf{padding:4px 0 10px}
 .pbf details{border-bottom:1px solid var(--c-border)}
@@ -141,8 +135,6 @@ _JS = """<script>
     if(r){emitEvent('pbf_click',{f:r.dataset.f,v:r.dataset.v});return;}
     var m=e.target.closest&&e.target.closest('.pbf-mode a');
     if(m){emitEvent('pbf_tagsall',m.dataset.all==='1');return;}
-    var c=e.target.closest&&e.target.closest('.pbb-chip');
-    if(c){emitEvent('pbf_click',{f:c.dataset.f,v:c.dataset.v,off:1});return;}
     var l=e.target.closest&&e.target.closest('.pbl-row[data-id]');
     if(l){emitEvent('pbb_open',+l.dataset.id);return;}
     var h=e.target.closest&&e.target.closest('.pbl-head span[data-s]');
@@ -367,20 +359,6 @@ async def browser():
         parts.append("</div>")
         return "".join(parts)
 
-    # ── Active filters as chips ──────────────────────────────────────────────
-    def _chips_html() -> str:
-        out = []
-        for facet, vals in F.sel.items():
-            for v, s in vals.items():
-                out.append(f'<span class="pbb-chip{" is-not" if s < 0 else ""}" data-f="{html.escape(facet)}" '
-                           f'data-v="{html.escape(v)}"><span class="t">{html.escape(_label(facet, v))}</span>'
-                           f'<span class="x">×</span></span>')
-        if F.added:
-            lab = {"7d": _("Last 7 days"), "30d": _("Last 30 days"), "365d": _("Last 12 months")}[F.added]
-            out.append(f'<span class="pbb-chip" data-f="added" data-v="{F.added}"><span class="t">'
-                       f'{html.escape(_("Added"))}: {html.escape(lab)}</span><span class="x">×</span></span>')
-        return "".join(out)
-
     # ── Results ──────────────────────────────────────────────────────────────
     def _list_html(results: list[DocumentResult]) -> str:
         sort = _sort()
@@ -465,7 +443,6 @@ async def browser():
         """Everything a filter change touches — at once, from memory."""
         counts = fx.counts(st["docs"] or [], F, flags=flags)
         facets_html.set_content(_facet_html(counts))
-        chips_html.set_content(_chips_html())
         n = len(_results()) if st["docs"] is not None else 0
         count_label.set_text("" if st["docs"] is None else _("{n} documents").format(n=n))  # TODO i18n-plural
         clear_btn.set_visibility(bool(F.active()))
@@ -539,11 +516,7 @@ async def browser():
         a = e.args or {}
         f, v = a.get("f", ""), a.get("v", "")
         if f == "added":
-            F.added = "" if F.added == v or a.get("off") else v
-        elif a.get("off"):
-            F.sel.get(f, {}).pop(v, None)
-            if not F.sel.get(f):
-                F.sel.pop(f, None)
+            F.added = "" if F.added == v else v
         else:
             F.cycle(f, v)
         st["limit"] = PAGE
@@ -592,11 +565,14 @@ async def browser():
                     facet_btn = ui.button(_("Filters"), icon="tune", color=None,
                                           on_click=lambda: ui.run_javascript("pbbFacets(true)")).props(
                         "flat dense no-caps").classes("pbb-facet-btn")
+                # No pill per active filter: on a phone they filled the screen.
+                # The Filters button carries the count and the panel shows them.
                 with ui.row().classes("w-full items-center gap-2 no-wrap"):
-                    chips_html = ui.html("", sanitize=False).classes("pbb-chips flex-1 min-w-0")
-                    clear_btn = ui.button(_("Clear all"), on_click=lambda: (F.clear(), _clear_q(), render())).props(
-                        "flat dense no-caps size=sm")
                     count_label = ui.label("").classes("pbb-count")
+                    clear_btn = ui.button(_("Clear all"), icon="filter_alt_off",
+                                          on_click=lambda: (F.clear(), _clear_q(), render())).props(
+                        "flat dense no-caps size=sm")
+                    ui.element("div").classes("flex-1")
                     sort_select = ui.select(
                         {"created": _("Created"), "added": _("Added"), "title": _("Title"),
                          "correspondent": _("Correspondent"), "document_type": _("Document type"),
