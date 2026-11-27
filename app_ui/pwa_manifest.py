@@ -21,8 +21,10 @@ without a transcription service.
 
 from __future__ import annotations
 
+import base64
 import json
 from functools import lru_cache
+from pathlib import Path
 
 from app_ui.brand import ICON_VERSION
 from i18n import N_, SUPPORTED_LANGUAGES, translator_for
@@ -44,14 +46,36 @@ def pick_language(accept_language: str | None) -> str:
     return "en"
 
 
+_STATIC = Path(__file__).parent / "static"
+
+
+@lru_cache(maxsize=16)
+def _data_uri(name: str) -> str | None:
+    try:
+        raw = (_STATIC / name).read_bytes()
+    except OSError:
+        return None
+    return "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
+
+
 def _icons(glyph: str) -> list[dict]:
+    """The 192 px icons travel inside the manifest as data URIs; the 96 px ones
+    stay addresses, as a fallback.
+
+    The main icon showed on the installed app while every shortcut tile stayed
+    blank (2026-11-27): Chrome hands the main icon's bytes to the WebAPK
+    builder, while shortcut icons are fetched by address — which cannot work
+    for a server only the phone's network reaches. A data URI needs no fetch.
+    A browser that rejects one still has the address icons."""
     v = ICON_VERSION
     out = []
-    for size in (96, 192):
-        out.append({"src": f"/static/shortcut-{glyph}-{v}-{size}.png", "sizes": f"{size}x{size}",
-                    "type": "image/png", "purpose": "any"})
-        out.append({"src": f"/static/shortcut-{glyph}-{v}-maskable-{size}.png", "sizes": f"{size}x{size}",
-                    "type": "image/png", "purpose": "maskable"})
+    for purpose, part in (("any", ""), ("maskable", "maskable-")):
+        uri = _data_uri(f"shortcut-{glyph}-{v}-{part}192.png")
+        if uri:
+            out.append({"src": uri, "sizes": "192x192", "type": "image/png", "purpose": purpose})
+    for purpose, part in (("any", ""), ("maskable", "maskable-")):
+        out.append({"src": f"/static/shortcut-{glyph}-{v}-{part}96.png", "sizes": "96x96",
+                    "type": "image/png", "purpose": purpose})
     return out
 
 

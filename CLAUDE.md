@@ -156,7 +156,7 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
   still opens (push links, citations) with a "Show it again" notice; nothing it does in
   the background stops. Hiding Experts *is* the old "Use experts" switch. `/start` is the
   installed app's entry point (start page pref, or the module used last).
-- **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`, `id` pinned to "/" — never change it,
+- **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`, `id` pinned to "/" — never change it; the 192 px shortcut icons are inline data URIs, since a WebAPK cannot fetch them from a private server,
   served by a route: names from `Accept-Language`, no memo shortcut without Whisper).
   Never a second manifest on the same origin — it would share scope and service worker.
 - **A conversation can be edited** (`services/chat_edit.py`, "Edit conversation"): single
@@ -454,7 +454,7 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
 
 `services/model_host.py` is all the app knows of that proxy: `proxy_status(url)` (`GET /proxy/status` → `{"host": "asleep|waking|up|shutting_down"}`, None for a plain server), `headers()` for local inference (`X-Idle-Profile: background` in the worker process, `X-No-Wake: 1` inside `no_wake()`), and `READ_TIMEOUT_S` (330 s: a held request waits for boot + model load — every local-inference read timeout must cover it). Requests to a local model host merge `model_host.headers()` into their own (llm_lane, vision, embeddings, chat stream).
 
-The proactive gate (`proactive/gate.py`) decides by `/proxy/status`: with `may_wake` (inside a sweep window or a fresh user request) `asleep`/`waking` count as ready — the job's request wakes the host; otherwise only `up`. The worker runs a job outside a window inside `model_host.no_wake()`, so a host that fell asleep meanwhile is not woken. Without a proxy the gate probes the endpoint. The chat shows "The model host is starting…" (right away when the proxy says asleep/waking, else after ~5 s without a first token); a Werkbank run checks its endpoint first (`pipeline.ensure_host`: a proxy counts as there, a plain server must answer).
+The proactive gate (`proactive/gate.py`) decides by `/proxy/status`: with `may_wake` (inside a sweep window or a fresh user request) `asleep`/`waking` count as ready — the job's request wakes the host; otherwise only `up`. The worker runs a job outside a window inside `model_host.no_wake()`, so a host that fell asleep meanwhile is not woken. Without a proxy the gate probes the endpoint. The chat shows "The model host is starting…" (right away when the proxy says asleep/waking, after ~5 s without output from a plain server, never when the proxy says up) until the model's first output — thinking, text or a tool call, never the round's start, which comes before the request is sent; "Thinking" shows only once the model thinks; a Werkbank run checks its endpoint first (`pipeline.ensure_host`: a proxy counts as there, a plain server must answer).
 
 `services/gpu_yield.py` is *not* power logic: the app stamps its inference requests (`touch()`, only in the app process) into `data/activity_state.json`; the worker starts no LLM job while `app_busy()` (within `APP_YIELD_S`). `chat_touch`/`chat_busy` are process-local (Werkbank runs, embedding syncs wait for a chatting user). The worker calls `set_role("worker")` at start.
 

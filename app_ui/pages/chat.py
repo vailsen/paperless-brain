@@ -557,9 +557,14 @@ body.pb-editing .chat-quick-strip { display: none !important; }
 .chat-edit-inner { max-width: 860px; margin: 0 auto; width: 100%; display: flex; align-items: center;
     gap: 6px; flex-wrap: wrap; row-gap: 4px; }
 .chat-edit-count { flex: 1 1 140px; min-width: 0; font-size: .75rem; color: var(--c-text-muted); }
-.chat-hist-group { gap: 6px; padding: 10px 8px 3px 10px; font-size: .7rem; font-weight: 600;
-    color: var(--c-text-muted); min-width: 0; }
-.chat-hist-count { font-weight: 400; font-variant-numeric: tabular-nums; }
+/* A section of the list: a rule above, darker type, and it stays at the top
+   while its rows scroll under it — the sections read as sections. */
+.chat-hist-group { gap: 6px; padding: 8px 8px 5px 10px; margin-top: 8px; font-size: .76rem;
+    font-weight: 700; color: var(--c-text-2); min-width: 0; border-top: 1px solid var(--c-border);
+    position: sticky; top: 0; z-index: 1; background: var(--c-bg-deep); }
+.chat-hist-group:first-child { margin-top: 0; }
+.chat-hist-group .q-icon { color: var(--c-text-muted); }
+.chat-hist-count { font-weight: 500; color: var(--c-text-muted); font-size: .7rem; font-variant-numeric: tabular-nums; }
 .chat-hist-more { align-self: flex-start; margin-left: 4px; font-size: .7rem !important;
     color: var(--c-text-muted) !important; }
 @media (max-width: 767px) {
@@ -4947,8 +4952,10 @@ window.__openVaultNote = function(noteId) {{
             """A local model's host may be asleep behind a wake-on-request
             proxy, which holds the request while the host boots. Say so instead
             of a silent wait: right away when `/proxy/status` reports
-            asleep/waking, otherwise after ~5 s without a first token. The
-            caller cancels the task at the first event."""
+            asleep/waking, after ~5 s without output from a plain server, never
+            when the proxy says the host is up (then it is the prompt being
+            read). The caller cancels it at the model's first output — not at
+            the round's start, which comes before the request is even sent."""
             m = next((m for m in _reg_models if m["name"] == _s["chat_model_name"]), None)
             if not m or m.get("backend") == "anthropic" or m.get("lane") != "local":
                 return None
@@ -4959,13 +4966,15 @@ window.__openVaultNote = function(noteId) {{
             async def _hint() -> None:
                 started = _time.monotonic()
                 st = await model_host.proxy_status(m.get("base_url", ""))
+                if st and st.get("host") == "up":
+                    return
                 if not (st and st.get("host") in ("asleep", "waking")):
                     await asyncio.sleep(max(0.0, 5.0 - (_time.monotonic() - started)))
                 while True:
                     activity_label.set_text(_("The model host is starting… {s} s").format(
                         s=int(_time.monotonic() - started)))
                     activity_row.set_visibility(True)
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(1)
 
             return asyncio.create_task(_hint())
 
@@ -5009,13 +5018,21 @@ window.__openVaultNote = function(noteId) {{
                 max_iterations=_s["max_iterations"],
                 answer_language=_lang,
             ):
-                if _starting is not None:
+                # Only output from the model ends the "host is starting" wait:
+                # the round's start, the transcript and retrieval events come
+                # before or beside the request and say nothing about the host.
+                if _starting is not None and isinstance(
+                        event, (ThinkingEvent, TextTokenEvent, ToolCallEvent, ModelCallEvent, DoneEvent)):
                     _starting.cancel()
                     _starting = None
                     activity_row.set_visibility(False)
                 if _s["stop_requested"]:
                     break
                 if isinstance(event, ThinkingEvent):
+                    # "Thinking" shows once the model actually thinks, not while
+                    # its host boots or the request waits in a proxy.
+                    if not (_live_steps and _live_steps[-1]["label"] == _("💭 Thinking …")) and not accumulated[0]:
+                        _set_status(_("💭 Thinking …"))
                     _thinking_by_round[_iter[0]] = _thinking_by_round.get(_iter[0], "") + event.text
                     _tv_update()
 
@@ -5030,8 +5047,6 @@ window.__openVaultNote = function(noteId) {{
                 elif isinstance(event, IterationEvent):
                     _iter[0] = event.iteration
                     _tv.iteration = _trace_rec["iteration"] = event.iteration
-                    if event.iteration == 1:
-                        _set_status(_("💭 Thinking …"))
                     _tv_update()
 
                 elif isinstance(event, ToolCallEvent):
