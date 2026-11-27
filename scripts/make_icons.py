@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app_ui.brand import BRAND, ICON_VERSION, mark_svg  # noqa: E402
+from app_ui.brand import BRAND, ICON_VERSION, SHORTCUT_ICON_VERSION, mark_svg  # noqa: E402
 
 STATIC = ROOT / "app_ui" / "static"
 WHITE, WHITE_2 = "#ffffff", "rgba(255,255,255,.62)"
@@ -60,24 +60,21 @@ GLYPHS = {
 
 
 def shortcut_svg(glyph: str, maskable: bool) -> str:
-    """The app tile with a white corner badge carrying the module's glyph.
+    """The module's glyph, large and white on the app's tile.
 
-    The badge is a shape in the tile's own colours, not a new colour. The
-    maskable variant keeps mark and badge inside the 40 % safe circle, since a
-    round launcher would otherwise cut the badge off."""
+    No brain mark and nothing in the bottom-right corner: Android paints the
+    app's own badge there on every pinned shortcut (a web app cannot turn it
+    off), and it covered the corner badge of the first design. The glyph sits a
+    little up and to the left, clear of it. The maskable variant keeps it inside
+    the 40 % safe circle."""
     r = 0 if maskable else 14
-    mark, off = (0.5, 9.0) if maskable else (0.66, 4.0)
-    cx, cr = (40.5, 9.5) if maskable else (46.0, 14.0)
-    inner = mark_svg(64, WHITE, WHITE_2, BRAND).replace('width="64" height="64" ', "")
-    g = (cr * 1.25) / 24  # glyph spans 1.25 × the badge radius
-    gx = cx - 12 * g
+    size, c = (30.0, 30.5) if maskable else (36.0, 29.5)
+    g = size / 24
+    t = c - size / 2
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
         f'<rect width="64" height="64" rx="{r}" fill="{BRAND}"/>'
-        f'<g transform="translate({off} {off}) scale({mark})">{inner}</g>'
-        f'<circle cx="{cx}" cy="{cx}" r="{cr + 2}" fill="{BRAND}"/>'
-        f'<circle cx="{cx}" cy="{cx}" r="{cr}" fill="{WHITE}"/>'
-        f'<path d="{GLYPHS[glyph]}" fill="{BRAND}" transform="translate({gx} {gx}) scale({g})"/>'
+        f'<path d="{GLYPHS[glyph]}" fill="{WHITE}" transform="translate({t} {t}) scale({g})"/>'
         "</svg>"
     )
 
@@ -96,8 +93,9 @@ async def main() -> None:
     ]
     for glyph in GLYPHS:
         for size in (96, 192):
-            jobs.append((shortcut_svg(glyph, False), size, f"shortcut-{glyph}-{v}-{size}.png"))
-            jobs.append((shortcut_svg(glyph, True), size, f"shortcut-{glyph}-{v}-maskable-{size}.png"))
+            sv = SHORTCUT_ICON_VERSION
+            jobs.append((shortcut_svg(glyph, False), size, f"shortcut-{glyph}-{sv}-{size}.png"))
+            jobs.append((shortcut_svg(glyph, True), size, f"shortcut-{glyph}-{sv}-maskable-{size}.png"))
     async with async_playwright() as p:
         b = await p.chromium.launch()
         for svg, size, name in jobs:
