@@ -1,7 +1,9 @@
 # services/paperless.py
 
 import asyncio
+import hashlib
 import time
+from typing import ClassVar
 
 import httpx
 
@@ -81,9 +83,23 @@ class PaperlessClient:
     # more rarely than the name maps and are read once per card render.
     _TAG_COLOR_TTL = 900.0  # 15 minutes
 
+    # Name maps shared by every client of the same token: the chat and the
+    # library build a fresh client per load, and each used to fetch all four
+    # maps again. Keyed by a hash of base URL + token — the maps are what that
+    # token may see, so they are never shared between users.
+    _SHARED_MAPS: ClassVar[dict[str, tuple[float, tuple[dict, dict, dict, dict]]]] = {}
+
+    # What a document list needs — no `content` (the whole OCR text of every
+    # document, which made the library take seconds to load).
+    LIST_FIELDS = (
+        "id", "title", "correspondent", "document_type", "tags", "owner", "created",
+        "added", "modified", "original_file_name", "mime_type", "page_count", "notes",
+    )
+
     def __init__(self, base_url: str, token: str):
         self.base_url = base_url.rstrip("/")
         self.headers = {"Authorization": f"Token {token}"}
+        self._maps_key = hashlib.sha256(f"{self.base_url}\0{token}".encode()).hexdigest()
         self._maps_cache: tuple[dict, dict, dict, dict] | None = None
         self._maps_ts: float = 0.0
         self._tag_colors: dict[str, str] | None = None
@@ -97,6 +113,9 @@ class PaperlessClient:
         request volume dramatically for chat sessions that list documents often.
         """
         now = time.monotonic()
+        shared = PaperlessClient._SHARED_MAPS.get(self._maps_key)
+        if shared is not None and (self._maps_cache is None or shared[0] > self._maps_ts):
+            self._maps_ts, self._maps_cache = shared
         if self._maps_cache is not None and now - self._maps_ts < self._MAP_TTL:
             return self._maps_cache
         try:
@@ -133,6 +152,7 @@ class PaperlessClient:
             return self._maps_cache
         self._maps_cache = maps
         self._maps_ts = now
+        PaperlessClient._SHARED_MAPS[self._maps_key] = (now, maps)
         return maps
 
     async def get_tag_colors(self) -> dict[str, str]:
@@ -270,6 +290,43 @@ class PaperlessClient:
             self._parse_document(doc, tag_map, corr_map, dt_map, user_map)
             for doc in results
         ]
+
+    async def list_catalogue(self, page_size: int = 250) -> list[PaperlessDocument]:
+        """Every document the token can see, metadata only (`LIST_FIELDS`).
+
+        For lists and trees. The first page tells the count; the rest are
+        fetched in parallel instead of one after the other."""
+        params = [("page_size", page_size), ("fields", ",".join(self.LIST_FIELDS))]
+        maps_task = asyncio.create_task(self._fetch_maps())
+        async with httpx.AsyncClient(headers=self.headers, timeout=60) as client:
+            first = await client.get(f"{self.base_url}/api/documents/", params=params + [("page", 1)])
+            first.raise_for_status()
+            data = first.json()
+            results = list(data["results"])
+            pages = -(-int(data.get("count") or 0) // page_size)
+            if pages > 1:
+                sem = asyncio.Semaphore(4)  # gentle on Paperless
+
+                async def _page(n: int) -> list[dict]:
+                    async with sem:
+                        r = await client.get(f"{self.base_url}/api/documents/", params=params + [("page", n)])
+                        r.raise_for_status()
+                        return r.json()["results"]
+
+                for chunk in await asyncio.gather(*(_page(n) for n in range(2, pages + 1))):
+                    results.extend(chunk)
+        tag_map, corr_map, dt_map, user_map = await maps_task
+        seen: set[int] = set()
+        docs = []
+        for raw in results:  # a document added between two pages may shift one
+            if raw["id"] in seen:
+                continue
+            seen.add(raw["id"])
+            raw.setdefault("notes", [])
+            raw.setdefault("mime_type", "")
+            raw.setdefault("original_file_name", "")
+            docs.append(self._parse_document(raw, tag_map, corr_map, dt_map, user_map))
+        return docs
 
     async def visible_ids(self) -> set[int]:
         """Ids of every document this token can read.

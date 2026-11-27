@@ -47,6 +47,41 @@ def badge_svg() -> str:
     )
 
 
+# Shortcut glyphs: Material Icons paths (Apache 2.0, the set the UI already
+# uses through Quasar), on a 24-unit grid.
+GLYPHS = {
+    "chat": "M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z",
+    "note": "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2z"
+            "m0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z",
+    "memo": "M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"
+            "m5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28"
+            "c3.28-.48 6-3.3 6-6.72h-1.7z",
+}
+
+
+def shortcut_svg(glyph: str, maskable: bool) -> str:
+    """The app tile with a white corner badge carrying the module's glyph.
+
+    The badge is a shape in the tile's own colours, not a new colour. The
+    maskable variant keeps mark and badge inside the 40 % safe circle, since a
+    round launcher would otherwise cut the badge off."""
+    r = 0 if maskable else 14
+    mark, off = (0.5, 9.0) if maskable else (0.66, 4.0)
+    cx, cr = (40.5, 9.5) if maskable else (46.0, 14.0)
+    inner = mark_svg(64, WHITE, WHITE_2, BRAND).replace('width="64" height="64" ', "")
+    g = (cr * 1.25) / 24  # glyph spans 1.25 × the badge radius
+    gx = cx - 12 * g
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+        f'<rect width="64" height="64" rx="{r}" fill="{BRAND}"/>'
+        f'<g transform="translate({off} {off}) scale({mark})">{inner}</g>'
+        f'<circle cx="{cx}" cy="{cx}" r="{cr + 2}" fill="{BRAND}"/>'
+        f'<circle cx="{cx}" cy="{cx}" r="{cr}" fill="{WHITE}"/>'
+        f'<path d="{GLYPHS[glyph]}" fill="{BRAND}" transform="translate({gx} {gx}) scale({g})"/>'
+        "</svg>"
+    )
+
+
 async def main() -> None:
     from playwright.async_api import async_playwright
 
@@ -59,6 +94,10 @@ async def main() -> None:
         (tile_svg(False, 0.62), 180, f"apple-touch-icon-{v}.png"),
         (badge_svg(), 96, f"badge-{v}-96.png"),
     ]
+    for glyph in GLYPHS:
+        for size in (96, 192):
+            jobs.append((shortcut_svg(glyph, False), size, f"shortcut-{glyph}-{v}-{size}.png"))
+            jobs.append((shortcut_svg(glyph, True), size, f"shortcut-{glyph}-{v}-maskable-{size}.png"))
     async with async_playwright() as p:
         b = await p.chromium.launch()
         for svg, size, name in jobs:

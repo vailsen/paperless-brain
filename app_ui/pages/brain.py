@@ -38,11 +38,16 @@ from nicegui import ui
 from app_ui.layout import page_layout, require_auth
 from app_ui.note_voice_dialog import create_note_voice_dialog, note_voice_enabled
 from app_ui.theme import current_theme
+from app_ui.vault_editor import VaultEditor
 from app_ui.vault_routes import FILE_PATH
 from config.settings import settings
 from i18n import get_translator
 from services.markdown_text import escape_intraword_underscores
-from vault import notes
+from services.user_prefs import get_pref, set_pref
+from vault import links as vlinks
+from vault import managed, notes
+from vault import scan as vscan
+from vault import search as vsearch
 from vault.frontmatter import ID_KEY, sanitize_tags
 from vault.note_text import (
     NoteText,
@@ -143,12 +148,64 @@ _PAGE_CSS = """
    it — the second tap is how a note is opened. */
 .vault-tree-pane { touch-action: manipulation; }
 
-/* Editor */
+/* Tree: one tap opens; ⋯ (hover on a desktop, always on a phone) for the rest. */
+.vault-node-more { margin-left: 2px; color: var(--c-text-muted); opacity: 0; flex-shrink: 0; }
+.vault-tree-pane .q-tree__node-header:hover .vault-node-more { opacity: 1; }
+@media (hover: none) { .vault-node-more { opacity: .7; } }
+.vault-node-lock { color: var(--c-text-muted); flex-shrink: 0; }
+.vault-node.is-drop { outline: 1.5px dashed var(--c-accent); outline-offset: 1px; border-radius: 4px; }
+.vault-hit { padding: 6px 10px; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column;
+  gap: 1px; min-width: 0; margin: 1px 4px; }
+.vault-hit:hover { background: var(--c-surface-2); }
+.vault-hit .t { font-size: .82rem; color: var(--c-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-hit .p { font-size: .7rem; color: var(--c-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-hit .s { font-size: .74rem; color: var(--c-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-hit mark { background: var(--c-hl); color: inherit; border-radius: 2px; }
+.vault-results .q-scrollarea__content { max-width: 100%; }
+.vault-crumbs { overflow: hidden; }
+.vault-crumb, .vault-crumb-sep { font-size: .78rem; color: var(--c-text-muted); white-space: nowrap; flex-shrink: 1;
+  overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.vault-crumb-sep { flex-shrink: 0; }
+.vault-crumb-name { font-size: .875rem; font-weight: 600; color: var(--c-text); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; min-width: 0; cursor: text; flex-shrink: 2; }
+.vault-lock { padding: 4px 10px; border-bottom: 1px solid var(--c-border); background: var(--c-surface-2);
+  color: var(--c-text-2); flex-shrink: 0; }
+.vault-format { display: none; padding: 0 4px; border-bottom: 1px solid var(--c-border); flex-shrink: 0;
+  overflow-x: auto; scrollbar-width: none; }
+.vault-chip { font-size: .75rem; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--c-border);
+  color: var(--c-text-2); background: var(--c-surface-2); cursor: pointer; }
+.vault-backlinks { border-top: 1px solid var(--c-border); flex-shrink: 0; max-height: 40%; overflow-y: auto; }
+
+/* Editor: Obsidian-style live preview (app_ui/vault_editor). */
 .vault-editor { flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
-.vault-editor .cm-editor { height: 100%; background: var(--c-surface) !important; }
-.vault-editor .cm-gutters { background: var(--c-surface) !important; border-right: 1px solid var(--c-border) !important; }
-.vault-editor .cm-scroller { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.84rem; }
-.vault-editor .cm-activeLine, .vault-editor .cm-activeLineGutter { background: var(--c-surface-2) !important; }
+.vault-editor .pbe-root { flex: 1; min-height: 0; overflow: hidden; display: flex; }
+.vault-editor .pbe-root .cm-editor { flex: 1; min-width: 0; }
+.vault-editor .cm-content { margin: 0 auto; }
+.pbe-h { color: var(--c-text); font-weight: 600; }
+.pbe-h1 { font-size: 1.55em; line-height: 1.35; } .pbe-h2 { font-size: 1.3em; } .pbe-h3 { font-size: 1.12em; }
+.pbe-strong { font-weight: 700; color: var(--c-text); } .pbe-em { font-style: italic; }
+.pbe-strike { text-decoration: line-through; color: var(--c-text-muted); }
+.pbe-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em;
+  background: var(--c-surface-2); border-radius: 3px; padding: 0 3px; }
+.pbe-codeblock { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em;
+  background: var(--c-surface-2); }
+.pbe-quote { border-left: 3px solid var(--c-border-strong); padding-left: 10px !important; color: var(--c-text-muted); }
+.pbe-link, .pbe-wiki { color: var(--c-accent-text); cursor: pointer; text-decoration: underline;
+  text-decoration-color: var(--c-accent-border); text-underline-offset: 2px; }
+.pbe-unresolved { color: var(--c-text-muted); text-decoration-style: dashed; }
+.pbe-tag { color: var(--c-accent-text); background: var(--c-accent-soft); border-radius: 999px; padding: 0 5px;
+  cursor: pointer; font-size: .92em; }
+.pbe-check { width: 15px; height: 15px; margin: 0 6px 0 0; vertical-align: -2px; accent-color: var(--c-accent);
+  cursor: pointer; }
+.pbe-done { color: var(--c-text-muted); text-decoration: line-through; }
+.pbe-bullet { color: var(--c-text-muted); padding-right: 2px; }
+.pbe-hr { border-top: 1px solid var(--c-border-strong); margin: 10px 0; }
+.pbe-img { max-width: 100%; max-height: 420px; border-radius: 6px; display: block; margin: 6px 0; }
+.pbe-table-wrap { overflow-x: auto; max-width: 100%; margin: 4px 0; cursor: text; }
+.pbe-table { border-collapse: collapse; font-size: .88em; }
+.pbe-table th { background: var(--c-surface-2); color: var(--c-text); text-align: left; font-weight: 600; }
+.pbe-table th, .pbe-table td { border: 1px solid var(--c-border); padding: 4px 9px; min-width: 4rem; }
+.vault-editor.is-source .cm-scroller { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .84rem; }
 .vault-id { font-family: ui-monospace, monospace; font-size: 0.75rem; color: var(--c-text-muted); overflow-wrap: anywhere; }
 
 /* Rendered preview — same containment rules as the chat bubbles, for the same
@@ -184,6 +241,7 @@ _PAGE_CSS = """
 }
 
 @media (max-width: 900px) {
+  .vault-format { display: flex; }
   .vault-wrap { height: calc(100dvh - 104px); }
   .vault-tree-pane {
     position: fixed; top: var(--q-header-height, 52px); bottom: 0;
@@ -203,11 +261,21 @@ _PAGE_CSS = """
 """
 
 _NODE_TEMPLATE = """
-<div class="vault-node" :class="props.node.note ? '' : (props.node.dir ? '' : 'vault-node-att')">
+<div class="vault-node" :class="props.node.note ? '' : (props.node.dir ? '' : 'vault-node-att')"
+     :draggable="!props.node.root && !String(props.node.id).startsWith('::')"
+     @dragstart="e => e.dataTransfer.setData('text/pb-node', props.node.id)"
+     @dragover.prevent="e => e.currentTarget.classList.add('is-drop')"
+     @dragleave="e => e.currentTarget.classList.remove('is-drop')"
+     @drop.prevent.stop="e => { e.currentTarget.classList.remove('is-drop');
+        $parent.$emit('node_drop', {from: e.dataTransfer.getData('text/pb-node'), to: props.node.id}); }"
+     @contextmenu.prevent.stop="$parent.$emit('node_menu', props.node.id)">
   <q-icon size="15px" class="vault-node-icon"
           :name="props.node.icon || (props.node.dir ? 'folder' : (props.node.note ? 'description' : 'attach_file'))" />
   <span class="vault-node-label">{{ props.node.label }}</span>
+  <q-icon v-if="props.node.lock" name="lock" size="11px" class="vault-node-lock" />
   <span v-if="props.node.pending" class="vault-pending-dot" :title="__TIP__"></span>
+  <q-btn v-if="!String(props.node.id).startsWith('::')" flat dense round size="xs" icon="more_horiz"
+         class="vault-node-more" @click.stop="$parent.$emit('node_menu', props.node.id)" />
 </div>
 """
 
@@ -234,8 +302,12 @@ def brain_page():
         "fm_raw": None, "open_fence": "---\n", "close_fence": "---\n",
         "dirty": False, "saving": False, "conflict": False,
         "last_edit": 0.0, "ticks": 0, "attachment": "", "shared": None,
+        # The note the user unlocked (managed folders open read-only) — this
+        # note only, until another one is opened. Never stored.
+        "unlocked": "",
+        "props_edit": False,  # properties are read-only until "Edit properties"
+        "query": "",  # content search in the tree pane
     }
-    sel: dict = {"rel": "", "dir": True}
     # The voice button only exists when dictation is configured, and only means
     # anything with a note open — `_layout_mode` owns its visibility, like the
     # editor's, rather than a binding that polls.
@@ -259,11 +331,9 @@ def brain_page():
         return "" if parent == "." else parent
 
     def _target_folder() -> str:
-        """Where a new note/folder goes: the selection if it is a folder, else
-        the folder containing it."""
-        if not sel["rel"] or _is_shared(sel["rel"]):
-            return ""
-        return sel["rel"] if sel["dir"] else _parent_of(sel["rel"])
+        """Where a new note/folder goes from the toolbar: the folder of the open
+        note (a node's own menu offers "New note here" for any folder)."""
+        return _parent_of(st["rel"]) if st["rel"] else ""
 
     # ── Small dialogs ────────────────────────────────────────────────────────
     async def _prompt(title: str, label: str, value: str = "") -> str | None:
@@ -321,12 +391,18 @@ def brain_page():
             except Exception:
                 pending = set()
         nodes = await notes.list_tree(username, pending)
+        for n in nodes:  # the folders PaperlessBrain manages carry a lock
+            if n.get("dir") and managed.managed_root(n["id"]):
+                n["lock"] = managed.is_locked(n["id"] + "/x.md")
+                n["root"] = True
         shared_node = await _shared_node()
         if shared_node:
             nodes.append(shared_node)
         tree.props["nodes"] = nodes
         tree.update()
         _pending_dot.refresh()
+        if "paths" in st:  # after the first load: names may have changed
+            asyncio.create_task(_refresh_context())
 
     async def _shared_node() -> dict | None:
         """The "Shared by others" subtree, one folder per owner."""
@@ -406,8 +482,7 @@ def brain_page():
         st["close_fence"] = note.close_fence
         editor.set_value(note.body)
         _props_panel.refresh()
-        if preview.visible:
-            preview.set_content(escape_intraword_underscores(note.body))
+        _props_summary()
 
     async def _open(rel: str) -> None:
         if not await _flush():
@@ -440,61 +515,48 @@ def brain_page():
             ui.notify(str(exc), type="negative")
             return
         st["attachment"] = ""
+        if st["unlocked"] != rel:
+            st["unlocked"] = ""  # an unlock holds for one note only
+        st["props_edit"] = False
         _adopt(snap)
         st["ticks"] = 0
         _layout_mode.refresh()
         _set_editor(snap.text)
+        editor.set_context(folder=_parent_of(rel))
+        _apply_lock()
         _status("saved")
         _pending_dot.refresh()
         _set_drawer(False)
-
-    def _on_select(e) -> None:
-        """First tap selects and outlines; a further tap on it opens.
-
-        The toolbar (new note, new folder, rename, delete) acts on this
-        selection, and on a phone the tree lives in a drawer: if a tap opened
-        the note the drawer would close with it, so rename and delete could
-        only ever be reached for a note chosen on some earlier visit.
-        """
-        rel = e.value
-        if not rel:
-            # QTree reports a tap on the already-selected node as "unselect",
-            # which makes it the exact signal for "tapped the same thing
-            # again" — so that is what opens it. No timing window: the two taps
-            # can be a second or a minute apart. The selection is re-asserted
-            # so the outline does not blink off under the finger.
-            if sel["rel"]:
-                tree.props["selected"] = sel["rel"]
-                tree.update()
-                _open_selected()
-            return
-        node = _find_node(tree.props["nodes"], rel)
-        sel.update(rel=rel, dir=bool(node and node.get("dir")))
-        # Write the selection back: QTree is controlled by this prop, so
-        # without it Quasar reverts to the server's (empty) value and the
-        # outline never appears on the first tap.
         tree.props["selected"] = rel
         tree.update()
-        _sel_label.refresh()
-        if not viewport["mobile"]:
-            # Desktop has both panes on screen at once, so there is nothing to
-            # protect: select and show in the same click.
-            _open_selected()
+        _remember(rel)
+        st["backlinks"] = []
+        _backlinks_view.refresh()
+        asyncio.create_task(_load_backlinks())
 
-    def _open_selected() -> None:
-        """Open the selected note / toggle the selected folder."""
-        rel = sel["rel"]
+    def _on_select(e) -> None:
+        """One tap opens a note or folds a folder. The actions (rename, move,
+        delete, new here) live in each entry's own menu — ⋯, right-click or a
+        long press — so nothing needs a "selected but not open" state."""
+        rel = e.value or ""
         if not rel:
+            # A tap on the already-selected node: QTree reports "unselect".
+            rel = st["rel"] or ""
+            tree.props["selected"] = rel or None
+            tree.update()
+            if viewport["mobile"] and rel:
+                _set_drawer(False)
             return
-        if sel["dir"]:
+        node = _find_node(tree.props["nodes"], rel)
+        if node and node.get("dir"):
             expanded = list(tree.props.get("expanded") or [])
-            if rel in expanded:
-                expanded.remove(rel)
-            else:
-                expanded.append(rel)
+            expanded.remove(rel) if rel in expanded else expanded.append(rel)
             tree.props["expanded"] = expanded
+            tree.props["selected"] = st["rel"] or None
             tree.update()
             return
+        tree.props["selected"] = rel
+        tree.update()
         asyncio.create_task(_open(rel))
 
     def _on_expand(e) -> None:
@@ -803,6 +865,9 @@ def brain_page():
         props = properties(st["fm_raw"])
         blocks = raw_blocks(st["fm_raw"])
         in_brain = is_brain_path(Path(st["rel"]), settings.brain_subfolder)
+        if not st["props_edit"]:
+            _props_read(props, blocks, in_brain)
+            return
 
         with ui.column().classes("w-full gap-1 vault-props"):
             # pbrain_id — identity, assigned by the indexer, never here.
@@ -874,6 +939,70 @@ def brain_page():
                     "flat dense size=sm"
                 )
                 ui.button(_("Edit YAML"), on_click=_edit_yaml).props("flat dense size=sm")
+                ui.space()
+                ui.button(_("Done"), icon="check", on_click=lambda: _props_mode(False)).props(
+                    "flat dense size=sm no-caps")
+
+    def _props_mode(edit: bool) -> None:
+        st["props_edit"] = edit
+        _props_panel.refresh()
+        _props_summary()
+
+    def _props_summary() -> None:
+        """The collapsed panel says what is in it, not just "Properties"."""
+        props = properties(st["fm_raw"]) if st["rel"] else {}
+        bits = []
+        for k, v in props.items():
+            if k == ID_KEY:
+                continue
+            if isinstance(v, list):
+                v = ", ".join(str(x) for x in v)
+            elif isinstance(v, bool):
+                v = "✓" if v else "–"
+            bits.append(f"{k}: {v}")
+        props_box.props(f'caption="{_esc_attr(" · ".join(bits)[:120])}"')
+
+    def _esc_attr(text: str) -> str:
+        return text.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
+
+    def _props_read(props: dict, blocks: dict, in_brain: bool) -> None:
+        """Properties as values, not fields: nothing here changes a file by a
+        stray tap. "Edit properties" switches to the fields."""
+        with ui.column().classes("w-full gap-1 vault-props"):
+            shown = 0
+            for key, value in props.items():
+                if key == ID_KEY:
+                    continue
+                shown += 1
+                with ui.row().classes("w-full items-start gap-2 no-wrap"):
+                    ui.label(key).classes("text-xs w-32 shrink-0").style("color:var(--c-text-muted); padding-top:2px")
+                    if key == "common" and in_brain:
+                        ui.label(_("Shared with everyone") if value else _("Only you")).classes("text-sm")
+                    elif isinstance(value, list):
+                        with ui.row().classes("gap-1 flex-wrap flex-1 min-w-0"):
+                            for v in value:
+                                chip = ui.label(str(v)).classes("vault-chip")
+                                if key == "tags":
+                                    chip.on("click", lambda _e, t=str(v): _set_query(f"tag:{t}"))
+                                    chip.tooltip(_("Notes with this tag"))
+                    elif isinstance(value, bool):
+                        ui.icon("check" if value else "remove", size="xs").style("color:var(--c-text-2)")
+                    else:
+                        raw = _raw_scalar(blocks.get(key, ""), key) or ("" if value is None else str(value))
+                        ui.label(raw).classes("text-sm flex-1 min-w-0 w-full").style(
+                            "color:var(--c-text-2); overflow-wrap:anywhere")
+            if not shown:
+                ui.label(_("No properties.")).classes("text-xs").style("color:var(--c-text-muted)")
+            note_id = str(props.get(ID_KEY, "") or "")
+            with ui.row().classes("w-full items-center gap-2 pt-1 no-wrap"):
+                if note_id:
+                    ui.label(_("Identity")).classes("text-xs w-32 shrink-0").style("color:var(--c-text-muted)")
+                    ui.label(note_id).classes("vault-id flex-1 w-full")
+                else:
+                    ui.space()
+                if not _locked():
+                    ui.button(_("Edit properties"), icon="edit", on_click=lambda: _props_mode(True)).props(
+                        "flat dense size=sm no-caps")
 
     def _raw_scalar(block: str, key: str) -> str:
         """The value exactly as it stands in the file, for single-line keys.
@@ -922,91 +1051,298 @@ def brain_page():
                 icon="close", on_click=lambda k=key: _apply_props(remove=(k,))
             ).props("flat dense round size=sm").classes("card-action-btn")
 
-    # ── Toolbar actions ──────────────────────────────────────────────────────
-    def _in_folder(title: str) -> str:
-        """Name the destination in the dialog title — with one tap now meaning
-        'select', where the new item lands has to be visible before it lands."""
-        folder = _target_folder()
+    # ── Locks: managed folders open read-only (vault/managed.py) ─────────────
+    def _locked() -> bool:
+        return bool(st["rel"]) and managed.is_locked(st["rel"]) and st["unlocked"] != st["rel"]
+
+    def _apply_lock() -> None:
+        editor.set_readonly(_locked())
+        _lock_row.refresh()
+        _props_panel.refresh()
+        _format_bar.refresh()
+
+    async def _unlock() -> None:
+        kind = managed.managed_root(st["rel"]) or ""
+        why = {
+            "memory": _("This is the chat's memory. Changes take effect in the next chat."),
+            "findings": _("Findings and dossiers are managed on the Findings page. Editing the file can "
+                          "change their state."),
+            "experts": _("Experts are edited on the Experts page. Editing the file directly can break "
+                         "the expert."),
+            "skills": _("Skills are edited on the Experts page. Editing the file directly can break "
+                        "the skill."),
+            "research": _("A report written by a deep-research run. A rerun of that run rewrites it."),
+        }.get(kind, "")
+        other = {"findings": ("/findings", _("Open Findings")),
+                 "experts": ("/experts", _("Open Experts")),
+                 "skills": ("/experts?view=skills", _("Open Experts"))}.get(kind)
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:420px; max-width:92vw;"):
+            with ui.row().classes("items-center gap-2 no-wrap"):
+                ui.icon("lock_open", size="sm").style("color:var(--c-warn)")
+                ui.label(_("Edit a managed note?")).classes("text-base font-semibold").style("color:var(--c-text)")
+            ui.label(why).classes("text-sm").style("color:var(--c-text-2)")
+            ui.label(_("The note stays unlocked until you open another one.")).classes("text-xs").style(
+                "color:var(--c-text-muted)")
+            with ui.row().classes("w-full justify-end gap-2 flex-wrap"):
+                ui.button(_("Cancel"), on_click=lambda: dlg.submit(None)).props("flat dense no-caps")
+                if other:
+                    ui.button(other[1], on_click=lambda: dlg.submit("go")).props("flat dense no-caps")
+                ui.button(_("Edit the file"), on_click=lambda: dlg.submit("edit")).props(
+                    "unelevated dense no-caps color=primary")
+        answer = await dlg
+        dlg.delete()
+        if answer == "go" and other:
+            ui.navigate.to(other[0])
+        elif answer == "edit":
+            st["unlocked"] = st["rel"]
+            _apply_lock()
+            editor.focus()
+
+    def _lock_again() -> None:
+        st["unlocked"] = ""
+        st["props_edit"] = False
+        _apply_lock()
+
+    @ui.refreshable
+    def _lock_row() -> None:
+        if not st["rel"] or not managed.is_locked(st["rel"]):
+            return
+        with ui.row().classes("vault-lock w-full items-center gap-2 no-wrap"):
+            if _locked():
+                ui.icon("lock", size="xs")
+                ui.label(_("Managed by PaperlessBrain · read-only")).classes("flex-1 min-w-0 text-xs w-full")
+                # On the right, away from where a first tap into the text lands —
+                # and always through a dialog that says what the folder is for.
+                ui.button(_("Unlock to edit"), icon="lock_open", on_click=_unlock).props(
+                    "flat dense no-caps size=sm")
+            else:
+                ui.icon("lock_open", size="xs").style("color:var(--c-warn)")
+                ui.label(_("Unlocked — you are editing a managed note")).classes(
+                    "flex-1 min-w-0 text-xs w-full").style("color:var(--c-warn)")
+                ui.button(_("Lock again"), icon="lock", on_click=_lock_again).props("flat dense no-caps size=sm")
+
+    # ── Tree actions (one per node, from its ⋯ menu, a right-click or a long press) ──
+    def _in_folder(title: str, folder: str) -> str:
         return (
             _("{action} in {folder}").format(action=title, folder=folder)
             if folder else _("{action} in the vault root").format(action=title)
         )
 
-    async def _new_note() -> None:
-        name = await _prompt(_in_folder(_("New note")), _("Name"))
+    async def _confirm_managed(rel: str) -> bool:
+        """Creating, renaming, moving or deleting inside a locked folder asks first."""
+        if not managed.is_locked(rel):
+            return True
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); max-width:92vw; width:380px;"):
+            ui.label(_("This is inside a folder PaperlessBrain manages ({folder}). Change it anyway?").format(
+                folder=rel.split("/", 1)[0])).classes("text-sm").style("color:var(--c-text-2)")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Cancel"), on_click=lambda: dlg.submit(False)).props("flat dense no-caps")
+                ui.button(_("Change it"), on_click=lambda: dlg.submit(True)).props(
+                    "unelevated dense no-caps color=primary")
+        ok = bool(await dlg)
+        dlg.delete()
+        return ok
+
+    async def _new_note(folder: str | None = None) -> None:
+        folder = _target_folder() if folder is None else folder
+        name = await _prompt(_in_folder(_("New note"), folder), _("Name"))
         if not name:
             return
+        if folder and not await _confirm_managed(folder + "/x.md"):
+            return
         try:
-            rel = await notes.create_note(username, _target_folder(), name)
+            rel = await notes.create_note(username, folder, name)
         except (OSError, notes.VaultPathError) as exc:
             ui.notify(str(exc), type="negative")
             return
         await _refresh_tree()
-        tree.select(rel)
-        sel.update(rel=rel, dir=False)
-        _sel_label.refresh()
+        if folder and folder not in (tree.props.get("expanded") or []):
+            tree.props["expanded"] = [*(tree.props.get("expanded") or []), folder]
         await _open(rel)
+        editor.focus()
 
-    async def _new_folder() -> None:
-        name = await _prompt(_in_folder(_("New folder")), _("Name"))
+    async def _new_folder(folder: str | None = None) -> None:
+        folder = _target_folder() if folder is None else folder
+        name = await _prompt(_in_folder(_("New folder"), folder), _("Name"))
         if not name:
             return
+        if folder and not await _confirm_managed(folder + "/x.md"):
+            return
         try:
-            await notes.create_folder(username, _target_folder(), name)
+            await notes.create_folder(username, folder, name)
         except (OSError, notes.VaultPathError) as exc:
             ui.notify(str(exc), type="negative")
             return
         await _refresh_tree()
 
-    async def _rename() -> None:
-        if not sel["rel"]:
-            ui.notify(_("Select a note or folder first."), type="warning")
-            return
-        if _is_shared(sel["rel"]):
+    def _protected(rel: str) -> bool:
+        if managed.is_root(rel):
+            ui.notify(_("{folder} is managed by PaperlessBrain — it cannot be renamed, moved or deleted.").format(
+                folder=rel), type="warning")
+            return True
+        if _is_shared(rel):
             ui.notify(_("Shared notes are read-only."), type="warning")
+            return True
+        return False
+
+    async def _after_move(old_paths: list[str], old_rel: str, new_rel: str) -> None:
+        """Links follow a renamed or moved note (vault/links.py)."""
+        moved = vlinks.moved_map(old_paths, old_rel, new_rel)
+        if st["rel"] in moved:
+            st["rel"] = moved[st["rel"]]  # same bytes, new path — no reload
+        elif st["rel"] == old_rel:
+            st["rel"] = new_rel
+        if st["unlocked"] in moved:
+            st["unlocked"] = moved[st["unlocked"]]
+        n = await vlinks.rewrite_after_move(username, moved, old_paths) if moved else 0
+        await _refresh_tree()
+        if st["rel"]:
+            await _poll_disk()  # the open note's own links may have changed
+        _title.refresh()
+        if n:
+            ui.notify(_("Updated links in {n} notes.").format(n=n))  # TODO i18n-plural
+
+    async def _rename(rel: str | None = None) -> None:
+        rel = rel or st["rel"]
+        if not rel or _protected(rel):
             return
-        old = Path(sel["rel"]).name
-        stem = Path(sel["rel"]).stem if not sel["dir"] else old
+        is_dir = not notes.is_note(rel) and _find_node(tree.props["nodes"], rel) is not None and bool(
+            (_find_node(tree.props["nodes"], rel) or {}).get("dir"))
+        stem = Path(rel).name if is_dir else Path(rel).stem
         name = await _prompt(_("Rename"), _("Name"), stem)
-        if not name:
+        if not name or name == stem:
+            return
+        if not await _confirm_managed(rel):
             return
         if not await _flush():
             return
+        old_paths = await asyncio.to_thread(vscan.note_paths, username)
         try:
-            new_rel = await notes.rename(username, sel["rel"], name)
+            new_rel = await notes.rename(username, rel, name)
         except (OSError, notes.VaultPathError) as exc:
             ui.notify(str(exc), type="negative")
             return
-        if st["rel"] == sel["rel"]:
-            st["rel"] = new_rel   # same bytes, new path — no reload needed
-        sel["rel"] = new_rel
-        await _refresh_tree()
-        tree.select(new_rel)
-        _sel_label.refresh()
-        _layout_mode.refresh()
+        await _after_move(old_paths, rel, new_rel)
 
-    async def _delete() -> None:
-        if not sel["rel"]:
-            ui.notify(_("Select a note or folder first."), type="warning")
+    async def _move(rel: str, target: str | None = None) -> None:
+        if not rel or _protected(rel):
             return
-        if _is_shared(sel["rel"]):
-            ui.notify(_("Shared notes are read-only."), type="warning")
+        if target is None:
+            target = await _pick_folder(rel)
+            if target is None:
+                return
+        if target == _parent_of(rel):
             return
-        target = sel["rel"]
-        if not await _confirm(_("Delete “{name}” permanently?").format(name=Path(target).name)):
+        if not await _confirm_managed(rel) or (target and not await _confirm_managed(target + "/x.md")):
             return
-        if st["rel"] == target or st["rel"].startswith(target + "/"):
+        if not await _flush():
+            return
+        old_paths = await asyncio.to_thread(vscan.note_paths, username)
+        try:
+            new_rel = await notes.move(username, rel, target)
+        except (OSError, notes.VaultPathError) as exc:
+            ui.notify(str(exc), type="negative")
+            return
+        await _after_move(old_paths, rel, new_rel)
+
+    async def _pick_folder(rel: str) -> str | None:
+        folders: list[str] = []
+
+        def walk(nodes: list[dict]) -> None:
+            for n in nodes:
+                if n.get("dir") and not _is_shared(n["id"]):
+                    folders.append(n["id"])
+                    walk(n.get("children", []))
+
+        walk(tree.props["nodes"])
+        options = {"": _("Vault root")} | {f: f for f in folders if f != rel and not f.startswith(rel + "/")}
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:420px; max-width:92vw;"):
+            ui.label(_("Move “{name}” to …").format(name=Path(rel).name)).classes("text-sm font-semibold").style(
+                "color:var(--c-text)")
+            pick = ui.select(options, value=_parent_of(rel), with_input=True).props(
+                "outlined dense options-dense").classes("w-full")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Cancel"), on_click=lambda: dlg.submit(None)).props("flat dense no-caps")
+                ui.button(_("Move"), on_click=lambda: dlg.submit(pick.value if pick.value is not None else "")).props(
+                    "unelevated dense no-caps color=primary")
+        out = await dlg
+        dlg.delete()
+        return out
+
+    async def _delete(rel: str | None = None) -> None:
+        rel = rel or st["rel"]
+        if not rel or _protected(rel):
+            return
+        if not await _confirm(_("Delete “{name}” permanently?").format(name=Path(rel).name)):
+            return
+        if not await _confirm_managed(rel):
+            return
+        if st["rel"] == rel or st["rel"].startswith(rel + "/"):
             st.update(rel="", base="", sha="", sig=None, dirty=False, conflict=False)
             _layout_mode.refresh()
             _banner.refresh()
         try:
-            await notes.delete(username, target, recursive=True)
+            await notes.delete(username, rel, recursive=True)
         except (OSError, notes.VaultPathError) as exc:
             ui.notify(str(exc), type="negative")
             return
-        sel.update(rel="", dir=True)
-        _sel_label.refresh()
         await _refresh_tree()
+
+    async def _node_menu(rel: str) -> None:
+        """The actions of one tree entry, as a sheet — the same on a phone (long
+        press, ⋯) and a desktop (right-click, ⋯)."""
+        node = _find_node(tree.props["nodes"], rel) or {}
+        if _is_shared(rel):
+            return
+        is_dir = bool(node.get("dir"))
+        root = managed.is_root(rel)
+        with ui.dialog() as dlg, ui.card().classes("gap-1").style(
+                "background:var(--c-surface); width:320px; max-width:92vw; padding:8px 4px;"):
+            ui.label(Path(rel).name).classes("text-sm font-semibold px-3 pb-1 w-full").style(
+                "color:var(--c-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap")
+            if root:
+                ui.label(_("Managed by PaperlessBrain — cannot be renamed, moved or deleted.")).classes(
+                    "text-xs px-3 pb-1").style("color:var(--c-text-muted)")
+
+            def item(icon: str, label: str, action: str, enabled: bool = True) -> None:
+                b = ui.button(label, icon=icon, on_click=lambda a=action: dlg.submit(a)).props(
+                    "flat no-caps align=left").classes("w-full").style("justify-content:flex-start")
+                if not enabled:
+                    b.props("disable")
+
+            if is_dir:
+                item("note_add", _("New note here"), "note")
+                item("create_new_folder", _("New folder here"), "folder")
+            elif notes.is_note(rel):
+                item("open_in_new", _("Open"), "open")
+            item("drive_file_rename_outline", _("Rename"), "rename", not root)
+            item("drive_file_move", _("Move to …"), "move", not root)
+            item("delete_outline", _("Delete"), "delete", not root)
+        action = await dlg
+        dlg.delete()
+        if action == "note":
+            await _new_note(rel)
+        elif action == "folder":
+            await _new_folder(rel)
+        elif action == "open":
+            await _open(rel)
+        elif action == "rename":
+            await _rename(rel)
+        elif action == "move":
+            await _move(rel)
+        elif action == "delete":
+            await _delete(rel)
+
+    async def _on_drop(e) -> None:
+        a = e.args or {}
+        src, dst = str(a.get("from") or ""), str(a.get("to") or "")
+        if not src or src == dst or _is_shared(dst):
+            return
+        node = _find_node(tree.props["nodes"], dst) if dst else {"dir": True}
+        target = dst if (node or {}).get("dir") else _parent_of(dst)
+        if target == src or target.startswith(src + "/"):
+            return
+        await _move(src, target)
 
     async def _index_now() -> None:
         from vault.sync import sync_user
@@ -1040,16 +1376,13 @@ def brain_page():
         Goes through the editor, not through `notes.save_note`: the dirty check,
         the merge base and the autosave all hang off `editor.value`, and a write
         that bypassed them would be a second save path — the one thing this page
-        must not have. `set_value` fires `_on_edit`, which marks the note dirty;
-        the save itself is the ordinary one, kicked off here rather than left to
-        the idle timer because an accepted revision is a decision, not a keystroke.
+        must not have. The save itself is the ordinary one, kicked off here
+        rather than left to the idle timer because an accepted revision is a
+        decision, not a keystroke.
         """
-        if not st["rel"]:
+        if not st["rel"] or _locked():
             return
         editor.set_value(text)
-        if preview.visible:
-            preview.set_content(escape_intraword_underscores(text))
-        _on_edit(text)
         # Awaited, not spawned: a save can hit a conflict and render the banner,
         # and a detached task has no client slot to render it into.
         await _save()
@@ -1058,20 +1391,221 @@ def brain_page():
         if not st["rel"]:
             ui.notify(_("Select a note first."), type="warning")
             return
+        if _locked():
+            ui.notify(_("Unlock the note first."), type="warning")
+            return
         _voice_edit()
 
-    def _toggle_preview() -> None:
-        _set_preview(not preview.visible)
+    def _set_mode(mode: str) -> None:
+        st["mode"] = mode
+        set_pref("vault_editor_mode", mode)
+        editor.set_mode(mode)
+        editor_box.classes(add="is-source") if mode == "source" else editor_box.classes(remove="is-source")
 
-    def _set_preview(show: bool) -> None:
-        preview.set_visibility(show)
-        editor.set_visibility(not show)
-        preview_btn.props(f'icon={"edit" if show else "visibility"}')
-        preview_btn.tooltip(_("Edit") if show else _("Preview"))
-        if show:
-            preview.set_content(escape_intraword_underscores(editor.value))
+    # ── Links, tags, search ──────────────────────────────────────────────────
+    async def _refresh_context() -> None:
+        """What the editor needs to draw links and complete names."""
+        paths = await asyncio.to_thread(vscan.note_paths, username)
+        files = await asyncio.to_thread(vscan.other_files, username)
+        tags = await asyncio.to_thread(vsearch.all_tags, username)
+        st["paths"] = paths
+        editor.set_context(notes=paths, tags=tags, files=files, folder=_parent_of(st["rel"]) if st["rel"] else "")
+
+    async def _on_link(link: dict) -> None:
+        if link.get("tag") is not None:
+            _set_query(f"tag:{link['tag']}")
+            if viewport["mobile"]:
+                _set_drawer(True)
+            return
+        href = str(link.get("href") or "")
+        if href:
+            if "://" in href or href.startswith("mailto:"):
+                ui.navigate.to(href, new_tab=True)
+                return
+            if href.startswith("#") and href[1:].isdigit():
+                ui.navigate.to(f"/chat?q=%23{href[1:]}")
+                return
+            target = vlinks.resolve(vlinks._md_target(st["rel"], href), st.get("paths") or [])
+        else:
+            raw = str(link.get("wiki") or "")
+            name, _sep, heading = raw.partition("#")
+            if not name.strip():
+                return  # [[#heading]] — this note
+            target = vlinks.resolve(name, st.get("paths") or [])
+            if target is None:
+                await _create_from_link(name)
+                return
+        if target:
+            await _open(target)
+
+    async def _create_from_link(name: str) -> None:
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); max-width:92vw; width:360px;"):
+            ui.label(_("“{name}” does not exist yet. Create it?").format(name=name)).classes("text-sm").style(
+                "color:var(--c-text-2)")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Cancel"), on_click=lambda: dlg.submit(False)).props("flat dense no-caps")
+                ui.button(_("Create note"), on_click=lambda: dlg.submit(True)).props(
+                    "unelevated dense no-caps color=primary")
+        ok = await dlg
+        dlg.delete()
+        if not ok:
+            return
+        folder, _sep, stem = name.strip().replace("\\", "/").rpartition("/")
+        folder = folder or _parent_of(st["rel"])
+        try:
+            rel = await notes.create_note(username, folder, stem)
+        except (OSError, notes.VaultPathError) as exc:
+            ui.notify(str(exc), type="negative")
+            return
+        await _refresh_tree()
+        await _open(rel)
+
+    def _set_query(q: str) -> None:
+        search.set_value(q)
+
+    async def _run_search(q: str) -> None:
+        st["query"] = q.strip()
+        searching = len(st["query"]) >= 2
+        tree_box.set_visibility(not searching)
+        results_box.set_visibility(searching)
+        if not searching:
+            return
+        my = st["search_seq"] = st.get("search_seq", 0) + 1
+        hits = await asyncio.to_thread(vsearch.search, username, st["query"])
+        if my == st["search_seq"]:
+            st["hits"] = hits
+            _results.refresh()
+
+    @ui.refreshable
+    def _results() -> None:
+        hits = st.get("hits") or []
+        words = vsearch.parse(st["query"]).words
+        ui.label(_("{n} notes").format(n=len(hits))).classes("text-xs px-3 pt-1").style(  # TODO i18n-plural
+            "color:var(--c-text-muted)")
+        for h in hits:
+            first = h.lines[0][0] if h.lines else 1
+            row = ui.element("div").classes("vault-hit")
+            row.on("click", lambda _e, r=h.rel, n=first: _open_at(r, n, words[0] if words else ""))
+            with row:
+                ui.label(Path(h.rel).stem).classes("t")
+                folder = _parent_of(h.rel)
+                if folder:
+                    ui.label(folder).classes("p")
+                for n, line in h.lines:
+                    with ui.element("div").classes("s").on(
+                            "click.stop", lambda _e, r=h.rel, n=n: _open_at(r, n, words[0] if words else "")):
+                        ui.html(_highlight(line, words), sanitize=False)
+        if not hits:
+            ui.label(_("No note contains that.")).classes("text-xs px-3 py-2").style("color:var(--c-text-muted)")
+
+    def _highlight(line: str, words: list[str]) -> str:
+        """The line with its matches marked. Folding can change the length
+        (ß → ss); then the line is shown unmarked rather than mis-marked."""
+        import html as _html
+
+        folded = vsearch.fold(line)
+        if len(folded) != len(line):
+            return _html.escape(line)
+        spans: list[tuple[int, int]] = []
+        for w in words:
+            start = 0
+            while w and (i := folded.find(w, start)) >= 0:
+                spans.append((i, i + len(w)))
+                start = i + len(w)
+        out, pos = [], 0
+        for a, b in sorted(spans):
+            if a < pos:
+                continue
+            out.append(_html.escape(line[pos:a]) + "<mark>" + _html.escape(line[a:b]) + "</mark>")
+            pos = b
+        return "".join(out) + _html.escape(line[pos:])
+
+    async def _open_at(rel: str, line: int, needle: str) -> None:
+        await _open(rel)
+        if st["rel"] == rel:
+            editor.reveal(line, needle)
+
+    # ── Backlinks ────────────────────────────────────────────────────────────
+    async def _load_backlinks() -> None:
+        rel = st["rel"]
+        st["backlinks"] = await asyncio.to_thread(vlinks.backlinks, username, rel) if rel else []
+        if rel == st["rel"]:
+            _backlinks_view.refresh()
+
+    @ui.refreshable
+    def _backlinks_view() -> None:
+        items = st.get("backlinks") or []
+        if not st["rel"]:
+            return
+        with ui.expansion(_("Linked mentions ({n})").format(n=len(items)), icon="link").classes(
+                "w-full vault-backlinks"):
+            if not items:
+                ui.label(_("No other note links here.")).classes("text-xs").style("color:var(--c-text-muted)")
+            for src, n, line in items:
+                row = ui.element("div").classes("vault-hit")
+                row.on("click", lambda _e, r=src, n=n: _open_at(r, n, ""))
+                with row:
+                    ui.label(Path(src).stem).classes("t")
+                    ui.label(line).classes("s")
+
+    # ── Quick switcher (Ctrl/Cmd+O) ──────────────────────────────────────────
+    def _recent() -> list[str]:
+        return [r for r in (get_pref("vault_recent") or []) if isinstance(r, str)]
+
+    def _remember(rel: str) -> None:
+        rec = [rel] + [r for r in _recent() if r != rel]
+        set_pref("vault_recent", rec[:12])
+
+    async def _quick_open() -> None:
+        paths = st.get("paths") or await asyncio.to_thread(vscan.note_paths, username)
+        recent = [r for r in _recent() if r in paths]
+
+        def score(q: str, rel: str) -> int | None:
+            """Fuzzy: the query's letters in order in the path; name hits first."""
+            name, path = vsearch.fold(Path(rel).stem), vsearch.fold(rel)
+            if q in name:
+                return 0 if name.startswith(q) else 1
+            i = 0
+            for c in path:
+                if i < len(q) and c == q[i]:
+                    i += 1
+            return 3 if i == len(q) else None
+
+        with ui.dialog().props("position=top") as dlg, ui.card().classes("gap-1").style(
+                "background:var(--c-surface); width:560px; max-width:94vw; margin-top:8vh;"):
+            q = ui.input(placeholder=_("Open a note …")).props("outlined dense autofocus clearable").classes("w-full")
+            box = ui.column().classes("w-full gap-0").style("max-height:55vh; overflow-y:auto")
+            state = {"rows": []}
+
+            def fill() -> None:
+                box.clear()
+                text = vsearch.fold((q.value or "").strip())
+                if not text:
+                    rows = recent + [p for p in paths if p not in recent]
+                else:
+                    scored = [(s, p) for p in paths if (s := score(text, p)) is not None]
+                    rows = [p for _s, p in sorted(scored, key=lambda x: (x[0], len(x[1]), x[1].casefold()))]
+                state["rows"] = rows[:40]
+                with box:
+                    for rel in state["rows"]:
+                        row = ui.element("div").classes("vault-hit")
+                        row.on("click", lambda _e, r=rel: dlg.submit(r))
+                        with row:
+                            ui.label(Path(rel).stem).classes("t")
+                            if _parent_of(rel):
+                                ui.label(_parent_of(rel)).classes("p")
+
+            q.on("update:model-value", lambda _e: fill())
+            q.on("keydown.enter", lambda: dlg.submit(state["rows"][0] if state["rows"] else None))
+            fill()
+        rel = await dlg
+        dlg.delete()
+        if rel:
+            await _open(rel)
 
     # ── Layout ───────────────────────────────────────────────────────────────
+    st["mode"] = get_pref("vault_editor_mode", "live") if get_pref("vault_editor_mode", "live") in (
+        "live", "source") else "live"
     _cm_theme = "basicLight" if current_theme() == "light" else "basicDark"
 
     with ui.column().classes("w-full max-w-full p-2 gap-2").style("min-width:0"):
@@ -1081,43 +1615,29 @@ def brain_page():
 
             tree_pane = ui.element("div").classes("vault-tree-pane")
             with tree_pane:
-                with ui.row().classes("items-center gap-1 px-2 pt-2 pb-1 no-wrap w-full"):
+                with ui.row().classes("items-center gap-1 px-2 pt-2 pb-1 no-wrap w-full vault-root-drop"):
                     ui.icon("folder_open", size="xs").style("color:var(--c-text-muted)")
                     ui.label(_("Vault")).classes("text-sm font-semibold flex-1 w-full").style(
                         "color:var(--c-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
                     )
-                    ui.button(icon="note_add", on_click=_new_note).props(
+                    ui.button(icon="manage_search", on_click=_quick_open).props(
+                        "flat dense round size=sm"
+                    ).classes("card-action-btn").tooltip(_("Open a note (Ctrl+O)"))
+                    ui.button(icon="note_add", on_click=lambda: _new_note()).props(
                         "flat dense round size=sm"
                     ).classes("card-action-btn").tooltip(_("New note"))
-                    ui.button(icon="create_new_folder", on_click=_new_folder).props(
+                    ui.button(icon="create_new_folder", on_click=lambda: _new_folder()).props(
                         "flat dense round size=sm"
                     ).classes("card-action-btn").tooltip(_("New folder"))
-                    ui.button(icon="drive_file_rename_outline", on_click=_rename).props(
-                        "flat dense round size=sm"
-                    ).classes("card-action-btn").tooltip(_("Rename"))
-                    ui.button(icon="delete_outline", on_click=_delete).props(
-                        "flat dense round size=sm"
-                    ).classes("card-action-btn").tooltip(_("Delete"))
-                search = ui.input(placeholder=_("Filter …")).props(
-                    "outlined dense clearable"
+                search = ui.input(placeholder=_("Search in notes …")).props(
+                    "outlined dense clearable debounce=300"
                 ).classes("mx-2 mb-1")
+                search.on("update:model-value", lambda e: _run_search(e.args if isinstance(e.args, str) else ""))
+                with search.add_slot("prepend"):
+                    ui.icon("search", size="xs")
 
-                @ui.refreshable
-                def _sel_label() -> None:
-                    ui.label(
-                        _("Selected: {name}").format(name=_display_rel(sel["rel"]))
-                        if sel["rel"]
-                        else (
-                            _("Tap to select, tap again to open")
-                            if viewport["mobile"] else _("Click a note to open it")
-                        )
-                    ).classes("text-xs w-full px-2 pb-1").style(
-                        "color:var(--c-text-muted); overflow:hidden;"
-                        "text-overflow:ellipsis; white-space:nowrap"
-                    )
-
-                _sel_label()
-                with ui.scroll_area().classes("flex-1 min-h-0").style("padding:0 4px"):
+                tree_box = ui.scroll_area().classes("flex-1 min-h-0").style("padding:0 4px")
+                with tree_box:
                     tree = ui.tree(
                         [], label_key="label", node_key="id",
                         on_select=_on_select, on_expand=_on_expand,
@@ -1125,7 +1645,12 @@ def brain_page():
                     tree.add_slot("default-header", _NODE_TEMPLATE.replace(
                         "__TIP__", f"'{_('Not indexed yet')}'"
                     ))
-                    search.bind_value_to(tree, "filter")
+                    tree.on("node_menu", lambda e: _node_menu(str(e.args or "")))
+                    tree.on("node_drop", _on_drop)
+                results_box = ui.scroll_area().classes("flex-1 min-h-0 vault-results")
+                results_box.set_visibility(False)
+                with results_box:
+                    _results()
                 with ui.row().classes("items-center gap-1 px-2 py-1 no-wrap w-full").style(
                     "border-top:1px solid var(--c-border)"
                 ):
@@ -1143,9 +1668,29 @@ def brain_page():
                     ui.button(icon="menu", on_click=_toggle_drawer).props(
                         "flat dense round size=sm"
                     ).classes("card-action-btn lg:hidden")
-                    title = ui.label("").classes("text-sm font-semibold flex-1 w-full").style(
-                        "color:var(--c-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
-                    )
+
+                    @ui.refreshable
+                    def _title() -> None:
+                        """Breadcrumb; the note's name renames it on a click."""
+                        rel = st["rel"] or st.get("attachment") or ""
+                        with ui.row().classes("vault-crumbs items-center gap-1 no-wrap flex-1 min-w-0"):
+                            if not rel:
+                                entry = st.get("shared")
+                                if entry:
+                                    ui.label(f"{entry['user']} / {Path(entry['path']).stem if entry['path'] else ''}") \
+                                        .classes("vault-crumb-name")
+                                return
+                            parts = rel.split("/")
+                            for p in parts[:-1]:
+                                ui.label(p).classes("vault-crumb")
+                                ui.label("›").classes("vault-crumb-sep")
+                            name = ui.label(Path(parts[-1]).stem if st["rel"] else parts[-1]).classes(
+                                "vault-crumb-name")
+                            if st["rel"] and not managed.is_root(st["rel"]):
+                                name.on("click", lambda: _rename(st["rel"]))
+                                name.tooltip(_("Rename"))
+
+                    _title()
                     _pending_dot()
                     status_label = ui.label("").classes("text-xs shrink-0").style(
                         "color:var(--c-text-muted)"
@@ -1157,11 +1702,37 @@ def brain_page():
                             "card-action-btn"
                         ).tooltip(_("Edit note by voice"))
                         voice_ui["btn"].set_visibility(False)
-                    preview_btn = ui.button(icon="edit", on_click=_toggle_preview).props(
-                        "flat dense round size=sm"
-                    ).classes("card-action-btn").tooltip(_("Edit"))
+                    note_menu_btn = ui.button(icon="more_vert").props("flat dense round size=sm").classes(
+                        "card-action-btn")
+                    with note_menu_btn, ui.menu().props("auto-close"):
+                        ui.menu_item(_("Live preview"), on_click=lambda: _set_mode("live"))
+                        ui.menu_item(_("Source mode"), on_click=lambda: _set_mode("source"))
+                        ui.separator()
+                        ui.menu_item(_("Rename"), on_click=lambda: _rename(st["rel"]))
+                        ui.menu_item(_("Move to …"), on_click=lambda: _move(st["rel"]))
+                        ui.menu_item(_("Delete"), on_click=lambda: _delete(st["rel"]))
+                        ui.separator()
+                        ui.menu_item(_("Open a note … (Ctrl+O)"), on_click=_quick_open)
 
+                _lock_row()
                 _banner()
+
+                @ui.refreshable
+                def _format_bar() -> None:
+                    """A phone has no Ctrl+B: the formatting a note needs, above the keyboard's reach."""
+                    if not st["rel"] or _locked():
+                        return
+                    with ui.row().classes("vault-format w-full items-center gap-0 no-wrap"):
+                        for icon, kind, tip in (("title", "heading", _("Heading")), ("format_bold", "bold", _("Bold")),
+                                                ("format_italic", "italic", _("Italic")),
+                                                ("format_list_bulleted", "list", _("List")),
+                                                ("check_box", "task", _("Checkbox")),
+                                                ("link", "link", _("Link to a note")),
+                                                ("undo", "undo", _("Undo")), ("redo", "redo", _("Redo"))):
+                            ui.button(icon=icon, on_click=lambda k=kind: editor.format(k)).props(
+                                "flat dense size=sm").classes("card-action-btn").tooltip(tip)
+
+                _format_bar()
 
                 # Collapsed by default: the note is what the user came for,
                 # and the properties are mostly machine-managed.
@@ -1173,44 +1744,27 @@ def brain_page():
                 with props_box:
                     _props_panel()
 
-                editor_box = ui.element("div").classes("vault-editor w-full").style(
+                editor_box = ui.element("div").classes(
+                    "vault-editor w-full" + (" is-source" if st["mode"] == "source" else "")).style(
                     "display:flex; flex-direction:column"
                 )
                 with editor_box:
-                    editor = ui.codemirror(
-                        "", language="Markdown", theme=_cm_theme,
-                        line_wrapping=True, indent="  ",
-                        on_change=lambda e: _on_edit(e.value),
-                        keymap={"Mod-s": lambda _e: asyncio.create_task(_save())},
+                    editor = VaultEditor(
+                        "", mode=st["mode"], on_change=lambda v: _on_edit(v),
+                        on_save=lambda: asyncio.create_task(_save()),
+                        on_link=lambda link: _on_link(link),
                     ).classes("w-full").style("flex:1; min-height:0")
-                    # `cuddled-lists`: markdown2 otherwise wants a blank line
-                    # before a list, so "Einkauf:" followed directly by "- Milch"
-                    # renders as one paragraph — which is how people actually
-                    # type a note. `break-on-newline`: a single newline is a line
-                    # break, matching what the editor above shows and what
-                    # Obsidian does by default.
-                    preview = ui.markdown(
-                        "",
-                        extras=[
-                            "fenced-code-blocks", "tables",
-                            "cuddled-lists", "break-on-newline",
-                            # Obsidian task lines ("- [x] …") are checkboxes,
-                            # not bullets with literal brackets.
-                            "task_list",
-                        ],
-                    ).classes("note-md w-full p-3").style("flex:1; overflow:auto; min-height:0")
-                    # Reading is the common case; the pencil switches to source.
-                    editor.set_visibility(False)
+                    _backlinks_view()
 
                 @ui.refreshable
                 def _layout_mode() -> None:
-                    """Empty state / attachment view. The editor is built once,
-                    above; this only decides what is on screen."""
+                    """Empty state / attachment / shared fact. The editor is
+                    built once, above; this only decides what is on screen."""
                     if voice_ui["btn"] is not None:
                         voice_ui["btn"].set_visibility(bool(st["rel"]))
-                    preview_btn.set_visibility(bool(st["rel"]))
+                    note_menu_btn.set_visibility(bool(st["rel"]))
+                    _title.refresh()
                     if st["rel"]:
-                        title.text = st["rel"]
                         editor_box.set_visibility(True)
                         props_box.set_visibility(True)
                         return
@@ -1218,8 +1772,6 @@ def brain_page():
                     props_box.set_visibility(False)
                     entry = st.get("shared")
                     if entry:
-                        name = Path(entry["path"]).stem if entry["path"] else ""
-                        title.text = f"{entry['user']} / {name}" if name else entry["user"]
                         with ui.column().classes("w-full flex-1 min-h-0 gap-0").style("overflow:auto"):
                             with ui.row().classes("items-center gap-2 px-3 pt-2 no-wrap w-full"):
                                 ui.icon("lock", size="xs").style("color:var(--c-text-muted)")
@@ -1241,7 +1793,6 @@ def brain_page():
                             ).classes("note-md w-full p-3")
                         return
                     if st["attachment"]:
-                        title.text = st["attachment"]
                         with ui.column().classes("items-center justify-center flex-1 gap-2 p-6 w-full"):
                             ui.icon("attach_file", size="32px").style("color:var(--c-text-muted)")
                             ui.label(_("Attachments are read-only.")).classes("text-sm").style(
@@ -1254,15 +1805,17 @@ def brain_page():
                                 ),
                             ).props("flat dense")
                     else:
-                        title.text = ""
                         with ui.column().classes("items-center justify-center flex-1 gap-2 p-6 w-full"):
                             ui.icon("note_alt", size="32px").style("color:var(--c-text-muted)")
                             ui.label(_("Select a note to edit it.")).classes("text-sm").style(
                                 "color:var(--c-text-muted)"
                             )
-                            ui.button(
-                                _("Show notes"), icon="menu", on_click=lambda: _set_drawer(True),
-                            ).props("flat dense").classes("lg:hidden")
+                            with ui.row().classes("gap-2"):
+                                ui.button(
+                                    _("Show notes"), icon="menu", on_click=lambda: _set_drawer(True),
+                                ).props("flat dense no-caps").classes("lg:hidden")
+                                ui.button(_("Open a note …"), icon="manage_search", on_click=_quick_open).props(
+                                    "flat dense no-caps")
 
                 _layout_mode()
 
@@ -1299,12 +1852,26 @@ def brain_page():
     async def _init() -> None:
         await _refresh_tree()
         _layout_mode.refresh()
+        await _refresh_context()
+        target = ui.context.client.request.query_params.get("open") or ""
+        if target and notes.is_note(target):  # the quick switcher's note rows
+            await _open(target)
+        # Ctrl/Cmd+O opens the quick switcher, as in Obsidian.
+        await ui.run_javascript("""
+            if (!window.__vaultKeys) {
+                window.__vaultKeys = true;
+                document.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+                        e.preventDefault(); emitEvent('vault_quick');
+                    }
+                });
+            }
+        """)
         try:
             width = await ui.run_javascript("window.innerWidth", timeout=3.0)
         except Exception:
             return   # keep the desktop default rather than guessing
         viewport["mobile"] = int(width) < MOBILE_BP
-        _sel_label.refresh()   # the hint differs per mode, and was built before this
         # Rotating a tablet crosses the breakpoint, and the tap behaviour has
         # to cross with it.
         await ui.run_javascript("""
@@ -1328,10 +1895,9 @@ def brain_page():
         viewport["mobile"] = int(e.args or 0) < MOBILE_BP
         if was_mobile and not viewport["mobile"]:
             _set_drawer(False)   # the drawer is a permanent pane above the bp
-        if was_mobile != viewport["mobile"]:
-            _sel_label.refresh()
 
     ui.on("vault_resize", _on_resize)
+    ui.on("vault_quick", lambda _e: _quick_open())
 
     # The first tree scan touches the vault mount and runs git — deliberately
     # after the response, so a slow mount cannot delay the page itself.

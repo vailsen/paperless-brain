@@ -85,3 +85,24 @@ def headers() -> dict[str, str]:
 def read_timeout(current: float | None) -> float:
     """At least `READ_TIMEOUT_S` (None = no timeout stays None)."""
     return current if current is None else max(current, READ_TIMEOUT_S)
+
+
+async def reachable(url: str, timeout: float = 3.0) -> bool:
+    """Does anything accept a connection at the endpoint `url` (host + port)?
+
+    A wake-on-request proxy always does, even for a sleeping host; a plain
+    Ollama on a machine that is off does not — and then a chat request only
+    fails after its connect timeout, behind a spinner. Never wakes anything."""
+    import asyncio
+
+    base = _base(url)
+    if not base:
+        return False
+    p = urlsplit(base)
+    port = p.port or (443 if p.scheme == "https" else 80)
+    try:
+        _r, w = await asyncio.wait_for(asyncio.open_connection(p.hostname, port), timeout=timeout)
+    except (OSError, TimeoutError):
+        return False
+    w.close()
+    return True

@@ -16,6 +16,7 @@ from app_ui.chat_images import with_images
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
 from app_ui.similar_dialog import create_similar_dialog
+from app_ui import modules as _modules
 from app_ui.layout import page_layout, require_auth
 from app_ui.model_picker import model_select
 from app_ui.pages.browser import _render_card
@@ -928,6 +929,9 @@ window.addEventListener('message',function(e){
 </script>"""
 
 
+#: Conversation context of the findings dock on the overview.
+OVERVIEW_CTX = "findings:overview"
+
 #: The chat can read a finding or dossier, never change one: offering to
 #: "update the finding" ended in nothing happening (there is no such tool).
 _CTX_READ_ONLY = (
@@ -943,8 +947,40 @@ _CTX_READ_ONLY = (
 _LIVE_TURNS: dict[str, dict] = {}
 
 
+def _host_label(base_url: str) -> str:
+    """host:port of a model URL, for messages."""
+    from urllib.parse import urlparse
+
+    u = urlparse(base_url or "")
+    return u.netloc or base_url or "?"
+
+
+class UserFacingError(Exception):
+    """A failed turn whose message is already written for the user."""
+
+
+def _turn_error_text(exc: BaseException, _) -> str:
+    """What a failed turn shows. A model host that cannot be reached says so —
+    httpx's own text for a connect timeout is often empty ("Error: ")."""
+    import httpx
+
+    if isinstance(exc, UserFacingError):
+        return str(exc)
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+        try:  # httpx raises RuntimeError, not AttributeError, when no request is attached
+            url = str(exc.request.url)
+        except Exception:  # noqa: BLE001
+            url = ""
+        return _("Cannot reach the model host {host}. Is it switched on?").format(host=_host_label(url))
+    if isinstance(exc, httpx.ReadTimeout):
+        return _("The model stopped answering — no response for several minutes.")
+    text = str(exc).strip() or type(exc).__name__
+    return _("Error: {err}").format(err=text)
+
+
 @ui.page("/chat")
-async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = ""):
+async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = "",
+               overview: int = 0):
     if not require_auth():
         return
     page_layout()
@@ -1369,6 +1405,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         "web_fetch_mode": _chat_cfg.get("web_fetch_mode", "hybrid"),
         "expert_id": _initial_expert_id,
         "dossier_ctx": None,
+        # The findings dock opened on the overview (no finding or dossier
+        # selected): the chat sees the inbox, deadlines and dossiers.
+        "overview_ctx": False,
         # Per assistant message (index in "messages"): its turn's provenance,
         # for "Save to dossier" (services/dossier_merge.provenance).
         "turn_meta": {},
@@ -1751,6 +1790,10 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             _set_dossier_ctx(_ctx.split(":", 1)[1])
         elif not _embed:
             _set_dossier_ctx(None)
+        if _ctx == OVERVIEW_CTX:
+            _set_overview_ctx(True)
+        elif not _embed:
+            _set_overview_ctx(False)
         if _ctx.startswith("finding:"):
             _set_finding_ctx(_ctx.split(":", 1)[1])
         _s["total_tokens"] = 0
@@ -1832,6 +1875,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         _s["turn_meta"] = {}
         if not _embed:
             _s["dossier_ctx"] = None
+            _s["overview_ctx"] = False
             _render_ctx_bar()
         # Deliberately empty: coming back must not reopen the latest
         # conversation from the database (chat_on_open == "last").
@@ -2229,8 +2273,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                            lambda: _dl_conversation())
                                 _conv_item("save", _("Save chat to Paperless"),
                                            lambda: _save_chat_to_paperless())
-                                _conv_item("travel_explore", _("Deep research from this chat"),
-                                           lambda: _research_from_chat())
+                                if not _modules.is_hidden("research"):  # Settings > Modules
+                                    _conv_item("travel_explore", _("Deep research from this chat"),
+                                               lambda: _research_from_chat())
                                 _conv_item("mail", _("Write a letter"), lambda: _compose("letter"))
                                 _conv_item("alternate_email", _("Write an email"), lambda: _compose("email"))
                                 _conv_item("tune", _("Configure tools"),
@@ -2337,7 +2382,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             # ── Section 1: Tools ──────────────────────────────
                             with ui.element("div").style("padding:6px 14px 4px;"):
                                 ui.label(_("Tools")).classes(
-                                    "text-xs text-gray-500 uppercase tracking-wide mb-2 block"
+                                    "text-xs text-gray-500 mb-2 block"
                                 )
                                 with ui.row().classes("flex-wrap gap-x-4 gap-y-1 items-center"):
                                     for _grp_name, _grp_icon, _grp_tools in _TOOL_GROUPS:
@@ -2353,7 +2398,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             # ── Section 2: Web-Modus ──────────────────────────
                             with ui.element("div").style("padding:6px 14px 4px;"):
                                 ui.label(_("Web")).classes(
-                                    "text-xs text-gray-500 uppercase tracking-wide mb-2 block"
+                                    "text-xs text-gray-500 mb-2 block"
                                 )
                                 _web_mode_select = (
                                     ui.select(
@@ -2373,7 +2418,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             # ── Section 3: Sonstige ───────────────────────────
                             with ui.element("div").style("padding:6px 14px 6px;"):
                                 ui.label(_("Other")).classes(
-                                    "text-xs text-gray-500 uppercase tracking-wide mb-2 block"
+                                    "text-xs text-gray-500 mb-2 block"
                                 )
                                 with ui.row().classes("items-center gap-6 flex-wrap"):
                                     with ui.row().classes("items-center gap-2"):
@@ -3310,8 +3355,8 @@ window.__openVaultNote = function(noteId) {{
         """One bar above the input: the finding or the dossier this
         conversation is about (a finding wins — it is the narrower context)."""
         finding_bar.clear()
-        fc, dc = _s.get("finding_ctx"), _s.get("dossier_ctx")
-        finding_row.set_visibility(bool(fc or dc))
+        fc, dc, oc = _s.get("finding_ctx"), _s.get("dossier_ctx"), _s.get("overview_ctx")
+        finding_row.set_visibility(bool(fc or dc or oc))
         if fc and _embed:
             # In the dock the finding is right above: no way "back", just what
             # this conversation is about.
@@ -3338,6 +3383,15 @@ window.__openVaultNote = function(noteId) {{
                     ui.button(icon="close", on_click=lambda: _set_dossier_ctx(None)).props(
                         "flat dense dark"
                     ).classes("text-gray-400 flex-shrink-0").tooltip(_("Remove dossier from the chat"))
+        elif oc:
+            with finding_bar:
+                ui.icon("lightbulb", size="xs").classes("text-gray-400 flex-shrink-0")
+                ui.label(_("About: the findings overview")).classes(
+                    "text-xs text-gray-400 truncate flex-1 min-w-0")
+                if not _embed:
+                    ui.button(icon="close", on_click=lambda: _set_overview_ctx(False)).props(
+                        "flat dense dark"
+                    ).classes("text-gray-400 flex-shrink-0").tooltip(_("Remove the overview from the chat"))
 
     def _go(path: str) -> None:
         """Navigate — out of the dock, the whole window goes."""
@@ -3358,6 +3412,10 @@ window.__openVaultNote = function(noteId) {{
         )
         _render_ctx_bar()
 
+    def _set_overview_ctx(on: bool) -> None:
+        _s["overview_ctx"] = bool(on and proactive_enabled())
+        _render_ctx_bar()
+
     def _conv_context() -> str | None:
         # A finding is the narrower context: a conversation about one finding
         # of a dossier is not the dossier's conversation the dock reopens.
@@ -3365,6 +3423,8 @@ window.__openVaultNote = function(noteId) {{
             return f"finding:{_s['finding_ctx']['id']}"
         if _s.get("dossier_ctx"):
             return f"dossier:{_s['dossier_ctx']['id']}"
+        if _s.get("overview_ctx"):
+            return OVERVIEW_CTX
         return None
 
     # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
@@ -3815,7 +3875,7 @@ window.__openVaultNote = function(noteId) {{
                     ui.separator()
 
                     ui.label(_("Title")).classes(
-                        "text-xs text-gray-400 mt-3 mb-1 font-semibold uppercase tracking-wide"
+                        "text-xs text-gray-400 mt-3 mb-1 font-semibold"
                     )
                     _pdf_title = (
                         ui.input(value=_pp.get("title", ""))
@@ -3826,7 +3886,7 @@ window.__openVaultNote = function(noteId) {{
                     _pdf_edit_mode = [False]
                     with ui.row().classes("items-center justify-between mt-3 mb-1"):
                         ui.label(_("Content")).classes(
-                            "text-xs text-gray-400 font-semibold uppercase tracking-wide"
+                            "text-xs text-gray-400 font-semibold"
                         )
                         _pdf_mode_btn = ui.button(
                             _("Edit"), icon="edit"
@@ -4230,6 +4290,7 @@ window.__openVaultNote = function(noteId) {{
         _s["running"] = True
         _turn["started"] = True
         _s["stop_requested"] = False
+        ui.run_javascript("window.__pbDraftClear && window.__pbDraftClear()")  # layout.DRAFT_JS
         _rs["vault_index"] = {}    # reset per-turn vault link index
         _rs["brain_results"] = []  # reset brain fact cards
         _rs["web_results"] = []    # reset web result cards (accumulate per turn)
@@ -4339,6 +4400,27 @@ window.__openVaultNote = function(noteId) {{
                     + llm_messages[-1]["content"]
                 ),
             }
+        if _s.get("overview_ctx"):
+            # Built fresh every turn: the inbox changes while the user chats.
+            from app_ui.findings_view import overview_context_text
+
+            try:
+                _ov = overview_context_text(_turn_username)
+            except Exception:  # noqa: BLE001 — the overview must never cost the answer
+                _log.warning("findings overview for the chat failed", exc_info=True)
+                _ov = ""
+            if _ov:
+                llm_messages[-1] = {
+                    "role": "user",
+                    "content": (
+                        "[The user is looking at the overview of their PaperlessBrain findings. "
+                        "Findings and dossiers are the system's own notes — a map, not evidence: "
+                        "use their document ids to decide what to read, cite the documents, never "
+                        "a finding or dossier. " + _CTX_READ_ONLY + "]\n<findings_overview>\n"
+                        + _ov[:FINDING_CTX_CHARS] + "\n</findings_overview>\n\n"
+                        + llm_messages[-1]["content"]
+                    ),
+                }
         if _s["pinned_docs"]:
             _pin_prefix = (
                 "[Angeheftete Dokumente: "
@@ -4547,6 +4629,22 @@ window.__openVaultNote = function(noteId) {{
 
             return asyncio.create_task(_hint())
 
+        async def _require_local_host() -> None:
+            """A local model whose endpoint accepts no connection at all — a plain
+            Ollama on a machine that is off — fails now, with its name, instead
+            of after the connect timeout behind "The model host is starting…".
+            A wake-on-request proxy always accepts, so a sleeping host behind
+            one still gets woken."""
+            m = next((m for m in _reg_models if m["name"] == _s["chat_model_name"]), None)
+            if not m or m.get("backend") == "anthropic" or m.get("lane") != "local":
+                return
+            from services import model_host
+
+            if not await model_host.reachable(m.get("base_url", "")):
+                raise UserFacingError(_(
+                    "The model host {host} does not answer. Switch it on, or pick another model "
+                    "for this chat.").format(host=_host_label(m.get("base_url", ""))))
+
         _turn_tools = _active_tools(use_skill=_te.needs_use_skill)
         # The part of every request that is not the stored conversation: the
         # system prompt, the tool definitions and this turn's context prefixes.
@@ -4562,6 +4660,7 @@ window.__openVaultNote = function(noteId) {{
             _log.warning("prompt parts for the tool history failed", exc_info=True)
         _starting = _host_starting_hint()
         try:
+            await _require_local_host()
             async for event in backend.run_turn(
                 llm_messages,
                 _system,
@@ -4690,7 +4789,7 @@ window.__openVaultNote = function(noteId) {{
                     _update_context_progress()
 
         except Exception as e:
-            error_text = _("Error: {err}").format(err=e)
+            error_text = _turn_error_text(e, _)
             accumulated[0] = accumulated[0] or error_text
             streaming_label[0].set_content(escape_intraword_underscores(accumulated[0]))
 
@@ -4854,6 +4953,22 @@ window.__openVaultNote = function(noteId) {{
             _apply_expert(_want_expert)
         if _s.get("dossier_ctx") is None:
             _set_dossier_ctx(dossier)
+    if _embed and overview and not dossier and not finding:
+        # The dock on the findings overview: the latest overview conversation
+        # (with the user's default expert), else a new one.
+        _want_expert = _experts_mod.default_id(_username) if _experts_on else _experts_mod.UNIVERSAL_ID
+        _s["dock_expert"] = _want_expert
+        _oconv = next((c for c in _chat_hist.list_conversations(_username)
+                       if c.get("context") == OVERVIEW_CTX), None) if _username else None
+        if _oconv and (_oconv.get("expert_id") or _experts_mod.UNIVERSAL_ID) != _want_expert:
+            _oconv = None
+        if _oconv:
+            _cstore["chat_conv_id"] = _oconv["id"]
+            _load_conv(_oconv["id"])
+        else:
+            _cstore["chat_fresh"] = True
+            _apply_expert(_want_expert)
+        _set_overview_ctx(True)
     # A turn still running from before the user left /chat comes first,
     # whatever "open with" says: the user should see the answer arrive.
     _live = (_LIVE_TURNS.get(_username) if _username and not _embed

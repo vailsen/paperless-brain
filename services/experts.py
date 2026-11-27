@@ -90,11 +90,12 @@ class Expert:
 
 
 def enabled() -> bool:
-    """The user's "Use experts" switch (Settings > AI). Off, every chat is the
+    """Experts not hidden (Settings > General > Modules — the old "Use experts"
+    switch is that list now, `app_ui/modules.py`). Hidden, every chat is the
     Universal expert and no picker is offered. Needs a page context."""
-    from services.user_prefs import get_pref
+    from app_ui.modules import hidden
 
-    return bool(get_pref("experts_enabled", True))
+    return "experts" not in hidden()
 
 
 def default_id(user: str) -> str:

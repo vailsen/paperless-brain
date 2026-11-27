@@ -9,9 +9,14 @@ from i18n import get_translator
 
 
 def _entries(_) -> list[tuple[str, str, str]]:
-    from config.proactive import is_enabled
-    from services.experts import enabled as experts_on
+    """The modules the user sees (`app_ui/modules.py`), each with its text."""
+    from app_ui.modules import visible_modules
 
+    shown = {m.icon for m in visible_modules()}
+    return [e for e in _all_entries(_) if e[0] in shown]
+
+
+def _all_entries(_) -> list[tuple[str, str, str]]:
     out = [
         ("dashboard", _("Dashboard"), _(
             "The state of the system at a glance: how many documents are indexed and when the last sync "
@@ -23,8 +28,7 @@ def _entries(_) -> list[tuple[str, str, str]]:
             "tap a number to see the passage on the page. Pick the model and the expert at the top; the "
             "tool switches and quick actions are below the input.")),
     ]
-    if is_enabled():
-        out.append(("lightbulb", _("Findings"), _(
+    out.append(("lightbulb", _("Findings"), _(
             "What the system noticed in your documents while you were away — deadlines, price changes, "
             "contracts worth a look — as an inbox, plus dossiers: one binder per matter with its state, "
             "timeline, open questions, documents, research and the chat answers you saved. The chat on "
@@ -39,8 +43,7 @@ def _entries(_) -> list[tuple[str, str, str]]:
             "documents, web, email, calculations — then writes a report in which every statement points "
             "to its source and what it could not find is said plainly. The report is saved as a note.")),
     ]
-    if experts_on():
-        out.append(("psychology", _("Experts"), _(
+    out.append(("psychology", _("Experts"), _(
             "Chat personas with their own instructions, skills and document access — an insurance expert "
             "that sees only policies, a physician that sees only medical letters. 'Study documents' gives "
             "one a briefing of its archive. The Universal expert sees everything.")))

@@ -50,6 +50,13 @@ project's code.
 
 ## Bundled assets
 
+The note vault's editor (`app_ui/vault_editor/dist/`) is a bundle of
+[CodeMirror 6](https://codemirror.net/) (`@codemirror/*`, MIT) and
+[Lezer](https://lezer.codemirror.net/) (`@lezer/*`, MIT), built from the pinned
+versions in `app_ui/vault_editor/package-lock.json` by
+`scripts/build_vault_editor.sh`. Copyright (C) 2018–2026 Marijn Haverbeke and
+others; the MIT license text ships in each package.
+
 The embedding model (`intfloat/multilingual-e5-large-instruct`, MIT) is
 downloaded at runtime from Hugging Face and is not redistributed with this
 project.

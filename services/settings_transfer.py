@@ -81,6 +81,10 @@ def _redact(creds: dict) -> dict:
     return out
 
 
+#: Navigation preferences carried by an export.
+NAV_PREFS = ("start_page", "hidden_modules", "chat_on_open")
+
+
 def build_export(
     username: str,
     token: str,
@@ -90,6 +94,7 @@ def build_export(
     push_text_to_paperless: bool = False,
     voice_memos_enabled: bool = True,
     include_secrets: bool = False,
+    navigation: dict | None = None,
 ) -> str:
     """Return the settings of ``username`` as an indented JSON string."""
     creds = load_credentials(username, token) if username and token else {}
@@ -108,6 +113,10 @@ def build_export(
         "push_text_to_paperless": bool(push_text_to_paperless),
         "voice_memos_enabled": bool(voice_memos_enabled),
     }
+    # Start page, hidden modules, what the chat opens with (app_ui/modules.py).
+    for k, v in (navigation or {}).items():
+        if k in NAV_PREFS:
+            payload[k] = v
     for key in _CRED_KEYS:
         if key in creds:
             payload[key] = creds[key]
@@ -279,4 +288,10 @@ def apply_import(
         prefs["push_text_to_paperless"] = payload["push_text_to_paperless"]
     if isinstance(payload.get("voice_memos_enabled"), bool):
         prefs["voice_memos_enabled"] = payload["voice_memos_enabled"]
+    if isinstance(payload.get("start_page"), str):
+        prefs["start_page"] = payload["start_page"]
+    if isinstance(payload.get("chat_on_open"), str) and payload["chat_on_open"] in ("last", "new"):
+        prefs["chat_on_open"] = payload["chat_on_open"]
+    if isinstance(payload.get("hidden_modules"), list):
+        prefs["hidden_modules"] = [str(k) for k in payload["hidden_modules"]]
     return prefs
