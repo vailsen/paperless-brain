@@ -928,6 +928,9 @@ window.addEventListener('message',function(e){
 </script>"""
 
 
+#: Conversation context of the findings dock on the overview.
+OVERVIEW_CTX = "findings:overview"
+
 #: The chat can read a finding or dossier, never change one: offering to
 #: "update the finding" ended in nothing happening (there is no such tool).
 _CTX_READ_ONLY = (
@@ -975,7 +978,8 @@ def _turn_error_text(exc: BaseException, _) -> str:
 
 
 @ui.page("/chat")
-async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = ""):
+async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = "",
+               overview: int = 0):
     if not require_auth():
         return
     page_layout()
@@ -1400,6 +1404,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         "web_fetch_mode": _chat_cfg.get("web_fetch_mode", "hybrid"),
         "expert_id": _initial_expert_id,
         "dossier_ctx": None,
+        # The findings dock opened on the overview (no finding or dossier
+        # selected): the chat sees the inbox, deadlines and dossiers.
+        "overview_ctx": False,
         # Per assistant message (index in "messages"): its turn's provenance,
         # for "Save to dossier" (services/dossier_merge.provenance).
         "turn_meta": {},
@@ -1782,6 +1789,10 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             _set_dossier_ctx(_ctx.split(":", 1)[1])
         elif not _embed:
             _set_dossier_ctx(None)
+        if _ctx == OVERVIEW_CTX:
+            _set_overview_ctx(True)
+        elif not _embed:
+            _set_overview_ctx(False)
         if _ctx.startswith("finding:"):
             _set_finding_ctx(_ctx.split(":", 1)[1])
         _s["total_tokens"] = 0
@@ -1863,6 +1874,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         _s["turn_meta"] = {}
         if not _embed:
             _s["dossier_ctx"] = None
+            _s["overview_ctx"] = False
             _render_ctx_bar()
         # Deliberately empty: coming back must not reopen the latest
         # conversation from the database (chat_on_open == "last").
@@ -3341,8 +3353,8 @@ window.__openVaultNote = function(noteId) {{
         """One bar above the input: the finding or the dossier this
         conversation is about (a finding wins — it is the narrower context)."""
         finding_bar.clear()
-        fc, dc = _s.get("finding_ctx"), _s.get("dossier_ctx")
-        finding_row.set_visibility(bool(fc or dc))
+        fc, dc, oc = _s.get("finding_ctx"), _s.get("dossier_ctx"), _s.get("overview_ctx")
+        finding_row.set_visibility(bool(fc or dc or oc))
         if fc and _embed:
             # In the dock the finding is right above: no way "back", just what
             # this conversation is about.
@@ -3369,6 +3381,15 @@ window.__openVaultNote = function(noteId) {{
                     ui.button(icon="close", on_click=lambda: _set_dossier_ctx(None)).props(
                         "flat dense dark"
                     ).classes("text-gray-400 flex-shrink-0").tooltip(_("Remove dossier from the chat"))
+        elif oc:
+            with finding_bar:
+                ui.icon("lightbulb", size="xs").classes("text-gray-400 flex-shrink-0")
+                ui.label(_("About: the findings overview")).classes(
+                    "text-xs text-gray-400 truncate flex-1 min-w-0")
+                if not _embed:
+                    ui.button(icon="close", on_click=lambda: _set_overview_ctx(False)).props(
+                        "flat dense dark"
+                    ).classes("text-gray-400 flex-shrink-0").tooltip(_("Remove the overview from the chat"))
 
     def _go(path: str) -> None:
         """Navigate — out of the dock, the whole window goes."""
@@ -3389,6 +3410,10 @@ window.__openVaultNote = function(noteId) {{
         )
         _render_ctx_bar()
 
+    def _set_overview_ctx(on: bool) -> None:
+        _s["overview_ctx"] = bool(on and proactive_enabled())
+        _render_ctx_bar()
+
     def _conv_context() -> str | None:
         # A finding is the narrower context: a conversation about one finding
         # of a dossier is not the dossier's conversation the dock reopens.
@@ -3396,6 +3421,8 @@ window.__openVaultNote = function(noteId) {{
             return f"finding:{_s['finding_ctx']['id']}"
         if _s.get("dossier_ctx"):
             return f"dossier:{_s['dossier_ctx']['id']}"
+        if _s.get("overview_ctx"):
+            return OVERVIEW_CTX
         return None
 
     # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
@@ -4371,6 +4398,27 @@ window.__openVaultNote = function(noteId) {{
                     + llm_messages[-1]["content"]
                 ),
             }
+        if _s.get("overview_ctx"):
+            # Built fresh every turn: the inbox changes while the user chats.
+            from app_ui.findings_view import overview_context_text
+
+            try:
+                _ov = overview_context_text(_username)
+            except Exception:  # noqa: BLE001 — the overview must never cost the answer
+                _log.warning("findings overview for the chat failed", exc_info=True)
+                _ov = ""
+            if _ov:
+                llm_messages[-1] = {
+                    "role": "user",
+                    "content": (
+                        "[The user is looking at the overview of their PaperlessBrain findings. "
+                        "Findings and dossiers are the system's own notes — a map, not evidence: "
+                        "use their document ids to decide what to read, cite the documents, never "
+                        "a finding or dossier. " + _CTX_READ_ONLY + "]\n<findings_overview>\n"
+                        + _ov[:FINDING_CTX_CHARS] + "\n</findings_overview>\n\n"
+                        + llm_messages[-1]["content"]
+                    ),
+                }
         if _s["pinned_docs"]:
             _pin_prefix = (
                 "[Angeheftete Dokumente: "
@@ -4903,6 +4951,22 @@ window.__openVaultNote = function(noteId) {{
             _apply_expert(_want_expert)
         if _s.get("dossier_ctx") is None:
             _set_dossier_ctx(dossier)
+    if _embed and overview and not dossier and not finding:
+        # The dock on the findings overview: the latest overview conversation
+        # (with the user's default expert), else a new one.
+        _want_expert = _experts_mod.default_id(_username) if _experts_on else _experts_mod.UNIVERSAL_ID
+        _s["dock_expert"] = _want_expert
+        _oconv = next((c for c in _chat_hist.list_conversations(_username)
+                       if c.get("context") == OVERVIEW_CTX), None) if _username else None
+        if _oconv and (_oconv.get("expert_id") or _experts_mod.UNIVERSAL_ID) != _want_expert:
+            _oconv = None
+        if _oconv:
+            _cstore["chat_conv_id"] = _oconv["id"]
+            _load_conv(_oconv["id"])
+        else:
+            _cstore["chat_fresh"] = True
+            _apply_expert(_want_expert)
+        _set_overview_ctx(True)
     # A turn still running from before the user left /chat comes first,
     # whatever "open with" says: the user should see the answer arrive.
     _live = (_LIVE_TURNS.get(_username) if _username and not _embed

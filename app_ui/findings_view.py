@@ -100,6 +100,18 @@ def is_pressing(f, today: date) -> bool:
     return URGENCY_RANK.get(f.urgency, 1) >= 2 or (d is not None and d <= DUE_SOON_DAYS)
 
 
+def urgent_reason(f, today: date, _) -> str:
+    """Why `is_pressing` holds without the user's mark, in one short line."""
+    d = days_left(f, today)
+    if d is not None and d <= DUE_SOON_DAYS:
+        if d < 0:
+            return _("Urgent: overdue")
+        if d == 0:
+            return _("Urgent: due today")
+        return _("Urgent: due in {n} days").format(n=d) if d > 1 else _("Urgent: due tomorrow")  # TODO i18n-plural
+    return _("Urgent: rated high priority")
+
+
 def is_relevant(f) -> bool:
     """Relevant by status, or marked relevant and back in the inbox after a
     reminder — the reminder never takes it out of "Relevant"."""
@@ -235,3 +247,58 @@ def insight_origin(ins, _) -> str:
     when = (ins.created or "").replace("T", " ")[:16]
     how = _("fitted in by {model}").format(model=ins.merged_by) if ins.merged_by else _("saved verbatim")
     return " · ".join(x for x in (_("From the chat"), when, how) if x)
+
+
+def overview_context_text(user: str, today: date | None = None, limit: int = 6000) -> str:
+    """The findings overview as the dock's chat sees it, when no finding or
+    dossier is selected: what is open and urgent, what is due, which dossiers
+    exist. Built in code from the ledger — a map with document ids, not
+    evidence (the chat is told to cite the documents)."""
+    from proactive import clock, findings
+    from proactive import dossiers as dmod
+
+    today = today or clock.local_now().date()
+    items = findings.list_findings(user)
+    ds = dmod.list_dossiers(user)
+    c = counts(items, today)
+    live = [f for f in items if f.status in OPEN_STATUSES]
+
+    def line(f) -> str:
+        bits = [f"- {f.title}"]
+        if f.topic_label or f.topic:
+            bits.append(f"topic: {f.topic_label or f.topic}")
+        if f.deadline:
+            bits.append(f"due {str(f.deadline)[:10]}")
+        if is_pressing(f, today):
+            bits.append("urgent")
+        bits.append(display_status(f.status))
+        if f.doc_ids:
+            bits.append("docs " + ", ".join(f"#{i}" for i in f.doc_ids[:6]))
+        return " · ".join(bits) + f" (finding {f.finding_id})"
+
+    parts = [(
+        f"Today: {today.isoformat()}. In the inbox: {c['open']}, urgent: {c['pressing']}, "
+        f"marked relevant: {c['relevant']}, dossiers: {len(ds)}."
+    )]
+    urgent = sorted((f for f in live if is_pressing(f, today)), key=lambda f: str(f.deadline or "9999"))
+    if urgent:
+        parts.append("Urgent:\n" + "\n".join(line(f) for f in urgent[:15]))
+    due = sorted((f for f in live if (d := days_left(f, today)) is not None and 0 <= d <= 60
+                  and not is_pressing(f, today)), key=lambda f: str(f.deadline))
+    if due:
+        parts.append("Due in the next 60 days:\n" + "\n".join(line(f) for f in due[:15]))
+    rest = sorted((f for f in live if f not in urgent and f not in due),
+                  key=lambda f: relevance(f, today), reverse=True)
+    if rest:
+        parts.append("Other open findings (most relevant first):\n" + "\n".join(line(f) for f in rest[:25]))
+    if ds:
+        rows = []
+        for d in ds[:30]:
+            extra = []
+            if d.open_questions:
+                extra.append(f"{len(d.open_questions)} open questions")
+            if d.insights:
+                extra.append(f"latest insight {d.insights[0].created[:10]}: {d.insights[0].title}")
+            rows.append(f"- {d.display}" + (" · " + " · ".join(extra) if extra else ""))
+        parts.append("Dossiers:\n" + "\n".join(rows))
+    return "\n\n".join(parts)[:limit]

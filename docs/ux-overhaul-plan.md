@@ -49,6 +49,64 @@ chat's `search` tool uses the same function, so the model sees the leak too.
 
 ---
 
+## Shipped first (2026-11-27)
+
+Small things that did not need a phase:
+
+- **App shortcuts** with badge icons (1.2a).
+- **Library speed**: lean list fetch, shared name maps (3.1).
+- **Reload after switching apps on a phone.** Three causes in NiceGUI's client, each
+  addressed: a connection attempt that times out reloads (a waking phone radio can take
+  longer than the default 20 s → the timeout is 60 s now); a page further behind than
+  the replay buffer reloads ("outbox rewind failed" → `message_history_length` 5 000
+  instead of 1 000); and Android discarding a background PWA outright, which no socket
+  logic can prevent — so the half-typed chat message now survives it
+  (`layout.DRAFT_JS`, per address, dropped on send). Every reload now logs its reason
+  as `[revive]` (NiceGUI's own reason, or "discarded"), so what remains can be
+  measured instead of guessed.
+- **Model host offline**: a local model whose endpoint accepts no connection fails at
+  once with its name ("The model host … does not answer"), instead of "The model host
+  is starting…" until the connect timeout. A wake-on-request proxy always accepts, so a
+  sleeping host behind one is still woken. Connect errors are named, not "Error: ".
+- **Findings**
+  - The dock's chat on the overview (home, a list, a folder) gets the overview as
+    context: urgent findings, what is due in 60 days, other open findings, dossiers —
+    built in code, fresh every turn (`findings_view.overview_context_text`), its own
+    conversation (`findings:overview`) that the dock reopens.
+  - "Pressing" is "Urgent" everywhere ("Mark as urgent"). A finding that is urgent by
+    itself — a deadline within a week, a high urgency — says why ("Urgent: due in 3
+    days") instead of showing no button, which read as "deadlines cannot be marked".
+  - "Rescan pending" lists every dossier whose page offers "Rescan": changed by hand
+    *or* with documents it does not cover yet (`dossiers.needs_rescan`). The night still
+    rescans only the hand-changed ones.
+  - Back gesture: every selection is a history step (`pushState`), and back/forward
+    show what the address names — a finding opened from a dossier goes back to the
+    dossier, not to the dashboard.
+
+## NiceGUI 4
+
+4.0.0 (2026-11-04) and 4.1.0 (2026-11-24) are out; the app pins `nicegui>=3.19,<4`.
+Worth doing — as its own step, not mixed into feature work, because a lot here leans
+on NiceGUI's client internals (socket revive, `next_message_id`, replay, Quasar CSS).
+What 4.x changes that this code base must be checked for:
+
+- **Prop names are no longer migrated** to kebab-case: a snake/camelCase name in a
+  `.props("…")` string silently does nothing. Audit every `.props()` string.
+- **Cleared text inputs hold `''`, not `None`** (`ui.input`, `ui.textarea`,
+  `ui.date_input`): every `value is None` check on those.
+- **DOM ids are `ng-12`, not `c12`**: any JS that builds an element id by hand.
+- **httpx is no longer a NiceGUI dependency** — the app lists it itself (already).
+- `ui.echart`: `:`-prefixed keys outside `dataset.source` are no longer evaluated as
+  JavaScript (matters for Phase 6 charts).
+- `run.cpu_bound` defaults to "spawn"; `ui.timer` callbacks must not swallow
+  `CancelledError`; `app.on_startup(coro())` must pass the function.
+- Quasar 2.18 → 2.35, Vue 3.5.44, socket.io 4.8.4, Starlette 1.10, uvicorn 0.54.
+- 4.1: an expired login on reconnect reloads instead of "Connection lost" forever.
+
+Plan: bump the pin, run the suite, then drive every module with Playwright at 390 px
+and 1280 px (header, chat streaming, findings dock, vault editor, reconnect after a
+dropped socket) before it ships.
+
 ## Phase 1 — Navigation: landing, knowing where you are, hiding modules
 
 ### 1.1 One module registry
@@ -112,14 +170,13 @@ service worker:
 The scopes cannot be separated without splitting the URL space, which the embedded dock
 rules out. Shortcuts give the same result on the home screen without any of this.
 
-- [ ] Shortcuts (Android shows four comfortably; order = priority):
-      **Chat** (`/chat`), **New memo** (`/start?memo=1` → the landing page opens the memo
-      dialog), **Note vault** (`/brain`), **Dashboard** (`/`). The manifest moves from a
-      static file to a route, so New memo is left out when `WHISPER_URL` is empty. It
-      stays the same for every user: Chrome may fetch the manifest without a session,
-      so hidden modules cannot shape it — a shortcut to a hidden module still works,
-      with the banner from 1.4.
-- [ ] **Shortcut icons = the app mark with a corner badge**: the current icon, slightly
+- [x] Shortcuts (shipped): **Chat** (`/chat`), **Note vault** (`/brain`), **New voice
+      memo** (`/?memo=1` — the dashboard opens and the memo dialog opens on it; the flag
+      is taken out of the address). The dashboard is the app icon itself. The manifest is
+      served by a route (`app_ui/pwa_manifest.py`): names follow the browser's
+      `Accept-Language`, the memo shortcut is left out without a transcription service.
+      It is the same for every user — Chrome fetches it without a session.
+- [x] **Shortcut icons = the app mark with a corner badge** (shipped): the current icon, slightly
       smaller, with a solid circle at the bottom right carrying a monochrome glyph (chat
       bubble, note, microphone, grid). Same colours as the app icon — the badge is a
       shape, not a new colour. Rendered by `scripts/make_icons.py` from the `brand.py`
@@ -212,47 +269,25 @@ Today: an AI search field, a Search button, "Advanced filters" collapsed behind 
 cards. Every change needs a button press, and filters are a form, not a view of the
 archive.
 
-### 3.1 A server-side catalogue, rebuilt by the sync
+### 3.1 A fast document list — no cache (decided)
 
 The grouped tree already exists — the chat's right drawer → Library
-(`app_ui/doc_library.py`, also on the experts page). It is not rebuilt here; it gets a
-fast data source and the browser uses the same one. Why it is slow today: §0.
+(`app_ui/doc_library.py`, also on the experts page). It is not rebuilt here; the browser
+uses the same data source. Why it was slow: §0.
 
-The archive is hundreds to a few thousand documents; their metadata (id, title,
-correspondent, type, tags, storage path, owner, created, added, modified, page count,
-notes count) is a few hundred KB.
-
-- [ ] **Lean fetch**: `PaperlessClient.list_catalogue()` asks `/api/documents/` with
-      `fields=` for exactly those keys (no `content`) and a large `page_size`; once the
-      first page gives the count, the remaining pages are fetched in parallel. Expected:
-      from 3–4 s to well under a second even uncached.
-- [ ] `services/doc_catalogue.py`: **one catalogue per user, held by the server** (in
-      memory, plus a copy in `data/catalogue/{user}.json` so a restart serves at once).
-      Every entry was fetched **with that user's own token** — the catalogue never
-      decides who may see what; Paperless did. (Rejected: one superuser list filtered by
-      our own reading of Paperless permissions — that is re-implementing Paperless's
-      permission model, and a mistake there shows titles to the wrong person.)
-- [ ] **When it changes — only through a sync**, as asked:
-      - at the end of every Paperless sync (`pipelines/paperless_db_sync.run_sync`,
-        whoever clicked it, and every other sync trigger), the catalogue is rebuilt **for
-        every user**: users with a background grant (`background_access.token_for`)
-        right away with their token; users without one are marked stale;
-      - a stale or missing catalogue is rebuilt **in the background on the user's next
-        page load** — any module, from `page_layout`, not when the Library opens — so by
-        the time they open the Library or the browser it is there;
-      - a 401 on a background rebuild → `mark_needs_reauth()`, as everywhere else.
-      Changes made directly in Paperless therefore show after the next sync. The Library
-      keeps its refresh button for "I just changed something in Paperless" — that rebuilds
-      only the user's own catalogue.
-- [ ] **Experts read the same catalogue**, narrowed in memory by `scope.allows(d)` —
-      the check `ScopedPaperlessClient.list_documents` already applies after fetching.
-      The scope stays enforced in code, the Library becomes instant for every expert.
-- [ ] Above `doc_library.MAX_DOCS` (5 000) the browser falls back to server-side
-      filtering; the catalogue itself has no cap.
-- [ ] All facet filtering, counting and sorting runs on the catalogue in Python — no
-      round trip per click, which is what makes "live" possible.
-- [ ] A document deleted in Paperless since the sync answers 404 on open — the dialog
-      says "No longer in Paperless" and the entry is dropped from the catalogue.
+- [x] **Lean fetch** (shipped): `PaperlessClient.list_catalogue()` asks
+      `/api/documents/` with `fields=` for the list's keys only (no `content`), 250 per
+      page, the remaining pages in parallel (4 at a time); the name maps are shared by
+      every client of the same token (`_SHARED_MAPS`). The Library and an expert's
+      scoped Library (`ScopedPaperlessClient.list_catalogue` → `scope.allows`) use it.
+- [ ] **No server cache.** With the lean fetch the list loads in well under a second,
+      so it is fetched when needed, with the user's own token — nothing to invalidate,
+      nothing that can be stale after a change in Paperless, nothing that holds titles
+      for users who are not there. Revisit only if a large archive measures slow.
+- [ ] The browser loads the list once per page and filters in memory (§3.2–3.4);
+      above `doc_library.MAX_DOCS` (5 000) it falls back to server-side filtering.
+- [ ] A document deleted in Paperless since the list was loaded answers 404 on open —
+      the dialog says "No longer in Paperless".
 
 ### 3.2 Facet panel
 
@@ -317,11 +352,9 @@ notes count) is a few hundred KB.
       bookmarked or used as a start page, and the dashboard can link to "overdue" or a
       tag directly.
 
-**Acceptance:** the chat's Library and the browser show the list instantly after a
-sync (cached) and in under a second cold; a sync started by user A refreshes user B's
-list (with a grant) or marks it for the background rebuild (without); an expert's Library
-never lists a document outside its scope (test); with ~500 documents a facet click
-re-renders in under 150 ms;
+**Acceptance:** the chat's Library and the browser show the list in under a second
+with ~500 documents; an expert's Library never lists a document outside its scope
+(test); a facet click re-renders in under 150 ms;
 filter + AI query never returns a document outside the filter (test); 390 px — no
 horizontal scroll in any view, facet sheet closes with the back gesture.
 
@@ -646,10 +679,8 @@ replaces the editor under an unchanged save/merge model.
   hide switches read `visible_modules()`. A hidden module's URL still works.
 - One PWA. Extra home-screen entry points are manifest `shortcuts`, never a second
   manifest/app on the same origin.
-- The document catalogue is per user, fetched with that user's token, rebuilt for
-  everyone by every sync (directly with a grant, else on their next page load) and
-  otherwise only by the user's own refresh. It never filters by permissions itself;
-  experts narrow it with `scope.allows`.
+- Document lists fetch metadata only (`list_catalogue`), with the user's own token,
+  and are not cached; experts narrow them with `scope.allows`.
 - Managed vault folders come from `vault/managed.py` only; their root folders (Memos
   included) are never renamed, moved or deleted from the UI; notes in them, except
   memos, need an explicit per-note unlock to edit.
@@ -669,5 +700,6 @@ replaces the editor under an unchanged save/merge model.
   default).
 - The vault editor is Obsidian-style live preview.
 - Links are updated automatically on rename and move.
-- The Library/browser list is cached on the server and changes only with a sync (plus
-  the user's own refresh button).
+- The Library/browser list is **not** cached: the lean fetch makes it fast enough.
+- Shortcuts: Chat, Note vault, New voice memo; the dashboard is the app icon itself.
+  One PWA, never several.

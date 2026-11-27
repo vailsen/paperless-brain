@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import time
+from typing import ClassVar
 
 import httpx
 
@@ -86,7 +87,7 @@ class PaperlessClient:
     # library build a fresh client per load, and each used to fetch all four
     # maps again. Keyed by a hash of base URL + token — the maps are what that
     # token may see, so they are never shared between users.
-    _SHARED_MAPS: dict[str, tuple[float, tuple[dict, dict, dict, dict]]] = {}
+    _SHARED_MAPS: ClassVar[dict[str, tuple[float, tuple[dict, dict, dict, dict]]]] = {}
 
     # What a document list needs — no `content` (the whole OCR text of every
     # document, which made the library take seconds to load).

@@ -102,7 +102,7 @@ async def reachable(url: str, timeout: float = 3.0) -> bool:
     port = p.port or (443 if p.scheme == "https" else 80)
     try:
         _r, w = await asyncio.wait_for(asyncio.open_connection(p.hostname, port), timeout=timeout)
-    except (OSError, asyncio.TimeoutError):
+    except (OSError, TimeoutError):
         return False
     w.close()
     return True

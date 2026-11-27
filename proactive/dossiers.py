@@ -824,6 +824,15 @@ def stale_dossiers(user: str) -> list[Dossier]:
     return [d for d in list_dossiers(user) if d.stale]
 
 
+def needs_rescan(user: str) -> list[Dossier]:
+    """Every dossier whose own page offers "Rescan": changed by hand, or with
+    documents of the matter it was not built from yet. The navigator's
+    "Rescan pending" lists exactly these — a dossier that asks for a rescan on
+    its page must never be missing from the global list. (The night only
+    takes the hand-changed ones, `stale_dossiers`.)"""
+    return [d for d in list_dossiers(user) if d.stale or pending_docs(user, d)]
+
+
 def relook_key(user: str, topic: str) -> str:
     """Dedupe key of the user's "Relook" job (`tasks.topics.dossier_relook`)."""
     return f"dossier_relook:{user}:{topic}"
