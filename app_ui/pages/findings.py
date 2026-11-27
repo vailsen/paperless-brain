@@ -546,7 +546,9 @@ _MC_CSS = """
 .pbm-pending{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.78rem;color:var(--c-text-2);
   border:1px dashed var(--c-border-strong);border-radius:8px;padding:6px 10px}
 @media (max-width:1023px){
-  .pbm-root{grid-template-columns:minmax(0,1fr);bottom:calc(48px + env(safe-area-inset-bottom))}
+  /* The zone switch is a bar at the top (docs/ux-overhaul-plan.md, Phase 2):
+     the bottom edge belongs to the chat input, as on /chat. */
+  .pbm-root{grid-template-columns:minmax(0,1fr);top:calc(var(--q-header-height,52px) + 46px);bottom:0}
   .pbm-center{flex-direction:column}
   .pbm-dock{width:auto;border-left:0}
   .pbm-handle{width:auto;cursor:row-resize}
@@ -563,8 +565,8 @@ _MC_CSS = """
   .pbm-root.z-chat .pbm-dock .pbm-dock-frame{display:block}
   .pbm-root.z-chat.dock-max .pbm-dock{height:100%!important}
   .pbm-root.z-chat .pbm-dock-head.has-retarget{height:30px}
-  .pbm-mbar{display:flex;position:fixed;left:0;right:0;bottom:0;align-items:center;
-    padding:6px 12px calc(6px + env(safe-area-inset-bottom));border-top:1px solid var(--c-border);background:var(--c-surface)}
+  .pbm-mbar{display:flex;position:fixed;left:0;right:0;top:var(--q-header-height,52px);height:46px;align-items:center;
+    padding:6px 10px;border-bottom:1px solid var(--c-border);background:var(--c-surface);z-index:5}
   .pbm-seg{display:flex;flex:1;gap:2px;padding:3px;border-radius:999px;background:var(--c-surface-2);
     border:1px solid var(--c-border)}
   .pbm-seg button.pbm-seg-btn{flex:1;min-height:30px;border-radius:999px;font-size:.78rem;color:var(--c-text-muted);
@@ -572,6 +574,10 @@ _MC_CSS = """
   .pbm-seg button.pbm-seg-btn .q-icon{font-size:17px;margin-right:5px}
   .pbm-seg button.pbm-seg-btn.is-on{background:var(--c-surface);color:var(--c-text);
     box-shadow:0 1px 2px rgba(0,0,0,.18)}
+  .pbm-seg button.pbm-seg-btn .block{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* An answer is streaming in the dock while another zone is shown. */
+  .pbm-seg button.pbm-seg-btn.is-busy .q-btn__content::after{content:'';width:6px;height:6px;border-radius:50%;
+    background:var(--c-accent);margin-left:5px;flex-shrink:0}
   .pbm-panel{padding:12px}
   .pbm-kbd{display:none}
 }
@@ -598,6 +604,11 @@ _MC_JS = """<script>
       try{localStorage.setItem('pbm'+key.slice(5),getComputedStyle(document.documentElement).getPropertyValue(key));}catch(e){}}
     document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);
   });
+  // The Chat tab shows a dot while the dock streams an answer (phone/tablet).
+  setInterval(function(){var b=document.querySelector('.pbm-seg-chat');if(!b)return;
+    var f=document.querySelector('.pbm-dock-frame iframe'),d=null;try{d=f&&f.contentDocument;}catch(e){}
+    var i=d&&d.querySelector('.chat-send-btn i');var busy=!!(i&&i.textContent.trim()==='stop');
+    b.classList.toggle('is-busy',busy&&!document.querySelector('.pbm-root.z-chat'));},1500);
   // Back/forward between findings, dossiers and lists (select() pushes).
   window.addEventListener('popstate',function(){
     if(location.pathname.indexOf('/findings')===0)emitEvent('pbm_pop',location.pathname+location.search);
@@ -909,6 +920,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         elif kind == "dossier":
             st["tab"] = "overview"
         st["action"] = ""
+        mbtns["viewer"].set_text(_kind_label())
         _zone("viewer")
         nav_body.refresh()
         viewer_body.refresh()
@@ -943,6 +955,11 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
 
     ui.on("pbm_pop", _on_pop)
 
+    def _kind_label() -> str:
+        """The middle zone tab names what is selected, not "Viewer"."""
+        return {"finding": _("Finding"), "dossier": _("Dossier"), "folder": _("Folder"),
+                "list": _("List"), "shelf": _("List")}.get(st["sel"][0], _("Overview"))
+
     # ── Shell ────────────────────────────────────────────────────────────────
     root = ui.element("div").classes("pbm-root z-" + st["zone"])
     with root:
@@ -953,10 +970,10 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             dock = ui.element("div").classes("pbm-dock")
     with ui.element("div").classes("pbm-mbar"), ui.element("div").classes("pbm-seg"):
         mbtns = {}
-        for z, icon, label in (("nav", "account_tree", _("Navigator")), ("viewer", "article", _("Viewer")),
+        for z, icon, label in (("nav", "account_tree", _("Browse")), ("viewer", "article", _kind_label()),
                                ("chat", "forum", _("Chat"))):
             mbtns[z] = ui.button(label, icon=icon, color=None, on_click=lambda z=z: _zone(z)).props(
-                "flat no-caps dense").classes("pbm-seg-btn" + (" is-on" if z == st["zone"] else ""))
+                "flat no-caps dense").classes("pbm-seg-btn pbm-seg-" + z + (" is-on" if z == st["zone"] else ""))
 
     def _zone(z: str) -> None:
         if z != "chat" and st.get("dock_max"):
