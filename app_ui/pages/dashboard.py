@@ -391,74 +391,9 @@ async def dashboard():
 
             # The module overview moved to the "?" in the header (app_ui/help_dialog.py).
 
-            # ── Today: deadlines and what is overdue to arrive ─────────────────
+            # ── top row: 3 stat cards (equal height via align-items:stretch) ────
             with ui.row().style(
                 "width:100%; gap:20px; flex-wrap:wrap; align-items:stretch;"
-            ):
-                # 3) Fristen overview card
-                with (
-                    ui.element("div")
-                    .classes("dash-card flex-1")
-                    .style("min-width:200px;")
-                ):
-                    ui.label(_("Deadlines")).style(
-                        "font-size:.78rem;font-weight:600;"
-                        "color:var(--c-text-muted);margin-bottom:12px;"
-                    )
-                    with ui.column().style("gap:4px; flex:1; justify-content:center;"):
-                        with ui.row().classes("items-end gap-3"):
-                            # A count is not a state to react to — the overdue
-                            # line below it is. Neutral keeps the emphasis there.
-                            deadline_count_label = ui.label("—").style(
-                                "font-size:2.5rem;font-weight:700;color:var(--c-text);"
-                            )
-                            with ui.column().style("gap:2px;margin-bottom:4px;"):
-                                deadline_upcoming_label = ui.label("").classes(
-                                    "text-gray-400 text-xs"
-                                )
-                                deadline_overdue_label = ui.label("").classes(
-                                    "text-red-400 text-xs"
-                                )
-
-                # Series that come on a rhythm and are overdue (archive_stats).
-                expected_box = ui.element("div").classes("dash-card flex-1").style("min-width:300px;")
-
-            # ── bottom: calendar + table ─────────────────────────────────────
-            with ui.element("div").classes("dash-card").style("width:100%;"):
-                with (
-                    ui.row()
-                    .classes("items-center justify-between w-full")
-                    .style("margin-bottom:16px;")
-                ):
-                    ui.label(_("Calendar & deadlines")).style(
-                        "font-size:.78rem;font-weight:600;"
-                        "color:var(--c-text-muted);"
-                    )
-                    with ui.row().classes("items-center gap-1"):
-                        btn_prev = ui.button(icon="chevron_left").props(
-                            "flat dark dense"
-                        )
-                        btn_next = ui.button(icon="chevron_right").props(
-                            "flat dark dense"
-                        )
-
-                calendar_row = ui.row().style(
-                    "gap:24px; flex-wrap:wrap; margin-bottom:24px;"
-                )
-                table_container = ui.element("div").classes(
-                    "deadline-table-anchor"
-                ).style("width:100%; overflow-y:auto; max-height:55vh;")
-
-            # ── The archive: over time, topics, duplicates, health ──────────────
-            archive_box = ui.column().classes("w-full gap-5")
-
-            # ── System: sync, services — last, folded if the user folded it ────
-            sys_exp = ui.expansion(
-                _("System"), icon="settings_suggest", value=bool(get_pref("dash_system_open", True)),
-                on_value_change=lambda e: set_pref("dash_system_open", bool(e.value)),
-            ).classes("w-full dash-system").props("dense header-class=q-px-none")
-            with sys_exp, ui.row().style(
-                "width:100%; gap:20px; flex-wrap:wrap; align-items:stretch; padding-top:8px;"
             ):
                 # 1) Sync-Status card
                 with (
@@ -513,19 +448,15 @@ async def dashboard():
                                 "font-size:.78rem;font-weight:600;"
                                 "color:var(--c-text-muted);"
                             )
-                            with ui.row().classes("items-center gap-0"):
-                                vault_sync_btn = (
-                                    ui.button(icon="cloud_sync")
-                                    .props("flat dense round size=sm")
-                                    .classes("footer-icon")
-                                    .tooltip(_("Synchronize vault now"))
-                                )
-                                dream_btn = (
-                                    ui.button(icon="bedtime")
-                                    .props("flat dense round size=sm")
-                                    .classes("footer-icon")
-                                    .tooltip(_("Analyze and clean up memory"))
-                                )
+                            # The vault syncs on its own (every chat turn and a
+                            # background check), so there is no button for it.
+                            dream_btn = (
+                                ui.button(_("Tidy up memory"), icon="bedtime")
+                                .props("flat dense no-caps size=sm")
+                                .classes("footer-icon")
+                                .style("font-size:.72rem")
+                                .tooltip(_("Analyze and clean up memory"))
+                            )
 
                 # 2) System-Status card — capture dot/badge refs
                 _status_items: list[tuple] = []
@@ -632,6 +563,61 @@ async def dashboard():
                                 ui.label(_("Calendar")).classes("text-gray-300 text-sm flex-1")
                                 cal_badge = ui.label("…").classes("text-gray-500 text-xs")
 
+                # 3) Fristen overview card
+                with (
+                    ui.element("div")
+                    .classes("dash-card flex-1")
+                    .style("min-width:200px;")
+                ):
+                    ui.label(_("Deadlines")).style(
+                        "font-size:.78rem;font-weight:600;"
+                        "color:var(--c-text-muted);margin-bottom:12px;"
+                    )
+                    with ui.column().style("gap:4px; flex:1; justify-content:center;"):
+                        with ui.row().classes("items-end gap-3"):
+                            # A count is not a state to react to — the overdue
+                            # line below it is. Neutral keeps the emphasis there.
+                            deadline_count_label = ui.label("—").style(
+                                "font-size:2.5rem;font-weight:700;color:var(--c-text);"
+                            )
+                            with ui.column().style("gap:2px;margin-bottom:4px;"):
+                                deadline_upcoming_label = ui.label("").classes(
+                                    "text-gray-400 text-xs"
+                                )
+                                deadline_overdue_label = ui.label("").classes(
+                                    "text-red-400 text-xs"
+                                )
+
+            # ── bottom: calendar + table ─────────────────────────────────────
+            with ui.element("div").classes("dash-card").style("width:100%;"):
+                with (
+                    ui.row()
+                    .classes("items-center justify-between w-full")
+                    .style("margin-bottom:16px;")
+                ):
+                    ui.label(_("Calendar & deadlines")).style(
+                        "font-size:.78rem;font-weight:600;"
+                        "color:var(--c-text-muted);"
+                    )
+                    with ui.row().classes("items-center gap-1"):
+                        btn_prev = ui.button(icon="chevron_left").props(
+                            "flat dark dense"
+                        )
+                        btn_next = ui.button(icon="chevron_right").props(
+                            "flat dark dense"
+                        )
+
+                calendar_row = ui.row().style(
+                    "gap:24px; flex-wrap:wrap; margin-bottom:24px;"
+                )
+                table_container = ui.element("div").classes(
+                    "deadline-table-anchor"
+                ).style("width:100%; overflow-y:auto; max-height:55vh;")
+
+            # ── The archive: over time, tidiness, duplicates ──────────────
+            archive_box = ui.column().classes("w-full gap-5")
+
+
     # ── JS bridge (same pattern as chat.py) ──────────────────────────────────
     _doc_handler = ui.element("div").style("display:none;")
 
@@ -648,7 +634,7 @@ async def dashboard():
 
     _doc_handler.on("docOpen", _handle_doc_open)
 
-    # ── Archive section + "expected but missing" (app_ui/dashboard_archive.py) ──
+    # ── Archive section (app_ui/dashboard_archive.py) ──
     async def _open_doc_id(doc_id: int) -> None:
         try:
             doc = await get_session_paperless().get_document(int(doc_id))
@@ -665,10 +651,9 @@ async def dashboard():
         try:
             docs = _drop_no_ingest(await get_session_paperless().list_catalogue())
         except Exception as exc:  # noqa: BLE001 — Paperless down: the rest of the page stays
-            with expected_box:
+            with archive_box:
                 ui.label(_("Could not load the document list: {err}").format(err=exc)).classes("text-xs")
             return
-        _da.render_expected(expected_box, docs, _open_doc_id)
         fill = _da.render_archive(archive_box, docs, _open_doc_id, _username)
         await fill()
 
@@ -798,7 +783,6 @@ window.__toggleHideAction = function(key) {{
         _SYNC_LOG.clear()
         _SYNC_RUN[0] += 1
         sync_btn.props("loading")
-        vault_sync_btn.disable()
         # A manual sync is the moment new or recoloured tags show up, so drop
         # the 15-minute colour cache instead of making the user wait it out.
         invalidate_tag_colors()
@@ -1022,7 +1006,6 @@ window.__toggleHideAction = function(key) {{
             try:
                 stop_sync_btn.set_visibility(False)
                 sync_btn.props(remove="loading")
-                vault_sync_btn.enable()
             except RuntimeError:
                 pass
 
@@ -1260,33 +1243,6 @@ window.__toggleHideAction = function(key) {{
 
     dream_btn.on_click(dream_brain)
 
-    async def vault_sync_now() -> None:
-        if not _username:
-            ui.notify(_("No user signed in."), type="warning")
-            return
-        vault_sync_btn.props(add="loading")
-        sync_btn.disable()
-        _sync_note = ui.notification(
-            _("📂 Synchronizing vault…"),
-            spinner=True,
-            timeout=None,
-            position="bottom-right",
-            type="ongoing",
-        )
-        try:
-            from vault.sync import sync_user as _vault_sync
-            await _vault_sync(_username, force=True)
-            _sync_note.dismiss()
-            ui.notify(_("Vault synchronized."), type="positive", timeout=2000)
-        except Exception as exc:
-            _sync_note.dismiss()
-            ui.notify(_("Vault sync error: {err}").format(err=exc), type="negative")
-        finally:
-            vault_sync_btn.props(remove="loading")
-            sync_btn.enable()
-
-    vault_sync_btn.on_click(vault_sync_now)
-
     # Restore sync state when navigating back to this page
     if sync_state.is_running[0]:
         sync_btn.props(add="loading")
@@ -1347,16 +1303,20 @@ window.__toggleHideAction = function(key) {{
             chroma_count is not None,
             _("{n} docs").format(n=chroma_count) if chroma_count is not None else _("Error"),
         ),
-        "ollama": (bool(ollama_ver and ollama_ver[0]),
+        # A sleeping host does not answer now, so its dot is red like an
+        # offline one (the label says it wakes on request); waking is amber.
+        "ollama": (bool(ollama_ver and ollama_ver[0]) and ollama_ver[1] not in ("asleep", "shutting down"),
                    _ollama_label(ollama_ver)),
     }
+    _ollama_waking = bool(ollama_ver and ollama_ver[0] and ollama_ver[1] == "waking")
     for dot_el, badge_el, key in _status_items:
         if key not in status_data:
             continue
         ok, detail = status_data[key]
+        colour = "#f59e0b" if key == "ollama" and _ollama_waking else ("#22c55e" if ok else "#ef4444")
         dot_el.style(
             f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
-            f"background:{'#22c55e' if ok else '#ef4444'};"
+            f"background:{colour};"
         )
         badge_el.set_text(detail)
     _opt_keys = [k for _l, k in _optional]
