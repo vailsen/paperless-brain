@@ -41,11 +41,20 @@ def test_shortcuts_without_transcription_have_no_memo(monkeypatch):
 def test_every_shortcut_icon_exists():
     from app_ui.pwa_manifest import shortcuts
 
+    import base64
+
     for s in shortcuts("en", memo=True):
         purposes = {i["purpose"] for i in s["icons"]}
         assert purposes == {"any", "maskable"}
+        # The 192 px icons are inline (a WebAPK cannot fetch from a private
+        # server), the 96 px ones files — both must be real PNGs.
+        inline = [i for i in s["icons"] if i["src"].startswith("data:image/png;base64,")]
+        assert {i["sizes"] for i in inline} == {"192x192"} and len(inline) == 2
+        for icon in inline:
+            assert base64.b64decode(icon["src"].split(",", 1)[1])[:8] == b"\x89PNG\r\n\x1a\n"
         for icon in s["icons"]:
-            assert (ROOT / "app_ui" / icon["src"].lstrip("/")).is_file(), icon["src"]
+            if not icon["src"].startswith("data:"):
+                assert (ROOT / "app_ui" / icon["src"].lstrip("/")).is_file(), icon["src"]
 
 
 # ── Lean document list (services/paperless.py) ───────────────────────────────
