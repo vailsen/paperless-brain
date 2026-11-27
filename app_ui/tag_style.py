@@ -205,3 +205,20 @@ def render_tag_chips(tags, max_visible: int = MAX_VISIBLE_TAGS) -> None:
             more.set_visibility(False)
 
         more.on("click", _expand)
+
+
+def tag_chips_html(tags, max_visible: int = MAX_VISIBLE_TAGS) -> str:
+    """The same tag row as `render_tag_chips`, as an HTML string — for lists
+    rendered in one piece (the browser's list view), where an element per chip
+    would cost more than the list itself. The +N is a plain count here."""
+    import html as _html
+
+    ordered = sorted(tags or [])
+    out = []
+    for tag in ordered[:max_visible]:
+        bg, fg = tag_colors(tag)
+        out.append(f'<span style="{_CHIP_BASE}background:{bg};color:{fg};">{_html.escape(tag)}</span>')
+    if len(ordered) > max_visible:
+        out.append(f'<span style="font-size:10px;line-height:1.4;padding:1px 4px;color:var(--c-text-muted);">'
+                   f'+{len(ordered) - max_visible}</span>')
+    return "".join(out)

@@ -59,16 +59,24 @@ async def search(
     paperless_client: PaperlessClient | None = None,
     where_document: dict | None = None,
     owner: int | None = None,
+    candidates: list | None = None,
 ) -> list[DocumentResult]:
-    """Unified search. paperless_client overrides the default (Superuser) client."""
+    """Unified search. paperless_client overrides the default (Superuser) client.
+
+    `candidates`: documents already filtered by the caller (the browser filters
+    its catalogue in memory) — the semantic query then ranks only these, and
+    nothing outside them can enter the result."""
     pl = paperless_client or paperless
     text_query = filters.get("query") or ""
     _filters = dict(filters)
     if owner is not None:
         _filters["owner"] = owner
 
-    if not semantic_query and not where_document:
+    if candidates is not None and not semantic_query and not where_document:
+        docs = _drop_no_ingest(list(candidates))
+    elif not semantic_query and not where_document:
         docs = _drop_no_ingest(await pl.list_documents(**_filters))
+    if not semantic_query and not where_document:
         return [
             DocumentResult(
                 document=doc,
@@ -80,19 +88,27 @@ async def search(
 
     # ── Semantic / ChromaDB path ──────────────────────────────────────────────
     effective_semantic = semantic_query or text_query
-    has_filters = any(v is not None for v in _filters.values())
+    has_filters = candidates is not None or any(v is not None for v in _filters.values())
     chunk_request = n_results * 5
 
     if has_filters:
         # Fetch Paperless candidates AND tag hits in parallel
+        async def _given() -> list:
+            return list(candidates)
+
         docs, tag_doc_map = await asyncio.gather(
-            pl.list_documents(**_filters),
+            _given() if candidates is not None else pl.list_documents(**_filters),
             _tag_search(pl, effective_semantic, owner),
         )
         docs = _drop_no_ingest(docs)
-        if not docs and not tag_doc_map:
-            return []
         candidate_ids = [doc.id for doc in docs]
+        # A tag-name hit is a hit only inside the filter: appended unchecked,
+        # a correspondent filter plus "Rechnung" showed every other
+        # correspondent's invoices too.
+        _cand = set(candidate_ids)
+        tag_doc_map = {pid: d for pid, d in tag_doc_map.items() if pid in _cand}
+        if not docs:
+            return []
         doc_map: dict[int, object] = {doc.id: doc for doc in docs}
         doc_map.update(tag_doc_map)  # tag hits merged early so they can be fetched below
 

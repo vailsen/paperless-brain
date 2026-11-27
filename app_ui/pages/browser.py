@@ -1,89 +1,196 @@
 # app_ui/pages/browser.py
+"""The document browser: the whole archive as facets, filtered live.
+
+docs/ux-overhaul-plan.md, Phase 3. The list is the user's catalogue
+(`PaperlessClient.list_catalogue`: metadata only, their own token, fetched
+once per page); every facet click filters it in memory (`app_ui/doc_facets.py`),
+so nothing waits for Paperless. The search field has three modes:
+
+- **Meaning** — the semantic search, run over the filtered documents only
+  (`search(candidates=…)`): filter first, then rank.
+- **Title** — an instant filter on title, correspondent, type and `#id`.
+- **Full text** — Paperless' own full-text search, intersected with the filter.
+
+The facet panel and the list view are rendered as HTML in one piece and talk
+back by events: an element per value or row made every click re-render
+hundreds of components.
+"""
+
+import html
+import json
+from datetime import date
+from urllib.parse import urlencode
 
 from nicegui import ui
 
+from app_ui import doc_facets as fx
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
-from app_ui.similar_dialog import create_similar_dialog
 from app_ui.layout import page_layout, require_auth
-from app_ui.tag_style import render_tag_chips
+from app_ui.similar_dialog import create_similar_dialog
+from app_ui.tag_style import render_tag_chips, tag_chips_html
 from config.settings import settings
 from i18n import get_translator
 from models.result_document import DocumentResult
 from pipelines.search import search
-from services.clients import cross_ref_index, get_session_paperless, sidecar_service
+from services.clients import cross_ref_index, get_session_paperless
 from services.user_prefs import get_pref, set_pref
 
-# Sort field identifiers (keys are stable; German labels translated at render).
-SORT_OPTIONS: dict[str, str] = {
-    "created": "Erstellt",
-    "title": "Titel",
-    "correspondent": "Korrespondent",
-    "document_type": "Dokumententyp",
-    "relevance_score": "Relevanz",
+PAGE = 60  # results per "show more"
+MODES = ("meaning", "title", "fulltext")
+VIEWS = ("cards", "list", "grouped")
+SORTS = ("created", "added", "title", "correspondent", "document_type", "relevance")
+SORT_DESC = {"created", "added"}
+
+_CSS = """<style>
+html, body { overflow: hidden !important; }
+.q-page { min-height: 0 !important; overflow: hidden !important; }
+.nicegui-content { padding: 0 !important; }
+.pbb-root{position:fixed;top:var(--q-header-height,52px);left:0;right:0;bottom:0;display:grid;
+  grid-template-columns:280px minmax(0,1fr);background:var(--c-bg)}
+.pbb-facets{border-right:1px solid var(--c-border);overflow-y:auto;overflow-x:hidden;min-width:0;background:var(--c-surface)}
+.pbb-main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.pbb-bar{padding:10px 14px 8px;border-bottom:1px solid var(--c-border);display:flex;flex-direction:column;gap:8px;min-width:0}
+.pbb-results{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.pbb-count{font-size:.75rem;color:var(--c-text-muted);white-space:nowrap}
+.pbb-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.pbb-chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;font-size:.75rem;padding:2px 4px 2px 9px;
+  border-radius:999px;border:1px solid var(--c-border);color:var(--c-text-2);background:var(--c-surface-2);cursor:pointer}
+.pbb-chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.pbb-chip.is-not .t{text-decoration:line-through}
+.pbb-chip .x{font-size:14px;line-height:1;color:var(--c-text-muted)}
+/* Facets */
+.pbf{padding:4px 0 10px}
+.pbf details{border-bottom:1px solid var(--c-border)}
+.pbf summary{list-style:none;cursor:pointer;padding:9px 14px;font-size:.78rem;font-weight:600;color:var(--c-text-2);
+  display:flex;align-items:center;gap:6px;user-select:none}
+.pbf summary::-webkit-details-marker{display:none}
+.pbf summary .n{margin-left:auto;font-weight:400;color:var(--c-text-muted)}
+.pbf summary::before{content:'';width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;
+  transform:rotate(-45deg);transition:transform .12s;margin-right:2px}
+.pbf details[open] summary::before{transform:rotate(45deg)}
+.pbf-vals{max-height:280px;overflow-y:auto;padding:0 6px 8px}
+.pbf-q{width:calc(100% - 16px);margin:0 8px 6px;box-sizing:border-box;padding:5px 8px;border:1px solid var(--c-border);
+  border-radius:6px;background:var(--c-bg);color:var(--c-text);font-size:.8rem;outline:none}
+.pbf-q:focus{border-color:var(--c-accent)}
+.pbf-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:.82rem;
+  color:var(--c-text);min-width:0}
+.pbf-row:hover{background:var(--c-surface-2)}
+.pbf-row .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbf-row .n{color:var(--c-text-muted);font-size:.72rem;font-variant-numeric:tabular-nums}
+.pbf-row.is-zero{opacity:.45}
+.pbf-row.sub{padding-left:26px}
+.pbf-row .mk{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--c-border-strong);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;color:#fff}
+.pbf-row.is-in .mk{background:var(--c-accent);border-color:var(--c-accent)}
+.pbf-row.is-in .mk::after{content:'✓'}
+.pbf-row.is-out .mk{border-color:var(--c-warn)}
+.pbf-row.is-out .mk::after{content:'−';color:var(--c-warn);font-size:13px}
+.pbf-row.is-out .t{text-decoration:line-through;color:var(--c-text-muted)}
+.pbf-mode{display:flex;gap:4px;padding:0 14px 6px;font-size:.72rem;color:var(--c-text-muted);align-items:center}
+.pbf-mode a{cursor:pointer;padding:1px 6px;border-radius:4px;border:1px solid var(--c-border)}
+.pbf-mode a.on{color:var(--c-text);border-color:var(--c-accent)}
+.pbf-hint{padding:8px 14px;font-size:.72rem;color:var(--c-text-muted)}
+.pbf-head{display:none}
+.pbf-done{cursor:pointer;color:var(--c-accent-text);font-weight:600;font-size:.85rem;padding:4px 6px}
+.pbb-view{display:flex;gap:0}
+.pbb-view .q-btn{color:var(--c-text-muted)}
+.pbb-view .q-btn.on{color:var(--c-text);background:var(--c-surface-2)}
+/* List view */
+.pbl-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 110px 90px;gap:12px;align-items:center;padding:7px 16px;
+  border-bottom:1px solid var(--c-border);cursor:pointer;min-width:0;font-size:.84rem}
+.pbl-row:hover{background:var(--c-surface-2)}
+.pbl-row .t{min-width:0;display:flex;flex-direction:column;gap:3px}
+.pbl-row .t b{font-weight:500;color:var(--c-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbl-row .chips{display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;align-items:center}
+.pbl-row .c,.pbl-row .d,.pbl-row .y{color:var(--c-text-2);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbl-row .d{font-variant-numeric:tabular-nums}
+.pbl-row .flag{color:var(--c-warn);font-size:.7rem;white-space:nowrap}
+.pbl-row .snip{font-size:.75rem;color:var(--c-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbl-head{position:sticky;top:0;z-index:1;background:var(--c-bg);cursor:default;font-size:.72rem;color:var(--c-text-muted)}
+.pbl-head:hover{background:var(--c-bg)}
+.pbl-head span{cursor:pointer}
+.pbl-head span.on{color:var(--c-text)}
+.doc-card{border:1px solid var(--c-border);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.doc-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.25);border-color:var(--c-accent-border)}
+.doc-thumb{cursor:pointer}
+.pbb-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(208px,1fr));gap:14px;padding:14px;align-items:start}
+.pbb-cards .doc-card{width:100%!important}
+.pbb-more{display:flex;justify-content:center;padding:10px 0 24px}
+.pbb-facet-btn{display:none!important}
+@media (max-width:767px){
+  .pbb-root{grid-template-columns:minmax(0,1fr)}
+  .pbb-facets{display:none;position:fixed;inset:var(--q-header-height,52px) 0 0 0;z-index:30;border-right:0}
+  body.pbb-facets-open .pbb-facets{display:block}
+  .pbf-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--c-border);
+    position:sticky;top:0;background:var(--c-surface);z-index:1}
+  .pbb-facet-btn{display:inline-flex!important}
+  .pbb-cards{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:10px}
+  .pbl-row{grid-template-columns:minmax(0,1fr) 78px;padding:8px 12px}
+  .pbl-row .c,.pbl-row .y{display:none}
+  .pbl-head{display:none}
+  .pbb-bar{padding:8px 10px}
 }
+</style>"""
 
-SORT_REVERSE: dict[str, bool] = {
-    "created": True,
-    "title": False,
-    "correspondent": False,
-    "document_type": False,
-    "relevance_score": False,
-}
+_JS = """<script>
+(function(){
+  if(window.__pbbInit)return;window.__pbbInit=1;
+  document.addEventListener('click',function(e){
+    var r=e.target.closest&&e.target.closest('.pbf-row');
+    if(r){emitEvent('pbf_click',{f:r.dataset.f,v:r.dataset.v});return;}
+    var m=e.target.closest&&e.target.closest('.pbf-mode a');
+    if(m){emitEvent('pbf_tagsall',m.dataset.all==='1');return;}
+    var c=e.target.closest&&e.target.closest('.pbb-chip');
+    if(c){emitEvent('pbf_click',{f:c.dataset.f,v:c.dataset.v,off:1});return;}
+    var l=e.target.closest&&e.target.closest('.pbl-row[data-id]');
+    if(l){emitEvent('pbb_open',+l.dataset.id);return;}
+    var h=e.target.closest&&e.target.closest('.pbl-head span[data-s]');
+    if(h){emitEvent('pbb_sort',h.dataset.s);return;}
+  });
+  // Which facets are open survives the re-render after each click.
+  document.addEventListener('toggle',function(e){var d=e.target;
+    if(d.tagName==='DETAILS'&&d.dataset.f)emitEvent('pbf_open',{f:d.dataset.f,open:d.open});},true);
+  // A facet's own quick filter: client-side, like the multi-pickers.
+  document.addEventListener('input',function(e){var q=e.target;if(!q.classList||!q.classList.contains('pbf-q'))return;
+    var t=q.value.trim().toLowerCase();q.parentElement.querySelectorAll('.pbf-row').forEach(function(r){
+      r.style.display=!t||(r.dataset.l||'').indexOf(t)>=0?'':'none';});});
+  // Phone: the facets are a sheet over the page; back closes it.
+  window.pbbFacets=function(open){
+    var on=document.body.classList.contains('pbb-facets-open');
+    if(open&&!on){document.body.classList.add('pbb-facets-open');history.pushState({pbb:1},'',location.href);}
+    else if(!open&&on){document.body.classList.remove('pbb-facets-open');if(history.state&&history.state.pbb)history.back();}
+  };
+  // Back closes the sheet — and restores the address of the filtered view: the
+  // entry the sheet pushed carried the filter changes made while it was open.
+  window.addEventListener('popstate',function(){
+    if(!document.body.classList.contains('pbb-facets-open'))return;
+    document.body.classList.remove('pbb-facets-open');emitEvent('pbb_sheet_closed');});
+})();
+</script>"""
 
 
-def _date_filter_widget(label: str) -> dict:
-    _ = get_translator()
-    state = {"mode": "="}
-    # Keys are stable operators (used in logic); only labels are translated.
-    _mode_options = {
-        "=": _("Exactly"),
-        ">": _("After"),
-        "<": _("Before"),
-        "von / bis": _("Range"),
-    }
-    with ui.column().classes("gap-1 min-w-fit"):
-        ui.label(label).classes("text-xs text-gray-500 font-semibold uppercase tracking-wider")
-        with ui.row().classes("items-center gap-2 flex-nowrap"):
-            mode_select = (
-                ui.select(_mode_options, value="=")
-                .classes("w-24")
-                .props("dense outlined dark")
-            )
-            date_single = ui.date_input(label="").props("dense outlined dark")
-            date_range = ui.date_input(label="", range_input=True).props(
-                "dense outlined dark"
-            )
-            date_range.set_visibility(False)
+def _action_ids() -> set[int]:
+    """Documents with actions, from the sidecar index the sync builds — one
+    file instead of one per document."""
+    try:
+        with open(f"{settings.extraction_sidecar_path}/index.json") as f:
+            data = json.load(f)
+        return {int(a["paperless_id"]) for a in data.get("actions", []) if a.get("paperless_id")}
+    except (OSError, ValueError, TypeError):
+        return set()
 
-    def on_mode_change(e) -> None:
-        state["mode"] = e.value
-        is_range = e.value == "von / bis"
-        date_single.set_visibility(not is_range)
-        date_range.set_visibility(is_range)
 
-    mode_select.on_value_change(on_mode_change)
-
-    def get_filter() -> dict | None:
-        mode = state["mode"]
-        if mode == "von / bis":
-            val = date_range.value
-            if not val:
-                return None
-            after, before = val.split(" - ")
-            return {"after": after, "before": before}
-        val = date_single.value
-        if not val:
-            return None
-        if mode == "=":
-            return {"after": val, "before": val}
-        if mode == ">":
-            return {"after": val}
-        if mode == "<":
-            return {"before": val}
-        return None
-
-    return {"get_filter": get_filter}
+def _sort_key(sort: str):
+    if sort == "title":
+        return lambda d: (d.title or "").casefold()
+    if sort == "correspondent":
+        return lambda d: ((d.correspondent or "~").casefold(), (d.title or "").casefold())
+    if sort == "document_type":
+        return lambda d: ((d.document_type or "~").casefold(), (d.title or "").casefold())
+    if sort == "added":
+        return lambda d: d.added
+    return lambda d: d.created
 
 
 @ui.page("/browser")
@@ -92,64 +199,40 @@ async def browser():
         return
     page_layout()
     _ = get_translator()
-    ui.add_head_html("""<style>
-    html, body { overflow: hidden !important; }
-    .q-page { min-height: 0 !important; overflow: hidden !important; }
-    /* NiceGUI wraps the page in .nicegui-content with 1rem padding — the
-       header band and the card grid bring their own spacing. */
-    .nicegui-content { padding: 0 !important; }
-    .doc-card {
-        border: 1px solid var(--c-border);
-        transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-    }
-    .doc-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 28px rgba(0,0,0,.45);
-        border-color: var(--c-accent-border);
-    }
-    .doc-thumb { cursor: pointer; transition: opacity .15s ease; }
-    .doc-thumb:hover { opacity: .85; }
-    /* NiceGUI gives .q-scrollarea__content 1rem padding — stacks with the
-       card row's own padding and squeezes the cards on mobile. */
-    .browser-results .q-scrollarea__content { padding: 0 !important; }
-    @media (max-width: 767px) {
-        /* Grid instead of flex: cards always fill the full row width.
-           Scoped selectors beat the global .doc-card{width:312px} from
-           layout.py's mobile CSS. */
-        .browser-results .doc-cards-row {
-            display: grid !important;
-            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-            /* start, not stretch — the shorter card of a row would otherwise
-               be inflated with empty space */
-            align-items: start;
-            gap: 10px !important;
-            padding: 10px !important;
-            width: 100%;
-        }
-        .browser-results .doc-card { width: 100% !important; }
-        .browser-header {
-            padding-left: 12px !important; padding-right: 12px !important;
-            padding-top: 12px !important;
-        }
-    }
-    </style>""")
+    ui.add_head_html(_CSS)
+    ui.add_head_html(_JS)
+    request = ui.context.client.request
 
-    # Register the shared detail dialog for this page instance.
+    F, extra = fx.from_query(request.query_params)
+    st: dict = {
+        "docs": None,  # the catalogue, once loaded
+        "mode": extra["m"] if extra["m"] in MODES else "meaning",
+        "q": extra["q"],
+        "view": extra["v"] if extra["v"] in VIEWS else "",
+        "sort": extra["s"] if extra["s"] in SORTS else "",
+        "limit": PAGE,
+        "ranked": None,  # DocumentResult list of the last meaning search, or None
+        "fulltext": None,  # ids of the last full-text search, or None
+        "busy": False,
+        "open": {"tags", "correspondent", "document_type"},
+        "group": "correspondent",
+    }
+    seq = [0]
+    flags: dict[int, set[str]] = {}
+
+    # ── Dialogs (the shared document dialog, cluster, similar) ───────────────
     open_document, _doc_dlg = create_document_dialog(
         open_cluster_fn=lambda doc_id: open_cluster(doc_id),
         open_similar_fn=lambda doc_id: open_similar(doc_id),
-        pin_fn=lambda r: _browser_pin(r),
-        get_pin_state_fn=lambda doc_id: doc_id in _get_pinned_ids(),
+        pin_fn=lambda r: _pin(r),
+        get_pin_state_fn=lambda doc_id: doc_id in _pinned(),
     )
 
-    _s = {"results": [], "sort": "created"}
-    _search_seq = [0]
-
-    def _get_pinned_ids() -> set[int]:
+    def _pinned() -> set[int]:
         return set(get_pref("pinned_doc_ids") or [])
 
-    def _browser_pin(result: DocumentResult) -> None:
-        ids = _get_pinned_ids()
+    def _pin(result: DocumentResult) -> None:
+        ids = _pinned()
         cache: list[dict] = list(get_pref("pinned_docs_cache") or [])
         if result.document.id in ids:
             ids.discard(result.document.id)
@@ -161,286 +244,418 @@ async def browser():
             ui.notify(_("#{id} pinned").format(id=result.document.id), type="positive", timeout=1500)
         set_pref("pinned_doc_ids", list(ids))
         set_pref("pinned_docs_cache", cache)
-        render_results()
+        _flags_refresh()
+        render()
 
-    # render_results / do_search reference variables defined later in the layout.
-    # Python closures resolve names at call-time, so this is safe.
+    def _flags_refresh() -> None:
+        flags.clear()
+        for i in _action_ids():
+            flags.setdefault(i, set()).add("actions")
+        for i in _pinned():
+            flags.setdefault(i, set()).add("pinned")
 
-    def render_results() -> None:
-        results_container.clear()
-        if not _s["results"]:
-            with results_container:
-                with ui.column().classes(
-                    "items-center justify-center w-full py-20 gap-3"
-                ):
-                    ui.icon(
-                        "search_off" if _s.get("searched") else "travel_explore"
-                    ).classes("text-6xl").style("color:var(--c-border-strong);")
-                    ui.label(
-                        _("No matches — adjust search term or filters.")
-                        if _s.get("searched")
-                        else _("No results yet — start a search.")
-                    ).classes("text-sm text-gray-500")
-            return
-        key = _s["sort"]
-        if key == "relevance_score" and any(
-            r.relevance_score is not None for r in _s["results"]
-        ):
-            sorted_results = sorted(
-                _s["results"],
-                key=lambda r: (
-                    r.relevance_score if r.relevance_score is not None else float("inf")
-                ),
-            )
-        else:
-            effective_key = key if key != "relevance_score" else "created"
-            sorted_results = sorted(
-                _s["results"],
-                key=lambda r: getattr(r.document, effective_key, None) or "",
-                reverse=SORT_REVERSE.get(effective_key, True),
-            )
-        _pinned = _get_pinned_ids()
-        with results_container:
-            # TODO i18n-plural
-            ui.label(
-                _("{n} documents").format(n=len(sorted_results))
-            ).classes("text-xs text-gray-500 px-4 pt-3")
-            with ui.row().classes("flex-wrap gap-4 p-4 doc-cards-row"):
-                for r in sorted_results:
-                    _render_card(
-                        r, open_document, open_cluster,
-                        on_pin=_browser_pin,
-                        is_pinned=r.document.id in _pinned,
-                    )
+    # ── State → address ──────────────────────────────────────────────────────
+    def _push_url() -> None:
+        q = fx.to_query(F, mode=st["mode"] if st["mode"] != "meaning" else "", q=st["q"],
+                        view=st["view"], sort=st["sort"])
+        url = "/browser" + ("?" + urlencode(q) if q else "")
+        ui.run_javascript(f"history.replaceState(history.state,'',{json.dumps(url)})")
 
-    async def do_search() -> None:
-        _search_seq[0] += 1
-        seq = _search_seq[0]
-        _s["searched"] = True
-        search_btn.props(add="loading")
+    def _view() -> str:
+        return st["view"] or ("cards" if not st["q"] else "list")
 
-        # Direct ID lookup — bypass all other filters
-        if id_input.value:
-            doc_id = int(id_input.value)
+    def _sort() -> str:
+        if st["sort"]:
+            return st["sort"]
+        return "relevance" if st["ranked"] is not None else "created"
+
+    # ── The filtered result ──────────────────────────────────────────────────
+    def _filtered() -> list:
+        docs = fx.apply(st["docs"] or [], F, flags=flags)
+        if st["mode"] == "fulltext" and st["fulltext"] is not None:
+            docs = [d for d in docs if d.id in st["fulltext"]]
+        return docs
+
+    def _results() -> list[DocumentResult]:
+        if st["ranked"] is not None and st["mode"] == "meaning" and st["q"].strip():
+            res = list(st["ranked"])
+            if _sort() != "relevance":
+                res.sort(key=lambda r: _sort_key(_sort())(r.document), reverse=_sort() in SORT_DESC)
+            return res
+        key = _sort() if _sort() != "relevance" else "created"
+        docs = sorted(_filtered(), key=_sort_key(key), reverse=key in SORT_DESC)
+        acts = {i for i, f in flags.items() if "actions" in f}
+        return [DocumentResult(document=d, has_actions=d.id in acts) for d in docs]
+
+    # ── Facet panel ──────────────────────────────────────────────────────────
+    def _label(facet: str, v: str) -> str:
+        if v == fx.NONE:
+            return _("(none)")
+        if facet == fx.FLAG_FACET:
+            return {"actions": _("Action required"), "pinned": _("Pinned")}.get(v, v)
+        if facet == "created" and len(v) == 7:
+            from i18n import month_name
+            from services.user_prefs import get_pref as _gp
+
             try:
-                doc = await get_session_paperless().get_document(doc_id)
-                new_results = [DocumentResult(
-                    document=doc,
-                    has_actions=sidecar_service.has_actions(doc_id),
-                )]
-            except Exception:
-                new_results = []
-            search_btn.props(remove="loading")
-            _s["results"] = new_results
-            _s["sort"] = "created"
-            sort_select.set_value("created")
-            render_results()
-            return
+                return month_name(date(int(v[:4]), int(v[5:]), 1), _gp("language", "en"))
+            except (ValueError, TypeError):
+                return v
+        return v
 
-        filters = {
-            "query": text_input.value or None,
-            "correspondent": correspondents_input.value or None,
-            "document_type": doctype_input.value or None,
-            "tags": tags_input.value or None,
-            "created": created_filter["get_filter"](),
-            "added": added_filter["get_filter"](),
-        }
+    def _row(facet: str, v: str, n: int, sub: bool = False) -> str:
+        s = F.state(facet, v)
+        cls = "pbf-row" + (" is-in" if s > 0 else " is-out" if s < 0 else "") + (" is-zero" if not n and not s else "") \
+            + (" sub" if sub else "")
+        lab = _label(facet, v)
+        return (f'<div class="{cls}" data-f="{html.escape(facet)}" data-v="{html.escape(v)}" '
+                f'data-l="{html.escape(lab.lower())}"><span class="mk"></span>'
+                f'<span class="t">{html.escape(lab)}</span><span class="n">{n}</span></div>')
+
+    def _facet_html(counts) -> str:
+        titles = {"tags": _("Tags"), "correspondent": _("Correspondent"), "document_type": _("Document type"),
+                  "owner": _("Owner"), "created": _("Created"), fx.ADDED_FACET: _("Added"),
+                  fx.FLAG_FACET: "PaperlessBrain"}
+        all_vals = {f: set() for f in fx.DATA_FACETS}
+        for d in st["docs"] or []:
+            for f in fx.DATA_FACETS:
+                all_vals[f].update(fx.values_of(d, f))
+        parts = [(f'<div class="pbf-head"><b style="flex:1;color:var(--c-text)">{html.escape(_("Filters"))}</b>'
+                  f'<span class="pbb-count">{html.escape(_("{n} documents").format(n=len(_filtered())))}</span>'
+                  f'<a class="pbf-done" onclick="pbbFacets(false)">{html.escape(_("Done"))}</a></div>'),
+                 '<div class="pbf">']
+        for facet in (*fx.DATA_FACETS, fx.ADDED_FACET, fx.FLAG_FACET):
+            c = counts.get(facet, {})
+            if facet == "created":
+                vals = sorted({v for v in all_vals[facet] if len(v) == 4}, reverse=True)
+            elif facet == fx.ADDED_FACET:
+                vals = list(fx.ADDED_PRESETS)
+            elif facet == fx.FLAG_FACET:
+                vals = ["actions", "pinned"]
+            else:
+                vals = sorted(all_vals[facet], key=lambda v: (-c.get(v, 0), v == fx.NONE, v.casefold()))
+            if facet == "owner" and len(vals) < 2:
+                continue
+            if not vals:
+                continue
+            chosen = len(F.sel.get(facet, {})) + (1 if facet == fx.ADDED_FACET and F.added else 0)
+            is_open = facet in st["open"] or chosen
+            parts.append(f'<details data-f="{facet}"{" open" if is_open else ""}><summary>{html.escape(titles[facet])}'
+                         f'<span class="n">{chosen or ""}</span></summary>')
+            if facet == "tags":
+                parts.append(f'<div class="pbf-mode">{html.escape(_("Match"))}'
+                             f'<a data-all="0" class="{"" if F.tags_all else "on"}">{html.escape(_("any"))}</a>'
+                             f'<a data-all="1" class="{"on" if F.tags_all else ""}">{html.escape(_("all"))}</a></div>')
+            parts.append('<div class="pbf-vals">')
+            if len(vals) > 12:
+                parts.append(f'<input class="pbf-q" placeholder="{html.escape(_("Filter …"))}">')
+            for v in vals:
+                if facet == fx.ADDED_FACET:
+                    lab = {"7d": _("Last 7 days"), "30d": _("Last 30 days"), "365d": _("Last 12 months")}[v]
+                    cls = "pbf-row" + (" is-in" if F.added == v else "")
+                    parts.append(f'<div class="{cls}" data-f="added" data-v="{v}" data-l="{html.escape(lab.lower())}">'
+                                 f'<span class="mk"></span><span class="t">{html.escape(lab)}</span>'
+                                 f'<span class="n">{c.get(v, 0)}</span></div>')
+                    continue
+                parts.append(_row(facet, v, c.get(v, 0)))
+                if facet == "created" and (F.state("created", v) > 0 or any(
+                        k.startswith(v + "-") for k in F.sel.get("created", {}))):
+                    months = sorted({m for m in all_vals["created"] if len(m) == 7 and m.startswith(v)}, reverse=True)
+                    parts += [_row("created", m, c.get(m, 0), sub=True) for m in months]
+            parts.append("</div></details>")
+        parts.append(f'<div class="pbf-hint">{html.escape(_("Tap once to include, twice to exclude, three times to clear."))}</div>')
+        parts.append("</div>")
+        return "".join(parts)
+
+    # ── Active filters as chips ──────────────────────────────────────────────
+    def _chips_html() -> str:
+        out = []
+        for facet, vals in F.sel.items():
+            for v, s in vals.items():
+                out.append(f'<span class="pbb-chip{" is-not" if s < 0 else ""}" data-f="{html.escape(facet)}" '
+                           f'data-v="{html.escape(v)}"><span class="t">{html.escape(_label(facet, v))}</span>'
+                           f'<span class="x">×</span></span>')
+        if F.added:
+            lab = {"7d": _("Last 7 days"), "30d": _("Last 30 days"), "365d": _("Last 12 months")}[F.added]
+            out.append(f'<span class="pbb-chip" data-f="added" data-v="{F.added}"><span class="t">'
+                       f'{html.escape(_("Added"))}: {html.escape(lab)}</span><span class="x">×</span></span>')
+        return "".join(out)
+
+    # ── Results ──────────────────────────────────────────────────────────────
+    def _list_html(results: list[DocumentResult]) -> str:
+        sort = _sort()
+        heads = [("title", _("Title")), ("correspondent", _("Correspondent")), ("document_type", _("Document type")),
+                 ("created", _("Created"))]
+        rows = ['<div class="pbl-row pbl-head">' + "".join(
+            f'<span data-s="{k}" class="{"on" if sort == k else ""}">{html.escape(lab)}</span>' for k, lab in heads)
+            + "</div>"]
+        for r in results:
+            d = r.document
+            snip = ""
+            if r.matched_chunks:
+                snip = f'<span class="snip">{html.escape(" ".join(r.matched_chunks[0].split())[:160])}</span>'
+            flag = f'<span class="flag">{html.escape(_("Action required"))}</span>' if r.has_actions else ""
+            rows.append(
+                f'<div class="pbl-row" data-id="{d.id}"><span class="t"><b>{html.escape(r.display_title)}</b>'
+                f'<span class="chips">{tag_chips_html(d.tags)}{flag}</span>{snip}</span>'
+                f'<span class="c">{html.escape(d.correspondent or "")}</span>'
+                f'<span class="y">{html.escape(d.document_type or "")}</span>'
+                f'<span class="d">{html.escape(r.display_date or "")}</span></div>')
+        return "".join(rows)
+
+    @ui.refreshable
+    def results_view() -> None:
+        if st["docs"] is None:
+            with ui.column().classes("w-full items-center py-16 gap-2"):
+                ui.spinner(size="lg")
+                ui.label(_("Loading the archive …")).classes("text-sm").style("color:var(--c-text-muted)")
+            return
+        results = _results()
+        if not results:
+            with ui.column().classes("w-full items-center py-16 gap-2"):
+                ui.icon("search_off", size="48px").style("color:var(--c-border-strong)")
+                ui.label(_("No matches — adjust search term or filters.")).classes("text-sm").style(
+                    "color:var(--c-text-muted)")
+            return
+        view, shown = _view(), results[: st["limit"]]
+        if view == "grouped":
+            from app_ui.doc_library import _CSS as _LIB_CSS
+            from app_ui.doc_library import _NODE, build_nodes
+
+            ui.add_head_html(_LIB_CSS)
+            tree = ui.tree(build_nodes([r.document for r in results], st["group"], _("(none)")),
+                           label_key="label", node_key="id").classes("w-full pb-lib").style("padding:8px 12px")
+            tree.add_slot("default-header", _NODE)
+
+            async def _sel(e) -> None:
+                v = e.value or ""
+                tree._props["selected"] = None
+                tree.update()
+                if v.startswith("d:"):
+                    await _open_id(int(v.split(":")[1]))
+
+            tree.on_select(_sel)
+            return
+        if view == "list":
+            ui.html(_list_html(shown), sanitize=False).classes("w-full")
+        else:
+            pinned = _pinned()
+            with ui.element("div").classes("pbb-cards w-full"):
+                for r in shown:
+                    _render_card(r, open_document, open_cluster, on_pin=_pin, is_pinned=r.document.id in pinned)
+        if len(results) > len(shown):
+            with ui.element("div").classes("pbb-more w-full"):
+                ui.button(_("Show {n} more").format(n=min(PAGE, len(results) - len(shown))),
+                          on_click=_more).props("flat no-caps")
+
+    def _more() -> None:
+        st["limit"] += PAGE
+        results_view.refresh()
+
+    async def _open_id(doc_id: int) -> None:
+        r = next((x for x in (st["ranked"] or []) if x.document.id == doc_id), None)
+        if r is None:
+            d = next((x for x in st["docs"] or [] if x.id == doc_id), None)
+            if d is None:
+                return
+            r = DocumentResult(document=d, has_actions="actions" in flags.get(d.id, set()))
+        await open_document(r)
+
+    def render() -> None:
+        """Everything a filter change touches — at once, from memory."""
+        counts = fx.counts(st["docs"] or [], F, flags=flags)
+        facets_html.set_content(_facet_html(counts))
+        chips_html.set_content(_chips_html())
+        n = len(_results()) if st["docs"] is not None else 0
+        count_label.set_text("" if st["docs"] is None else _("{n} documents").format(n=n))  # TODO i18n-plural
+        clear_btn.set_visibility(bool(F.active()))
+        for v, b in view_btns.items():
+            b.classes(add="on") if v == _view() else b.classes(remove="on")
+        group_row.set_visibility(_view() == "grouped")
+        facet_btn.set_text(_("Filters") + (f" ({len(F.sel) + (1 if F.added else 0)})" if F.sel or F.added else ""))
+        results_view.refresh()
+        _push_url()
+
+    # ── Searching ────────────────────────────────────────────────────────────
+    async def _run_query() -> None:
+        """The field's search, for the modes that ask the server: meaning
+        (semantic over the filtered set) and full text (Paperless)."""
+        seq[0] += 1
+        my = seq[0]
+        q = st["q"].strip()
+        st["limit"] = PAGE
+        if st["mode"] == "title" or not q:
+            st["ranked"], st["fulltext"] = None, None
+            F.text = q if st["mode"] == "title" else ""
+            render()
+            return
+        F.text = ""
+        if q.startswith("#") and q[1:].isdigit():  # "#241" jumps to the document
+            await _open_id(int(q[1:]))
+            return
+        search_field.props(add="loading")
         try:
-            new_results = await search(
-                filters=filters,
-                semantic_query=semantic_input.value or None,
-                paperless_client=get_session_paperless(),
-                owner=owner_input.value if owner_input.value else None,
-            )
-        except Exception:
-            new_results = []
-        search_btn.props(remove="loading")
-        if seq != _search_seq[0]:
-            return
-        _s["results"] = new_results
-        new_sort = "relevance_score" if semantic_input.value else "created"
-        if _s["sort"] != new_sort:
-            _s["sort"] = new_sort
-            sort_select.set_value(new_sort)
-        render_results()
+            if st["mode"] == "meaning":
+                ranked = await search(filters={}, semantic_query=q, paperless_client=get_session_paperless(),
+                                      candidates=fx.apply(st["docs"] or [], F, flags=flags), n_results=120)
+                acts = {i for i, f in flags.items() if "actions" in f}
+                for r in ranked:
+                    r.has_actions = r.document.id in acts
+                if my == seq[0]:
+                    st["ranked"], st["fulltext"] = ranked, None
+            else:
+                docs = await get_session_paperless().list_documents(query=q)
+                if my == seq[0]:
+                    st["fulltext"], st["ranked"] = {d.id for d in docs}, None
+        except Exception as exc:  # noqa: BLE001 — a failed search is shown, never a dead page
+            if my == seq[0]:
+                ui.notify(_("Search failed: {err}").format(err=exc), type="warning")
+        finally:
+            if my == seq[0]:
+                search_field.props(remove="loading")
+        if my == seq[0]:
+            render()
 
-    _filters_open = [False]
+    async def _on_field(e) -> None:
+        st["q"] = e.args if isinstance(e.args, str) else (search_field.value or "")
+        await _run_query()
 
-    with ui.column().classes("w-full gap-0 bg-gray-900").style(
-        "height:calc(100dvh - var(--q-header-height,52px)); overflow:hidden;"
-    ):
-        # ── Search header ─────────────────────────────────────────────────────
-        with ui.column().classes(
-            "browser-header w-full bg-gray-800 border-b border-gray-700 px-6 pt-5 pb-4 gap-0 flex-shrink-0"
-        ):
-            # ── Hero search row ───────────────────────────────────────────────
-            with ui.row().classes("w-full items-center gap-3"):
-                with ui.row().classes(
-                    "items-center gap-3 flex-1 bg-gray-800 rounded-xl"
-                    " px-4 py-2 border-2 pb-accent-border/70"
-                ):
-                    ui.icon("auto_awesome").classes("text-gray-400 text-xl flex-shrink-0")
-                    semantic_input = (
-                        ui.input(
-                            placeholder=_("AI search — what are you looking for? e.g. 'dentist invoice 2024'...")
-                        )
-                        .classes("flex-1")
-                        .props("borderless dark clearable")
-                    )
-                    semantic_input.on("keydown.enter", do_search)
-                search_btn = (
-                    ui.button(_("Search"), icon="search", on_click=do_search)
-                    .props("color=primary unelevated")
-                    .classes("text-sm font-semibold px-5")
-                )
+    async def _pick_mode(m: str, icon: str) -> None:
+        mode_btn.props(f"icon={icon}")
+        await _set_mode(m)
 
-            # ── Toolbar row ───────────────────────────────────────────────────
-            with ui.row().classes("w-full items-center justify-between mt-3"):
-                def _toggle_filters() -> None:
-                    _filters_open[0] = not _filters_open[0]
-                    filter_panel.set_visibility(_filters_open[0])
-                    _filter_icon.props(
-                        f"name={'expand_less' if _filters_open[0] else 'tune'}"
-                    )
+    async def _set_mode(m: str) -> None:
+        st["mode"] = m
+        search_field.props(f'placeholder="{_placeholder()}"')
+        await _run_query()
 
-                with (
-                    ui.row()
-                    .classes("items-center gap-1 cursor-pointer select-none")
-                    .on("click", _toggle_filters)
-                ):
-                    _filter_icon = ui.icon("tune", size="xs").classes("text-gray-500")
-                    ui.label(_("Advanced filters")).classes("text-xs text-gray-500")
+    def _placeholder() -> str:
+        return {"meaning": _("Search by meaning — e.g. 'dentist invoice 2024'"),
+                "title": _("Filter titles, correspondents, #id"),
+                "fulltext": _("Paperless full-text search")}[st["mode"]]
 
-                _sort_labels = {
-                    "created": _("Created"),
-                    "title": _("Title"),
-                    "correspondent": _("Correspondent"),
-                    "document_type": _("Document type"),
-                    "relevance_score": _("Relevance"),
-                }
-                sort_select = (
-                    ui.select(_sort_labels, value="created", label=_("Sort"))
-                    .classes("w-40")
-                    .props("dense outlined dark")
-                )
+    # ── Events from the HTML parts ───────────────────────────────────────────
+    async def _on_facet(e) -> None:
+        a = e.args or {}
+        f, v = a.get("f", ""), a.get("v", "")
+        if f == "added":
+            F.added = "" if F.added == v or a.get("off") else v
+        elif a.get("off"):
+            F.sel.get(f, {}).pop(v, None)
+            if not F.sel.get(f):
+                F.sel.pop(f, None)
+        else:
+            F.cycle(f, v)
+        st["limit"] = PAGE
+        if st["mode"] == "meaning" and st["q"].strip():
+            await _run_query()  # rank again inside the new filter
+        else:
+            render()
 
-                def _on_sort_change(e) -> None:
-                    val = e.value
-                    if val and isinstance(val, str) and val in SORT_OPTIONS:
-                        _s["sort"] = val
-                        render_results()
+    def _on_open(e) -> None:
+        a = e.args or {}
+        (st["open"].add if a.get("open") else st["open"].discard)(a.get("f"))
 
-                sort_select.on_value_change(_on_sort_change)
+    def _on_tagsall(e) -> None:
+        F.tags_all = bool(e.args)
+        render()
 
-            # ── Collapsible filter panel ──────────────────────────────────────
-            with ui.element("div").style(
-                "margin-top:12px; padding:16px 20px; border-radius:10px;"
-                "background:var(--c-bg); border:1px solid var(--c-border);"
-            ) as filter_panel:
-                filter_panel.set_visibility(False)
+    def _on_sort(e) -> None:
+        st["sort"] = str(e.args or "")
+        sort_select.set_value(st["sort"])
 
-                # ── Row 1: text + ID ─────────────────────────────────────────
-                with ui.row().classes("w-full items-center gap-3 flex-wrap").style("margin-bottom:12px;"):
-                    text_input = (
-                        ui.input(placeholder=_("Title / content (full text)..."))
-                        .classes("flex-1")
-                        .props("dense outlined dark")
-                    )
-                    text_input.on("keydown.enter", do_search)
+    ui.on("pbf_click", _on_facet)
+    ui.on("pbf_open", _on_open)
+    ui.on("pbf_tagsall", _on_tagsall)
+    ui.on("pbb_open", lambda e: _open_id(int(e.args)))
+    ui.on("pbb_sort", _on_sort)
+    ui.on("pbb_sheet_closed", lambda _e: _push_url())
 
-                    id_input = (
-                        ui.number(placeholder=_("Doc ID"), min=1, step=1, format="%d")
-                        .classes("w-28")
-                        .props("dense outlined dark")
-                        .tooltip(_("Direct lookup by Paperless ID (#NNN)"))
-                    )
-                    id_input.on("keydown.enter", do_search)
+    # ── Layout ───────────────────────────────────────────────────────────────
+    with ui.element("div").classes("pbb-root"):
+        facets_html = ui.html("", sanitize=False).classes("pbb-facets")
+        with ui.element("div").classes("pbb-main"):
+            with ui.element("div").classes("pbb-bar"):
+                with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    search_field = ui.input(value=st["q"]).props(
+                        f'outlined dense clearable debounce=600 placeholder="{_placeholder()}"').classes("flex-1 min-w-0")
+                    search_field.on("update:model-value", _on_field)
+                    search_field.on("keydown.enter", lambda: _run_query())
+                    with search_field.add_slot("prepend"):
+                        mode_btn = ui.button(icon="auto_awesome", color=None).props("flat dense round size=sm")
+                        with mode_btn, ui.menu():
+                            for m, icon, lab in (("meaning", "auto_awesome", _("By meaning")),
+                                                 ("title", "title", _("Title filter")),
+                                                 ("fulltext", "manage_search", _("Full text"))):
+                                ui.menu_item(lab, on_click=lambda m=m, i=icon: _pick_mode(m, i))
+                    mode_btn.props("icon=" + {"meaning": "auto_awesome", "title": "title", "fulltext": "manage_search"}[st["mode"]])
+                    facet_btn = ui.button(_("Filters"), icon="tune", color=None,
+                                          on_click=lambda: ui.run_javascript("pbbFacets(true)")).props(
+                        "flat dense no-caps").classes("pbb-facet-btn")
+                with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                    chips_html = ui.html("", sanitize=False).classes("pbb-chips flex-1 min-w-0")
+                    clear_btn = ui.button(_("Clear all"), on_click=lambda: (F.clear(), _clear_q(), render())).props(
+                        "flat dense no-caps size=sm")
+                    count_label = ui.label("").classes("pbb-count")
+                    sort_select = ui.select(
+                        {"created": _("Created"), "added": _("Added"), "title": _("Title"),
+                         "correspondent": _("Correspondent"), "document_type": _("Document type"),
+                         "relevance": _("Relevance")},
+                        value=_sort(), on_change=lambda e: (st.update(sort=e.value or ""), render()),
+                    ).props("dense outlined options-dense").classes("w-36")
+                    with ui.element("div").classes("pbb-view"):
+                        view_btns = {}
+                        for v, icon, tip in (("cards", "grid_view", _("Cards")), ("list", "view_list", _("List")),
+                                             ("grouped", "account_tree", _("Grouped"))):
+                            view_btns[v] = ui.button(icon=icon, color=None, on_click=lambda v=v: _set_view(v)).props(
+                                "flat dense size=sm").tooltip(tip)
+                group_row = ui.row().classes("w-full items-center gap-2")
 
-                # ── Row 2: category filters ───────────────────────────────────
-                with ui.element("div").style(
-                    "display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr));"
-                    "gap:10px; width:100%; margin-bottom:16px;"
-                ):
-                    tags_input = (
-                        ui.select([], multiple=True, value=[], label=_("Tags"))
-                        .classes("w-full")
-                        .props("use-chips use-input fill-input outlined dark dense")
-                    )
+            with ui.element("div").classes("pbb-results"):
+                results_view()
 
-                    async def refresh_tags() -> None:
-                        tags_input.options = await get_session_paperless().get_tag_map()
-                        tags_input.update()
+    def _clear_q() -> None:
+        st["q"] = ""
+        st["ranked"] = st["fulltext"] = None
+        search_field.set_value("")
 
-                    tags_input.on("focus", refresh_tags)
+    with group_row:
+        ui.label(_("Group by")).classes("pbb-count")
+        ui.toggle({"correspondent": _("Correspondent"), "tag": _("Tag"), "document_type": _("Type")},
+                  value=st["group"], on_change=lambda e: (st.update(group=e.value), results_view.refresh())).props(
+            "dense flat no-caps toggle-color=primary").style("font-size:.75rem")
 
-                    correspondents_input = (
-                        ui.select([], multiple=True, value=[], label=_("Correspondent"))
-                        .classes("w-full")
-                        .props("use-chips use-input fill-input outlined dark dense")
-                    )
+    def _set_view(v: str) -> None:
+        st["view"], st["limit"] = v, PAGE
+        render()
 
-                    async def refresh_correspondents() -> None:
-                        correspondents_input.options = await get_session_paperless().get_correspondent_map()
-                        correspondents_input.update()
-
-                    correspondents_input.on("focus", refresh_correspondents)
-
-                    doctype_input = (
-                        ui.select([], multiple=True, value=[], label=_("Document type"))
-                        .classes("w-full")
-                        .props("use-chips use-input fill-input outlined dark dense")
-                    )
-
-                    async def refresh_doctype() -> None:
-                        doctype_input.options = await get_session_paperless().get_document_types_map()
-                        doctype_input.update()
-
-                    doctype_input.on("focus", refresh_doctype)
-
-                    owner_input = (
-                        ui.select({}, value=None, label=_("Owner"))
-                        .classes("w-full")
-                        .props("outlined dark dense clearable")
-                    )
-
-                    async def refresh_owners() -> None:
-                        users = await get_session_paperless().list_users()
-                        owner_input.options = {uid: name for uid, name in users.items()}
-                        owner_input.update()
-
-                    owner_input.on("focus", refresh_owners)
-
-                # ── Row 3: date filters ───────────────────────────────────────
-                ui.separator().style("border-color:var(--c-surface); margin-bottom:12px;")
-                with ui.row().classes("items-end gap-8 flex-wrap"):
-                    created_filter = _date_filter_widget(_("Created"))
-                    added_filter = _date_filter_widget(_("Added"))
-
-        # ── Results ───────────────────────────────────────────────────────────
-        with ui.scroll_area().classes("browser-results flex-1 w-full"):
-            results_container = ui.element("div").classes("w-full")
-        render_results()
-
-    # ── Querverweis-Cluster dialog ────────────────────────────────────────────
     open_cluster = create_cluster_dialog(
-        open_document_fn=open_document,
-        pin_fn=lambda r: _browser_pin(r),
-        get_pinned_ids_fn=lambda: _get_pinned_ids(),
-        render_card_fn=_render_card,
-    )
-
-    # ── Similar-documents dialog ──────────────────────────────────────────────
+        open_document_fn=open_document, pin_fn=lambda r: _pin(r),
+        get_pinned_ids_fn=lambda: _pinned(), render_card_fn=_render_card)
     open_similar = create_similar_dialog(
-        open_document_fn=open_document,
-        pin_fn=lambda r: _browser_pin(r),
-        get_pinned_ids_fn=lambda: _get_pinned_ids(),
-        render_card_fn=_render_card,
-    )
+        open_document_fn=open_document, pin_fn=lambda r: _pin(r),
+        get_pinned_ids_fn=lambda: _pinned(), render_card_fn=_render_card)
+    _doc_dlg.on("hide", lambda _e: results_view.refresh())
 
-    # Re-render cards after the dialog closes — NiceGUI's client re-sync on
-    # dialog hide can drop dynamically-added children from results_container.
-    _doc_dlg.on("hide", lambda _: render_results())
+    # ── Load the catalogue ───────────────────────────────────────────────────
+    async def _load() -> None:
+        from pipelines.search import _drop_no_ingest
 
+        try:
+            st["docs"] = _drop_no_ingest(await get_session_paperless().list_catalogue())
+        except Exception as exc:  # noqa: BLE001
+            st["docs"] = []
+            ui.notify(_("Could not load the document list: {err}").format(err=exc), type="negative")
+        _flags_refresh()
+        if st["q"].strip() and st["mode"] != "title":
+            await _run_query()
+        else:
+            if st["mode"] == "title":
+                F.text = st["q"]
+            render()
+
+    render()
+    ui.timer(0.05, _load, once=True)
 
 
 # ── Module-level card renderer ────────────────────────────────────────────────
