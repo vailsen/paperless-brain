@@ -6,6 +6,7 @@ import json
 import logging
 import dataclasses
 import re
+import time
 import urllib.parse
 
 from nicegui import app as ng_app
@@ -2638,8 +2639,12 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                     # A turn from before the user left /chat.
                                     _live["state"]["stop_requested"] = True
                                 elif _s["running"]:
-                                    _s["stop_requested"] = True
+                                    # A double tap on send is not a stop: the
+                                    # button turned into "stop" under the finger.
+                                    if time.monotonic() - _s.get("sent_at", 0.0) > 0.8:
+                                        _s["stop_requested"] = True
                                 else:
+                                    _s["sent_at"] = time.monotonic()
                                     asyncio.ensure_future(do_send())
 
                             with ui.element("div").classes("chat-mic-btn").style(
@@ -4290,7 +4295,9 @@ window.__openVaultNote = function(noteId) {{
         _s["running"] = True
         _turn["started"] = True
         _s["stop_requested"] = False
-        ui.run_javascript("window.__pbDraftClear && window.__pbDraftClear()")  # layout.DRAFT_JS
+        # do_send runs as a background task with no UI slot (see `_handle_send_or_stop`):
+        # a bare `ui.run_javascript` raised here and every send ended before it began.
+        input_field.client.run_javascript("window.__pbDraftClear && window.__pbDraftClear()")  # layout.DRAFT_JS
         _rs["vault_index"] = {}    # reset per-turn vault link index
         _rs["brain_results"] = []  # reset brain fact cards
         _rs["web_results"] = []    # reset web result cards (accumulate per turn)
