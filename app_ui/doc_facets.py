@@ -67,7 +67,7 @@ class Filters:
 def values_of(doc, facet: str, flags: dict[int, set[str]] | None = None) -> list[str]:
     """The values a document has in a facet."""
     if facet == "tags":
-        return list(doc.tags or [])
+        return list(doc.tags or []) or [NONE]  # "(none)": documents without tags
     if facet == "correspondent":
         return [doc.correspondent or NONE]
     if facet == "document_type":

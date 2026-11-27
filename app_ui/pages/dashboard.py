@@ -391,9 +391,74 @@ async def dashboard():
 
             # The module overview moved to the "?" in the header (app_ui/help_dialog.py).
 
-            # ── top row: 3 stat cards (equal height via align-items:stretch) ────
+            # ── Today: deadlines and what is overdue to arrive ─────────────────
             with ui.row().style(
                 "width:100%; gap:20px; flex-wrap:wrap; align-items:stretch;"
+            ):
+                # 3) Fristen overview card
+                with (
+                    ui.element("div")
+                    .classes("dash-card flex-1")
+                    .style("min-width:200px;")
+                ):
+                    ui.label(_("Deadlines")).style(
+                        "font-size:.7rem;font-weight:600;letter-spacing:.08em;"
+                        "color:var(--c-text-muted);text-transform:uppercase;margin-bottom:12px;"
+                    )
+                    with ui.column().style("gap:4px; flex:1; justify-content:center;"):
+                        with ui.row().classes("items-end gap-3"):
+                            # A count is not a state to react to — the overdue
+                            # line below it is. Neutral keeps the emphasis there.
+                            deadline_count_label = ui.label("—").style(
+                                "font-size:2.5rem;font-weight:700;color:var(--c-text);"
+                            )
+                            with ui.column().style("gap:2px;margin-bottom:4px;"):
+                                deadline_upcoming_label = ui.label("").classes(
+                                    "text-gray-400 text-xs"
+                                )
+                                deadline_overdue_label = ui.label("").classes(
+                                    "text-red-400 text-xs"
+                                )
+
+                # Series that come on a rhythm and are overdue (archive_stats).
+                expected_box = ui.element("div").classes("dash-card flex-1").style("min-width:300px;")
+
+            # ── bottom: calendar + table ─────────────────────────────────────
+            with ui.element("div").classes("dash-card").style("width:100%;"):
+                with (
+                    ui.row()
+                    .classes("items-center justify-between w-full")
+                    .style("margin-bottom:16px;")
+                ):
+                    ui.label(_("Calendar & deadlines")).style(
+                        "font-size:.7rem;font-weight:600;letter-spacing:.08em;"
+                        "color:var(--c-text-muted);text-transform:uppercase;"
+                    )
+                    with ui.row().classes("items-center gap-1"):
+                        btn_prev = ui.button(icon="chevron_left").props(
+                            "flat dark dense"
+                        )
+                        btn_next = ui.button(icon="chevron_right").props(
+                            "flat dark dense"
+                        )
+
+                calendar_row = ui.row().style(
+                    "gap:24px; flex-wrap:wrap; margin-bottom:24px;"
+                )
+                table_container = ui.element("div").classes(
+                    "deadline-table-anchor"
+                ).style("width:100%; overflow-y:auto; max-height:55vh;")
+
+            # ── The archive: over time, topics, duplicates, health ──────────────
+            archive_box = ui.column().classes("w-full gap-5")
+
+            # ── System: sync, services — last, folded if the user folded it ────
+            sys_exp = ui.expansion(
+                _("System"), icon="settings_suggest", value=bool(get_pref("dash_system_open", True)),
+                on_value_change=lambda e: set_pref("dash_system_open", bool(e.value)),
+            ).classes("w-full dash-system").props("dense header-class=q-px-none")
+            with sys_exp, ui.row().style(
+                "width:100%; gap:20px; flex-wrap:wrap; align-items:stretch; padding-top:8px;"
             ):
                 # 1) Sync-Status card
                 with (
@@ -567,57 +632,6 @@ async def dashboard():
                                 ui.label(_("Calendar")).classes("text-gray-300 text-sm flex-1")
                                 cal_badge = ui.label("…").classes("text-gray-500 text-xs")
 
-                # 3) Fristen overview card
-                with (
-                    ui.element("div")
-                    .classes("dash-card flex-1")
-                    .style("min-width:200px;")
-                ):
-                    ui.label(_("Deadlines")).style(
-                        "font-size:.7rem;font-weight:600;letter-spacing:.08em;"
-                        "color:var(--c-text-muted);text-transform:uppercase;margin-bottom:12px;"
-                    )
-                    with ui.column().style("gap:4px; flex:1; justify-content:center;"):
-                        with ui.row().classes("items-end gap-3"):
-                            # A count is not a state to react to — the overdue
-                            # line below it is. Neutral keeps the emphasis there.
-                            deadline_count_label = ui.label("—").style(
-                                "font-size:2.5rem;font-weight:700;color:var(--c-text);"
-                            )
-                            with ui.column().style("gap:2px;margin-bottom:4px;"):
-                                deadline_upcoming_label = ui.label("").classes(
-                                    "text-gray-400 text-xs"
-                                )
-                                deadline_overdue_label = ui.label("").classes(
-                                    "text-red-400 text-xs"
-                                )
-
-            # ── bottom: calendar + table ─────────────────────────────────────
-            with ui.element("div").classes("dash-card").style("width:100%;"):
-                with (
-                    ui.row()
-                    .classes("items-center justify-between w-full")
-                    .style("margin-bottom:16px;")
-                ):
-                    ui.label(_("Calendar & deadlines")).style(
-                        "font-size:.7rem;font-weight:600;letter-spacing:.08em;"
-                        "color:var(--c-text-muted);text-transform:uppercase;"
-                    )
-                    with ui.row().classes("items-center gap-1"):
-                        btn_prev = ui.button(icon="chevron_left").props(
-                            "flat dark dense"
-                        )
-                        btn_next = ui.button(icon="chevron_right").props(
-                            "flat dark dense"
-                        )
-
-                calendar_row = ui.row().style(
-                    "gap:24px; flex-wrap:wrap; margin-bottom:24px;"
-                )
-                table_container = ui.element("div").classes(
-                    "deadline-table-anchor"
-                ).style("width:100%; overflow-y:auto; max-height:55vh;")
-
     # ── JS bridge (same pattern as chat.py) ──────────────────────────────────
     _doc_handler = ui.element("div").style("display:none;")
 
@@ -633,6 +647,32 @@ async def dashboard():
             pass
 
     _doc_handler.on("docOpen", _handle_doc_open)
+
+    # ── Archive section + "expected but missing" (app_ui/dashboard_archive.py) ──
+    async def _open_doc_id(doc_id: int) -> None:
+        try:
+            doc = await get_session_paperless().get_document(int(doc_id))
+        except Exception:  # noqa: BLE001 — gone or not readable: nothing to open
+            ui.notify(_("No longer in Paperless."), type="warning")
+            return
+        await open_document(DocumentResult(document=doc))
+
+    async def _load_archive() -> None:
+        from app_ui import dashboard_archive as _da
+        from pipelines.search import _drop_no_ingest
+
+        ui.add_head_html(_da._CSS)
+        try:
+            docs = _drop_no_ingest(await get_session_paperless().list_catalogue())
+        except Exception as exc:  # noqa: BLE001 — Paperless down: the rest of the page stays
+            with expected_box:
+                ui.label(_("Could not load the document list: {err}").format(err=exc)).classes("text-xs")
+            return
+        _da.render_expected(expected_box, docs, _open_doc_id)
+        fill = _da.render_archive(archive_box, docs, _open_doc_id, _username)
+        await fill()
+
+    ui.timer(0.3, _load_archive, once=True)
     _doc_listener_id = list(_doc_handler._event_listeners.keys())[0]
 
     ui.add_head_html(f"""<script>
