@@ -615,9 +615,10 @@ _MC_JS = """<script>
   window.addEventListener('popstate',function(){
     if(location.pathname.indexOf('/findings')===0)emitEvent('pbm_pop',location.pathname+location.search);
   });
-  // Ctrl/Cmd K focuses the search.
+  // "/" focuses the search (Ctrl/Cmd+K is the app-wide quick switcher).
   document.addEventListener('keydown',function(e){
-    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){var i=document.querySelector('.pbm-search input');
+    var t=e.target,typing=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable);
+    if(e.key==='/'&&!typing&&!e.ctrlKey&&!e.metaKey){var i=document.querySelector('.pbm-search input');
       if(i){e.preventDefault();i.focus();i.select();}}
   });
   // The dock maximized or not: tell the embedded chat, which shows its full
@@ -995,7 +996,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             with search.add_slot("prepend"):
                 ui.icon("search", size="xs")
             with search.add_slot("append"):
-                ui.html('<span class="pbm-kbd">Ctrl K</span>', sanitize=False)
+                ui.html('<span class="pbm-kbd">/</span>', sanitize=False)
 
         async def _on_search(e) -> None:
             # Results show in the navigator, under the field: typing never

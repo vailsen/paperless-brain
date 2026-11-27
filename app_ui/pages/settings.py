@@ -1198,6 +1198,7 @@ async def settings_page(s: str = "") -> None:
                         get_pref("voice_memos_enabled", True)
                     ),
                     include_secrets=bool(_export_secrets_cb.value),
+                    navigation={k: get_pref(k) for k in _st.NAV_PREFS if get_pref(k) is not None},
                 )
                 _export_out.set_value(text)
                 _export_out.set_visibility(True)
@@ -1275,6 +1276,11 @@ async def settings_page(s: str = "") -> None:
                     return
 
                 for k, v in prefs.items():
+                    if k == "hidden_modules":
+                        from app_ui.modules import set_hidden
+
+                        set_hidden(v)  # validates the keys, keeps the experts switch in step
+                        continue
                     set_pref(k, v)
                 ui.notify(_("Settings imported."), type="positive")
                 # The imported theme is the default for new devices and

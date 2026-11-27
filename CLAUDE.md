@@ -108,6 +108,11 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
   = 'VR1000631423'. Prose words next to an identifier are not searched (they matched half
   the archive); a variant too weak alone (a bare '244') is dropped. The cross-reference
   index keys on the same compact form (`cross_ref_index._normalise`).
+- **Filters come before ranking, and nothing outside them enters a result**: tag-name hits
+  are intersected with the filtered candidates (they leaked in before). The browser filters
+  its catalogue in memory (`app_ui/doc_facets.py`, expert-scope semantics) and passes the
+  set as `search(candidates=…)`. Document lists fetch metadata only
+  (`PaperlessClient.list_catalogue`, `fields=`, parallel pages) and are not cached.
 - **`search` ranks only what the reader can see.** The document collection holds every
   user's chunks; the user's visible ids (`PaperlessClient.visible_ids`, cached per token,
   stale-while-revalidate) go into the Chroma query as `paperless_id $in`, fetched while the
@@ -144,7 +149,18 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 - Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `admin`, `findings` (workspace, proactive only)
 - **The module buttons go into the ☰ menu whenever they would wrap** (`layout.NAV_FIT_JS`,
   `body.pb-nav-compact`), not only below 768 px: the check measures the header, so it
-  holds for any number of modules and any language.
+  holds for any number of modules and any language. Compact, that menu button names the
+  module the user is in (icon + label).
+- **One module registry** (`app_ui/modules.py`): header, menu, help, start page and the
+  Settings > General > Modules switches read `visible_modules()`. A hidden module's URL
+  still opens (push links, citations) with a "Show it again" notice; nothing it does in
+  the background stops. Hiding Experts *is* the old "Use experts" switch. `/start` is the
+  installed app's entry point (start page pref, or the module used last).
+- **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`,
+  served by a route: names from `Accept-Language`, no memo shortcut without Whisper).
+  Never a second manifest on the same origin — it would share scope and service worker.
+- **Ctrl/Cmd+K is the app-wide quick switcher** (`app_ui/quick_switcher.py`); pages open a
+  target from `?open=` (browser: a document id, vault: a note path).
 - Dialogs: `app_ui/document_dialog.py`, `app_ui/cluster_dialog.py`
 - **NiceGUI pattern**: use `@ui.refreshable` for dynamic content in plain columns. `QTabPanels`/`element.clear()` silently fails.
 - Chat events stream via `AsyncGenerator[ChatEvent, None]` — UI iterates with `async for` and updates reactively.
@@ -162,7 +178,10 @@ visible / `pageshow` / `online` a down socket reconnects at once, an "up" one
 must answer `pb_alive` within 1.5 s or is replaced; the retry backoff starts at
 150 ms. A manual reconnect writes `next_message_id` into the socket query first,
 as NiceGUI's own `reconnect_attempt` does — without it the server replays from a
-stale position.
+stale position. Every reload NiceGUI triggers (and a page Android discarded) is
+reported to `/api/pb-client-log` and logged as `[revive]`; the connect timeout is
+60 s and the replay buffer 5 000 messages. A half-typed chat message survives a
+reload (`layout.DRAFT_JS`, per address, cleared on send).
 
 ### What needs no model is a button, not a tool
 
@@ -535,8 +554,8 @@ page `app_ui/pages/experts.py`.
   file is recreated.
 - **An expert is fixed per conversation** (`chat_conversations.expert_id`);
   switching asks for a new conversation.
-- **"Use experts" is a per-user switch** (`experts.enabled()`, pref
-  `experts_enabled`): off, `_apply_expert` coerces every conversation to
+- **"Use experts" is the Experts module hidden** (`experts.enabled()` reads
+  `app_ui.modules.hidden()`; the old pref `experts_enabled` migrates into it): off, `_apply_expert` coerces every conversation to
   Universal and the picker and menu item are hidden. The findings dock never
   inherits `/chat`'s last expert — dossier default (`expert`), else the user's
   default expert; picking one in a dossier's dock sets that dossier's default.
@@ -1030,7 +1049,19 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
 - The Chroma-direct memory UI is gone. `/brain` is a **file-backed note explorer** over the
   whole vault (`app_ui/pages/brain.py`): tree, CodeMirror markdown editor, Obsidian-style
   properties panel. Obsidian stays supported; it is no longer the only way to edit a note.
-  What the editor may not become:
+  The editor is `app_ui/vault_editor` — CodeMirror 6 with Obsidian-style live preview
+  (decorations only; markup shows on the lines being edited while focused), checkboxes,
+  `[[links]]` with completion, Linked mentions; the bundle is committed
+  (`scripts/build_vault_editor.sh`). What the editor may not become:
+  - **It never re-serializes Markdown** (no rich-text model): an untouched note keeps its
+    bytes, CRLF included (`VaultEditor._line_ends`).
+  - **Managed folders** (`vault/managed.py`, names from the settings): notes open read-only
+    until "Unlock to edit" (this note only); memos edit freely; no managed root folder can
+    be renamed, moved or deleted. A UI guard, not security — the app's writers are unaffected.
+  - **Renames and moves rewrite links automatically** (`vault/links.py`, Obsidian
+    resolution; through `save_note`, link targets only — also inside managed folders).
+  - **Search reads the notes' text** (`vault/search.py` over `vault/scan.py`, a read cache by
+    mtime/size — no index, no manifest).
   - **It writes files and nothing else** — no Chroma call, no git commit. Indexing stays with
     `sync_user()`, which runs at the start of every chat turn, so an edit is always indexed
     before the retrieval that needs it and an editing session costs one commit, not one per

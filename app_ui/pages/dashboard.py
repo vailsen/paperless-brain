@@ -402,8 +402,8 @@ async def dashboard():
                     .style("min-width:200px;")
                 ):
                     ui.label(_("Deadlines")).style(
-                        "font-size:.7rem;font-weight:600;letter-spacing:.08em;"
-                        "color:var(--c-text-muted);text-transform:uppercase;margin-bottom:12px;"
+                        "font-size:.78rem;font-weight:600;"
+                        "color:var(--c-text-muted);margin-bottom:12px;"
                     )
                     with ui.column().style("gap:4px; flex:1; justify-content:center;"):
                         with ui.row().classes("items-end gap-3"):
@@ -431,8 +431,8 @@ async def dashboard():
                     .style("margin-bottom:16px;")
                 ):
                     ui.label(_("Calendar & deadlines")).style(
-                        "font-size:.7rem;font-weight:600;letter-spacing:.08em;"
-                        "color:var(--c-text-muted);text-transform:uppercase;"
+                        "font-size:.78rem;font-weight:600;"
+                        "color:var(--c-text-muted);"
                     )
                     with ui.row().classes("items-center gap-1"):
                         btn_prev = ui.button(icon="chevron_left").props(
@@ -485,7 +485,7 @@ async def dashboard():
                     with ui.column().classes("gap-1 w-full"):
                         with ui.row().classes("items-center justify-between w-full"):
                             ui.label("Paperless-ngx").style(
-                                "font-size:.7rem;font-weight:600;"
+                                "font-size:.78rem;font-weight:600;"
                                 "color:var(--c-text-muted);"
                             )
                             with ui.row().classes("items-center gap-0"):
@@ -510,7 +510,7 @@ async def dashboard():
                                 )
                         with ui.row().classes("items-center justify-between w-full"):
                             ui.label(_("Brain vault")).style(
-                                "font-size:.7rem;font-weight:600;"
+                                "font-size:.78rem;font-weight:600;"
                                 "color:var(--c-text-muted);"
                             )
                             with ui.row().classes("items-center gap-0"):
@@ -536,8 +536,8 @@ async def dashboard():
                     .style("min-width:200px;")
                 ):
                     ui.label(_("System status")).style(
-                        "font-size:.7rem;font-weight:600;letter-spacing:.08em;"
-                        "color:var(--c-text-muted);text-transform:uppercase;margin-bottom:12px;"
+                        "font-size:.78rem;font-weight:600;"
+                        "color:var(--c-text-muted);margin-bottom:12px;"
                     )
                     with ui.column().style("gap:8px; flex:1; justify-content:center;"):
                         from services import service_status as _svc
@@ -1528,7 +1528,7 @@ window.__toggleHideAction = function(key) {{
     _overdue_only = [False]
     th_style = (
         "font-size:.65rem;color:var(--c-text-muted);text-align:left;"
-        "text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;"
+        "padding:6px 10px;"
     )
 
     def _action_key(a: dict) -> str:

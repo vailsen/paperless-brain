@@ -2382,7 +2382,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             # ── Section 1: Tools ──────────────────────────────
                             with ui.element("div").style("padding:6px 14px 4px;"):
                                 ui.label(_("Tools")).classes(
-                                    "text-xs text-gray-500 uppercase tracking-wide mb-2 block"
+                                    "text-xs text-gray-500 mb-2 block"
                                 )
                                 with ui.row().classes("flex-wrap gap-x-4 gap-y-1 items-center"):
                                     for _grp_name, _grp_icon, _grp_tools in _TOOL_GROUPS:
@@ -2398,7 +2398,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             # ── Section 2: Web-Modus ──────────────────────────
                             with ui.element("div").style("padding:6px 14px 4px;"):
                                 ui.label(_("Web")).classes(
-                                    "text-xs text-gray-500 uppercase tracking-wide mb-2 block"
+                                    "text-xs text-gray-500 mb-2 block"
                                 )
                                 _web_mode_select = (
                                     ui.select(
@@ -2418,7 +2418,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             # ── Section 3: Sonstige ───────────────────────────
                             with ui.element("div").style("padding:6px 14px 6px;"):
                                 ui.label(_("Other")).classes(
-                                    "text-xs text-gray-500 uppercase tracking-wide mb-2 block"
+                                    "text-xs text-gray-500 mb-2 block"
                                 )
                                 with ui.row().classes("items-center gap-6 flex-wrap"):
                                     with ui.row().classes("items-center gap-2"):
@@ -3875,7 +3875,7 @@ window.__openVaultNote = function(noteId) {{
                     ui.separator()
 
                     ui.label(_("Title")).classes(
-                        "text-xs text-gray-400 mt-3 mb-1 font-semibold uppercase tracking-wide"
+                        "text-xs text-gray-400 mt-3 mb-1 font-semibold"
                     )
                     _pdf_title = (
                         ui.input(value=_pp.get("title", ""))
@@ -3886,7 +3886,7 @@ window.__openVaultNote = function(noteId) {{
                     _pdf_edit_mode = [False]
                     with ui.row().classes("items-center justify-between mt-3 mb-1"):
                         ui.label(_("Content")).classes(
-                            "text-xs text-gray-400 font-semibold uppercase tracking-wide"
+                            "text-xs text-gray-400 font-semibold"
                         )
                         _pdf_mode_btn = ui.button(
                             _("Edit"), icon="edit"
@@ -4405,7 +4405,7 @@ window.__openVaultNote = function(noteId) {{
             from app_ui.findings_view import overview_context_text
 
             try:
-                _ov = overview_context_text(_username)
+                _ov = overview_context_text(_turn_username)
             except Exception:  # noqa: BLE001 — the overview must never cost the answer
                 _log.warning("findings overview for the chat failed", exc_info=True)
                 _ov = ""

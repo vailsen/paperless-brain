@@ -1853,6 +1853,9 @@ def brain_page():
         await _refresh_tree()
         _layout_mode.refresh()
         await _refresh_context()
+        target = ui.context.client.request.query_params.get("open") or ""
+        if target and notes.is_note(target):  # the quick switcher's note rows
+            await _open(target)
         # Ctrl/Cmd+O opens the quick switcher, as in Obsidian.
         await ui.run_javascript("""
             if (!window.__vaultKeys) {

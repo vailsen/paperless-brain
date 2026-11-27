@@ -10,7 +10,7 @@ from app_ui.brand import head_html, paperless_leaf_svg, wordmark_html
 from app_ui.page_viewer import PAGE_VIEWER_HTML
 from app_ui.theme import apply_theme
 from config.version import __version__
-from i18n import N_, get_translator
+from i18n import get_translator
 from services import paperless_links
 from services.admin import is_admin
 from services.session_auth import clear_session, get_session_token
@@ -420,6 +420,15 @@ def page_layout() -> None:
             ).classes("text-gray-300 nav-btn mobile-hidden"):
                 ui.html(paperless_leaf_svg(20), sanitize=False)
                 ui.tooltip(_("Open Paperless-ngx"))
+
+        # ── Go anywhere (Ctrl/Cmd+K; the button for a phone) ─────────────────
+        if username:
+            from app_ui import quick_switcher
+
+            quick_switcher.install(username, get_session_token())
+            ui.button(icon="search", color=None,
+                      on_click=lambda: quick_switcher.open_switcher(username, get_session_token())).props(
+                "flat dark dense round").classes("text-gray-300 nav-btn").tooltip(_("Go to … (Ctrl+K)"))
 
         # ── Voice memo quick capture ─────────────────────────────────────────
         # Reachable from every page on purpose: a memo is not a chat turn, and

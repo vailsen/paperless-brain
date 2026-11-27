@@ -471,7 +471,7 @@ def render_document_body(
                     with ui.scroll_area().style("height:100%; width:100%;"):
                         with ui.column().classes("p-4 gap-3"):
                             ui.label(_("Metadata")).classes(
-                                "text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                                "text-xs font-semibold text-gray-500"
                             )
                             # Thumbnail right of the metadata — mobile only
                             # (.dl-thumb); desktop shows the PDF panel instead.
@@ -530,7 +530,7 @@ def render_document_body(
                             if _summary:
                                 ui.separator().classes("my-1")
                                 ui.label(_("Summary")).classes(
-                                    "text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                                    "text-xs font-semibold text-gray-500"
                                 )
                                 ui.label(_summary).classes(
                                     "text-sm text-gray-300 leading-relaxed"
@@ -539,7 +539,7 @@ def render_document_body(
                             if doc.notes:
                                 ui.separator().classes("my-1")
                                 ui.label(_("Notes")).classes(
-                                    "text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                                    "text-xs font-semibold text-gray-500"
                                 )
                                 for _note in doc.notes:
                                     _note_user = (
@@ -562,7 +562,7 @@ def render_document_body(
                             if _actions:
                                 ui.separator().classes("my-1")
                                 ui.label(_("Deadlines / Actions")).classes(
-                                    "text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                                    "text-xs font-semibold text-gray-500"
                                 )
                                 for _a in _actions[:5]:
                                     _certain = "●" if _a.get("deadline_certain") else "○"

@@ -647,6 +647,12 @@ async def browser():
             st["docs"] = []
             ui.notify(_("Could not load the document list: {err}").format(err=exc), type="negative")
         _flags_refresh()
+        open_id = request.query_params.get("open") or ""
+        if open_id.isdigit():  # the quick switcher's document rows
+            try:
+                await _open_id(int(open_id))
+            except Exception as exc:  # noqa: BLE001 — the list still loads
+                ui.notify(_("Could not open document #{id}: {err}").format(id=open_id, err=exc), type="warning")
         if st["q"].strip() and st["mode"] != "title":
             await _run_query()
         else:

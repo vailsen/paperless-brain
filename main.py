@@ -169,6 +169,20 @@ def _start_page() -> RedirectResponse | None:
     return RedirectResponse(target + (f"?{query}" if query else ""), status_code=303)
 
 
+# Readable addresses for two modules whose routes predate their names. The
+# old paths stay for good: they are in notes, links and push messages.
+@app.get("/vault")
+async def _vault_alias(request: Request) -> RedirectResponse:
+    q = request.url.query
+    return RedirectResponse("/brain" + (f"?{q}" if q else ""), status_code=307)
+
+
+@app.get("/research")
+async def _research_alias(request: Request) -> RedirectResponse:
+    q = request.url.query
+    return RedirectResponse("/werkbank" + (f"?{q}" if q else ""), status_code=307)
+
+
 @app.get("/manifest.json")
 async def _serve_manifest(request: Request) -> JSONResponse:
     # Built per request from the static file: the app shortcuts depend on the

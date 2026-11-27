@@ -242,6 +242,8 @@ old switch off (existing `tests/test_experts.py` stays green).
 
 ## Phase 2 — Findings: zone tabs at the top on phone/tablet
 
+Shipped 2026-11-27 (plain underline tabs, as asked).
+
 Below 1024 px the workspace is three zones switched by `.pbm-mbar`, a segmented control
 fixed to the bottom. It looks like a second, foreign navigation, it sits *under* the
 chat input when the chat zone is open, and "Viewer" says nothing about what is shown.
@@ -267,6 +269,8 @@ input; the zone tab names the selected kind; switching zones never scrolls the p
 ---
 
 ## Phase 3 — Browser overhaul: facets, live results, card/list views
+
+Shipped 2026-11-27. The list is not cached (§3.1).
 
 Today: an AI search field, a Search button, "Advanced filters" collapsed behind a link
 (full text, id, tags, correspondent, type, owner, two date widgets), a sort select,
@@ -366,6 +370,8 @@ horizontal scroll in any view, facet sheet closes with the back gesture.
 
 ## Phase 4 — Note vault A: safe by default, searchable
 
+Shipped 2026-11-27, together with Phase 5. "By meaning" in the vault search is not built: the literal search covers what the plan asked; the chat's `vault_search` stays the semantic path.
+
 Everything here works with today's CodeMirror editor; Phase 5 swaps the editor
 underneath without touching it.
 
@@ -464,6 +470,8 @@ scanner (hidden files, `resolve` escapes).
 
 ## Phase 5 — Note vault B: live-preview editor, checkboxes, links
 
+Shipped 2026-11-27. Image embeds render for `![[file]]` and relative `![](…)`; tables render outside the cursor.
+
 ### 5.1 Editor: Obsidian-style live preview, not a rich-text editor
 
 Today the note opens as rendered Markdown (`ui.markdown`) and the pencil switches to raw
@@ -544,6 +552,8 @@ formatting bar does not cover the cursor line.
 ---
 
 ## Phase 6 — Dashboard: charts that answer a question
+
+Shipped 2026-11-27. Figures are computed after the page is on screen (not after a sync, which would need a per-user cache — rejected with the catalogue cache); vectors are cached per user while catalogue and index are unchanged.
 
 Rule for this phase: a chart earns its place only if it answers a question the user
 actually has, from data the app *knows* — and tapping it leads somewhere (the browser,
@@ -640,6 +650,8 @@ greyscale screenshot still readable.
 ---
 
 ## Phase 7 — Smaller things found during the review
+
+Shipped 2026-11-27 except the shared lock vocabulary outside the vault.
 
 - [ ] **Sentence case**: ten labels still use `uppercase tracking-wide(r)` —
       `app_ui/pages/browser.py:46` and `app_ui/pages/chat.py` (2235, 2251, 2271, 4296,
