@@ -548,7 +548,7 @@ _MC_CSS = """
 @media (max-width:1023px){
   /* The zone switch is a bar at the top (docs/ux-overhaul-plan.md, Phase 2):
      the bottom edge belongs to the chat input, as on /chat. */
-  .pbm-root{grid-template-columns:minmax(0,1fr);top:calc(var(--q-header-height,52px) + 46px);bottom:0}
+  .pbm-root{grid-template-columns:minmax(0,1fr);top:calc(var(--q-header-height,52px) + 44px);bottom:0}
   .pbm-center{flex-direction:column}
   .pbm-dock{width:auto;border-left:0}
   .pbm-handle{width:auto;cursor:row-resize}
@@ -565,15 +565,17 @@ _MC_CSS = """
   .pbm-root.z-chat .pbm-dock .pbm-dock-frame{display:block}
   .pbm-root.z-chat.dock-max .pbm-dock{height:100%!important}
   .pbm-root.z-chat .pbm-dock-head.has-retarget{height:30px}
-  .pbm-mbar{display:flex;position:fixed;left:0;right:0;top:var(--q-header-height,52px);height:46px;align-items:center;
-    padding:6px 10px;border-bottom:1px solid var(--c-border);background:var(--c-surface);z-index:5}
-  .pbm-seg{display:flex;flex:1;gap:2px;padding:3px;border-radius:999px;background:var(--c-surface-2);
-    border:1px solid var(--c-border)}
-  .pbm-seg button.pbm-seg-btn{flex:1;min-height:30px;border-radius:999px;font-size:.78rem;color:var(--c-text-muted);
-    padding:0 6px}
-  .pbm-seg button.pbm-seg-btn .q-icon{font-size:17px;margin-right:5px}
-  .pbm-seg button.pbm-seg-btn.is-on{background:var(--c-surface);color:var(--c-text);
-    box-shadow:0 1px 2px rgba(0,0,0,.18)}
+  /* Plain tabs, like a dossier's sections: text, an underline under the
+     active one, no pills. */
+  .pbm-mbar{display:flex;position:fixed;left:0;right:0;top:var(--q-header-height,52px);height:44px;align-items:stretch;
+    padding:0 6px;border-bottom:1px solid var(--c-border);background:var(--c-surface);z-index:5}
+  .pbm-seg{display:flex;flex:1;gap:0;min-width:0}
+  .pbm-seg button.pbm-seg-btn{flex:1;min-width:0;height:44px;border-radius:0;font-size:.82rem;color:var(--c-text-muted);
+    padding:0 6px;border-bottom:2px solid transparent}
+  .pbm-seg button.pbm-seg-btn:before{box-shadow:none}
+  .pbm-seg button.pbm-seg-btn .q-focus-helper{border-radius:0}
+  .pbm-seg button.pbm-seg-btn .q-icon{font-size:17px;margin-right:6px}
+  .pbm-seg button.pbm-seg-btn.is-on{color:var(--c-text);border-bottom-color:var(--c-accent)}
   .pbm-seg button.pbm-seg-btn .block{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* An answer is streaming in the dock while another zone is shown. */
   .pbm-seg button.pbm-seg-btn.is-busy .q-btn__content::after{content:'';width:6px;height:6px;border-radius:50%;
