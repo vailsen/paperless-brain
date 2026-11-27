@@ -151,7 +151,9 @@ class DocLibrary:
             from pipelines.search import _drop_no_ingest
 
             client = self._get_client()
-            self._docs = _drop_no_ingest(await client.list_documents())
+            # Metadata only: the full list (with every document's OCR text)
+            # took seconds. A scoped client narrows it to the expert's scope.
+            self._docs = _drop_no_ingest(await client.list_catalogue())
         except Exception:
             log.warning("library load failed", exc_info=True)
             self._docs = []

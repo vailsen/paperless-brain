@@ -138,6 +138,23 @@ def memo_button() -> None:
     ).classes("nav-btn memo-nav-btn").tooltip(_("Voice memo"))
     _quick_memo_notices()
 
+    # The app shortcut "New voice memo" (app_ui/pwa_manifest.py) opens the app at
+    # `/?memo=1`: open the dialog once the page is connected, then take the flag
+    # out of the address so a reload does not open it again.
+    try:
+        wants_memo = ui.context.client.request.query_params.get("memo") == "1"
+    except Exception:  # noqa: BLE001 — no request (tests): nothing to open
+        wants_memo = False
+    if wants_memo:
+        def _open_from_shortcut() -> None:
+            _open()
+            ui.run_javascript(
+                "(function(){var u=new URL(location.href);u.searchParams.delete('memo');"
+                "history.replaceState(history.state,'',u.pathname+u.search+u.hash);})()"
+            )
+
+        ui.timer(0.1, _open_from_shortcut, once=True)
+
 
 def _quick_memo_notices() -> None:
     """Show the outcome of background memos, wherever the user ended up.

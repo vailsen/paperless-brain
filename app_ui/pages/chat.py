@@ -879,6 +879,31 @@ _CTX_READ_ONLY = (
 _LIVE_TURNS: dict[str, dict] = {}
 
 
+def _host_label(base_url: str) -> str:
+    """host:port of a model URL, for messages."""
+    from urllib.parse import urlparse
+
+    u = urlparse(base_url or "")
+    return u.netloc or base_url or "?"
+
+
+def _turn_error_text(exc: BaseException, _) -> str:
+    """What a failed turn shows. A model host that cannot be reached says so —
+    httpx's own text for a connect timeout is often empty ("Error: ")."""
+    import httpx
+
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+        try:  # httpx raises RuntimeError, not AttributeError, when no request is attached
+            url = str(exc.request.url)
+        except Exception:  # noqa: BLE001
+            url = ""
+        return _("Cannot reach the model host {host}. Is it switched on?").format(host=_host_label(url))
+    if isinstance(exc, httpx.ReadTimeout):
+        return _("The model stopped answering (no response for two minutes).")
+    text = str(exc).strip() or type(exc).__name__
+    return _("Error: {err}").format(err=text)
+
+
 @ui.page("/chat")
 async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: int = 0, conv: str = ""):
     if not require_auth():
@@ -3694,6 +3719,7 @@ window.__openVaultNote = function(noteId) {{
         _s["running"] = True
         _turn["started"] = True
         _s["stop_requested"] = False
+        ui.run_javascript("window.__pbDraftClear && window.__pbDraftClear()")  # layout.DRAFT_JS
         _rs["vault_index"] = {}    # reset per-turn vault link index
         _rs["brain_results"] = []  # reset brain fact cards
         _rs["web_results"] = []    # reset web result cards (accumulate per turn)
@@ -3992,6 +4018,12 @@ window.__openVaultNote = function(noteId) {{
             if outcome == "timeout":
                 return _("The model host was woken but did not answer within {s} s. "
                          "Please send your message again in a moment.").format(s=_settings.ollama_wake_timeout_s)
+            if outcome == "not_ours":
+                # Not answering, and not a host Wake-on-LAN can switch on: say so
+                # now, instead of letting the request wait out its connect timeout
+                # behind a "thinking" spinner.
+                return _("The model host {host} does not answer. Switch it on, or pick another "
+                         "model for this chat.").format(host=_host_label(m.get("base_url", "")))
             return ""
 
         _turn_tools = _active_tools(use_skill=_te.needs_use_skill)
@@ -4144,7 +4176,7 @@ window.__openVaultNote = function(noteId) {{
                     _update_context_progress()
 
         except Exception as e:
-            error_text = _("Error: {err}").format(err=e)
+            error_text = _turn_error_text(e, _)
             accumulated[0] = accumulated[0] or error_text
             streaming_label[0].set_content(escape_intraword_underscores(accumulated[0]))
 

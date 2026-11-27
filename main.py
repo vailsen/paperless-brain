@@ -5,7 +5,8 @@ import os
 # Must run before any import that creates files or directories.
 os.umask(0o077)
 
-from fastapi.responses import FileResponse
+from fastapi import Request
+from fastapi.responses import FileResponse, JSONResponse, Response
 from nicegui import app, core, ui
 
 import app_ui.pages.admin  # noqa: F401
@@ -92,6 +93,32 @@ async def _pb_alive(_sid: str, *_args) -> bool:
     return True
 
 
+_client_log_times: list[float] = []
+
+
+@app.post("/api/pb-client-log")
+async def _pb_client_log(request: Request) -> Response:
+    """Why a page reloaded (`app_ui/layout.SOCKET_REVIVE_JS`): NiceGUI's own
+    reason, or Android having discarded the page in the background. Log only —
+    bounded in size and rate, since it needs no session."""
+    import json as _json
+    import time as _time
+
+    now = _time.monotonic()
+    _client_log_times[:] = [t for t in _client_log_times if now - t < 60]
+    if len(_client_log_times) >= 30:
+        return Response(status_code=204)
+    _client_log_times.append(now)
+    try:
+        data = _json.loads((await request.body())[:1000] or b"{}")
+    except ValueError:
+        return Response(status_code=204)
+    clean = {k: str(data.get(k, ""))[:200].replace("\n", " ") for k in ("kind", "reason", "path", "hidden_ms")}
+    print(f"[revive] {clean['kind']}: {clean['reason']} path={clean['path']} "
+          f"hidden_ms={clean['hidden_ms']}", flush=True)
+    return Response(status_code=204)
+
+
 @app.on_startup
 async def _start_watchdog() -> None:
     _check_vault_root()
@@ -127,8 +154,16 @@ _sw_path = str(settings.app_path / "app_ui" / "static" / "sw.js")
 
 
 @app.get("/manifest.json")
-async def _serve_manifest() -> FileResponse:
-    return FileResponse(_manifest_path, media_type="application/manifest+json")
+async def _serve_manifest(request: Request) -> JSONResponse:
+    # Built per request from the static file: the app shortcuts depend on the
+    # server's configuration (no memo shortcut without a transcription service)
+    # and their names on the browser's language (app_ui/pwa_manifest.py).
+    from app_ui.pwa_manifest import build_manifest
+
+    return JSONResponse(
+        build_manifest(_manifest_path, request.headers.get("accept-language")),
+        media_type="application/manifest+json",
+    )
 
 
 # The service worker must be served from the origin root so its default control
@@ -171,4 +206,9 @@ ui.run(
     # normal "check something else and come back". `_keep_pings_short()` keeps
     # the keep-alive independent of this number.
     reconnect_timeout=300,
+    # Messages kept for replay after a reconnect. When the page is further
+    # behind than this, NiceGUI can only reload it ("outbox rewind failed") —
+    # a streaming chat answer or the dashboard's timers fill 1 000 quickly
+    # while the phone has the app in the background.
+    message_history_length=5000,
 )

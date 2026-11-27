@@ -198,7 +198,28 @@ SOCKET_REVIVE_JS = """<script>
     var s = sock();
     if(!s){ return setTimeout(tune, 200); }
     s.io.reconnectionDelay(150); s.io.reconnectionDelayMax(2500); s.io.randomizationFactor(0.2);
+    // NiceGUI reloads the page when a connection attempt times out. A phone
+    // radio waking up after an app switch can take longer than the default
+    // 20 s — give it a minute before reloading is the only way out.
+    try { s.io.timeout(60000); } catch(e){}
   })();
+  // Why the page reloaded, in the server log ("[revive]"): NiceGUI announces
+  // every reload it triggers on the console first; a page Android discarded
+  // in the background says so on its next load (document.wasDiscarded).
+  function report(kind, reason){
+    try {
+      var body = JSON.stringify({kind: kind, reason: String(reason || '').slice(0, 200),
+        path: location.pathname, hidden_ms: hiddenAt ? Date.now() - hiddenAt : 0});
+      navigator.sendBeacon('/api/pb-client-log', new Blob([body], {type: 'application/json'}));
+    } catch(e){}
+  }
+  var _log = console.log;
+  console.log = function(){
+    var m = arguments[0];
+    if(typeof m === 'string' && m.indexOf('reloading because') === 0){ report('reload', m); }
+    return _log.apply(console, arguments);
+  };
+  if(document.wasDiscarded){ report('discarded', 'page was discarded in the background'); }
   function now(s){
     try { if(s.io.opts && s.io.opts.query){ s.io.opts.query.next_message_id = window.nextMessageId; } } catch(e){}
     s.disconnect(); s.connect();
@@ -216,6 +237,37 @@ SOCKET_REVIVE_JS = """<script>
   });
   window.addEventListener('pageshow', function(e){ if(e.persisted){ revive(); } });
   window.addEventListener('online', revive);
+})();
+</script>"""
+
+# A half-typed chat message survives the page going away. Android may discard
+# a backgrounded PWA outright (the next visit is a fresh load — no socket
+# trick can prevent that), and a server restart reloads every page. The draft
+# lives in this browser only, per address (the findings dock's chat has its
+# own), and is dropped when the message is sent (`__pbDraftClear`, chat.py).
+DRAFT_JS = """<script>
+(function(){
+  var SEL = '.chat-main-input textarea', MAX_AGE = 12 * 3600 * 1000;
+  function key(){ return 'pb-draft:' + location.pathname + location.search; }
+  window.__pbDraftClear = function(){ try { localStorage.removeItem(key()); } catch(e){} };
+  document.addEventListener('input', function(e){
+    var t = e.target;
+    if(!t || !t.matches || !t.matches(SEL) || !e.isTrusted){ return; }
+    try {
+      if(t.value.trim()){ localStorage.setItem(key(), JSON.stringify({t: t.value, at: Date.now()})); }
+      else { localStorage.removeItem(key()); }
+    } catch(_){}
+  }, true);
+  var tries = 0;
+  (function restore(){
+    var ta = document.querySelector(SEL);
+    if(!ta || !window.did_handshake){ if(++tries < 80){ setTimeout(restore, 150); } return; }
+    var d = null;
+    try { d = JSON.parse(localStorage.getItem(key()) || 'null'); } catch(_){}
+    if(!d || !d.t || Date.now() - d.at > MAX_AGE || ta.value.trim()){ return; }
+    ta.value = d.t;
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+  })();
 })();
 </script>"""
 
@@ -288,6 +340,7 @@ def page_layout() -> None:
     ui.add_head_html(_NO_SPELLCHECK_JS)
     ui.add_head_html(_EXTERNAL_LINKS_JS)
     ui.add_head_html(SOCKET_REVIVE_JS)
+    ui.add_head_html(DRAFT_JS)
     ui.add_head_html(PUSH_OPEN_JS)
     ui.add_head_html(PAGE_VIEWER_HTML)
 

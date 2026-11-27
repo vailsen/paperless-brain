@@ -111,6 +111,10 @@ class ScopedPaperlessClient(PaperlessClient):
         # unfiltered, and nothing here may rest on that not happening.
         return [d for d in docs if self.scope.allows(d)]
 
+    async def list_catalogue(self, *args, **kwargs):
+        docs = await super().list_catalogue(*args, **kwargs)
+        return docs if self.scope.unrestricted else [d for d in docs if self.scope.allows(d)]
+
     async def _require(self, doc_id: int) -> None:
         if not self.scope.unrestricted:
             await self.get_document(doc_id)  # IndexError when out of scope
