@@ -156,7 +156,7 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
   still opens (push links, citations) with a "Show it again" notice; nothing it does in
   the background stops. Hiding Experts *is* the old "Use experts" switch. `/start` is the
   installed app's entry point (start page pref, or the module used last).
-- **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`, `id` pinned to "/" — never change it; the 192 px shortcut icons are inline data URIs, since a WebAPK cannot fetch them from a private server,
+- **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`, `id` pinned to "/" — never change it; the 192 px shortcut icons are inline data URIs, since a WebAPK cannot fetch them from a private server; they are one large glyph with the bottom-right corner free, where Android paints the app badge (`SHORTCUT_ICON_VERSION`),
   served by a route: names from `Accept-Language`, no memo shortcut without Whisper).
   Never a second manifest on the same origin — it would share scope and service worker.
 - **A conversation can be edited** (`services/chat_edit.py`, "Edit conversation"): single

@@ -25,6 +25,11 @@ BRAND = "#3563d9"  # steel; = --c-accent in light mode
 BRAND_DARK_BG = "#0f1012"
 BRAND_LIGHT_BG = "#ebedf0"
 ICON_VERSION = "v3"
+# The shortcut icons (app_ui/pwa_manifest.py) carry their own version: Android
+# draws the app's own badge on every pinned shortcut's bottom-right corner, so
+# their design changed (v4: one large module glyph, that corner left free)
+# without the main icon changing.
+SHORTCUT_ICON_VERSION = "v4"
 
 
 def mark_svg(

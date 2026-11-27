@@ -26,7 +26,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-from app_ui.brand import ICON_VERSION
+from app_ui.brand import SHORTCUT_ICON_VERSION
 from i18n import N_, SUPPORTED_LANGUAGES, translator_for
 
 # (key, name, short name, url, glyph). Dashboard is the app icon itself.
@@ -67,7 +67,7 @@ def _icons(glyph: str) -> list[dict]:
     builder, while shortcut icons are fetched by address — which cannot work
     for a server only the phone's network reaches. A data URI needs no fetch.
     A browser that rejects one still has the address icons."""
-    v = ICON_VERSION
+    v = SHORTCUT_ICON_VERSION
     out = []
     for purpose, part in (("any", ""), ("maskable", "maskable-")):
         uri = _data_uri(f"shortcut-{glyph}-{v}-{part}192.png")
