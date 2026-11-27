@@ -1,6 +1,7 @@
 # app_ui/layout.py
 
 import html as _html
+import json
 
 from nicegui import app as ng_app
 from nicegui import ui
@@ -35,10 +36,22 @@ _MOBILE_HEADER_CSS = (
     # the header into two rows.
     "body.pb-nav-compact .desktop-nav-btn{display:none!important;}"
     "body.pb-nav-compact .mobile-nav-btn{display:inline-flex!important;}"
+    # Compact: the module switcher names the module, so the wordmark shrinks to
+    # the mark and Help moves into the user menu to make room for it.
+    "body.pb-nav-compact .pb-brand .logo-text{display:none!important;}"
+    "body.pb-nav-compact .pb-help-btn{display:none!important;}"
+    ".pb-help-item{display:none!important;}"
+    "body.pb-nav-compact .pb-help-item{display:flex!important;}"
+    ".nav-switcher .q-btn__content{flex-wrap:nowrap;gap:6px;max-width:46vw;}"
+    ".nav-switcher .q-btn__content .block{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+    "font-size:.875rem;font-weight:500;}"
     "@media(max-width:767px){"
     ".desktop-nav-btn{display:none!important;}"
     ".mobile-nav-btn{display:inline-flex!important;}"
     ".mobile-hidden{display:none!important;}"
+    ".pb-brand .logo-text{display:none!important;}"
+    ".pb-help-btn{display:none!important;}"
+    ".pb-help-item{display:flex!important;}"
     ".app-header{padding-left:8px!important;padding-right:8px!important;gap:6px!important;}"
     ".doc-card{width:312px!important;}"
     ".doc-cards-row{justify-content:center!important;}"
@@ -70,34 +83,12 @@ window.addEventListener('load',fit);
 window.__pbNavFit=fit;
 })();</script>"""
 
-# N_() marks the labels for pybabel extraction; translation happens at render via _(label).
-NAV_ITEMS = [
-    ("dashboard", N_("Dashboard"), "/"),
-    ("chat", N_("Chat"), "/chat"),
-    ("note_alt", N_("Note vault"), "/brain"),
-    ("auto_awesome", N_("Deep research"), "/werkbank"),
-    ("psychology", N_("Experts"), "/experts"),
-    ("grid_view", N_("Browser"), "/browser"),
-]
-FINDINGS_ITEM = ("lightbulb", N_("Findings"), "/findings")
-
-
 def nav_items() -> list[tuple[str, str, str]]:
-    """NAV_ITEMS plus the findings page (third, after the chat) — only with
-    PROACTIVE_ENABLED=true."""
-    from config.proactive import is_enabled
+    """(icon, label msgid, path) of every module this user sees, in menu
+    order — from the one registry, `app_ui/modules.py`."""
+    from app_ui.modules import visible_modules
 
-    items = list(NAV_ITEMS)
-    try:  # "Use experts" off (Settings > AI): no Experts item
-        from services.experts import enabled as _experts_on
-
-        if not _experts_on():
-            items = [it for it in items if it[2] != "/experts"]
-    except Exception:  # noqa: BLE001, S110 — outside a page (tests): the full menu
-        pass
-    if not is_enabled():
-        return items
-    return items[:2] + [FINDINGS_ITEM] + items[2:]
+    return [(m.icon, m.label, m.path) for m in visible_modules()]
 
 
 def user_icon(username: str) -> str:
@@ -161,7 +152,8 @@ def take_login_target() -> str:
     from nicegui import app as ng_app
 
     target = str(ng_app.storage.user.pop("after_login", "") or "")
-    return target if target.startswith("/") and not target.startswith("//") else "/"
+    # Nothing remembered: the user's start page (`/start`, app_ui/modules.py).
+    return target if target.startswith("/") and not target.startswith("//") else "/start"
 
 
 # A link to another site opens in a new tab — everywhere, including links a
@@ -359,6 +351,9 @@ def page_layout() -> None:
 
         _here = _current_path()
         _paperless_base = paperless_links.public_base()
+        from app_ui.modules import module_for_path
+
+        _here_mod = module_for_path(_here)
 
         # Desktop nav — hidden on mobile via CSS.
         # color=None matters: ui.button defaults to color='primary', which Quasar
@@ -379,7 +374,13 @@ def page_layout() -> None:
 
         # Mobile hamburger — hidden on desktop, shown on mobile
         with ui.element("div").classes("mobile-nav-btn"):
-            _menu_btn = ui.button(icon="menu", color=None).props("flat dark dense").classes("text-gray-300")
+            # Names the module the user is in — on a phone the module buttons
+            # are in this menu, and the bare ☰ said nothing about where one was.
+            if _here_mod is not None:
+                _menu_btn = ui.button(_(_here_mod.label), icon=_here_mod.icon, color=None).props(
+                    "flat dark dense no-caps icon-right=expand_more").classes("text-gray-300 nav-switcher")
+            else:
+                _menu_btn = ui.button(icon="menu", color=None).props("flat dark dense").classes("text-gray-300")
             with ui.menu().props("dark").style(
                 "background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;min-width:180px;"
             ) as _nav_menu:
@@ -433,7 +434,7 @@ def page_layout() -> None:
             from app_ui.help_dialog import open_help
 
             ui.button(icon="help_outline", color=None, on_click=open_help).props("flat dark dense round").classes(
-                "text-gray-300 nav-btn").tooltip(_("Help"))
+                "text-gray-300 nav-btn pb-help-btn").tooltip(_("Help"))
 
         # ── Logged-in user dropdown (Settings + Logout) ──────────────────────
         if username:
@@ -474,6 +475,18 @@ def page_layout() -> None:
                             ui.icon("settings", size="xs").classes("text-gray-400")
                         with ui.element("q-item-section"):
                             ui.label(_("Settings")).style("font-size:0.875rem;font-weight:500;")
+                    # Help lives here when the header is compact (`pb-help-btn` is hidden then).
+                    from app_ui.help_dialog import open_help as _open_help
+
+                    with ui.element("q-item").props("clickable v-ripple dense").classes(
+                        "text-gray-200 rounded-lg pb-help-item"
+                    ).style("padding:8px 12px;").on("click", _open_help):
+                        with ui.element("q-item-section").props("avatar").style(
+                            "min-width:28px;padding-right:8px;"
+                        ):
+                            ui.icon("help_outline", size="xs").classes("text-gray-400")
+                        with ui.element("q-item-section"):
+                            ui.label(_("Help")).style("font-size:0.875rem;font-weight:500;")
                     if is_admin(username):
                         with ui.element("q-item").props("clickable v-ripple dense").classes(
                             "text-gray-200 rounded-lg"
@@ -497,6 +510,51 @@ def page_layout() -> None:
                     with ui.element("q-item").props("dense").style("padding:2px 12px 6px;"):
                         with ui.element("q-item-section"):
                             ui.label(f"v{__version__}").classes("text-xs text-gray-500")
+
+
+    _module_extras(_here_mod, username)
+
+
+def _module_extras(mod, username: str) -> None:
+    """What every module page gets beyond the header: a title that names the
+    module (app switcher, tabs, history), the "last used module" for the start
+    page, and — for a module the user hid — a way to show it again."""
+    if mod is None:
+        return
+    _ = get_translator()
+    ui.page_title(f"{_(mod.label)} · PaperlessBrain")
+    if not username:
+        return
+    from app_ui import modules
+    from services.user_prefs import get_pref, set_pref
+
+    try:
+        if get_pref("last_module", "") != mod.key:
+            set_pref("last_module", mod.key)
+    except Exception:  # noqa: BLE001, S110 — a preference must never cost the page
+        pass
+    if not modules.is_hidden(mod.key):
+        return
+
+    def _show_again(_e=None) -> None:
+        modules.set_hidden(modules.hidden() - {mod.key})
+        ui.navigate.reload()
+
+    # A notice, not a row in the page: some modules (findings) cover the whole
+    # screen below the header with a fixed layout that would hide a banner.
+    ui.on("pb_show_module", _show_again)
+    msg, label = _("This module is hidden in your settings."), _("Show it again")
+
+    def _notice() -> None:
+        # Created in the browser: an action's handler must be a function, which
+        # ui.notify's options (plain JSON) cannot carry.
+        ui.run_javascript(
+            "Quasar.Notify.create({message:" + json.dumps(msg) + ",position:'top',timeout:10000,"
+            "actions:[{label:" + json.dumps(label) + ",color:'white',noCaps:true,"
+            "handler:function(){emitEvent('pb_show_module');}}]})"
+        )
+
+    ui.timer(0.3, _notice, once=True)
 
 
 def _logout() -> None:

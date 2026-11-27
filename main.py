@@ -6,7 +6,7 @@ import os
 os.umask(0o077)
 
 from fastapi import Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from nicegui import app, core, ui
 
 import app_ui.pages.admin  # noqa: F401
@@ -151,6 +151,22 @@ app.add_static_files("/static", str(settings.app_path / "app_ui" / "static"))
 
 _manifest_path = str(settings.app_path / "app_ui" / "static" / "manifest.json")
 _sw_path = str(settings.app_path / "app_ui" / "static" / "sw.js")
+
+
+@ui.page("/start")
+def _start_page() -> RedirectResponse | None:
+    """The installed app's entry point and where a login without a target
+    leads: the user's start page (Settings > General), else the dashboard."""
+    from app_ui.layout import require_auth
+    from app_ui.modules import start_target
+    from services.user_prefs import get_pref
+
+    if not require_auth():
+        return None
+    target = start_target(str(get_pref("start_page", "dashboard")), str(get_pref("last_module", "")))
+    query = ui.context.client.request.url.query  # `/start?memo=1` keeps its flag
+    # A server redirect: no empty page in between.
+    return RedirectResponse(target + (f"?{query}" if query else ""), status_code=303)
 
 
 @app.get("/manifest.json")

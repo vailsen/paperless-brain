@@ -45,7 +45,7 @@ async def login_page() -> None:
 
     # Already logged in → forward to browser
     if get_session_token():
-        ui.navigate.to("/")
+        ui.navigate.to("/start")
         return
 
     with ui.column().classes(

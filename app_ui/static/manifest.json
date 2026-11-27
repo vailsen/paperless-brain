@@ -2,7 +2,7 @@
   "name": "PaperlessBrain",
   "short_name": "PaperlessBrain",
   "description": "The brain for your Paperless-ngx archive",
-  "start_url": "/",
+  "start_url": "/start",
   "display": "standalone",
   "background_color": "#ebedf0",
   "theme_color": "#ebedf0",

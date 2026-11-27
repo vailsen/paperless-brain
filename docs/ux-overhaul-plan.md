@@ -109,38 +109,42 @@ dropped socket) before it ships.
 
 ## Phase 1 — Navigation: landing, knowing where you are, hiding modules
 
+Shipped 2026-11-27, except the settings export of the two new prefs. The hidden-module
+"banner" is a notice with a "Show it again" action at the top (the findings workspace
+covers the page below the header with a fixed layout, which would hide a row).
+
 ### 1.1 One module registry
 
 Today the module list is `NAV_ITEMS` + `FINDINGS_ITEM` + two special cases in
 `nav_items()` (proactive switch, "Use experts"). Everything below needs the same list,
 so first make it one:
 
-- [ ] `app_ui/modules.py`: `Module(key, icon, label, path, optional, available)` for
+- [x] `app_ui/modules.py`: `Module(key, icon, label, path, optional, available)` for
       `dashboard`, `chat`, `findings`, `vault`, `research`, `experts`, `browser`.
       `available()` holds the existing conditions (`PROACTIVE_ENABLED`); `optional`
       is False for dashboard and chat.
-- [ ] `visible_modules()` = available and not hidden by the user (1.4). The header,
+- [x] `visible_modules()` = available and not hidden by the user (1.4). The header,
       the ☰ menu, the help dialog, the start-page picker and the settings switch list
       all read it. `NAV_ITEMS` stays as the `N_()` label source only.
-- [ ] `module_for_path(path)` — used by the header label (1.3), the page title and the
+- [x] `module_for_path(path)` — used by the header label (1.3), the page title and the
       hidden-module banner.
 
 ### 1.2 Start page and app shortcuts
 
-- [ ] Per-user pref `start_page` (`services/user_prefs`): any visible module, plus
+- [x] Per-user pref `start_page` (`services/user_prefs`): any visible module, plus
       **"Last used module"**. Default `dashboard` (no change for anyone who does nothing).
       Setting in Settings > General, next to "When the chat opens" — the two belong
       together ("what do I see when I open the app").
-- [ ] New route `/start`: reads the pref and redirects. `/` stays the dashboard, so the
+- [x] New route `/start`: reads the pref and redirects. `/` stays the dashboard, so the
       logo and the "Dashboard" item keep meaning the dashboard.
       `take_login_target()` falls back to `/start` instead of `/`; a push link's target
       still wins.
-- [ ] "Last used module" (decided: offered, not the default). Each page writes its
+- [x] "Last used module" (decided: offered, not the default). Each page writes its
       module key on load (cheap pref write); `/start` sends there. It earns its place on
       a phone, where Android kills a backgrounded PWA and a cold start would otherwise
       always land on one fixed page. Module level only: a finding/dossier deep link
       counts as "findings" — reopening a stale half-state is worse than the module's home.
-- [ ] `manifest.json`: `start_url: "/start"` and `shortcuts` (1.2a).
+- [x] `manifest.json`: `start_url: "/start"` and `shortcuts` (1.2a).
 
 ### 1.2a App shortcuts on Android — one PWA, several home-screen icons
 
@@ -192,17 +196,17 @@ rules out. Shortcuts give the same result on the home screen without any of this
 Today, in `pb-nav-compact`, the header is wordmark + ☰ + memo + help + user. Inside
 Findings nothing says "Findings".
 
-- [ ] Replace the bare ☰ with a **module switcher button**: current module icon +
+- [x] Replace the bare ☰ with a **module switcher button**: current module icon +
       label + `expand_more`, e.g. `[💡 Findings ▾]`. Same menu as today (active item
       highlighted, Paperless-ngx link at the bottom). This is the one place a phone user
       looks to answer "where am I" and "go elsewhere" — one control for both.
-- [ ] In compact mode the wordmark shrinks to the mark alone (`brand.py` already has
+- [x] In compact mode the wordmark shrinks to the mark alone (`brand.py` already has
       the SVG) to make room. Keep the link to `/`.
-- [ ] Help moves into the user menu when compact (it is the least used of the four
+- [x] Help moves into the user menu when compact (it is the least used of the four
       header buttons); memo stays — capture must be one tap from everywhere.
-- [ ] `document.title` per module ("Findings · PaperlessBrain"), so the OS app
+- [x] `document.title` per module ("Findings · PaperlessBrain"), so the OS app
       switcher, browser tabs and history say where each one is.
-- [ ] `NAV_FIT_JS` keeps deciding *when* to collapse — it measures, so the wider
+- [x] `NAV_FIT_JS` keeps deciding *when* to collapse — it measures, so the wider
       switcher button is accounted for automatically.
 
 Rejected: a bottom tab bar. The chat input, the findings dock and the phone keyboard
@@ -214,7 +218,7 @@ on every screen. The switcher button gives the same "where am I" for zero height
 - [ ] Per-user pref `hidden_modules: list[str]` of `browser`, `vault`, `experts`,
       `findings`, `research`. Chat and dashboard are listed as switches that are on and
       disabled, so the user sees why they cannot go.
-- [ ] **Hidden means out of the way, not off:**
+- [x] **Hidden means out of the way, not off:**
       - gone from header, ☰ menu, help dialog, start-page picker, dashboard links and
         cross-module buttons (e.g. the chat's "Deep research" hand-off);
       - the **URL still works** — push links, citations in research notes and old
@@ -223,7 +227,7 @@ on every screen. The switcher button gives the same "where am I" for zero height
       - background work is unaffected: hiding Findings does not stop the proactive
         worker or push (the banner links to the notification settings); hiding the vault
         keeps memory and memos working (the memo dialog still says where it saved).
-- [ ] **Experts: one switch, not two.** Hiding Experts *is* today's "Use experts" off
+- [x] **Experts: one switch, not two.** Hiding Experts *is* today's "Use experts" off
       (`experts.enabled()`, `_apply_expert` coerces to Universal). Migrate
       `experts_enabled=false` into `hidden_modules` once and remove the separate switch
       from Settings > AI; `experts.enabled()` reads the new pref.

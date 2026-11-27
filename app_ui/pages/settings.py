@@ -66,6 +66,47 @@ def chat_on_open_setting() -> None:
     ).props("outlined dark dense").classes("w-full")
 
 
+def start_page_setting() -> None:
+    """Where the installed app and a fresh login open (`/start`)."""
+    from app_ui import modules
+
+    _ = get_translator()
+    options = {m.key: _(m.label) for m in modules.visible_modules()}
+    options[modules.LAST] = _("The module used last")
+    current = get_pref("start_page", "dashboard")
+    if current not in options:
+        current = "dashboard"
+
+    ui.select(
+        options=options, value=current, label=_("Start page"),
+        on_change=lambda e: set_pref("start_page", e.value),
+    ).props("outlined dark dense").classes("w-full")
+
+
+def modules_setting() -> None:
+    """Hide modules you do not use. Chat and dashboard always stay."""
+    from app_ui import modules
+
+    _ = get_translator()
+    off = modules.hidden()
+
+    def _toggle(key: str, on: bool) -> None:
+        now = modules.hidden()
+        modules.set_hidden(now - {key} if on else now | {key})
+        ui.navigate.reload()  # the menu, the help and the chat change with it
+
+    for m in modules.MODULES:
+        if not modules.available(m):
+            continue
+        with ui.row().classes("w-full items-center gap-2 no-wrap"):
+            ui.icon(m.icon, size="xs").classes("text-gray-400")
+            ui.label(_(m.label)).classes("text-sm flex-1 min-w-0")
+            ui.switch(
+                value=not m.optional or m.key not in off,
+                on_change=(lambda e, k=m.key: _toggle(k, bool(e.value))) if m.optional else None,
+            ).props("dense" + ("" if m.optional else " disable"))
+
+
 def push_text_setting() -> None:
     """Render the "push AI text to Paperless" switch. Off by default.
 
@@ -469,6 +510,29 @@ async def settings_page(s: str = "") -> None:
                 _("What the chat shows when you open the app or switch to it"),
             )
             chat_on_open_setting()
+
+        # ── Start page and modules ────────────────────────────────────────────
+        with _card("general"):
+            _section_header(
+                "home",
+                _("Start page"),
+                _("Where the installed app and a new sign-in open"),
+            )
+            start_page_setting()
+
+        with _card("general"):
+            _section_header(
+                "view_module",
+                _("Modules"),
+                _("Hide what you do not use — chat and dashboard always stay"),
+            )
+            modules_setting()
+            _hint(_(
+                "A hidden module leaves the menu and the help. Its links still open — from a push "
+                "message, a citation, a bookmark — with a way to show it again, and nothing it does "
+                "in the background stops: hiding Findings does not stop its messages. Hiding Experts "
+                "makes every chat the Universal expert; your experts stay saved."
+            ))
 
         # ── Rückschreiben nach Paperless / push text back ─────────────────────
         with _card("docs"):
@@ -995,19 +1059,9 @@ async def settings_page(s: str = "") -> None:
                     "with their own instructions, skills and document access."
                 )
             )
-            from services.user_prefs import get_pref as _gp
-            from services.user_prefs import set_pref as _sp
-
-            def _experts_toggle(e) -> None:
-                _sp("experts_enabled", bool(e.value))
-                ui.navigate.reload()  # the menu and the chat change with it
-
-            ui.switch(_("Use experts"), value=bool(_gp("experts_enabled", True)),
-                      on_change=_experts_toggle).props("dense")
             _hint(_(
-                "Off: every chat is the Universal expert — all documents, all tools, your standing "
-                "instructions — and the expert picker and the Experts menu item are gone. Your experts "
-                "stay saved and come back when you switch this on."
+                "To work without experts, hide the Experts module (General > Modules): every chat is "
+                "then the Universal expert, and your experts stay saved."
             ))
             with ui.row().classes("w-full justify-end mt-1"):
                 ui.button(

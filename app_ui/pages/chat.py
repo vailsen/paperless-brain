@@ -16,6 +16,7 @@ from app_ui.chat_images import with_images
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
 from app_ui.similar_dialog import create_similar_dialog
+from app_ui import modules as _modules
 from app_ui.layout import page_layout, require_auth
 from app_ui.model_picker import model_select
 from app_ui.pages.browser import _render_card
@@ -2272,8 +2273,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                            lambda: _dl_conversation())
                                 _conv_item("save", _("Save chat to Paperless"),
                                            lambda: _save_chat_to_paperless())
-                                _conv_item("travel_explore", _("Deep research from this chat"),
-                                           lambda: _research_from_chat())
+                                if not _modules.is_hidden("research"):  # Settings > Modules
+                                    _conv_item("travel_explore", _("Deep research from this chat"),
+                                               lambda: _research_from_chat())
                                 _conv_item("mail", _("Write a letter"), lambda: _compose("letter"))
                                 _conv_item("alternate_email", _("Write an email"), lambda: _compose("email"))
                                 _conv_item("tune", _("Configure tools"),
