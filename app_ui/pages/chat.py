@@ -3530,7 +3530,7 @@ window.__openVaultNote = function(noteId) {{
             try:
                 picked = await ui.run_javascript(
                     "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
-                    "return (s&&s.id===" + json.dumps(f"c{bubble_el.id}") + ")?s.text:'';})()",
+                    "return (s&&s.id===" + json.dumps(bubble_el.html_id) + ")?s.text:'';})()",
                     timeout=2.0)
             except Exception:
                 picked = ""
@@ -3607,7 +3607,7 @@ window.__openVaultNote = function(noteId) {{
 
     def _sel_snapshot_js(bubble_el) -> str:
         return ("() => { var s = window.getSelection(); var el = document.getElementById("
-                + json.dumps(f"c{bubble_el.id}") + ");"
+                + json.dumps(bubble_el.html_id) + ");"
                 " window.__pbSelSnap = (s && !s.isCollapsed && el && el.contains(s.anchorNode))"
                 " ? {id: el.id, text: s.toString()} : null; }")
 

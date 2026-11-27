@@ -145,7 +145,7 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 
 ### UI
 
-- NiceGUI 3.x, pages in `app_ui/pages/` (each imports `page_layout` + `require_auth` from `app_ui/layout.py`)
+- NiceGUI 4.x (DOM ids are `ng-<id>`: use `element.html_id`, never build one by hand), pages in `app_ui/pages/` (each imports `page_layout` + `require_auth` from `app_ui/layout.py`)
 - Pages: `login`, `dashboard`, `browser` (document grid), `chat`, `experts`, `brain` (fact management), `settings`, `admin`, `findings` (workspace, proactive only)
 - **The module buttons go into the ☰ menu whenever they would wrap** (`layout.NAV_FIT_JS`,
   `body.pb-nav-compact`), not only below 768 px: the check measures the header, so it

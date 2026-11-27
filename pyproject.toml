@@ -25,7 +25,7 @@ classifiers = [
 # Floors = versions the app was last smoke-tested with (2026-07-19).
 dependencies = [
     # 3.19: ui.upload path-escape and ui.select chip-click fixes.
-    "nicegui>=3.19,<4",
+    "nicegui>=4.1,<5",
     "fastapi>=0.143,<1",
     "aiohttp>=3.14.5,<4",
     "httpx>=0.28,<1",
@@ -70,7 +70,7 @@ dependencies = [
 [project.optional-dependencies]
 # Headless-browser web crawling (chat web tool fallback for JS-heavy pages).
 # Without it the app still runs; page fetching uses trafilatura only.
-crawl = ["crawl4ai>=0.9.5,<1"]
+crawl = ["crawl4ai>=0.9.6,<1"]
 # i18n catalog workflow (pybabel extract/update/compile) — not needed at runtime.
 i18n = ["babel>=2.18"]
 # Test suite. babel is used by the catalog-integrity tests, so it is included.

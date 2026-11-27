@@ -85,7 +85,13 @@ Small things that did not need a phase:
 
 ## NiceGUI 4
 
-4.0.0 (2026-11-04) and 4.1.0 (2026-11-24) are out; the app pins `nicegui>=3.19,<4`.
+Done 2026-11-27: `nicegui>=4.1,<5` (and `crawl4ai>=0.9.6`). The audit below found three
+hand-built `c<id>` element ids (chat selection snapshot, email dialog scroll) — now
+`element.html_id`; no snake/camelCase prop names, no `None` checks on cleared inputs, no
+`:`-keys in charts, no `cpu_bound`. Suite green; every module driven at 390 and 1280 px,
+plus a dropped-socket reconnect mid-chat. What was checked:
+
+4.0.0 (2026-11-04) and 4.1.0 (2026-11-24) were out; the app pinned `nicegui>=3.19,<4`.
 Worth doing — as its own step, not mixed into feature work, because a lot here leans
 on NiceGUI's client internals (socket revive, `next_message_id`, replay, Quasar CSS).
 What 4.x changes that this code base must be checked for:

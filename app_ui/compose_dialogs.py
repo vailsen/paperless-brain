@@ -414,7 +414,7 @@ def open_email_dialog(host, _, *, chat_fn: ChatFn | None, context: list[dict]) -
                 with el:
                     md = ui.markdown(text)
             ui.run_javascript(
-                f"(function(){{var l=document.getElementById('c{log.id}');if(l)l.scrollTop=l.scrollHeight}})()")
+                f"(function(){{var l=document.getElementById('{log.html_id}');if(l)l.scrollTop=l.scrollHeight}})()")
             return md
 
         async def _send() -> None:
