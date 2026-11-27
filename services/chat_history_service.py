@@ -86,6 +86,24 @@ def list_conversations(user_id: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def search_conversations(user_id: str, text: str, limit: int = 200) -> set[str]:
+    """Ids of the user's conversations with a message containing `text`
+    (case-insensitive) — the drawer's search over more than titles."""
+    t = (text or "").strip()
+    if not t:
+        return set()
+    esc = t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    with _conn() as c:
+        # SQLite's lower() folds ASCII only; "Ärztin" must find "ärztin".
+        c.create_function("pylower", 1, lambda v: str(v or "").lower(), deterministic=True)
+        rows = c.execute(
+            "SELECT DISTINCT conversation_id FROM chat_messages"
+            " WHERE user_id=? AND pylower(content) LIKE ? ESCAPE '\\' LIMIT ?",
+            (user_id, f"%{esc.lower()}%", limit),
+        ).fetchall()
+    return {r[0] for r in rows}
+
+
 def get_conversation(conv_id: str, user_id: str) -> dict | None:
     with _conn() as c:
         row = c.execute(

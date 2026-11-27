@@ -540,6 +540,11 @@ html, body { overflow: hidden !important; }
 .chat-history-item:hover .chat-hist-actions { opacity: 1; }
 .chat-history-item.active { background: var(--c-surface-3); border-left-color: var(--c-accent); }
 .chat-hist-actions { opacity: 0; transition: opacity .15s; display: flex; gap: 0; flex-shrink: 0; }
+.chat-hist-group { gap: 6px; padding: 10px 8px 3px 10px; font-size: .7rem; font-weight: 600;
+    color: var(--c-text-muted); min-width: 0; }
+.chat-hist-count { font-weight: 400; font-variant-numeric: tabular-nums; }
+.chat-hist-more { align-self: flex-start; margin-left: 4px; font-size: .7rem !important;
+    color: var(--c-text-muted) !important; }
 @media (max-width: 767px) {
     .chat-hist-actions { opacity: 1 !important; }
 }
@@ -1676,7 +1681,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             if delta < timedelta(days=1):
                 return dt.strftime("%H:%M")
             if delta < timedelta(days=7):
-                return ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][dt.weekday()]
+                return [_("Mon"), _("Tue"), _("Wed"), _("Thu"), _("Fri"), _("Sat"), _("Sun")][dt.weekday()]
             return dt.strftime("%d.%m.")
         except Exception:
             return ""
@@ -1695,12 +1700,71 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             add="pb-accent-text" if visible else "text-gray-400",
         )
 
+    _hist_ui: dict = {"q": "", "hits": set(), "open": set()}  # search text, content hits, expanded sections
+    _HIST_PER_GROUP = 6
+
     def _refresh_history_list() -> None:
+        """The drawer's list: searched, then grouped by expert or by date
+        (`app_ui/conv_groups.py`), each section newest first and folded to a
+        few rows until "Show all"."""
+        from datetime import datetime as _dt
+
+        from app_ui import conv_groups as _cg
+
         history_list_container.clear()
         convs = _chat_hist.list_conversations(_username) if _username else []
+        q = _hist_ui["q"]
+        convs = [c for c in convs if _cg.matches(c, q, _hist_ui["hits"])]
+        mode = get_pref("chat_hist_group", "expert") if _experts_on else "date"
+        if mode not in _cg.MODES:
+            mode = "expert"
+        experts = {e.expert_id: e for e in _experts_mod.list_experts(_username)} if (
+            _experts_on and _username and mode == "expert") else {}
+        date_labels = {"today": _("Today"), "yesterday": _("Yesterday"), "week": _("Previous 7 days"),
+                       "month": _("Previous 30 days"), "older": _("Older")}
+        ctx_icons = {"finding": ("lightbulb", _("About a finding")),
+                     "dossier": ("folder_open", _("About a dossier")),
+                     "overview": ("dashboard", _("About the findings overview"))}
+
+        def _row(c: dict) -> None:
+            is_active = c["id"] == _s.get("conv_id")
+            with ui.element("div").classes("chat-history-item" + (" active" if is_active else "")):
+                with ui.column().style(
+                    "min-width:0; flex:1; overflow:hidden; gap:1px; cursor:pointer;"
+                ).on("click", lambda cid=c["id"]: _load_conv(cid)):
+                    with ui.row().classes("items-center no-wrap w-full").style("gap:4px; min-width:0"):
+                        kind = _cg.context_kind(c)
+                        if kind:
+                            ui.icon(ctx_icons[kind][0]).style(
+                                "font-size:12px; color:var(--c-text-muted); flex-shrink:0").tooltip(ctx_icons[kind][1])
+                        ui.label(c["title"]).classes("text-xs text-gray-300 w-full").style(
+                            "overflow:hidden; text-overflow:ellipsis;"
+                            "white-space:nowrap; line-height:1.4; min-width:0"
+                        )
+                    ui.label(_fmt_conv_time(c["updated_at"])).style(
+                        "font-size:0.6rem; color:var(--c-border-strong); line-height:1;"
+                    )
+                with ui.row().classes("chat-hist-actions").style("gap:0; flex-shrink:0;"):
+                    ui.button(
+                        icon="drive_file_rename_outline",
+                        on_click=lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t),
+                    ).props("flat dark dense").classes("card-action-btn").style(
+                        "min-width:20px; width:20px; height:20px; font-size:13px;"
+                    ).tooltip(_("Rename"))
+                    ui.button(
+                        icon="delete_outline",
+                        on_click=lambda cid=c["id"]: _delete_conv(cid),
+                    ).props("flat dark dense").classes("card-action-btn").style(
+                        "min-width:20px; width:20px; height:20px; font-size:13px;"
+                    ).tooltip(_("Delete"))
+
+        def _toggle_all(key: str) -> None:
+            _hist_ui["open"].symmetric_difference_update({key})
+            _refresh_history_list()
+
         with history_list_container:
             # Always show a placeholder for the current (possibly unsaved) session
-            if not _s.get("conv_id"):
+            if not _s.get("conv_id") and not q:
                 with ui.element("div").classes("chat-history-item active"):
                     with ui.column().style(
                         "min-width:0; flex:1; overflow:hidden; gap:1px;"
@@ -1712,33 +1776,41 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         ui.label("–").style(
                             "font-size:0.6rem; color:var(--c-border-strong); line-height:1;"
                         )
-            for c in convs:
-                is_active = c["id"] == _s.get("conv_id")
-                item_classes = "chat-history-item" + (" active" if is_active else "")
-                with ui.element("div").classes(item_classes):
-                    with ui.column().style(
-                        "min-width:0; flex:1; overflow:hidden; gap:1px; cursor:pointer;"
-                    ).on("click", lambda cid=c["id"]: _load_conv(cid)):
-                        ui.label(c["title"]).classes("text-xs text-gray-300").style(
-                            "overflow:hidden; text-overflow:ellipsis;"
-                            "white-space:nowrap; line-height:1.4;"
-                        )
-                        ui.label(_fmt_conv_time(c["updated_at"])).style(
-                            "font-size:0.6rem; color:var(--c-border-strong); line-height:1;"
-                        )
-                    with ui.row().classes("chat-hist-actions").style("gap:0; flex-shrink:0;"):
-                        ui.button(
-                            icon="drive_file_rename_outline",
-                            on_click=lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t),
-                        ).props("flat dark dense").classes("text-gray-700").style(
-                            "min-width:20px; width:20px; height:20px; font-size:13px;"
-                        )
-                        ui.button(
-                            icon="delete_outline",
-                            on_click=lambda cid=c["id"]: _delete_conv(cid),
-                        ).props("flat dark dense").classes("text-red-900").style(
-                            "min-width:20px; width:20px; height:20px; font-size:13px;"
-                        )
+            if q and not convs:
+                ui.label(_("No conversation mentions this.")).classes("text-xs px-2 py-3").style(
+                    "color:var(--c-text-muted)")
+            for g in _cg.group(convs, mode, _dt.now().astimezone()):
+                if mode == "expert":
+                    e = experts.get(g.key)
+                    label = e.name if e else (_("Universal") if g.key == _cg.UNIVERSAL else _("Removed expert"))
+                    icon = (e.icon if e else "") or ("public" if g.key == _cg.UNIVERSAL else "psychology")
+                else:
+                    label, icon = date_labels[g.key], ""
+                with ui.row().classes("chat-hist-group items-center no-wrap w-full"):
+                    if icon:
+                        ui.icon(icon).style("font-size:13px")
+                    ui.label(label).classes("flex-1 min-w-0").style(
+                        "overflow:hidden; text-overflow:ellipsis; white-space:nowrap")
+                    ui.label(str(len(g.convs))).classes("chat-hist-count")
+                shown = g.convs if (q or g.key in _hist_ui["open"]) else g.convs[:_HIST_PER_GROUP]
+                for c in shown:
+                    _row(c)
+                if not q and len(g.convs) > _HIST_PER_GROUP:
+                    more = g.key in _hist_ui["open"]
+                    ui.button(
+                        _("Show fewer") if more else _("Show all {n}").format(n=len(g.convs)),
+                        on_click=lambda k=g.key: _toggle_all(k),
+                    ).props("flat dense no-caps size=sm").classes("chat-hist-more")
+
+    async def _search_history(text: str) -> None:
+        _hist_ui["q"] = (text or "").strip()
+        _hist_ui["hits"] = (await asyncio.to_thread(_chat_hist.search_conversations, _username, _hist_ui["q"])
+                            if _hist_ui["q"] and _username else set())
+        _refresh_history_list()
+
+    def _set_hist_group(mode: str) -> None:
+        set_pref("chat_hist_group", mode)
+        _refresh_history_list()
 
     def _update_context_progress() -> None:
         # Use API-reported value; fall back to model config before first response
@@ -2035,6 +2107,20 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 "background:var(--c-accent); color:#fff;"
                 "font-weight:600; font-size:0.78rem; letter-spacing:0.01em;"
             )
+        # Search (titles and message text) and how the list is grouped.
+        with ui.row().classes("items-center no-wrap w-full").style("padding:0 8px 4px 10px; gap:2px"):
+            _hist_search = ui.input(placeholder=_("Search conversations …")).props(
+                "dense outlined clearable debounce=300").classes("flex-1 min-w-0").style("font-size:.8rem")
+            with _hist_search.add_slot("prepend"):
+                ui.icon("search", size="xs")
+            _hist_search.on("update:model-value",
+                            lambda e: _search_history(e.args if isinstance(e.args, str) else ""))
+            if _experts_on:
+                with ui.button(icon="sort").props("flat dense round size=sm").classes(
+                        "text-gray-500").tooltip(_("Group conversations")):
+                    with ui.menu().props("auto-close"):
+                        ui.menu_item(_("By expert"), on_click=lambda: _set_hist_group("expert"))
+                        ui.menu_item(_("By date"), on_click=lambda: _set_hist_group("date"))
         # Conversation list (scrollable)
         history_list_container = ui.element("div").style(
             "flex:1; overflow-y:auto; padding:4px 6px 8px 6px;"
