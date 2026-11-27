@@ -7,6 +7,12 @@ for the chat, one for notes" — never a second manifest on the same origin,
 which would share the scope and the service worker with this one (a push
 notification could then open in the wrong "app").
 
+`id` is pinned to "/" (static manifest.json): Chrome derives an installed
+app's identity from `id`, else from `start_url`. The app was installed while
+`start_url` was "/"; moving it to "/start" without an `id` made the manifest
+a different app, so the installed one never took the update that carries the
+shortcuts. Never change `id`.
+
 Chrome fetches the manifest without the user's session, so nothing here may
 depend on who is signed in. The names follow the browser's language
 (`Accept-Language`), the list the server's configuration: no memo shortcut

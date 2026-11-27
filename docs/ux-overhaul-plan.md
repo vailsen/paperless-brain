@@ -85,7 +85,13 @@ Small things that did not need a phase:
 
 ## NiceGUI 4
 
-4.0.0 (2026-11-04) and 4.1.0 (2026-11-24) are out; the app pins `nicegui>=3.19,<4`.
+Done 2026-11-27: `nicegui>=4.1,<5` (and `crawl4ai>=0.9.6`). The audit below found three
+hand-built `c<id>` element ids (chat selection snapshot, email dialog scroll) — now
+`element.html_id`; no snake/camelCase prop names, no `None` checks on cleared inputs, no
+`:`-keys in charts, no `cpu_bound`. Suite green; every module driven at 390 and 1280 px,
+plus a dropped-socket reconnect mid-chat. What was checked:
+
+4.0.0 (2026-11-04) and 4.1.0 (2026-11-24) were out; the app pinned `nicegui>=3.19,<4`.
 Worth doing — as its own step, not mixed into feature work, because a lot here leans
 on NiceGUI's client internals (socket revive, `next_message_id`, replay, Quasar CSS).
 What 4.x changes that this code base must be checked for:
@@ -553,7 +559,9 @@ formatting bar does not cover the cursor line.
 
 ## Phase 6 — Dashboard: charts that answer a question
 
-Shipped 2026-11-27. Figures are computed after the page is on screen (not after a sync, which would need a per-user cache — rejected with the catalogue cache); vectors are cached per user while catalogue and index are unchanged.
+Shipped 2026-11-27; trimmed the same day after a look on the phone (round 2 below):
+the system status is back on top, "Expected but missing", "Topics in the archive" and
+"Possibly mis-filed" are gone. Figures are computed after the page is on screen (not after a sync, which would need a per-user cache — rejected with the catalogue cache); vectors are cached per user while catalogue and index are unchanged.
 
 Rule for this phase: a chart earns its place only if it answers a question the user
 actually has, from data the app *knows* — and tapping it leads somewhere (the browser,
@@ -719,3 +727,51 @@ replaces the editor under an unchanged save/merge model.
 - The Library/browser list is **not** cached: the lean fetch makes it fast enough.
 - Shortcuts: Chat, Note vault, New voice memo; the dashboard is the app icon itself.
   One PWA, never several.
+
+## Round 2 — feedback from the phone (2026-11-27)
+
+Done:
+
+- **Chat send did nothing** (regression of this overhaul): the draft-clear call ran
+  `ui.run_javascript` from `do_send`, a background task without a UI slot; it raised and
+  every send ended before it began. Now `input_field.client.run_javascript`. A second tap
+  within 0.8 s of sending no longer stops the turn (the button turns into "stop" under
+  the finger).
+- **Dashboard**: system status on top as before; "Expected but missing", topics and
+  "possibly mis-filed" removed with their code; duplicates are links with a dismiss per
+  pair (pref `dup_dismissed`); the over-time controls wrap inside the card; a sleeping
+  model host is a red dot (amber while waking); no "sync vault" button (it syncs on its
+  own); the dream button says "Tidy up memory".
+- **Browser**: no pill per active filter; "Clear all" stays.
+- **Note vault**: the editor has no frame; on a phone the path has the first header line
+  and "Saved", microphone and "⋯" the second. The tree's "⋯", right-click and drop did
+  nothing **inside any folder** — the node slot's `$parent.$emit` reaches the tree only
+  from top-level nodes; document listeners report them now.
+- **App shortcuts**: the manifest pins `"id": "/"`. Moving `start_url` to `/start`
+  without an id made the manifest a different app to Chrome, so the installed one never
+  took the update that carries the shortcuts.
+- **Chat conversations drawer**: search over titles *and* message text, grouped by expert
+  (default) or by date, a section shows six until "Show all"; chats about a finding,
+  dossier or the findings overview carry a small badge.
+
+### Conversation editor (built 2026-11-27, after the user decided)
+
+`services/chat_edit.py` (pure), UI in `app_ui/pages/chat.py` ("Edit conversation" and "Add a
+note" in the conversation menu), storage `chat_history_service.rewrite_conversation`.
+
+- **Remove**: any single message, ticked in edit mode. Provenance (`chat_turn_meta`) and the
+  kept tool histories are re-keyed to the new positions, not dropped. **Undo** for every edit
+  until the page is left (in memory).
+- **Notes**: the user's own words, stored as a user message in `<pb-note>`; shown as a dashed
+  bar across the conversation, never a bubble; the model gets them with a line saying they are
+  a note, not a question. Added at the end, or after the last ticked message.
+- **Compact**: the ticked messages become one summary; everything else is removed (the user's
+  choice). The prompt is English and names the conversation's language for the summary
+  (`i18n.detect_language` → `language_name`) — it was German-only.
+- **What the model is sent** goes through `chat_edit.for_model`: notes framed, neighbours of
+  one role joined (removing one message can leave two questions in a row), and a leading
+  answer opened by a short user line.
+- **Pin** (drawer section on top, column `pinned`), **move to another expert** (plain chats
+  only; the dialog says earlier answers may mention documents outside the new focus — a scope
+  is focus, not security), **continue in a new chat** from an answer (same expert; the answer
+  is carried over as a note).

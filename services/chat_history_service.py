@@ -38,6 +38,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE chat_conversations ADD COLUMN expert_id TEXT")
     if "context" not in cols:
         conn.execute("ALTER TABLE chat_conversations ADD COLUMN context TEXT")
+    if "pinned" not in cols:  # pinned to the top of the drawer
+        conn.execute("ALTER TABLE chat_conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
     conn.execute(
         "CREATE TABLE IF NOT EXISTS chat_turn_meta ("
         " conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,"
@@ -79,17 +81,35 @@ def create_conversation(
 def list_conversations(user_id: str) -> list[dict]:
     with _conn() as c:
         rows = c.execute(
-            "SELECT id, title, updated_at, expert_id, context FROM chat_conversations"
+            "SELECT id, title, updated_at, expert_id, context, pinned FROM chat_conversations"
             " WHERE user_id=? ORDER BY updated_at DESC",
             (user_id,),
         ).fetchall()
     return [dict(r) for r in rows]
 
 
+def search_conversations(user_id: str, text: str, limit: int = 200) -> set[str]:
+    """Ids of the user's conversations with a message containing `text`
+    (case-insensitive) — the drawer's search over more than titles."""
+    t = (text or "").strip()
+    if not t:
+        return set()
+    esc = t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    with _conn() as c:
+        # SQLite's lower() folds ASCII only; "Ärztin" must find "ärztin".
+        c.create_function("pylower", 1, lambda v: str(v or "").lower(), deterministic=True)
+        rows = c.execute(
+            "SELECT DISTINCT conversation_id FROM chat_messages"
+            " WHERE user_id=? AND pylower(content) LIKE ? ESCAPE '\\' LIMIT ?",
+            (user_id, f"%{esc.lower()}%", limit),
+        ).fetchall()
+    return {r[0] for r in rows}
+
+
 def get_conversation(conv_id: str, user_id: str) -> dict | None:
     with _conn() as c:
         row = c.execute(
-            "SELECT id, title, updated_at, expert_id, context FROM chat_conversations"
+            "SELECT id, title, updated_at, expert_id, context, pinned FROM chat_conversations"
             " WHERE id=? AND user_id=?",
             (conv_id, user_id),
         ).fetchone()
@@ -156,6 +176,43 @@ def rename_conversation(conv_id: str, user_id: str, title: str) -> None:
             "UPDATE chat_conversations SET title=?, updated_at=? WHERE id=? AND user_id=?",
             (title[:80], _now(), conv_id, user_id),
         )
+
+
+def set_pinned(conv_id: str, user_id: str, pinned: bool) -> None:
+    """Pinned conversations stay at the top of the drawer (not "updated")."""
+    with _conn() as c:
+        c.execute("UPDATE chat_conversations SET pinned=? WHERE id=? AND user_id=?",
+                  (1 if pinned else 0, conv_id, user_id))
+
+
+def set_expert(conv_id: str, user_id: str, expert_id: str) -> None:
+    """Move a conversation to another expert (its next turn runs with it)."""
+    with _conn() as c:
+        c.execute("UPDATE chat_conversations SET expert_id=?, updated_at=? WHERE id=? AND user_id=?",
+                  (expert_id, _now(), conv_id, user_id))
+
+
+def rewrite_conversation(conv_id: str, user_id: str, messages: list[dict], meta: dict[int, dict]) -> None:
+    """The edited conversation in one transaction: its messages, and the
+    provenance re-keyed to the new positions (`services/chat_edit`) — kept,
+    not dropped, as a compaction does (`replace_messages`)."""
+    import json
+
+    now = _now()
+    with _conn() as c:
+        c.execute("DELETE FROM chat_messages WHERE conversation_id=? AND user_id=?", (conv_id, user_id))
+        c.execute("DELETE FROM chat_turn_meta WHERE conversation_id=? AND user_id=?", (conv_id, user_id))
+        c.executemany(
+            "INSERT INTO chat_messages (conversation_id, user_id, role, content, created_at) VALUES (?,?,?,?,?)",
+            [(conv_id, user_id, m["role"], m["content"], now) for m in messages],
+        )
+        c.executemany(
+            "INSERT INTO chat_turn_meta (conversation_id, user_id, msg_index, meta) VALUES (?,?,?,?)",
+            [(conv_id, user_id, int(i), json.dumps({k: v for k, v in m.items() if k != "_unsaved"},
+                                                    ensure_ascii=False))
+             for i, m in meta.items()],
+        )
+        c.execute("UPDATE chat_conversations SET updated_at=? WHERE id=? AND user_id=?", (now, conv_id, user_id))
 
 
 def delete_conversation(conv_id: str, user_id: str) -> None:

@@ -78,17 +78,18 @@ _PAGE_CSS = """
   display: flex; align-items: stretch; gap: 0;
   height: calc(100dvh - 118px); min-height: 380px; width: 100%; min-width: 0;
 }
+/* The note is the page, not a card in it: no frame around the editor. */
 .vault-tree-pane {
   width: 330px; flex-shrink: 0; min-width: 0;
   display: flex; flex-direction: column;
-  background: var(--c-surface); border: 1px solid var(--c-border);
-  border-radius: 8px 0 0 8px; overflow: hidden;
+  background: var(--c-surface); border-right: 1px solid var(--c-border);
+  overflow: hidden;
 }
 .vault-main {
-  flex: 1; min-width: 0; display: flex; flex-direction: column;
-  background: var(--c-surface); border: 1px solid var(--c-border);
-  border-left: none; border-radius: 0 8px 8px 0; overflow: hidden;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;
 }
+.vault-head { flex-wrap: nowrap; }
+.vault-head-tools { flex-wrap: nowrap; flex-shrink: 0; }
 .vault-scrim { display: none; }
 
 /* Tree nodes: neutral icons, one line, ellipsis rather than a wider pane. */
@@ -242,42 +243,75 @@ _PAGE_CSS = """
 
 @media (max-width: 900px) {
   .vault-format { display: flex; }
-  .vault-wrap { height: calc(100dvh - 104px); }
+  .vault-wrap { height: calc(100dvh - var(--q-header-height, 52px)); }
+  .vault-outer { padding: 0 !important; }
+  .nicegui-content:has(> .vault-outer) { padding: 0; }
+  /* Phone: the path gets the whole first line, the tools the second. */
+  .vault-head { flex-wrap: wrap; row-gap: 0; }
+  .vault-head .vault-crumbs { flex: 1 1 calc(100% - 44px); }
+  .vault-head-tools { width: 100%; justify-content: flex-end; }
   .vault-tree-pane {
     position: fixed; top: var(--q-header-height, 52px); bottom: 0;
     width: min(88vw, 330px); left: calc(-1 * min(88vw, 330px) - 4px);
-    z-index: 501; border-radius: 0; box-shadow: 4px 0 24px rgba(0,0,0,.5);
+    z-index: 501; border-radius: 0;
     transition: left .25s cubic-bezier(.4,0,.2,1);
   }
-  .vault-tree-pane.open { left: 0; }
+  /* The shadow only while open: closed, it showed at the screen's left edge. */
+  .vault-tree-pane.open { left: 0; box-shadow: 4px 0 24px rgba(0,0,0,.5); }
   .vault-scrim {
     position: fixed; top: var(--q-header-height, 52px); left: 0; right: 0; bottom: 0;
     z-index: 500; background: rgba(0,0,0,.5);
   }
   .vault-scrim.open { display: block; }
-  .vault-main { border-left: 1px solid var(--c-border); border-radius: 8px; }
 }
 </style>
 """
 
 _NODE_TEMPLATE = """
 <div class="vault-node" :class="props.node.note ? '' : (props.node.dir ? '' : 'vault-node-att')"
+     :data-node="props.node.id"
      :draggable="!props.node.root && !String(props.node.id).startsWith('::')"
      @dragstart="e => e.dataTransfer.setData('text/pb-node', props.node.id)"
      @dragover.prevent="e => e.currentTarget.classList.add('is-drop')"
      @dragleave="e => e.currentTarget.classList.remove('is-drop')"
-     @drop.prevent.stop="e => { e.currentTarget.classList.remove('is-drop');
-        $parent.$emit('node_drop', {from: e.dataTransfer.getData('text/pb-node'), to: props.node.id}); }"
-     @contextmenu.prevent.stop="$parent.$emit('node_menu', props.node.id)">
+     @drop.prevent="e => e.currentTarget.classList.remove('is-drop')"
+     @contextmenu.prevent>
   <q-icon size="15px" class="vault-node-icon"
           :name="props.node.icon || (props.node.dir ? 'folder' : (props.node.note ? 'description' : 'attach_file'))" />
   <span class="vault-node-label">{{ props.node.label }}</span>
   <q-icon v-if="props.node.lock" name="lock" size="11px" class="vault-node-lock" />
   <span v-if="props.node.pending" class="vault-pending-dot" :title="__TIP__"></span>
   <q-btn v-if="!String(props.node.id).startsWith('::')" flat dense round size="xs" icon="more_horiz"
-         class="vault-node-more" @click.stop="$parent.$emit('node_menu', props.node.id)" />
+         class="vault-node-more" @click.stop />
 </div>
 """
+
+# The node slot cannot reach the tree with `$parent.$emit` below the top level:
+# a nested node's `$parent` is not the tree, so "⋯", right-click and a drop on
+# anything inside a folder did nothing. Document listeners in the capture phase
+# see every node and report to the page (`ui.on`); the pane's "Vault" row is
+# the drop target for the top level.
+_NODE_EVENTS_JS = """<script>
+(function(){
+  if(window.__pbVaultNodeEv){return;} window.__pbVaultNodeEv = 1;
+  function node(e){ return e.target.closest && e.target.closest('.vault-node[data-node]'); }
+  document.addEventListener('click', function(e){
+    if(!(e.target.closest && e.target.closest('.vault-node-more'))){ return; }
+    var n = node(e); if(n){ emitEvent('pb_node_menu', n.dataset.node); }
+  }, true);
+  document.addEventListener('contextmenu', function(e){
+    var n = node(e); if(n){ emitEvent('pb_node_menu', n.dataset.node); }
+  }, true);
+  function root(e){ return e.target.closest && e.target.closest('.vault-root-drop'); }
+  document.addEventListener('dragover', function(e){ if(root(e)){ e.preventDefault(); } }, true);
+  document.addEventListener('drop', function(e){
+    var n = node(e), r = !n && root(e); if(!n && !r){ return; }
+    if(r){ e.preventDefault(); }
+    var from = e.dataTransfer && e.dataTransfer.getData('text/pb-node');
+    if(from){ emitEvent('pb_node_drop', {from: from, to: n ? n.dataset.node : ''}); }
+  }, true);
+})();
+</script>"""
 
 
 @ui.page("/brain")
@@ -1608,7 +1642,7 @@ def brain_page():
         "live", "source") else "live"
     _cm_theme = "basicLight" if current_theme() == "light" else "basicDark"
 
-    with ui.column().classes("w-full max-w-full p-2 gap-2").style("min-width:0"):
+    with ui.column().classes("vault-outer w-full max-w-full p-2 gap-2").style("min-width:0"):
         with ui.element("div").classes("vault-wrap"):
             scrim = ui.element("div").classes("vault-scrim")
             scrim.on("click", _toggle_drawer)
@@ -1645,8 +1679,9 @@ def brain_page():
                     tree.add_slot("default-header", _NODE_TEMPLATE.replace(
                         "__TIP__", f"'{_('Not indexed yet')}'"
                     ))
-                    tree.on("node_menu", lambda e: _node_menu(str(e.args or "")))
-                    tree.on("node_drop", _on_drop)
+                    ui.add_head_html(_NODE_EVENTS_JS)
+                    ui.on("pb_node_menu", lambda e: _node_menu(str(e.args or "")))
+                    ui.on("pb_node_drop", _on_drop)
                 results_box = ui.scroll_area().classes("flex-1 min-h-0 vault-results")
                 results_box.set_visibility(False)
                 with results_box:
@@ -1662,7 +1697,7 @@ def brain_page():
                     )
 
             with ui.element("div").classes("vault-main"):
-                with ui.row().classes("items-center gap-2 px-2 py-1 no-wrap w-full").style(
+                with ui.row().classes("vault-head items-center gap-2 px-2 py-1 w-full").style(
                     "border-bottom:1px solid var(--c-border); flex-shrink:0"
                 ):
                     ui.button(icon="menu", on_click=_toggle_drawer).props(
@@ -1691,28 +1726,29 @@ def brain_page():
                                 name.tooltip(_("Rename"))
 
                     _title()
-                    _pending_dot()
-                    status_label = ui.label("").classes("text-xs shrink-0").style(
-                        "color:var(--c-text-muted)"
-                    )
-                    if note_voice_enabled():
-                        voice_ui["btn"] = ui.button(
-                            icon="mic", on_click=_open_voice_edit
-                        ).props("flat dense round size=sm").classes(
-                            "card-action-btn"
-                        ).tooltip(_("Edit note by voice"))
-                        voice_ui["btn"].set_visibility(False)
-                    note_menu_btn = ui.button(icon="more_vert").props("flat dense round size=sm").classes(
-                        "card-action-btn")
-                    with note_menu_btn, ui.menu().props("auto-close"):
-                        ui.menu_item(_("Live preview"), on_click=lambda: _set_mode("live"))
-                        ui.menu_item(_("Source mode"), on_click=lambda: _set_mode("source"))
-                        ui.separator()
-                        ui.menu_item(_("Rename"), on_click=lambda: _rename(st["rel"]))
-                        ui.menu_item(_("Move to …"), on_click=lambda: _move(st["rel"]))
-                        ui.menu_item(_("Delete"), on_click=lambda: _delete(st["rel"]))
-                        ui.separator()
-                        ui.menu_item(_("Open a note … (Ctrl+O)"), on_click=_quick_open)
+                    with ui.row().classes("vault-head-tools items-center gap-1"):
+                        _pending_dot()
+                        status_label = ui.label("").classes("text-xs shrink-0").style(
+                            "color:var(--c-text-muted)"
+                        )
+                        if note_voice_enabled():
+                            voice_ui["btn"] = ui.button(
+                                icon="mic", on_click=_open_voice_edit
+                            ).props("flat dense round size=sm").classes(
+                                "card-action-btn"
+                            ).tooltip(_("Edit note by voice"))
+                            voice_ui["btn"].set_visibility(False)
+                        note_menu_btn = ui.button(icon="more_vert").props("flat dense round size=sm").classes(
+                            "card-action-btn")
+                        with note_menu_btn, ui.menu().props("auto-close"):
+                            ui.menu_item(_("Live preview"), on_click=lambda: _set_mode("live"))
+                            ui.menu_item(_("Source mode"), on_click=lambda: _set_mode("source"))
+                            ui.separator()
+                            ui.menu_item(_("Rename"), on_click=lambda: _rename(st["rel"]))
+                            ui.menu_item(_("Move to …"), on_click=lambda: _move(st["rel"]))
+                            ui.menu_item(_("Delete"), on_click=lambda: _delete(st["rel"]))
+                            ui.separator()
+                            ui.menu_item(_("Open a note … (Ctrl+O)"), on_click=_quick_open)
 
                 _lock_row()
                 _banner()

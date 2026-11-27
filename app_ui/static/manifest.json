@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "PaperlessBrain",
   "short_name": "PaperlessBrain",
   "description": "The brain for your Paperless-ngx archive",

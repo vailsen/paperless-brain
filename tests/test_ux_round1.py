@@ -33,6 +33,9 @@ def test_shortcuts_without_transcription_have_no_memo(monkeypatch):
     m = pwa_manifest.build_manifest(str(ROOT / "app_ui/static/manifest.json"), "de")
     assert [s["url"] for s in m["shortcuts"]] == ["/chat", "/brain", "/?memo=1"]
     assert m["start_url"] == "/start"  # the user's start page; the dashboard by default
+    # The installed app's identity: it was "/" (the old start_url); without a
+    # pinned id the new start_url made it another app that never updated.
+    assert m["id"] == "/"
 
 
 def test_every_shortcut_icon_exists():
