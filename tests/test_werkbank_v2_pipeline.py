@@ -251,36 +251,44 @@ def local_model(monkeypatch):
     return cfg
 
 
-def test_a_run_on_a_local_model_wakes_its_host_first(local_model, monkeypatch):
-    """A research started while the host slept failed at its first model call:
-    the worker's gate wakes only the OLLAMA_SERVER host, an interactive run
-    never woke anything."""
-    from services import wol
+def test_a_run_behind_a_proxy_starts_even_while_the_host_sleeps(local_model, monkeypatch):
+    """The proxy holds the run's first request while the host boots — a
+    sleeping host is not a reason to refuse the run."""
+    from proactive import gate
+    from services import model_host
 
     asked = []
 
-    async def ensure_awake(url, **kw):
+    async def status(url, timeout=3.0):
         asked.append(url)
-        return "woken"
+        return {"host": "asleep"}
 
-    monkeypatch.setattr(wol, "ensure_awake", ensure_awake)
+    async def probe(url, timeout=3.0):
+        raise AssertionError("not needed behind a proxy")
+
+    monkeypatch.setattr(model_host, "proxy_status", status)
+    monkeypatch.setattr(gate, "probe", probe)
     asyncio.run(pipeline.ensure_host("alice", "qwen"))
     assert asked == ["http://10.0.0.5:11434/v1"]
 
     local_model["backend"] = "anthropic"
     asyncio.run(pipeline.ensure_host("alice", "claude"))
-    assert len(asked) == 1  # a cloud model has no host to wake
+    assert len(asked) == 1  # a cloud model has no host to check
 
 
-@pytest.mark.parametrize("outcome", ["timeout", "not_ours"])
-def test_a_host_that_stays_down_stops_the_run_with_a_reason(local_model, monkeypatch, outcome):
-    from services import wol
+def test_a_plain_host_that_does_not_answer_stops_the_run_with_a_reason(local_model, monkeypatch):
+    from proactive import gate
+    from services import model_host
 
-    async def ensure_awake(url, **kw):
-        return outcome
+    async def status(url, timeout=3.0):
+        return None
 
-    monkeypatch.setattr(wol, "ensure_awake", ensure_awake)
-    with pytest.raises(pipeline.HostUnavailable):
+    async def probe(url, timeout=3.0):
+        return False
+
+    monkeypatch.setattr(model_host, "proxy_status", status)
+    monkeypatch.setattr(gate, "probe", probe)
+    with pytest.raises(pipeline.HostUnavailable, match="does not answer"):
         asyncio.run(pipeline.ensure_host("alice", "qwen"))
 
 

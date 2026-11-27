@@ -29,6 +29,8 @@ _map_cache: dict[str, tuple[float, dict]] = {}
 @dataclass
 class TurnExpert:
     blocks: list[str] = field(default_factory=list)
+    # What each block is, for the tool history: "scope" | "briefing" | "map" | "skills".
+    kinds: list[str] = field(default_factory=list)
     personality: str = ""
     skills: list = field(default_factory=list)
     needs_use_skill: bool = False
@@ -77,6 +79,14 @@ def _universal_map(user: str, token: str) -> dict:
     return hit[1] if hit else {}
 
 
+def warm_map(user: str, token: str) -> None:
+    """Start building the map when the chat opens, not at the first turn."""
+    try:
+        _universal_map(user, token)
+    except Exception:
+        pass  # a convenience; the page must not fail on it
+
+
 async def _build_map(user: str, token: str) -> dict:
     from config.settings import settings
     from pipelines.search import _drop_no_ingest
@@ -91,20 +101,22 @@ async def _build_map(user: str, token: str) -> dict:
 async def for_turn(user: str, token: str, expert, *, ctx_window: int = 0,
                    loaded_skills: set[str] | frozenset[str] = frozenset(), _=lambda s: s) -> TurnExpert:
     out = TurnExpert(personality=expert.personality or "")
-    sb = scope_block(expert)
-    if sb:
-        out.blocks.append(sb)
+    def _add(block: str, kind: str) -> None:
+        if block and block.strip():
+            out.blocks.append(block)
+            out.kinds.append(kind)
+
+    _add(scope_block(expert), "scope")
     b = briefings.load(user, expert.expert_id)
     if b is not None:
-        out.blocks.append(briefings.prompt_block(b, ctx_window=ctx_window))
+        _add(briefings.prompt_block(b, ctx_window=ctx_window), "briefing")
     elif expert.builtin and token:
         try:
-            out.blocks.append(briefings.map_only_block(_universal_map(user, token), _))
+            _add(briefings.map_only_block(_universal_map(user, token), _), "map")
         except Exception:
             pass  # the map is a convenience; the turn must not fail on it
     out.skills = skills.resolve_all(user, expert.skills)
     block, out.needs_use_skill = skills.prompt_block(
         out.skills, ctx_window=ctx_window, loaded=loaded_skills)
-    if block:
-        out.blocks.append(block)
+    _add(block, "skills")
     return out

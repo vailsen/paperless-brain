@@ -68,31 +68,28 @@ def token_for(user_id: str) -> str:
 
 
 class HostUnavailable(RuntimeError):
-    """The local model host does not answer and could not be woken."""
+    """The local model host does not answer."""
 
 
 async def ensure_host(user_id: str, model: str) -> None:
-    """Wake the host of a local-lane model before a run talks to it.
+    """Fail fast, with a clear reason, when a local-lane model's endpoint is
+    not there at all — instead of at the first model call deep into a run.
 
-    A research run started while the host slept failed at its first model call
-    — the proactive worker's gate only wakes the host when `OLLAMA_SERVER` names
-    it, and an interactive run never woke it at all. Same path as the chat:
-    `wol.ensure_awake`, which wakes only the host Wake-on-LAN controls.
+    A wake-on-request proxy in front of a sleeping host counts as there: it
+    answers `/proxy/status` and holds the run's first request while the host
+    boots. A plain server must answer itself.
     """
+    from proactive.gate import probe
+    from services import model_host
     from werkbank.llm_lane import _get_registry_cfg
 
     cfg = _get_registry_cfg(model, user_id, token_for(user_id))
     if not cfg or cfg.get("backend") == "anthropic" or cfg.get("lane") != "local" or not cfg.get("base_url"):
         return
-    from config.settings import settings
-    from services.wol import ensure_awake
-
-    outcome = await ensure_awake(cfg["base_url"], why="a research run")
-    if outcome == "timeout":
-        raise HostUnavailable(
-            f"{cfg['base_url']} was woken but did not answer within {settings.ollama_wake_timeout_s} s")
-    if outcome == "not_ours":
-        raise HostUnavailable(f"{cfg['base_url']} does not answer, and Wake-on-LAN is not set up for it")
+    if await model_host.proxy_status(cfg["base_url"]) is not None:
+        return
+    if not await probe(cfg["base_url"]):
+        raise HostUnavailable(f"{cfg['base_url']} does not answer")
 
 
 def describe_failure(exc: BaseException) -> tuple[str, str]:

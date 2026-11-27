@@ -104,7 +104,12 @@ def archive_map(docs: list) -> dict:
     }
 
 
-def map_markdown(m: dict, _=lambda s: s) -> str:
+def map_markdown(m: dict, _=lambda s: s, *, compact: bool = False) -> str:
+    """The map as Markdown. `compact` is the system-prompt form: counts and
+    the names a search_exact needs, without the series (correspondent × type,
+    which the two count lines already say) and without the newest documents
+    (a search with created_after finds them, and the list changed with every
+    new document — invalidating the model's cached prompt from that line on)."""
     def counts(pairs) -> str:
         return ", ".join(f"{name} {n}" for name, n in pairs) or "–"
 
@@ -114,6 +119,8 @@ def map_markdown(m: dict, _=lambda s: s) -> str:
         "- " + _("Document types: {list}").format(list=counts(m["document_types"])),
         "- " + _("Tags: {list}").format(list=counts(m["tags"])),
     ]
+    if compact:
+        return "\n".join(lines)
     for s in m.get("series") or []:
         lines.append("- " + _("Recurring: {c} · {t} — {n} documents since {since}").format(
             c=s["correspondent"], t=s["type"], n=s["count"], since=s["since"]))
@@ -426,18 +433,32 @@ def prompt_block(b: Briefing | None, *, ctx_window: int = 0) -> str:
     orientation goes first, the map last (it is code-made and short)."""
     if b is None or not b.body.strip():
         return ""
-    body = b.body
-    if ctx_window and ctx_window < 12_000:
-        body = body.split("<!-- pb:orientation -->")[0]
+    head, sep, orient = b.body.partition("<!-- pb:orientation -->")
+    if b.map and not b.edited:
+        # The stored body carries the full map (series, newest) for the
+        # Briefing tab; the prompt gets the compact one. A body the user
+        # edited is theirs and goes in as written.
+        head = map_markdown(b.map, compact=True)
+    body = head if (ctx_window and ctx_window < 12_000) else head + ("\n\n" + sep + orient if sep else "")
     body = re.sub(r"<!-- pb:\w+ -->\n?", "", body).strip()[:PROMPT_CHARS]
     return f"{BRIEFING_HEADER}\n\n{body}"
+
+
+# The Universal expert studied nothing: its block is counts, made by code.
+MAP_HEADER = (
+    "An overview of the documents you can see, counted by code: the most frequent "
+    "correspondents, document types and tags, spelled as in Paperless, and the date range. "
+    "It is a MAP, not evidence: use it to write better searches and filters. Never state a "
+    "fact from it without reading the document through a tool in this conversation and "
+    "citing that tool result."
+)
 
 
 def map_only_block(docs_map: dict, _=lambda s: s) -> str:
     """Universal expert without a studied briefing: the code-made map only."""
     if not docs_map or not docs_map.get("total"):
         return ""
-    return f"{BRIEFING_HEADER}\n\n{map_markdown(docs_map, _)}"[:PROMPT_CHARS]
+    return f"{MAP_HEADER}\n\n{map_markdown(docs_map, _, compact=True)}"[:PROMPT_CHARS]
 
 
 # ── Study job ─────────────────────────────────────────────────────────────────
@@ -523,19 +544,6 @@ async def map_batch(call, system: str, batch: list[tuple[int, str]]) -> list[dic
     return out
 
 
-async def _ensure_host(model: str, user: str, token: str, j: Job) -> None:
-    from services.model_registry import get_by_name
-
-    cfg = get_by_name(model, user, token) or {}
-    if cfg.get("backend") == "anthropic" or cfg.get("lane") != "local":
-        return
-    from services.wol import ensure_awake
-
-    outcome = await ensure_awake(cfg.get("base_url", ""), on_wait=lambda s: None, should_stop=lambda: j.stop)
-    if outcome == "timeout":
-        raise RuntimeError("model host did not wake up")
-
-
 async def _run(j: Job, token: str, expert, model: str, lang: str, incremental: bool) -> None:
     from i18n import translator_for
     from services.clients import sidecar_service
@@ -565,7 +573,6 @@ async def _run(j: Job, token: str, expert, model: str, lang: str, incremental: b
             studied[d.id] = material(d, sc)
         batches = [list(studied.items())[i:i + BATCH] for i in range(0, len(studied), BATCH)]
         j.total, j.phase = len(batches) + 1, "reading"
-        await _ensure_host(model, j.user, token, j)
         notes: list[dict] = []
         if old is not None:
             # Incremental: the old orientation is the starting point.

@@ -463,3 +463,127 @@ def test_deadline_title_says_what_to_do_not_the_file_name():
     assert len(title_for(long, "de")) <= 92 and title_for(long, "de").endswith(" …")
     bare = Deadline("2026-11-18", "payment", True, "", "q")
     assert title_for(bare, "en", "Invoice 12") == "Payment due: Invoice 12"
+
+
+# ── Manual deadlines (create_deadline in chat) ───────────────────────────────
+
+
+def test_manual_deadline_is_a_quiet_finding_that_reminds(env):
+    """The user set it in chat: nothing is sent now, the reminders still come."""
+    from proactive import deadlines, findings
+
+    f = asyncio.run(deadlines.manual("alice", "Renew the passport", "2026-11-20", "note-1"))
+    assert f is not None and f.kind == "deadline" and f.status == "relevant"
+    assert f.finding_key == "deadline:manual:note-1" and f.doc_ids == []
+    assert "Renew the passport" in f.title
+    assert _texts(env) == []
+
+    _worker_run("daily_run")                     # 2026-10-26: 25 days left → offset 30
+    assert len(_texts(env)) == 1 and "25 days left" in _texts(env)[0]
+    assert findings.get("alice", f.finding_id).status == "surfaced"
+
+
+def test_manual_deadline_needs_opt_in_and_a_future_date(env):
+    from proactive import deadlines, prefs
+
+    assert asyncio.run(deadlines.manual("alice", "Too late", "2026-10-01", "n2")) is None
+    p = prefs.get("bob")
+    p.optin = False
+    prefs.save(p)
+    assert asyncio.run(deadlines.manual("bob", "Not opted in", "2026-12-01", "n3")) is None
+
+
+def test_manual_deadline_writes_nothing_when_proactive_is_off(proactive_off):
+    from proactive import deadlines
+
+    assert asyncio.run(deadlines.manual("alice", "x", "2030-01-01", "n4")) is None
+    assert not proactive_off.exists()  # no DB file either
+
+
+# ── Sticky "relevant", "pressing" and the user's own reminder ────────────────
+
+
+def test_relevant_stays_relevant_after_a_reminder(env, fake_llm):
+    """A reminder puts it back in the inbox; it still counts as relevant."""
+    from app_ui import findings_view as fv
+    from proactive import findings, reactions
+
+    _make_findings(env, fake_llm)
+    pay = lambda: next(f for f in findings.list_findings("alice") if f.deadline == "2026-11-15")  # noqa: E731
+    asyncio.run(reactions.react("alice", pay().finding_id, "relevant", channel="app"))
+    _worker_run("daily_run")
+    f = pay()
+    assert f.status == "surfaced" and f.marked_relevant and fv.is_relevant(f)
+    asyncio.run(reactions.react("alice", f.finding_id, "done", channel="app"))
+    assert not pay().marked_relevant and not fv.is_relevant(pay())
+
+
+def test_pressing_is_the_users_mark_until_closed(env, fake_llm):
+    from app_ui import findings_view as fv
+    from proactive import clock, findings, reactions
+
+    _make_findings(env, fake_llm)
+    today = clock.local_now().date()
+    calm = next(f for f in findings.list_findings("alice") if not fv.is_pressing(f, today))
+    asyncio.run(reactions.set_pressing("alice", calm.finding_id, True))
+    assert fv.is_pressing(findings.get("alice", calm.finding_id), today)
+    asyncio.run(reactions.set_pressing("alice", calm.finding_id, False))
+    assert not fv.is_pressing(findings.get("alice", calm.finding_id), today)
+    asyncio.run(reactions.set_pressing("alice", calm.finding_id, True))
+    asyncio.run(reactions.react("alice", calm.finding_id, "dismiss", channel="app"))
+    assert not findings.get("alice", calm.finding_id).pressing
+
+
+def test_own_reminder_fires_once_between_offsets(env, fake_llm):
+    from proactive import findings, reactions
+
+    _make_findings(env, fake_llm)
+    pay = lambda: next(f for f in findings.list_findings("alice") if f.deadline == "2026-11-15")  # noqa: E731
+    _worker_run("daily_run")                     # 2026-10-26: offset 30
+    assert len(_texts(env)) == 1
+    f = asyncio.run(reactions.set_reminder("alice", pay().finding_id, 5))
+    assert f is not None and f.remind_on == "2026-10-31"
+
+    _day(env, date(2026, 10, 30))                # not yet
+    _worker_run("daily_run")
+    assert len(_texts(env)) == 1
+    _day(env, date(2026, 10, 31))                # 15 days left, no offset
+    _worker_run("daily_run")
+    assert len(_texts(env)) == 2 and "15 days left" in _texts(env)[1]
+    assert pay().remind_on is None and pay().reminders_sent == [30]
+    _worker_run("daily_run")                     # once only
+    assert len(_texts(env)) == 2
+
+
+def test_own_reminder_never_past_the_deadline(env, fake_llm):
+    from proactive import findings, reactions
+
+    _make_findings(env, fake_llm)
+    pay = next(f for f in findings.list_findings("alice") if f.deadline == "2026-11-15")
+    assert asyncio.run(reactions.set_reminder("alice", pay.finding_id, 21)) is None   # 20 days left
+    assert asyncio.run(reactions.set_reminder("alice", pay.finding_id, 0)) is None
+    assert asyncio.run(reactions.set_reminder("alice", pay.finding_id, 20)).remind_on == "2026-11-15"
+    asyncio.run(reactions.set_reminder("alice", pay.finding_id, None))
+    assert findings.get("alice", pay.finding_id).remind_on is None
+
+
+def test_overview_topic_tap_lists_what_the_overview_counted():
+    """The overview counts open and relevant findings per topic; a topic whose
+    findings were all relevant opened an empty inbox."""
+    from datetime import date
+    from types import SimpleNamespace as F
+
+    from app_ui import findings_chart
+    from app_ui.pages.findings import _bucket_items
+
+    items = [F(status="relevant", topic="schornsteinfeger-heizung", marked_relevant=False, topic_label="",
+               topic_display="Schornsteinfeger-Heizung", kind="deadline", deadline="2027-05-15",
+               urgency="low", pressing=False),
+             F(status="done", topic="schornsteinfeger-heizung", marked_relevant=False, topic_label="",
+               topic_display="Schornsteinfeger-Heizung", kind="deadline", deadline="2029-01-01",
+               urgency="low", pressing=False)]
+    today = date(2026, 11, 26)
+    counted = findings_chart.topics(items, today)[0]["open"]
+    assert counted == 1
+    assert _bucket_items(items, "open", today, set()) == []
+    assert len(_bucket_items(items, "live", today, set())) == counted

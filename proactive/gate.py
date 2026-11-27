@@ -1,17 +1,22 @@
-"""The LLM gate: is the local inference host up — and may we wake it?
+"""The LLM gate: may local LLM jobs run now?
 
-Before a local LLM job runs, the worker asks `local_ready()`:
+Before a local LLM job runs, the worker asks `local_ready(may_wake)`.
+paperless-brain wakes nothing itself; a sleeping GPU host sits behind a
+wake-on-request proxy (docs/operations.md, "Sleeping GPU host").
 
-- host answers → ready (cached for a minute);
-- host silent, `PROACTIVE_WOL_AUTO` on, a MAC and `OLLAMA_SERVER` configured →
-  wake it through the same code path as the dashboard button
-  (`services.wol.wake`, which records it in the shared power state so the
-  app's existing idle rule shuts it down again later), then wait for it;
-- otherwise → not ready, and the next attempt waits with exponential backoff.
-  Local LLM jobs simply stay queued; jobs without LLM keep running.
+- Behind such a proxy (`GET /proxy/status` answers), its view decides:
+  - `may_wake` (inside a sweep window, or something the user just asked
+    for): `up`, `waking` and also `asleep` count as ready — the job's request
+    wakes the host through the proxy. `shutting_down` waits a few minutes.
+  - otherwise: only `up` is ready. The worker's requests then also carry
+    `X-No-Wake: 1` (`services.model_host.no_wake`), so a host that fell
+    asleep in between is not woken for them.
+- A plain server (no `/proxy/status`): ready when it answers the probe.
+- Not ready → the next attempt waits (exponential backoff; outside a window a
+  flat recheck). Local LLM jobs stay queued; jobs without LLM keep running.
 
-There is no shutdown logic here, by design. When the work is done the worker
-stops sending requests and the existing idle rule takes over.
+The worker's requests carry `X-Idle-Profile: background`, so a proxy shuts a
+host it woke for them down sooner. There is no power logic here.
 
 The gate also enforces that `PROACTIVE_MODEL_FIXED` exists on the host the
 first time it can ask (`OperatorModelMissing` stops the worker).
@@ -19,7 +24,6 @@ first time it can ask (`OperatorModelMissing` stops the worker).
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from typing import Awaitable, Callable
@@ -29,12 +33,16 @@ import httpx
 log = logging.getLogger("proactive.gate")
 
 READY_CACHE_S = 60.0
-WAKE_TIMEOUT_S = 240.0
-WAKE_POLL_S = 5.0
 BACKOFF_START_S = 300.0
 BACKOFF_MAX_S = 3600.0
 #: Outside a window the host is only checked for being on already.
 ASLEEP_RECHECK_S = 300.0
+
+
+async def _proxy_status(server: str) -> dict | None:
+    from services import model_host
+
+    return await model_host.proxy_status(server)
 
 
 class OperatorModelMissing(RuntimeError):
@@ -80,30 +88,26 @@ class InferenceGate:
         self,
         *,
         server: str,
-        mac: str,
-        wol_auto: bool,
         operator_models: list[str] | None = None,
         probe_fn: Callable[[str], Awaitable[bool]] = probe,
-        wake_fn: Callable[[str, str], object] | None = None,
+        status_fn: Callable[[str], Awaitable[dict | None]] | None = None,
         list_models_fn: Callable[[str], Awaitable[set[str]]] = list_models,
-        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self.server = server
-        self.mac = mac
-        self.wol_auto = wol_auto
         self.operator_models = [m for m in (operator_models or []) if m]
         self._probe = probe_fn
-        self._wake = wake_fn
+        self._status = status_fn or _proxy_status
         self._list_models = list_models_fn
-        self._sleep = sleep
         self._now = monotonic
         self._ready_until = 0.0
         self._retry_at = 0.0
         self._backoff = BACKOFF_START_S
         self._verified = False
-        self.woke_host = False  # for window_log: did this worker wake it
+        self.woke_host = False  # for window_log: was the host asleep when work began
         self._waiting_for_window = False
+        #: True while the ready state came from a sleeping host (`may_wake`).
+        self.host_asleep = False
 
     @classmethod
     def from_settings(cls) -> "InferenceGate":
@@ -111,21 +115,14 @@ class InferenceGate:
         from config.settings import settings
 
         cfg = proactive_settings()
-        from services.wol import wake
-
+        # Looked up at call time (not as defaults), so tests can patch them.
         return cls(
             server=settings.ollama_server,
-            mac=settings.ollama_host_lan_mac_address_wol,
-            wol_auto=cfg.proactive_wol_auto,
             operator_models=[cfg.proactive_model_fixed, cfg.proactive_model_default],
             probe_fn=probe,
-            wake_fn=wake,
+            status_fn=_proxy_status,
             list_models_fn=list_models,
         )
-
-    @property
-    def can_wake(self) -> bool:
-        return bool(self.wol_auto and self.mac and self.server and self._wake)
 
     async def verify(self) -> None:
         """Raise `OperatorModelMissing` if the host is up and lacks an operator model."""
@@ -150,42 +147,44 @@ class InferenceGate:
             # connection error defers the job (`proactive.llm`).
             return True
         now = self._now()
-        if now < self._ready_until:
+        if now < self._ready_until and (may_wake or not self.host_asleep):
             return True
         if now < self._retry_at and not (may_wake and self._waiting_for_window):
             # (A window opening or a fresh request ends the asleep-recheck wait.)
             return False
+        st = await self._status(self.server)
+        if st is not None:
+            host = st.get("host")
+            if host == "up" or (may_wake and host in ("asleep", "waking")):
+                if host != "up":
+                    log.info("inference host is %s — the proxy wakes it for the first request", host)
+                    self.woke_host = True
+                self._waiting_for_window = False
+                self.host_asleep = host != "up"
+                await self._mark_ready()
+                return True
+            if host == "shutting_down":
+                self._retry_at = now + ASLEEP_RECHECK_S
+                log.info("inference host is shutting down — LLM jobs wait")
+                return False
+            return self._asleep_outside_window(now)
         if await self._probe(self.server):
+            self.host_asleep = False
             await self._mark_ready()
             return True
         if not may_wake:
-            # Asleep, and not ours to wake now. Look again in a few minutes
-            # (the user may switch it on); no backoff growth, one log line.
-            self._retry_at = now + ASLEEP_RECHECK_S
-            if not self._waiting_for_window:
-                log.info("inference host is off and no sweep window is open — LLM jobs wait")
-            self._waiting_for_window = True
-            return False
+            return self._asleep_outside_window(now)
         self._waiting_for_window = False
-        if not self.can_wake:
-            self._fail("inference host unreachable and waking is off or not configured")
-            return False
-        log.info("inference host asleep — sending Wake-on-LAN to %s", self.server)
-        try:
-            self._wake(self.mac, self.server)
-        except Exception as exc:
-            self._fail(f"Wake-on-LAN failed: {exc}")
-            return False
-        self.woke_host = True
-        waited = 0.0
-        while waited < WAKE_TIMEOUT_S:
-            await self._sleep(WAKE_POLL_S)
-            waited += WAKE_POLL_S
-            if await self._probe(self.server):
-                log.info("inference host awake after %ss", int(waited))
-                await self._mark_ready()
-                return True
-        self._fail(f"inference host did not answer within {int(WAKE_TIMEOUT_S)}s of waking")
+        self._fail("inference host unreachable")
+        return False
+
+    def _asleep_outside_window(self, now: float) -> bool:
+        """Asleep, and not ours to wake now. Look again in a few minutes (the
+        user may switch it on); no backoff growth, one log line."""
+        self._retry_at = now + ASLEEP_RECHECK_S
+        if not self._waiting_for_window:
+            log.info("inference host is off and no sweep window is open — LLM jobs wait")
+        self._waiting_for_window = True
         return False
 
     async def _mark_ready(self) -> None:

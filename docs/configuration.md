@@ -52,16 +52,11 @@ the env value is only the initial fallback).
 | `CHROMA_MAX_RESULTS` | | `20` | *UI (Admin > Search)* — max search results per query |
 | `BRAIN_HINT_SIMILARITY_THRESHOLD` | | `0.70` | Default only — memory hints are a per-model *distance* in Admin > embedding model > Distance thresholds (0.70 similarity = 0.30 distance) |
 | `BRAIN_HINT_WINDOW_FACTOR` | | `1.5` | Default only — per model in the admin area |
-| `OLLAMA_SERVER` | | empty | *UI* — Ollama base URL for vision ingestion; also names the host the WoL/shutdown buttons control (otherwise inferred from your first local-lane model) |
+| `OLLAMA_SERVER` | | empty | *UI* — Ollama base URL for vision ingestion; the operator's local model host. A host that sleeps: point this at a wake-on-request proxy (see [Operations](operations.md#sleeping-gpu-host)) |
 | `OLLAMA_INGEST_MODEL` | | empty | *UI* — vision model used to read documents |
 | `EXTRACTION_PROFILE` | | `en` | *UI* — extraction-rule profile: `en` or `de` (see [Extraction rules](#extraction-rules)) |
 | `ARCHIVE_LANGUAGE` | | `en` | *UI* — language of AI-generated summaries (archive-level — sidecars are shared by all users) |
 | `TZ` | | system | IANA timezone for timestamps on generated documents |
-| `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` | | empty | MAC for Wake-on-LAN (empty = feature hidden) |
-| `OLLAMA_SSH_USER` | | empty | SSH user for remote shutdown of the Ollama host (empty = feature hidden). Needs passwordless sudo for `/usr/bin/shutdown`; in Docker, mount an SSH key into the container |
-| `OLLAMA_IDLE_SHUTDOWN_MINUTES` | | `30` | Idle minutes before the Ollama host is shut down |
-| `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES` | | `10` | The same, for a host a chat woke (local model, host off) |
-| `OLLAMA_WAKE_TIMEOUT_S` | | `180` | How long a chat waits for a host it woke to answer |
 | `AI_GENERATED_TAG_NAME` | | `AI-generated` | *UI* — tag applied to documents the app creates in Paperless |
 | `AI_GENERATED_CORRESPONDENT` | | `PaperlessBrain AI` | *UI* — correspondent for AI-generated documents |
 | `AI_GENERATED_DOC_TYPE` | | `Information` | *UI* — document type for AI-generated documents |
@@ -79,7 +74,6 @@ the env value is only the initial fallback).
 | `CONVERSATION_MAX_UPLOAD_MB` | | `200` | Upload cap in conversation mode; keep at or below the transcription service's own limit |
 | `CONVERSATION_MAX_SECONDS` | | `3600` | Hard stop for a conversation recording |
 | `STORAGE_SECRET` | ✅ | — | Secret encrypting server-side sessions — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `SHUTDOWN_PASSWORD` | | empty | Confirmation prompt before the shutdown button acts. **Empty = no prompt**, one click powers the machine off. What hides the buttons is an empty `OLLAMA_HOST_LAN_MAC_ADDRESS_WOL` / `OLLAMA_SSH_USER` |
 | `HOST` / `PORT` | | `0.0.0.0` / `8080` | Bind address and port |
 
 ## Extraction rules

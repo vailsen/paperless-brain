@@ -49,6 +49,7 @@ class Worker:
         self.current_model = ""
         self.model_swaps = 0
         self._yielding = False
+        self._may_wake = True  # set per job: may its requests wake a sleeping host
 
     # ── lifecycle ────────────────────────────────────────────────────────────
 
@@ -96,6 +97,7 @@ class Worker:
         from proactive import jobs, scheduler
 
         from proactive import windows
+        from services import model_host
 
         scheduler.tick()
         ran = 0
@@ -106,6 +108,7 @@ class Worker:
             # Backlog jobs are invisible outside a window: not claimed, and —
             # above all — never a reason to wake the host.
             outside = frozenset() if in_window else windows.WINDOWED_KINDS
+            self._may_wake = in_window
             job = jobs.claim_next(
                 llm_ok=await self._local_ok(in_window, outside),
                 cloud_ok=True,  # resolution never yields a cloud model unless allowed
@@ -118,11 +121,14 @@ class Worker:
                 self._note_swap(job.model_key)
             self.current_job_id = job.id
             try:
-                await jobs.run_one(
-                    job,
-                    max_attempts=self.cfg.proactive_job_max_attempts,
-                    base_seconds=self.cfg.proactive_job_backoff_seconds,
-                )
+                # Outside a window, nothing the user just asked for: a proxy in
+                # front of a sleeping host must not wake it for these requests.
+                with model_host.no_wake(not self._may_wake):
+                    await jobs.run_one(
+                        job,
+                        max_attempts=self.cfg.proactive_job_max_attempts,
+                        base_seconds=self.cfg.proactive_job_backoff_seconds,
+                    )
             finally:
                 self.current_job_id = None
             ran += 1
@@ -152,9 +158,9 @@ class Worker:
             return False
         if not jobs.pending_count(needs_llm=True, lane="local", due_only=True, exclude_kinds=outside):
             return False
-        from services import ollama_watchdog
+        from services import gpu_yield
 
-        if ollama_watchdog.app_busy():
+        if gpu_yield.app_busy():
             # A user is chatting: their answer comes first. Jobs stay queued.
             if not self._yielding:
                 log.info("the app is using the model — LLM jobs wait")
@@ -165,6 +171,7 @@ class Worker:
             needs_llm=True, lane="local", due_only=True, kinds=windows.USER_REQUESTED_KINDS,
             created_since=clock.iso(clock.utcnow() - windows.USER_WAKE_FRESH),
         ))
+        self._may_wake = may_wake
         return await self.gate.local_ready(may_wake=may_wake)
 
     def _note_swap(self, key: str) -> None:
@@ -233,9 +240,12 @@ async def _amain() -> int:
     from config.proactive import proactive_settings
     from config.settings import settings
     from proactive import llm
-    from services import ollama_watchdog
+    from services import gpu_yield
 
-    ollama_watchdog.set_role("worker")
+    gpu_yield.set_role("worker")
+    from config.deprecations import warn_removed_settings_once
+
+    warn_removed_settings_once()
     from proactive.gate import InferenceGate, OperatorModelMissing, probe
 
     cfg = proactive_settings()

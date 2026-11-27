@@ -90,9 +90,9 @@ since a meeting is not a memo. If only one voice is detected, the labels are
 dropped and you get ordinary prose.
 
 CPU is fine. On 8 cores with `large-v3-turbo`, 30 seconds of German speech
-transcribes in about 6 seconds. Don't put it on a machine the
-[power management](operations.md#power-management-optional) watchdog shuts down — waiting for
-a wake-on-LAN boot defeats the point of quick capture.
+transcribes in about 6 seconds. Don't put it on a GPU host that sleeps
+([Sleeping GPU host](operations.md#sleeping-gpu-host)) — waiting for it to boot defeats the
+point of quick capture.
 
 Two things to know:
 

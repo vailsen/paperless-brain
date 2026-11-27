@@ -34,11 +34,12 @@ def test_cite_ref_is_what_the_regex_reads_back():
     assert cite_ref(241) == "[^241]"
 
 
-def test_numbers_follow_first_use_and_repeat_for_the_same_source():
+def test_every_citation_gets_its_own_number_in_reading_order():
     text = "A.[^241-p3] B.[^255][^241-p3] C.[^241-p4]"
     out, sources = number_citations(text, lambda n, d, p: f"<{n}>")
-    assert out == "A.<1> B.<2><1> C.<3>"
-    assert sources == [(1, 241, 3), (2, 255, 0), (3, 241, 4)]
+    assert out == "A.<1> B.<2><3> C.<4>"
+    assert sources == [(1, 241, 3), (2, 255, 0), (3, 241, 3), (4, 241, 4)]
+    assert citations.group_sources(sources) == [(241, 3, [1, 3]), (255, 0, [2]), (241, 4, [4])]
 
 
 def test_a_marker_doubled_by_the_model_shows_once():
@@ -60,12 +61,26 @@ def test_a_doubled_caret_goes_with_the_marker():
     assert sources == [(1, 577, 1)]
 
 
+def test_a_caret_only_outside_is_a_marker_too():
+    # Pandoc's inline-footnote form, written by a model live.
+    out, sources = number_citations("auf Lebenszeit.^[435-p1] Und.^[434]", lambda n, d, p: f"<{n}>")
+    assert out == "auf Lebenszeit.<1> Und.<2>"
+    assert sources == [(1, 435, 1), (2, 434, 0)]
+
+
+def test_a_caret_bracket_without_a_number_is_left_alone():
+    out, sources = number_citations("x^[note] y", lambda n, d, p: "<>")
+    assert out == "x^[note] y" and sources == []
+
+
 def test_footnote_style_text_is_not_a_citation():
     _, sources = number_citations("see [^note] and [^a1]", lambda n, d, p: "")
     assert sources == []
 
 
 def test_plain_citations_for_pdf():
+    grouped = plain_citations("A.[^241-p3] B.[^241-p3]", "S. {n}")
+    assert "A.<sup>1</sup> B.<sup>2</sup>" in grouped and "<sup>1, 2</sup> #241 · S. 3" in grouped
     out = plain_citations("A.[^241-p3] B.[^255]", "S. {n}")
     assert "A.<sup>1</sup> B.<sup>2</sup>" in out
     assert "<sup>1</sup> #241 · S. 3" in out

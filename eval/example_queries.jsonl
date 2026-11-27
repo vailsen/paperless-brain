@@ -1,0 +1,4 @@
+{"id": "q001", "query": "Wie hoch ist die Kaution laut Mietvertrag?", "category": "long_doc", "user": "alice", "relevant_docs": [101, 102], "partially_relevant_docs": [], "notes": "Clause deep in two long rental contracts."}
+{"id": "q002", "query": "Rechnung Nr. 4711-2025-0042", "category": "identifier", "user": "alice", "relevant_docs": [205], "partially_relevant_docs": [], "notes": "Number occurs only in the invoice text."}
+{"id": "q003", "query": "Versicherungsschein meiner Autoversicherung", "category": "synonym", "user": "alice", "relevant_docs": [310, 311], "partially_relevant_docs": [312], "notes": "Documents say 'Kfz-Versicherung'; distractor: private liability policy 320."}
+{"id": "q004", "query": "Bußgeldbescheid wegen Geschwindigkeitsüberschreitung", "category": "no_answer", "user": "alice", "relevant_docs": [], "partially_relevant_docs": [], "notes": "No such document exists."}

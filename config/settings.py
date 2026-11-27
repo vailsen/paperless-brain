@@ -46,16 +46,6 @@ class Settings(BaseSettings):
     # TZ env var). Empty = system local time.
     tz: str = ""
 
-    # Wake-on-LAN / remote shutdown of the Ollama host (empty = feature disabled)
-    ollama_host_lan_mac_address_wol: str = ""
-    ollama_ssh_user: str = ""
-    ollama_idle_shutdown_minutes: int = 30
-    # A host woken because someone chatted with a local model while it was off
-    # sleeps again after this long without use; the chat waits up to
-    # OLLAMA_WAKE_TIMEOUT_S for it to come up.
-    ollama_chat_idle_shutdown_minutes: int = 10
-    ollama_wake_timeout_s: int = 180
-
     # AI-generated documents
     ai_generated_tag_name: str = "AI-generated"
     ai_generated_correspondent: str = "PaperlessBrain AI"
@@ -106,7 +96,6 @@ class Settings(BaseSettings):
 
     # NiceGui
     storage_secret: str
-    shutdown_password: str = ""
     host: str = "0.0.0.0"
     port: int = 8080
 

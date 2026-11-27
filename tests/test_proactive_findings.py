@@ -441,6 +441,31 @@ def test_timeline_split_join_and_notes(vaults):
     assert md.index("Zweite Notiz") < md.index("## Ursprünglicher Hinweis") < md.index("### Summary")
 
 
+def test_a_note_can_be_edited_and_deleted(vaults):
+    from proactive import findings
+
+    f, _o = asyncio.run(findings.upsert("alice", findings.Finding(
+        finding_id="", kind="insight", title="t", topic="x", doc_ids=[1], lang="en",
+        finding_key="x:1", body="Original.\n")))
+    asyncio.run(findings.add_note("alice", f.finding_id, "first"))
+    asyncio.run(findings.add_note("alice", f.finding_id, "second"))
+    entries, _rest = findings.split_timeline(findings.get("alice", f.finding_id).body, "en")
+    first = entries[1]
+    assert findings.is_note_entry(first, "en")
+
+    out = asyncio.run(findings.change_note("alice", f.finding_id, first, "first, corrected\n---\nmore"))
+    assert out is not None
+    assert findings.notes_text(out.body, "en") == ["first, corrected\n***\nmore", "second"]
+    assert findings.split_timeline(out.body, "en")[0][1].split("\n", 1)[0] == first.split("\n", 1)[0]  # date kept
+    # The old wording is gone: changing it again by the stale text does nothing.
+    assert asyncio.run(findings.change_note("alice", f.finding_id, first, "x")) is None
+
+    second = findings.split_timeline(out.body, "en")[0][0]
+    out = asyncio.run(findings.change_note("alice", f.finding_id, second, None))
+    assert findings.notes_text(out.body, "en") == ["first, corrected\n***\nmore"]
+    assert findings.split_timeline(out.body, "en")[1].strip() == "Original."
+
+
 def test_series_merge_keeps_the_timeline(vaults):
     from proactive import findings
 
@@ -464,3 +489,44 @@ def test_research_again_from_researched():
 
     assert transition("researched", "interested") == "interested"
     assert "interested" in reactions_for("researched", "insight")
+
+
+def test_a_sync_clients_safe_backup_is_folded_back(vaults):
+    """OneDrive renamed `_interests.md` to a safeBackup during an upload; the
+    app started a new file from zero. The backup's counts come back on the
+    next write, and the backup is gone after it."""
+    from proactive import interests
+    from proactive.paths import findings_root
+
+    root = findings_root("alice")
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "_interests-openmediavault-safeBackup-0001.md").write_text(
+        "---\npbrain_id: old\nmuted: [riester]\n---\n"
+        + interests.HEADER + "| einkommensteuer | 4 | 9 | 0 | 0 | 2026-11-06 |\n"
+        + "| telekommunikation | 11 | 0 | 1 | 0 | 2026-10-28 |\n")
+    (root / "_interests.md").write_text(
+        "---\npbrain_id: new\nmuted: []\n---\n"
+        + interests.HEADER + "| einkommensteuer | 0 | 4 | 0 | 0 | 2026-11-25 |\n")
+
+    i = interests.load("alice")                    # reading already counts both
+    assert i.rows["einkommensteuer"].interested == 13 and "riester" in i.muted
+
+    asyncio.run(interests.record("alice", "einkommensteuer", "interested"))
+    assert not list(root.glob("*safeBackup*"))
+    i = interests.load("alice")
+    assert i.rows["einkommensteuer"].interested == 14
+    assert i.rows["einkommensteuer"].last_reaction >= "2026-11-25"
+    assert i.rows["telekommunikation"].dismissed == 1 and "riester" in i.muted
+    assert "pbrain_id: new" in (root / "_interests.md").read_text()
+
+
+def test_a_backup_copy_of_the_same_record_does_not_double(vaults):
+    from proactive import interests
+    from proactive.paths import findings_root
+
+    root = findings_root("alice")
+    root.mkdir(parents=True, exist_ok=True)
+    body = "---\npbrain_id: same\nmuted: []\n---\n" + interests.HEADER + "| steuer | 1 | 3 | 0 | 0 | 2026-11-01 |\n"
+    (root / "_interests-host-safeBackup-0001.md").write_text(body)
+    (root / "_interests.md").write_text(body.replace("| 1 | 3 |", "| 1 | 4 |"))
+    assert interests.load("alice").rows["steuer"].interested == 4

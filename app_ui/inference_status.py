@@ -4,8 +4,6 @@ comes from `services.inference_activity` and Ollama's `/api/ps`."""
 
 from __future__ import annotations
 
-import re
-from datetime import datetime, timezone
 
 from i18n import N_
 from services.inference_activity import cpu_share
@@ -19,19 +17,6 @@ PURPOSE_LABELS = {
 }
 
 
-def _expires(value: str, now: datetime) -> float | None:
-    """Seconds until Ollama unloads the model; None for "never" or unparsable.
-    Ollama writes nanoseconds, which `fromisoformat` does not take."""
-    if not value:
-        return None
-    v = re.sub(r"(\.\d{6})\d+", r"\1", value.replace("Z", "+00:00"))
-    try:
-        secs = (datetime.fromisoformat(v) - now).total_seconds()
-    except ValueError:
-        return None
-    return secs if 0 <= secs < 86400 else None
-
-
 def _duration(secs: float) -> str:
     secs = int(max(secs, 0))
     return f"{secs // 60}:{secs % 60:02d}"
@@ -39,7 +24,6 @@ def _duration(secs: float) -> str:
 
 def lines(_, models: list[dict] | None, snap: dict, now_ts: float) -> list[tuple[str, str]]:
     """(icon, text) rows, most important first."""
-    now = datetime.fromtimestamp(now_ts, tz=timezone.utc)
     out: list[tuple[str, str]] = []
     running = snap.get("running") or []
     if running:
@@ -64,9 +48,6 @@ def lines(_, models: list[dict] | None, snap: dict, now_ts: float) -> list[tuple
             cpu = cpu_share(m)
             if cpu >= 5:
                 p += " · " + _("CPU share: {pct} %").format(pct=cpu)
-            left = _expires(str(m.get("expires_at") or ""), now)
-            if left is not None and not running:
-                p += " · " + _("unloads in {min} min").format(min=max(1, round(left / 60)))
             parts.append(p)
         out.append(("memory", _("In memory: {models}").format(models="; ".join(parts))))
     elif models is not None:

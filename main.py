@@ -19,7 +19,7 @@ import app_ui.pages.login  # noqa: F401
 import app_ui.pages.settings  # noqa: F401
 import app_ui.memo_routes  # noqa: F401  — registers POST /api/memo/transcribe
 import app_ui.vault_routes  # noqa: F401  — registers GET /api/vault/file
-import app_ui.doc_image_routes  # noqa: F401  — registers GET /api/doc-image/{doc}/{page}
+import app_ui.doc_image_routes  # noqa: F401  — GET /api/doc-image, /api/doc-words, /api/doc-download
 import app_ui.research_routes  # noqa: F401  — registers GET /api/research/pdf (research notes as PDF)
 import werkbank.v2.ui.page  # noqa: F401  — registers /werkbank
 from proactive.app import register as _register_proactive
@@ -29,7 +29,6 @@ from config.settings import settings
 from config.version import __version__
 from services.clients import cross_ref_index
 from services.embedding_registry import invalidate as invalidate_embedding_registry
-from services.ollama_watchdog import idle_watchdog
 from werkbank.repository import init_db as _werkbank_init_db
 from werkbank.v2.store import reset_stale_runs as _werkbank_reset_runs
 
@@ -134,8 +133,9 @@ async def _start_watchdog() -> None:
     invalidate_embedding_registry()  # read after init_db created the table
     _emb_index.startup()
     asyncio.get_running_loop().run_in_executor(None, _emb_index._warm_active)
-    if settings.ollama_ssh_user:  # idle-shutdown watchdog only with remote-shutdown config
-        asyncio.create_task(idle_watchdog())
+    from config.deprecations import warn_removed_settings_once
+
+    warn_removed_settings_once()
     # Card renderers read the tag colour map synchronously, so it has to be warm
     # before the first page renders — otherwise every chip briefly shows its
     # fallback hue and then jumps.

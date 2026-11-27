@@ -94,8 +94,17 @@ def is_pressing(f, today: date) -> bool:
     for a closed finding: done is done."""
     if f.status in CLOSED_STATUSES:
         return False
+    if getattr(f, "pressing", False):
+        return True
     d = days_left(f, today)
     return URGENCY_RANK.get(f.urgency, 1) >= 2 or (d is not None and d <= DUE_SOON_DAYS)
+
+
+def is_relevant(f) -> bool:
+    """Relevant by status, or marked relevant and back in the inbox after a
+    reminder — the reminder never takes it out of "Relevant"."""
+    return display_status(f.status) == "relevant" or (
+        getattr(f, "marked_relevant", False) and f.status in DISPLAY["open"])
 
 
 def relevance(f, today: date) -> float:
@@ -142,7 +151,9 @@ NO_TOPIC = "__none__"
 
 
 def keep(f, status: str, topic: str) -> bool:
-    if status not in ("all", "") and display_status(f.status) != (status if status in STATUS_LABELS else "open"):
+    if status == "relevant" and not is_relevant(f):
+        return False
+    if status not in ("relevant",) and status not in ("all", "") and display_status(f.status) != (status if status in STATUS_LABELS else "open"):
         return False
     if topic == NO_TOPIC:
         return not f.topic
@@ -212,7 +223,7 @@ def counts(items: list, today: date) -> dict:
     live = [f for f in items if f.status in OPEN_STATUSES]
     return {
         "open": sum(1 for f in live if display_status(f.status) == "open"),
-        "relevant": sum(1 for f in live if display_status(f.status) == "relevant"),
+        "relevant": sum(1 for f in live if is_relevant(f)),
         "pressing": sum(1 for f in live if is_pressing(f, today)),
         "researching": sum(1 for f in live if f.status == "interested"),
     }

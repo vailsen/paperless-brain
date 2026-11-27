@@ -64,8 +64,8 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
 - `OLLAMA_SERVER`, `OLLAMA_INGEST_MODEL` — *optional*, vision LLM for ingestion
   (both also settable in Settings > Processing, which wins). Chat and Werkbank
   never read them — those use per-user models with their own `base_url`.
-  `OLLAMA_SERVER` additionally names the host the WoL/shutdown buttons control;
-  without it that is inferred from the first local-lane model in the registry.
+  A sleeping GPU host sits behind a wake-on-request proxy; `OLLAMA_SERVER` and
+  the models' `base_url` then point at the proxy (docs/operations.md).
 - **Every Anthropic SDK client comes from `services/anthropic_client.async_client`.**
   SDK 2.x sends the key as `Authorization: Bearer`; for a custom base URL the
   factory moves it back to `X-Api-Key` (gateways read that). Sampling parameters
@@ -98,6 +98,35 @@ All settings via `.env` file (loaded by `config/settings.py` via pydantic-settin
 3. **Sidecar** (`services/sidecar_service.py`): per-document JSON files at `{EXTRACTION_SIDECAR_PATH}/{doc_id}.json` — contain full summary, page texts, actions/deadlines, cross-references, tables.
 4. **Cross-ref index** (`services/cross_ref_index.py`): built from all sidecars at startup; maps invoice numbers / file references to document IDs for the `get_related_documents` tool.
 5. **Chat** (`services/chat_service.py`): agentic loop with `MAX_ITERATIONS=16`. Two backends: `ClaudeChatBackend` (Anthropic API streaming) and `OllamaChatBackend` (httpx POST). Both emit the same `ChatEvent` union type. Tools are defined in `TOOL_DEFINITIONS` (list of dicts, Claude format); converted to Ollama format via `_to_ollama_tools()`.
+
+### Literal matches and visibility in search
+
+- **`search_exact`'s `text` ignores case, spaces and separators.** `_build_where_document`
+  finds the identifier runs in the text (`_code_runs`: tokens with a digit, letter groups
+  of 1–3, lone separators) and sends Chroma one `$regex` per spelling (`(?i)`,
+  `[\s\-./:]*` between every two characters) — 'DE89 3704…' = 'de893704…', 'VR 1000631423'
+  = 'VR1000631423'. Prose words next to an identifier are not searched (they matched half
+  the archive); a variant too weak alone (a bare '244') is dropped. The cross-reference
+  index keys on the same compact form (`cross_ref_index._normalise`).
+- **`search` ranks only what the reader can see.** The document collection holds every
+  user's chunks; the user's visible ids (`PaperlessClient.visible_ids`, cached per token,
+  stale-while-revalidate) go into the Chroma query as `paperless_id $in`, fetched while the
+  query is embedded (`ChromaClient.query(where_pending=…)`). Stale ids cost at most a result
+  slot, never access: every hit is still fetched with the user's token.
+- **Ranking is exact**: `ChromaClient._search` compares the query with every vector (one
+  matrix product; reloaded after any write through any `ChromaClient`) instead of Chroma's
+  HNSW, which in 1.5.9 returned a different tail for the same query in two processes. Above
+  `chroma.EXACT_MAX` vectors it falls back to HNSW. A write that bypasses `ChromaClient`
+  leaves the matrix stale until the count changes.
+- **Chunk header v2** (`chunking.HEADER_VERSION`): `Dokument: <title> | <type, correspondent,
+  date> — Inhalt: <first sentence of the summary> — <text>`, and no chunk longer than the
+  model's window (`embeddings.token_budget`, capped at 512): the old word budget left 41 % cut
+  off. Chunks are built from the sidecar in one place (`pipelines/rechunk.py`), for ingest,
+  the admin's "Rebuild document chunks" (metadata `header` below the version) and after a
+  title rename. **Everything shown or cited goes through `strip_context_prefix`** — the
+  header's title and summary are not the document's words.
+- Measured with `eval/harness` (`docs/hybrid-search-eval-results.md`): lexical fusion in
+  `search` was a NO-GO; rerun the harness after any retrieval change.
 
 ### Key singletons (`services/clients.py`)
 
@@ -135,12 +164,90 @@ must answer `pb_alive` within 1.5 s or is replaced; the retry backoff starts at
 as NiceGUI's own `reconnect_attempt` does — without it the server replays from a
 stale position.
 
-### Chat tool results that trigger UI dialogs
+### What needs no model is a button, not a tool
 
-Three tools don't execute server-side — they return a special event that the UI page (`app_ui/pages/chat.py`) intercepts to open a dialog:
-- `trigger_docx_generation` → `DocxRequestEvent` → DIN-5008 letter dialog
-- `create_email` → `EmailRequestEvent` → email template dialog
-- `generate_chat_pdf` → `PdfSaveRequestEvent` → save-to-Paperless dialog
+Saving the chat to Paperless and starting a deep-research run (2026-11-14), and writing a
+letter or an email (2026-11-15) are items in the conversation "…" menu and quick chips
+(`_save_chat_to_paperless`, `_research_from_chat`, `_compose`); downloading a document is the
+icon on its row in an answer's source box (`/api/doc-download/{id}`, the user's own access
+check). The tools `generate_chat_pdf`, `create_kanban_task`, `download_document`,
+`trigger_docx_generation` and `create_email` are gone — each was a tool schema the model read
+on every call only to open a dialog. The letter dialog (`app_ui/compose_dialogs.py`)
+drafts from the conversation with **one model call without tools**, only when opened; the
+fields stay editable and nothing is sent or saved without the user. **The email is a small
+conversation of its own** (2026-11-25, `open_email_dialog`): still no tools, the chat it came
+from in its system prompt; the model asks back until it knows enough and **decides when the
+draft is ready** by answering with an `<email>{to, subject, body}</email>` block
+(`email_draft`), which switches the dialog to the editable preview (copy, open in the mail
+app). "Ask for changes" goes back; a preview the user edited is sent along with the next
+request, so the model revises the user's version.
+
+### The fixed part of every model call
+
+System prompt (`config/chat_prompts.py`) + tool schemas are read on every call, and again
+whenever a local model's prompt cache misses (prefill ~3 700 tok/s on the 27B). So:
+
+- **Each rule lives in one place.** How a tool and its parameters work → its description;
+  priorities between tools, citation, honesty → the prompt. `tests/test_chat_slim_prompt.py`
+  fails on a prompt identifier that is no tool or parameter, and on size creep.
+- **Earlier turns are sent as questions and answers only** — their tool results are not
+  (context window, prefill). `_CORE` says so and tells the model to read a document again
+  when a follow-up needs more than its answer said; without it, the model wondered in every
+  follow-up whether the tools behind its own `[^…]` markers had ever run.
+- **Nothing in the prompt changes between turns but its tail.** Today's date is the last line
+  (`today_line`, so "newest"/"next week" need no `get_current_date` round trip). The archive
+  map in the prompt is compact (`briefings.map_markdown(compact=True)`: counts and names — no
+  series, no newest documents, which changed with every upload); the Briefing tab keeps the
+  full one. The Universal map is warmed when /chat opens (`expert_prompt.warm_map`) so it does
+  not appear only from turn 2 on.
+
+### Files uploaded into a chat
+
+`services/chat_attachments.py`, the "+" in the input row. A PDF or picture the user asks about
+without filing it.
+
+- **Nothing goes to Paperless, Chroma or the vault.** The text lives in the stored user message
+  as a `<pb-attachment>` block after the user's words — the history keeps only role + content,
+  the model needs the file on later questions too, and an unchanged message keeps the prompt
+  cache valid. The bubble shows a chip (`attachments.split`); titles, the tool history heading
+  and exports use `strip_for_title`.
+- **The text layer first; vision only for pages without one and for pictures** — the ingestion
+  model with the ingest extraction prompt (`build_vision_client`); a sleeping host is woken by the proxy in front of it.
+  Caps: `MAX_BYTES`, `MAX_PAGES`, `MAX_CHARS` (the block says when it was cut).
+- **No reference numbers**: the block tells the model to cite the upload in words; `[^…]`
+  belongs to Paperless documents only.
+
+**Behind the answer** (the tool history, `app_ui/tool_trace.py`, `TraceView`; the name since 2026-11-26 — it holds prompt, thinking, tools and answer): its own icon in the answer's footer
+from the moment the turn starts, beside the "…" menu that joins it when the answer is done.
+It holds the turn's lists and redraws while open (`update()` per event), so the user watches
+the loop work. Steps on the left, one **round** per model request: "Thinking" (the model's
+own time — reading the prompt, thinking, writing its tool calls — with its thinking text),
+then the tools it asked for, which run after it; the last round's step is "Final answer",
+with the answer — its thinking a step of its own before it. The Prompt section starts folded.
+The bubble's old "Thoughts" box and its setting are gone: the thinking lives here. While the loop
+works, the top of the bubble shows **live steps** (`_live_steps`): the current step with a
+spinner at the bottom, the three before it above, done and fading (the oldest barely), on one line with station
+dots — tool, "💭 Thinking" once a round's tools are back, "✍️ Writing the answer"; removed
+when the answer is done. The round heading carries model + tools. The step list is one scroll box that outlives its refresh (re-created, it jumped to the top on every pick). The chosen step is on the right
+(a phone shows one at a time, with "All steps"); only its content reaches the browser.
+Several tools in one round are parallel tool use: one answer asked for all of them.
+`open()` opens before it draws — `update()` draws only an open dialog, so a history closed
+mid-turn and reopened showed nothing new. A **Prompt** section comes first (`chat._prompt_parts`):
+the system prompt, then each per-user block cut out of it and named (`TurnExpert.kinds`: expert scope, briefing, archive map, skills; personality), this question's context prefix, the
+earlier messages exactly as sent, the tool definitions. **One record per answer**
+(`tool_trace.keep` / `kept` / `view_for`, keyed user + conversation + message index, the last
+`MAX_KEPT` in process memory): the live bubble, a /chat page reopened mid-turn (`_LIVE_TURNS`
+entry `trace_rec`) and the stored answer after a reload all show it; a restart forgets it. Every model request (tokens, first token, total time — `ModelCallEvent`) and
+tool call (duration, the whole result). Downloads: the history, and the raw
+request of the last model call (`TranscriptEvent`: system prompt, tool schemas, messages;
+thinking removed). Live only — nothing is stored. The trace's `output` stays capped at
+2 000 chars: provenance, web links and skills read it at that length; `output_full` is
+for display.
+
+**A manual deadline** (`create_deadline`) is a memory note (dashboard, `get_actions`,
+recall) and, with proactive on and the user opted in, also a deadline finding
+(`proactive.deadlines.manual`, status `relevant`, key `deadline:manual:<pbrain_id>`) that
+carries only the reminders.
 
 ### Credential store
 
@@ -229,12 +336,15 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   text layer just shows the page. A filled-in form stores its values at the end of the text
   stream, far from their labels; for a short passage no window holds both, so `_anchor_boxes`
   marks the passage's tokens that occur exactly once on the page (a number, or two long words).
-- **A number is one source page, so every tap on it marks the same set**: the passages of all
-  sentences carrying that number in the bubble (`locate(other_claims=…)`, `.pb-src-hl.is-other`),
-  the tapped sentence's one strongest. Marking only the tapped sentence's passage made one
-  number mean a different place each time.
-  A number without a page (`[^361]`) gets its one page from all its sentences together
-  (`document_page`); picked per tapped sentence, one "1" went to pages 2, 1, 5 and 5.
+- **Every citation has its own number, 1 … n in reading order** (`number_citations`, since
+  2026-11-25). One number per page put the same "1" behind five sentences, and a reader
+  could not tell which one a tap showed. The source box groups by page instead
+  (`group_sources`: one chip "1, 4, 7 · p. 3"). A tap marks the tapped sentence's passage
+  and, fainter, the passages of every other sentence citing the same page
+  (`locate(other_claims=…)`, gathered by `data-cite`, `.pb-src-hl.is-other`), so the page
+  shows everything taken from it.
+  A citation without a page (`[^361]`) gets its one page from all sentences citing the
+  document together (`document_page`); picked per tapped sentence, they went to pages 2, 1, 5 and 5.
 - **Titles in the source box come from Paperless as the user** (`_resolve_cite_titles`), never
   from the sidecar: a made-up `[^id]` must not reveal the title of a document they cannot see.
 - **A picture is a passage too.** On an X-ray page the text is a header and "Seite 5 von 5";
@@ -290,6 +400,12 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   copied. Not SVG text: Chrome painted selected SVG text white over the page. A click
   that ends a selection does not open the viewer. A scan without a text layer
   has none.
+- **Pages load only near the screen** (`page_viewer`: `data-pb-src` + one
+  IntersectionObserver, for pictures and text layers alike). The Source pane shows a small
+  render (`?s=1`, `SMALL_LONG_SIDE`); the viewer swaps in the full one per page as it comes
+  into view. A 60-page contract used to request every page and every text layer at once,
+  and the viewer then forced all pages to load — it never finished. Paperless' "yes" to the
+  access check is kept `ACCESS_TTL_S` (60 s) per token and document; a "no" never is.
 - **A finding's evidence carries reference numbers** (`findings.cite_evidence`,
   page by `page_for` at render time — no rescan): a tap opens the dock chat's
   own source viewer over the chat (`chat-src-overlay`, "Back to the chat"),
@@ -304,11 +420,15 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   valid JSON escapes (form feed, tab, backspace) — a model that forgets to double the backslash
   loses the command without any parse error.
 
-### Ollama watchdog
+### Sleeping GPU host, GPU yield
 
-`services/ollama_watchdog.py`: shuts the Ollama host down after `OLLAMA_IDLE_SHUTDOWN_MINUTES` of inactivity, but only a host that was woken via WoL. `touch()` resets the idle timer. The state (woken?, last activity, host) lives in `data/power_state.json`, not in module globals: the proactive worker is a second process sending inference requests, and the app's watchdog must see them. Waking goes through `services/wol.wake()` — the dashboard button and the worker's LLM gate (`proactive/gate.py`) both use it. A shutdown counts only when ssh says so (`BatchMode=yes`, exit status checked) and is verified a few minutes later; a *failed* command keeps `wol_active` and is retried (`watchdog_step`), every decision logged as `[watchdog]`. **The watchdog never shuts down a machine someone is using.** The remote command is `SHUTDOWN_CMD`: it refuses (exit `IN_USE`) while a logind session is class user, on a seat, active and not idle — the watchdog then hands the host back (`wol_active` off). A host that is up again after an *accepted* shutdown is someone's who switched it back on: it is left on, never shut down a second time. (Both happened: the retry shut the owner's PC down at 01:14 while they used it.) A host the worker woke (`wol_by: worker`) goes down after `PROACTIVE_IDLE_SHUTDOWN_MINUTES` (5) instead; any `touch()` from the app hands it back to the normal idle time.
+**paperless-brain has no power management.** No Wake-on-LAN, no idle shutdown, no power buttons (removed — a wake-on-request proxy in front of the GPU host does that; contract in docs/operations.md, "Sleeping GPU host"). Do not add any back. Leftover settings only log a warning once (`config/deprecations.py`).
 
-A chat with a local-lane model whose host does not answer wakes it before the turn (`wol.ensure_awake`, called from the chat page): only the host WoL controls (`wol.wakes`: MAC set, and `OLLAMA_SERVER`'s or the recorded host — else the model's own), then waits up to `OLLAMA_WAKE_TIMEOUT_S` with a status line; stop ends the wait. That wake is `wol_by: chat` and sleeps after `OLLAMA_CHAT_IDLE_SHUTDOWN_MINUTES` (10); the app's `touch()` keeps it a chat's wake, so a dashboard wake still gets the normal idle time. A Werkbank run does the same before it briefs or starts (`pipeline.ensure_host`) — interactive, chat hand-off and the proactive deep dive alike — because the worker's gate wakes only the `OLLAMA_SERVER` host and the run itself talks to the model's own `base_url`. A run that stops keeps why (`pipeline.fail_run` → `RunState.error` / `error_kind`); the run list and the finding show it.
+`services/model_host.py` is all the app knows of that proxy: `proxy_status(url)` (`GET /proxy/status` → `{"host": "asleep|waking|up|shutting_down"}`, None for a plain server), `headers()` for local inference (`X-Idle-Profile: background` in the worker process, `X-No-Wake: 1` inside `no_wake()`), and `READ_TIMEOUT_S` (330 s: a held request waits for boot + model load — every local-inference read timeout must cover it). Requests to a local model host merge `model_host.headers()` into their own (llm_lane, vision, embeddings, chat stream).
+
+The proactive gate (`proactive/gate.py`) decides by `/proxy/status`: with `may_wake` (inside a sweep window or a fresh user request) `asleep`/`waking` count as ready — the job's request wakes the host; otherwise only `up`. The worker runs a job outside a window inside `model_host.no_wake()`, so a host that fell asleep meanwhile is not woken. Without a proxy the gate probes the endpoint. The chat shows "The model host is starting…" (right away when the proxy says asleep/waking, else after ~5 s without a first token); a Werkbank run checks its endpoint first (`pipeline.ensure_host`: a proxy counts as there, a plain server must answer).
+
+`services/gpu_yield.py` is *not* power logic: the app stamps its inference requests (`touch()`, only in the app process) into `data/activity_state.json`; the worker starts no LLM job while `app_busy()` (within `APP_YIELD_S`). `chat_touch`/`chat_busy` are process-local (Werkbank runs, embedding syncs wait for a chatting user). The worker calls `set_role("worker")` at start.
 
 ### Compute status
 
@@ -436,6 +556,9 @@ page `app_ui/pages/experts.py`.
   every later turn of that conversation (`chat_turn_meta.skills`) — the history
   keeps only answer text, so the loaded body would otherwise be gone. The wizard drafts; only the user saves. Its lint flags tool
   names that do not exist; its trial runs read-only tools only.
+- **The Universal expert's map is counts, not a study** (`briefings.MAP_HEADER`, not
+  `BRIEFING_HEADER`): the top names spelled as in Paperless and the date range, so a
+  filter hits on the first try; a name it lacks is answered by the tool's own name hint.
 - **A briefing is a map, not evidence.** Archive map = code; orientation =
   model, checked by `briefings.validate` (studied ids only, numbers must be in
   the cited summaries, facts need a source) — dropped items are shown in the
@@ -519,6 +642,11 @@ page `app_ui/pages/experts.py`.
 - **A finding's dock chat is about that finding** (its dossier comes along as
   context), a fresh conversation per finding, and pins nothing: pins are the
   user's across every chat, and the inbox left each finding's documents there.
+- **The user's own marks are flags, not statuses** (`proactive/findings.py`): `marked_relevant`
+  keeps a finding under "Relevant" after a reminder put it back in the inbox; `pressing`
+  (`reactions.set_pressing`) puts it under "Pressing" whatever its urgency; `remind_on`
+  (`reactions.set_reminder`, deadlines only, never past the date) is one extra reminder on top
+  of the offsets, sent by the daily run and then cleared. Closing a finding clears all three.
 - **Saving to a dossier never proposes questions** — the model only says which
   existing ones the excerpt answers; its new ones were invented.
 - **The chat never offers to change a finding or dossier** (`chat._CTX_READ_ONLY`
@@ -715,21 +843,27 @@ Reference: `docs/proactive-architecture.md`, tasks: `docs/proactive-tasks.md`, d
 - Every recommendation needs a verbatim document quote and a web URL fetched in the same run; otherwise the recommendation is dropped by the validator.
 - Every proactive web query passes the code-level query guard. Prompt instructions are not a substitute.
 - Default notification content is title + urgency + link. Full text only with per-channel user opt-in.
-- Waking and shutting down the inference host goes through the existing WoL / idle-shutdown mechanism only. The worker never shuts the host down itself.
+- The worker never wakes or shuts down the inference host itself. A proxy in front of a sleeping host does; the worker only marks its requests (`X-Idle-Profile: background`, outside windows `X-No-Wake: 1`).
 - No admin role. Operator settings live in `.env`; channels, model, offsets, quiet hours, findings language and opt-in are per-user settings.
 - **No weekly message limit** (removed 2026-10-27): every finding over the push threshold is sent; a busy week while the archive is swept is accepted. What stays held: low priority and muted topics (critical ones are never held).
 - **Push and email are send-only.** A message is a title, the urgency and one link to the finding; answers happen on the finding page. Nothing reads a mailbox: the IMAP reply poller moved every unread mail of a personal inbox into its "processed" folder, and was removed (2026-10-27).
 - Model resolution order: `PROACTIVE_MODEL_FIXED` → user choice (must be in `PROACTIVE_MODEL_ALLOWLIST` if set) → `PROACTIVE_MODEL_DEFAULT` → chat model. Resolved in one function only. LLM jobs are grouped by model within a window.
 - No proactive LLM job runs on a cloud backend unless `PROACTIVE_CLOUD_ALLOWED=true`, and then within the per-user daily cap.
 - Proactive LLM work outside new-doc triage happens only inside configured sweep windows and within the doc budget — or when the user asks for it ("Analyse now", `sweep.start_now`, one document per job on the same cursor).
-- **A chatting user gets the GPU first.** The worker starts no LLM job while the app made an inference request within `ollama_watchdog.APP_YIELD_S` (`app_busy`); a running job finishes first. A deep dive runs in the app, so it yields on its own: `werkbank.llm_lane.yield_to_chat` makes every local-lane call of that run wait while `chat_busy()` (a chat request within `APP_YIELD_S`, process-local).
+- **A chatting user gets the GPU first.** The worker starts no LLM job while the app made an inference request within `gpu_yield.APP_YIELD_S` (`app_busy`); a running job finishes first. A deep dive runs in the app, so it yields on its own: `werkbank.llm_lane.yield_to_chat` makes every local-lane call of that run wait while `chat_busy()` (a chat request within `APP_YIELD_S`, process-local).
 - **A deep dive does not hold a request open for the length of a run.** `deep_dive` starts the Werkbank run in the app (listed at once, status "running"), writes `research_run` into the finding, and `deep_dive_poll` (not gated: the run keeps `app_busy` true) asks for the result. A deleted run leaves the finding interested and unresearched; a run nothing works on (app restart) waits for the user to resume it in the Werkbank. Every "Interesting" clears `research_run`/`research_note` — a new interest is a new research (reusing a deleted run's id polled nothing forever); the finding page offers "Research again" when nothing runs or is queued. Links to a deleted run or note render as deleted.
 - **The user sees an inbox: open, relevant, done, dismissed** (`states.DISPLAY` / `display_status`). The stored statuses stay — new / surfaced / held / snoozed are the notification bookkeeping behind "open", relevant / interested / researched sit behind "relevant" — but no UI lists them as statuses; the notification and the research are hints on the card (`findings_view.notice` / `research`). "Relevant" takes a finding out of the inbox and counts as interest for its topic; a deadline reminder puts it back (`remind` → surfaced). "Later" is no longer offered (the reaction stays for old message links).
-- **A finding body is a timeline, newest first** (`findings.split_timeline` / `join_timeline`): research results (`## Research result (date)`) and the user's notes (`## Note (date)`, `findings.add_note`), each closed by `---`, above the original finding, which has no heading of its own in the file (the page and the PDF label it `original_heading`). A second research — "Research again" on a researched finding, `researched → interested` — stacks above the first instead of replacing it. Series merges rebuild only the original and keep the entries above it. The research request carries the user's notes and ends with the findings language (`RESEARCH_LANGUAGE`): the request is English, and every Werkbank role answers "in the language of the request".
+- **A finding body is a timeline, newest first** (`findings.split_timeline` / `join_timeline`): research results (`## Research result (date)`) and the user's notes (`## Note (date)`, `findings.add_note`; edited or deleted with `change_note`, which names the note by its whole entry as read, never by position — a research result landing on top shifts positions), each closed by `---`, above the original finding, which has no heading of its own in the file (the page and the PDF label it `original_heading`). A second research — "Research again" on a researched finding, `researched → interested` — stacks above the first instead of replacing it. Series merges rebuild only the original and keep the entries above it. The research request carries the user's notes and ends with the findings language (`RESEARCH_LANGUAGE`): the request is English, and every Werkbank role answers "in the language of the request".
 - **Paperless ignores filters it does not know** (`id__gt` among them) and answers as if unfiltered. Id ranges are filtered in code (`paperless_ro.ids_after`); never trust a document filter that no test pins against a real response.
 - **Every proactive message waits out the user's quiet hours** (`notify.quiet_wait`, per user, default 22:00–07:00); only the test message, which the user just asked for, does not. App events (sync, Werkbank) are not proactive messages.
 - **Triage judges from today, in the findings language.** It gets today's date and a rule that an option whose window has closed is history; the language instruction is repeated last, because a German document otherwise pulls the answer into German. Findings language is its own per-user setting (`content_language`), not the app language.
 - **A background process gets a user's token only from `services/background_access.token_for(user)`** — an explicit, revocable grant the user made in their own session. No grant (None) → skip the user; a 401 → `mark_needs_reauth()`. Never persist a token anywhere else, never create a grant without the user's action.
+- **`_interests.md` survives a sync client's conflict copy** (`interests._backups`): OneDrive's
+  Linux client, when the file changed during an upload, renamed it to
+  `_interests-<host>-safeBackup-0001.md`, and the app started a new file from zero
+  (2026-11-07). Such copies are read with the file and folded in on the next write, then
+  deleted — added up when they are another record (`pbrain_id`), the larger count when they
+  are a copy of the same one.
 - **The vault lock is cross-process** (`vault/locks.py`: `asyncio.Lock` + `flock` on `data/vault_locks/{user}.lock`). Worker and app both take `get_user_lock(user)` for every vault write and sync.
 
 ### Do not
@@ -886,6 +1020,11 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
   memory (`remember_fact` / `update_brain_fact` / `delete_brain_fact`), the user's notes
   (`vault_search`, read).
 - Brain **read** tools (`brain_search`) stay byte-identical. New `vault_search` mirrors them.
+- **`vault_search` has a literal mode** (`text`: case-insensitive, any whitespace between the
+  words, `_vault_text_matches`) next to `query` (meaning + title) — "testnote" is a word, not
+  a meaning. It searches the vault *index* (`where_document $regex`), so it sees exactly what
+  semantic search sees, the findings folder only as `index_meta` lets it in. Not merged into
+  `search_exact`: Paperless documents and the user's notes stay separate tools.
 - Brain **write** tools keep their signatures but are re-implemented on the file+git+embed
   primitive (no direct Chroma upsert).
 - The Chroma-direct memory UI is gone. `/brain` is a **file-backed note explorer** over the

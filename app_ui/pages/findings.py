@@ -198,6 +198,8 @@ def _meta_line(f, *, topic: bool = True, status: bool = True) -> str:
     parts.append(_("Urgency: {urgency}").format(urgency=_(URGENCY_LABELS.get(f.urgency, f.urgency))))
     if f.deadline:
         parts.append(_("Due {date}").format(date=f.deadline))
+    if getattr(f, "remind_on", None):
+        parts.append(_("Reminder on {date}").format(date=f.remind_on))
     if topic and f.topic:
         parts.append(f.topic_display)
     return " · ".join(parts)
@@ -660,6 +662,10 @@ def _bucket_items(items: list, bucket: str, today, dossier_topics: set[str]) -> 
         return [f for f in items if f.status in fv.OPEN_STATUSES and fv.is_pressing(f, today)]
     if bucket == "unfiled":
         return [f for f in items if display_status(f.status) == "open" and f.topic not in dossier_topics]
+    if bucket == "relevant":
+        return [f for f in items if fv.is_relevant(f)]
+    if bucket == "live":  # what the overview counts per topic: open and relevant
+        return [f for f in items if f.status in fv.OPEN_STATUSES]
     return [f for f in items if display_status(f.status) == bucket]
 
 
@@ -1329,8 +1335,10 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         if d is not None:
             select("dossier", d.pbrain_id)
         else:
+            # The overview counts open *and* relevant findings; the inbox alone
+            # showed a topic whose findings were all relevant as empty.
             st["list_topic"] = topic
-            select("list", "open")
+            select("list", "live")
 
     def _list_view(bucket: str) -> None:
         items, ds = _data()
@@ -1344,7 +1352,8 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
         sort = view_pref.get("sort", fv.DEFAULT_VIEW["sort"])
         group = view_pref.get("group", fv.DEFAULT_VIEW["group"])
         title = {"open": _("Inbox"), "pressing": _("Pressing"), "relevant": _("Relevant"),
-                 "unfiled": _("Not in a dossier"), "done": _("Done"), "dismissed": _("Dismissed")}.get(bucket, bucket)
+                 "unfiled": _("Not in a dossier"), "done": _("Done"), "dismissed": _("Dismissed"),
+                 "live": _("Open and relevant")}.get(bucket, bucket)
         with ui.column().classes("pbm-panel gap-2"):
             with ui.row().classes("w-full items-center gap-2"):
                 ui.label(title).classes("text-xl font-bold flex-1").style("color:var(--c-text)")
@@ -1381,7 +1390,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                 if g.kind != "none":
                     _heading(g, top=True)
                 for f in g.items:
-                    _card(f, today, topic=g.kind != "topic", status=bucket in ("pressing", "unfiled"),
+                    _card(f, today, topic=g.kind != "topic", status=bucket in ("pressing", "unfiled", "live"),
                           on_open=lambda fid: select("finding", fid),
                           on_file=_file_finding if bucket == "unfiled" else None)
 
@@ -1496,6 +1505,9 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                             label = _(ACTION_LABELS[a])
                         ui.button(label, on_click=lambda a=a: _do(a)).props("flat dense")
 
+            if f.status in fv.OPEN_STATUSES:
+                _own_marks(f)
+
             with ui.expansion(_("Add a note"), icon="edit_note").classes("w-full").props("dense"):
                 box = ui.textarea(placeholder=_("e.g. The operation took place in April 2024.")).props(
                     "outlined dense autogrow").classes("w-full")
@@ -1527,12 +1539,125 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             entries, original = findings.split_timeline(
                 cite_evidence(f.body), f.lang)
             tl = [(e.split("\n", 1)[0][3:].strip(), e.split("\n", 1)[1] if "\n" in e else "") for e in entries]
+            # The note as stored (the shown text has reference numbers in it).
+            raw = findings.split_timeline(f.body, f.lang)[0]
+            notes = [r if len(raw) == len(entries) and findings.is_note_entry(r, f.lang) else None for r in raw]
+            notes += [None] * (len(tl) + 1 - len(notes))
             tl.append((findings.original_heading(f), original))
             with ui.element("div").classes("pb-tl w-full min-w-0"):
-                for head, text in tl:
+                for (head, text), note in zip(tl, notes):
                     with ui.element("div").classes("pb-tl-item w-full min-w-0"):
-                        ui.label(head).classes("pb-tl-head")
+                        with ui.row().classes("items-center gap-1 no-wrap w-full"):
+                            ui.label(head).classes("pb-tl-head")
+                            if note:
+                                ui.button(icon="edit", color=None,
+                                          on_click=lambda n=note: _edit_note(f, n)).props(
+                                    "flat dense round size=sm").classes("card-action-btn").tooltip(
+                                    _("Edit or delete note"))
                         ui.markdown(_in_app_links(text.strip(), user)).classes("chat-md finding-md w-full min-w-0")
+
+    def _edit_note(f, entry: str) -> None:
+        """Edit or delete one of the user's own notes on a finding."""
+        fid = f.finding_id
+        current = entry.strip("\n").split("\n", 1)[1].strip() if "\n" in entry.strip("\n") else ""
+        with _page_dialog() as dlg, ui.card().classes("w-full").style(
+                "max-width:560px;background:var(--c-surface)"):
+            ui.label(entry.strip("\n").split("\n", 1)[0][3:].strip()).classes("text-base font-semibold")
+            box = ui.textarea(value=current).props("outlined dense autogrow autofocus").classes("w-full")
+
+            async def _apply(text: str | None) -> None:
+                out = await findings.change_note(user, fid, entry, text)
+                dlg.close()
+                if out is None:
+                    ui.notify(_("The note changed meanwhile — reload and try again."), type="warning")
+                else:
+                    ui.notify(_("Note saved.") if text else _("Note deleted."), type="positive")
+                viewer_body.refresh()
+
+            async def _save() -> None:
+                text = (box.value or "").strip()
+                await _apply(text or None)
+
+            with ui.row().classes("w-full justify-between items-center"):
+                ui.button(_("Delete note"), icon="delete", on_click=lambda: _apply(None)).props(
+                    "flat dense no-caps").style("color:var(--c-warn)")
+                with ui.row().classes("gap-1"):
+                    ui.button(_("Cancel"), on_click=dlg.close).props("flat dense no-caps")
+                    ui.button(_("Save"), on_click=_save).props("unelevated dense no-caps color=primary")
+        dlg.open()
+
+    def _own_marks(f) -> None:
+        """What the user sets on an open finding beyond its status: "pressing",
+        and for a deadline one reminder of their own on top of the offsets."""
+        from proactive import clock, reactions
+
+        today = clock.local_now().date()
+        fid = f.finding_id
+
+        async def _pressing(on: bool) -> None:
+            await reactions.set_pressing(user, fid, on)
+            ui.notify(_("Marked pressing.") if on else _("No longer marked pressing."), type="positive")
+            nav_body.refresh()
+            viewer_body.refresh()
+
+        async def _remind(days: int | None) -> None:
+            out = await reactions.set_reminder(user, fid, days)
+            if days is None:
+                ui.notify(_("Reminder removed."), type="positive")
+            elif out is None:
+                ui.notify(_("A reminder has to fall on or before the deadline."), type="warning")
+                return
+            else:
+                ui.notify(_("Reminder set for {date}.").format(date=out.remind_on), type="positive")
+            viewer_body.refresh()
+
+        def _ask_days(limit: int) -> None:
+            with _page_dialog() as dlg, ui.card().classes("w-full").style(
+                    "max-width:360px;background:var(--c-surface)"):
+                ui.label(_("Remind me again in …")).classes("text-base font-semibold")
+                num = ui.number(label=_("Days"), value=min(5, limit), min=1, max=limit, step=1,
+                                format="%d").props("outlined dense").classes("w-full")
+                ui.label(_("At most {n} days — the deadline is {date}.").format(n=limit, date=f.deadline)).classes(
+                    "pbm-hint")
+
+                async def _ok() -> None:
+                    try:
+                        n = int(num.value or 0)
+                    except (TypeError, ValueError):
+                        n = 0
+                    if not 1 <= n <= limit:
+                        ui.notify(_("Enter a number from 1 to {n}.").format(n=limit), type="warning")
+                        return
+                    dlg.close()
+                    await _remind(n)
+
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button(_("Cancel"), on_click=dlg.close).props("flat dense no-caps")
+                    ui.button(_("Set reminder"), on_click=_ok).props("unelevated dense no-caps color=primary")
+            dlg.open()
+
+        with ui.row().classes("gap-2 flex-wrap items-center"):
+            if f.pressing:
+                ui.button(_("Not pressing"), icon="priority_high",
+                          on_click=lambda: _pressing(False)).props("flat dense no-caps")
+            elif not fv.is_pressing(f, today):
+                ui.button(_("Mark pressing"), icon="priority_high",
+                          on_click=lambda: _pressing(True)).props("flat dense no-caps")
+            left = fv.days_left(f, today)
+            if f.kind == "deadline" and left is not None and left >= 1:
+                if f.remind_on:
+                    ui.label(_("Reminder on {date}").format(date=f.remind_on)).classes("text-xs").style(
+                        "color:var(--c-text-2)")
+                    ui.button(icon="close", on_click=lambda: _remind(None)).props(
+                        "flat dense round size=sm").classes("card-action-btn").tooltip(_("Remove reminder"))
+                with ui.button(_("Remind me in …") if not f.remind_on else _("Change reminder"),
+                               icon="notifications").props("flat dense no-caps"):
+                    with ui.menu():
+                        for n in (1, 3, 7, 14):
+                            if n <= left:
+                                ui.menu_item(_("{n} days").format(n=n) if n > 1 else _("1 day"),
+                                             on_click=lambda n=n: _remind(n))
+                        ui.menu_item(_("Other …"), on_click=lambda lim=left: _ask_days(lim))
 
     def _finding_docs(ids: list[int]) -> None:
         """The finding's documents as the document dialog shows them: title,

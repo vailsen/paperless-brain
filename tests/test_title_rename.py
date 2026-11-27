@@ -233,7 +233,7 @@ def test_describe_for_title_parses_the_two_lines(monkeypatch, reply, expected):
             return reply
 
     monkeypatch.setattr(vision, "_archive_language_name", lambda: "German (Deutsch)")
-    monkeypatch.setattr(vision, "_wol_touch", lambda: None)
+    monkeypatch.setattr(vision, "_yield_touch", lambda: None)
     assert asyncio.run(_Fake().describe_for_title("summary")) == expected
 
 
@@ -257,3 +257,16 @@ def test_answers_cached_under_an_older_prompt_are_asked_again(state):
                                     "{description}", path=state))
     assert describe.calls == 1
     assert pl.patched == [(1, "Computerteile")]
+
+
+def test_a_rename_rebuilds_the_chunk_header(state):
+    """The chunk header carries the title; each changed title is reported."""
+    pl = _Paperless([_doc(1, "scan_0001")])
+    seen = []
+
+    async def on_renamed(doc_id, title):
+        seen.append((doc_id, title))
+
+    asyncio.run(tr.rename_documents(pl, _Sidecars({1: "s"}), _Describer(), DEFAULT_TEMPLATE,
+                                    path=state, on_renamed=on_renamed))
+    assert seen == pl.patched == [(1, "2026_10_17_Rechnung_CPU_Amazon")]

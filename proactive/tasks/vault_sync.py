@@ -33,10 +33,10 @@ CHECK_SECONDS = 120
 @handler(VAULT_SYNC_CHECK)
 async def vault_sync_check(job: Job) -> None:
     from proactive.internal_client import InternalUnavailable, vault_sync
-    from services import ollama_watchdog
+    from services import gpu_yield
     from vault.notes import pending_rel_paths
 
-    if ollama_watchdog.app_busy():
+    if gpu_yield.app_busy():
         return  # a user is chatting; their turn syncs anyway
     for user, _tok in users.eligible():
         try:

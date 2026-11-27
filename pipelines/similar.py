@@ -21,6 +21,7 @@ import asyncio
 
 from models.result_document import DocumentResult
 from pipelines.search import _drop_no_ingest
+from services.chunking import strip_context_prefix
 from services.clients import chroma, paperless, sidecar_service
 from services.paperless import PaperlessClient
 
@@ -76,7 +77,7 @@ async def find_similar_documents(
                 continue
             if pid not in best_score or dist < best_score[pid]:
                 best_score[pid] = dist
-                best_chunk[pid] = hit.get("document") or ""
+                best_chunk[pid] = strip_context_prefix(hit.get("document"))
 
     if not best_score:
         return []
