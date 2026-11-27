@@ -553,7 +553,9 @@ formatting bar does not cover the cursor line.
 
 ## Phase 6 — Dashboard: charts that answer a question
 
-Shipped 2026-11-27. Figures are computed after the page is on screen (not after a sync, which would need a per-user cache — rejected with the catalogue cache); vectors are cached per user while catalogue and index are unchanged.
+Shipped 2026-11-27; trimmed the same day after a look on the phone (round 2 below):
+the system status is back on top, "Expected but missing", "Topics in the archive" and
+"Possibly mis-filed" are gone. Figures are computed after the page is on screen (not after a sync, which would need a per-user cache — rejected with the catalogue cache); vectors are cached per user while catalogue and index are unchanged.
 
 Rule for this phase: a chart earns its place only if it answers a question the user
 actually has, from data the app *knows* — and tapping it leads somewhere (the browser,
@@ -719,3 +721,57 @@ replaces the editor under an unchanged save/merge model.
 - The Library/browser list is **not** cached: the lean fetch makes it fast enough.
 - Shortcuts: Chat, Note vault, New voice memo; the dashboard is the app icon itself.
   One PWA, never several.
+
+## Round 2 — feedback from the phone (2026-11-27)
+
+Done:
+
+- **Chat send did nothing** (regression of this overhaul): the draft-clear call ran
+  `ui.run_javascript` from `do_send`, a background task without a UI slot; it raised and
+  every send ended before it began. Now `input_field.client.run_javascript`. A second tap
+  within 0.8 s of sending no longer stops the turn (the button turns into "stop" under
+  the finger).
+- **Dashboard**: system status on top as before; "Expected but missing", topics and
+  "possibly mis-filed" removed with their code; duplicates are links with a dismiss per
+  pair (pref `dup_dismissed`); the over-time controls wrap inside the card; a sleeping
+  model host is a red dot (amber while waking); no "sync vault" button (it syncs on its
+  own); the dream button says "Tidy up memory".
+- **Browser**: no pill per active filter; "Clear all" stays.
+- **Note vault**: the editor has no frame; on a phone the path has the first header line
+  and "Saved", microphone and "⋯" the second. The tree's "⋯", right-click and drop did
+  nothing **inside any folder** — the node slot's `$parent.$emit` reaches the tree only
+  from top-level nodes; document listeners report them now.
+- **App shortcuts**: the manifest pins `"id": "/"`. Moving `start_url` to `/start`
+  without an id made the manifest a different app to Chrome, so the installed one never
+  took the update that carries the shortcuts.
+- **Chat conversations drawer**: search over titles *and* message text, grouped by expert
+  (default) or by date, a section shows six until "Show all"; chats about a finding,
+  dossier or the findings overview carry a small badge.
+
+### Proposal: a conversation editor (not built — decide first)
+
+Why the drawer goes unused is mostly that a conversation cannot be *worked on*: once a
+side question or a bad answer is in it, it stays in the model's context and in the way.
+Three tools, one mode ("Edit conversation" in the "…" menu, checkboxes on every turn):
+
+1. **Remove turns.** Tick question/answer pairs, remove them. Always the pair — an answer
+   without its question confuses the model on the next turn. Stored messages are
+   rewritten; `chat_turn_meta` (provenance) and the kept traces (`tool_trace.keep`) are
+   keyed by message index, so they are re-keyed in the same write, not dropped.
+   Undo: the removed turns go to a "Removed" fold at the end until the page is left.
+2. **Add a note for context.** A user-written block between two turns ("Ignore the 2023
+   contract, it was cancelled"). Stored as a user message with a marker
+   (`<pb-note>…</pb-note>`, rendered as a note card, never as a question) so the model
+   reads it in order; it costs no model call.
+3. **Compact what you choose.** Tick turns → "Compact selected": only those are replaced
+   by one summary bubble in their place; everything not ticked stays word for word.
+   Today's compaction summarises everything (and its prompt is German-only — fix with
+   this). The summary keeps document ids and is marked as a summary, so citations in it
+   are not re-numbered as sources.
+
+Also worth having, small: **pin** a conversation (top of the drawer), **move** a
+conversation to another expert (only if the scope allows — it changes what the next turn
+may read), and **"Continue in new chat"** from an answer (carries that answer as context).
+
+Open questions for the user: pairs only, or single answers too? Should a note be visible
+to the model as the user's words or as a system hint? Is "undo until you leave" enough?

@@ -159,6 +159,9 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 - **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`, `id` pinned to "/" — never change it,
   served by a route: names from `Accept-Language`, no memo shortcut without Whisper).
   Never a second manifest on the same origin — it would share scope and service worker.
+- **`do_send` and anything it calls run without a UI slot** (`asyncio.ensure_future`): JS
+  goes through an element's `client.run_javascript`, UI inside `with messages_container:` —
+  a bare `ui.run_javascript` there ended every send before it began (2026-11-27).
 - **Ctrl/Cmd+K is the app-wide quick switcher** (`app_ui/quick_switcher.py`); pages open a
   target from `?open=` (browser: a document id, vault: a note path).
 - Dialogs: `app_ui/document_dialog.py`, `app_ui/cluster_dialog.py`
@@ -1058,6 +1061,9 @@ Full plan and rationale: `docs/voice-memos-tasks.md`.
   - **Managed folders** (`vault/managed.py`, names from the settings): notes open read-only
     until "Unlock to edit" (this note only); memos edit freely; no managed root folder can
     be renamed, moved or deleted. A UI guard, not security — the app's writers are unaffected.
+  - **Tree events go through document listeners** (`brain._NODE_EVENTS_JS`, `data-node`):
+    a `ui.tree` slot's `$parent.$emit` reaches the tree only from top-level nodes, so
+    "⋯", right-click and drop inside a folder did nothing.
   - **Renames and moves rewrite links automatically** (`vault/links.py`, Obsidian
     resolution; through `save_note`, link targets only — also inside managed folders).
   - **Search reads the notes' text** (`vault/search.py` over `vault/scan.py`, a read cache by
