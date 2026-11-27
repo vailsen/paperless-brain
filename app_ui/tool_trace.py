@@ -237,6 +237,29 @@ def kept(key: tuple) -> dict | None:
     return _KEPT.get(key)
 
 
+def snapshot(user: str, conv_id: str) -> dict[int, dict]:
+    """The kept histories of one conversation by position (for an undo)."""
+    return {k[2]: v for k, v in _KEPT.items() if k[:2] == (user, conv_id)}
+
+
+def restore(user: str, conv_id: str, snap: dict[int, dict]) -> None:
+    for k in [k for k in _KEPT if k[:2] == (user, conv_id)]:
+        del _KEPT[k]
+    for i, rec in snap.items():
+        keep((user, conv_id, i), rec)
+
+
+def rekey(user: str, conv_id: str, index_map: dict[int, int]) -> None:
+    """After an edit of the conversation (`services/chat_edit`): each kept
+    history follows its answer to the new position; a removed answer's goes."""
+    old = [(k, v) for k, v in _KEPT.items() if k[:2] == (user, conv_id)]
+    for k, _v in old:
+        del _KEPT[k]
+    for k, v in old:
+        if k[2] in index_map:
+            _KEPT[(user, conv_id, index_map[k[2]])] = v
+
+
 def view_for(rec: dict) -> "TraceView":
     """A history dialog over a kept record (its lists, live if still running)."""
     tv = TraceView(rec["trace"], rec["calls"], lambda: rec["transcript"][0], model=rec.get("model", ""),

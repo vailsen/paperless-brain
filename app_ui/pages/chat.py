@@ -78,6 +78,7 @@ from services import chat_attachments as attachments
 from services.chat_attachments import strip_for_title
 from services.credential_store import load_credentials, save_credentials
 import services.chat_history_service as _chat_hist
+from services import chat_edit
 
 _DOC_ID_RE = re.compile(r"(?<!\]\()(?<![`\w])(#)(\d+)\b")
 # A model links a document by its number: "[Segmentfreigabe L4](#356)" — an
@@ -540,6 +541,22 @@ html, body { overflow: hidden !important; }
 .chat-history-item:hover .chat-hist-actions { opacity: 1; }
 .chat-history-item.active { background: var(--c-surface-3); border-left-color: var(--c-accent); }
 .chat-hist-actions { opacity: 0; transition: opacity .15s; display: flex; gap: 0; flex-shrink: 0; }
+/* A note the user added: a bar across the conversation, not a bubble. */
+.pb-note-bar { max-width: min(92%, 640px); width: 100%; margin: 4px 0; padding: 6px 14px 8px;
+    border-top: 1px dashed var(--c-border-strong); border-bottom: 1px dashed var(--c-border-strong);
+    text-align: center; color: var(--c-text-2); font-size: .82rem; }
+.pb-note-head { justify-content: center; font-size: .68rem; font-weight: 600; color: var(--c-text-muted);
+    margin-bottom: 2px; }
+.pb-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Edit mode: a tick box per message, the ticked ones tinted. */
+body.pb-editing .chat-quick-strip { display: none !important; }
+.pb-edit-item { gap: 4px; padding: 2px 4px; border-radius: 10px; min-width: 0; }
+.pb-edit-item.is-sel { background: var(--c-accent-soft); }
+.chat-edit-bar { flex-shrink: 0; background: var(--c-bg-deep); border-top: 1px solid var(--c-surface-2);
+    padding: 8px 12px; }
+.chat-edit-inner { max-width: 860px; margin: 0 auto; width: 100%; display: flex; align-items: center;
+    gap: 6px; flex-wrap: wrap; row-gap: 4px; }
+.chat-edit-count { flex: 1 1 140px; min-width: 0; font-size: .75rem; color: var(--c-text-muted); }
 .chat-hist-group { gap: 6px; padding: 10px 8px 3px 10px; font-size: .7rem; font-weight: 600;
     color: var(--c-text-muted); min-width: 0; }
 .chat-hist-count { font-weight: 400; font-variant-numeric: tabular-nums; }
@@ -1553,10 +1570,23 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         # TODO i18n-plural
         return _("1 page") if n == 1 else _("{n} pages").format(n=n)
 
+    def _note_bar(text: str) -> None:
+        """A note the user added (`services/chat_edit`): a bar across the
+        conversation — their words, but not a question."""
+        with ui.row().classes("w-full justify-center"):
+            with ui.element("div").classes("pb-note-bar"):
+                with ui.row().classes("items-center gap-1 no-wrap pb-note-head"):
+                    ui.icon("sticky_note_2").style("font-size:14px")
+                    ui.label(_("Note"))
+                ui.label(text).classes("pb-note-text")
+
     def _render_stored_msg(msg: dict, idx: int = -1) -> None:
         """Render a single stored message dict into messages_container.
         `idx` = its position in the conversation, for "Save to dossier"."""
-        if msg["role"] == "user":
+        _nt = chat_edit.note_text(msg["content"]) if msg["role"] == "user" else None
+        if _nt is not None:
+            _note_bar(_nt)
+        elif msg["role"] == "user":
             _user_bubble(msg["content"])
         else:
             with ui.row().classes("justify-start w-full"):
@@ -1744,19 +1774,21 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     ui.label(_fmt_conv_time(c["updated_at"])).style(
                         "font-size:0.6rem; color:var(--c-border-strong); line-height:1;"
                     )
+                if c.get("pinned"):
+                    ui.icon("push_pin").style("font-size:12px; color:var(--c-text-muted); flex-shrink:0")
                 with ui.row().classes("chat-hist-actions").style("gap:0; flex-shrink:0;"):
-                    ui.button(
-                        icon="drive_file_rename_outline",
-                        on_click=lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t),
-                    ).props("flat dark dense").classes("card-action-btn").style(
-                        "min-width:20px; width:20px; height:20px; font-size:13px;"
-                    ).tooltip(_("Rename"))
-                    ui.button(
-                        icon="delete_outline",
-                        on_click=lambda cid=c["id"]: _delete_conv(cid),
-                    ).props("flat dark dense").classes("card-action-btn").style(
-                        "min-width:20px; width:20px; height:20px; font-size:13px;"
-                    ).tooltip(_("Delete"))
+                    with ui.button(icon="more_vert").props("flat dense round size=sm").classes(
+                            "card-action-btn").tooltip(_("More")):
+                        with ui.menu().props("auto-close"):
+                            ui.menu_item(_("Unpin") if c.get("pinned") else _("Pin to the top"),
+                                         on_click=lambda cid=c["id"], p=bool(c.get("pinned")): _toggle_pin(cid, not p))
+                            ui.menu_item(_("Rename"),
+                                         on_click=lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t))
+                            if _experts_on and not _cg.context_kind(c):
+                                ui.menu_item(_("Move to another expert …"),
+                                             on_click=lambda cid=c["id"]: _move_conv(cid))
+                            ui.separator()
+                            ui.menu_item(_("Delete"), on_click=lambda cid=c["id"]: _delete_conv(cid))
 
         def _toggle_all(key: str) -> None:
             _hist_ui["open"].symmetric_difference_update({key})
@@ -1779,7 +1811,15 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             if q and not convs:
                 ui.label(_("No conversation mentions this.")).classes("text-xs px-2 py-3").style(
                     "color:var(--c-text-muted)")
-            for g in _cg.group(convs, mode, _dt.now().astimezone()):
+            pinned = [c for c in convs if c.get("pinned")]
+            if pinned:
+                with ui.row().classes("chat-hist-group items-center no-wrap w-full"):
+                    ui.icon("push_pin").style("font-size:13px")
+                    ui.label(_("Pinned")).classes("flex-1 min-w-0")
+                    ui.label(str(len(pinned))).classes("chat-hist-count")
+                for c in pinned:
+                    _row(c)
+            for g in _cg.group([c for c in convs if not c.get("pinned")], mode, _dt.now().astimezone()):
                 if mode == "expert":
                     e = experts.get(g.key)
                     label = e.name if e else (_("Universal") if g.key == _cg.UNIVERSAL else _("Removed expert"))
@@ -1877,14 +1917,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         _cstore.pop("chat_history", None)
         _cstore.pop("chat_token_count", None)
         _cstore.pop("chat_context_window", None)
-        messages_container.clear()
-        with messages_container:
-            if not messages:
-                _welcome_msg()
-            else:
-                for _mi, _msg in enumerate(messages):
-                    _render_stored_msg(_msg, _mi)
-                _fill_titles_later(messages)
+        _edit_reset()
+        _render_all()
         _update_context_progress()
         _set_history_visible(False)
         _scroll_bottom_later()
@@ -1893,7 +1927,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         """To the newest message — now and again once markdown, tables and
         pictures have their height (a switch from the history landed mid-way)."""
         messages_scroll.scroll_to(percent=1.0)
-        ui.run_javascript(
+        # The element's client, not `ui.run_javascript`: this runs from
+        # background tasks too (a turn, a compaction), which have no UI slot.
+        messages_scroll.client.run_javascript(
             "(function(){var f=function(){var e=document.querySelector("
             "'.chat-messages-scroll .q-scrollarea__container');if(e){e.scrollTop=e.scrollHeight;}};"
             "f();[80,250,600,1200,2000].forEach(function(t){setTimeout(f,t);});})()")
@@ -1931,6 +1967,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         dlg.open()
 
     def _new_conv() -> None:
+        _edit_reset()
         _s["messages"].clear()
         _s["total_tokens"] = 0
         _s["context_window"] = 0
@@ -1973,7 +2010,230 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         # with the dossier's own); picking another one follows this.
         _apply_expert(_s.get("dock_expert") or _experts_mod.default_id(_username))
 
-    async def _compact_chat() -> None:
+    def _continue_new(answer: str) -> None:
+        """A new conversation (same expert) that starts with this answer as a
+        note — the context carried over, the rest of the old chat left behind."""
+        if _s["running"]:
+            ui.notify(_("Wait until the answer is written."), type="info")
+            return
+        old = _chat_hist.get_conversation(_s["conv_id"], _username) if _s.get("conv_id") else None
+        old_title = (old or {}).get("title") or _("Conversation")
+        eid = _s.get("expert_id")
+        _new_conv()
+        if eid:
+            _apply_expert(eid)
+        _ensure_conv(_("{title} (continued)").format(title=old_title))
+        note = chat_edit.make_note(_("From the conversation “{title}”:").format(title=old_title) + "\n\n" + answer)
+        new, meta, imap = chat_edit.insert(_s["messages"], _s["turn_meta"], 0, note)
+        _edit_apply(new, meta, imap)
+        _s["undo"] = []  # nothing to undo in a conversation that just began
+        input_field.run_method("focus")
+
+    def _toggle_pin(conv_id: str, pinned: bool) -> None:
+        _chat_hist.set_pinned(conv_id, _username, pinned)
+        _refresh_history_list()
+
+    async def _move_conv(conv_id: str) -> None:
+        """Another expert for a conversation. Its scope is focus, not security:
+        earlier answers may mention documents outside the new expert's focus."""
+        conv = _chat_hist.get_conversation(conv_id, _username) or {}
+        current = conv.get("expert_id") or _experts_mod.UNIVERSAL_ID
+        options = {e.expert_id: e.name for e in _experts_mod.list_experts(_username)}
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:380px; max-width:94vw;"):
+            ui.label(_("Move to another expert")).classes("text-sm font-semibold").style("color:var(--c-text)")
+            ui.label(_("The next answer uses the new expert's focus and skills. Earlier answers stay as "
+                       "they are and may mention documents outside that focus.")).classes("text-xs").style(
+                "color:var(--c-text-muted)")
+            pick = ui.radio(options, value=current).props("dense")
+            with ui.row().classes("justify-end w-full gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("Move"), on_click=lambda: dlg.submit(pick.value)).props("unelevated no-caps color=primary")
+        eid = await dlg
+        dlg.delete()
+        if not eid or eid == current:
+            return
+        _chat_hist.set_expert(conv_id, _username, eid)
+        if conv_id == _s.get("conv_id"):
+            _apply_expert(eid)
+        _refresh_history_list()
+        ui.notify(_("Moved to {name}.").format(name=options.get(eid, eid)), type="positive")
+
+    # ── Editing a conversation (services/chat_edit) ───────────────────────────
+    # "Edit conversation" ticks single messages to remove or compact them;
+    # notes go in at the end or after the ticked ones. Every change can be
+    # undone until the page is left (`_s["undo"]`, in memory only).
+
+    def _render_all() -> None:
+        """The whole conversation from `_s["messages"]` — in edit mode each
+        message with its tick box."""
+        msgs = _s["messages"]
+        ed = _s.get("edit")
+        messages_container.clear()
+        with messages_container:
+            if not msgs:
+                _welcome_msg()
+                return
+            for i, m in enumerate(msgs):
+                if ed is None:
+                    _render_stored_msg(m, i)
+                    continue
+                with ui.row().classes("pb-edit-item w-full items-start no-wrap"
+                                      + (" is-sel" if i in ed["sel"] else "")) as row:
+                    ui.checkbox(value=i in ed["sel"],
+                                on_change=lambda e, i=i, r=row: _edit_toggle(i, bool(e.value), r)).props("dense")
+                    with ui.column().classes("flex-1 min-w-0 gap-0"):
+                        _render_stored_msg(m, i)
+            _fill_titles_later(msgs)
+
+    def _edit_toggle(i: int, on: bool, row) -> None:
+        ed = _s.get("edit")
+        if ed is None:
+            return
+        (ed["sel"].add if on else ed["sel"].discard)(i)
+        row.classes(add="is-sel") if on else row.classes(remove="is-sel")
+        _edit_bar_view.refresh()
+
+    @ui.refreshable
+    def _edit_bar_view() -> None:
+        ed = _s.get("edit") or {"sel": set()}
+        n = len(ed["sel"])
+        with ui.element("div").classes("chat-edit-inner"):
+            ui.label(_("{n} selected").format(n=n) if n else _("Tick messages to remove or compact them.")) \
+                .classes("chat-edit-count")
+            with ui.row().classes("items-center no-wrap gap-1"):
+                def _b(label: str, icon: str, fn, enabled: bool = True) -> None:
+                    b = ui.button(label, icon=icon, on_click=fn).props("flat dense no-caps size=sm")
+                    if not enabled:
+                        b.disable()
+                _b(_("Remove"), "delete_outline", _edit_remove, n > 0)
+                _b(_("Compact"), "compress", lambda: _compact_chat(set(ed["sel"])), n > 0)
+                _b(_("Note"), "sticky_note_2", lambda: _note_dialog())
+                if _s.get("undo"):
+                    _b(_("Undo"), "undo", _edit_undo)
+                ui.button(_("Done"), icon="check", on_click=lambda: _edit_exit()).props(
+                    "unelevated dense no-caps size=sm color=primary")
+
+    def _edit_enter() -> None:
+        if _s["running"]:
+            ui.notify(_("Wait until the answer is written."), type="info")
+            return
+        if not _s["messages"]:
+            ui.notify(_("Nothing to edit yet."), type="info")
+            return
+        _s["edit"] = {"sel": set()}
+        input_row.set_visibility(False)
+        edit_bar.set_visibility(True)
+        _editing_class(True)
+        _edit_bar_view.refresh()
+        _render_all()
+
+    def _editing_class(on: bool) -> None:
+        """Quick actions and attachments step aside while editing."""
+        input_row.client.run_javascript(
+            f"document.body.classList.toggle('pb-editing', {'true' if on else 'false'})")
+
+    def _edit_exit() -> None:
+        _s["edit"] = None
+        edit_bar.set_visibility(False)
+        input_row.set_visibility(True)
+        _editing_class(False)
+        _render_all()
+        _scroll_bottom_later()
+
+    def _edit_reset() -> None:
+        """Another conversation: no edit mode, nothing to undo."""
+        _s["undo"] = []
+        if _s.get("edit") is not None:
+            _s["edit"] = None
+            edit_bar.set_visibility(False)
+            input_row.set_visibility(True)
+            _editing_class(False)
+
+    def _ensure_conv(title: str) -> None:
+        """A stored conversation to write the edit into (a note can come first)."""
+        if _s.get("conv_id") or not _username:
+            return
+        _s["conv_id"] = _chat_hist.create_conversation(
+            _username, title[:60] or _("New conversation"), expert_id=_s.get("expert_id"),
+            context=_conv_context())
+        _cstore["chat_conv_id"] = _s["conv_id"]
+        _cstore.pop("chat_fresh", None)
+
+    def _edit_apply(new_msgs: list[dict], new_meta: dict, index_map: dict[int, int]) -> None:
+        conv = _s.get("conv_id")
+        _s.setdefault("undo", []).append({
+            "messages": list(_s["messages"]), "meta": dict(_s["turn_meta"]),
+            "traces": _tool_trace_mod.snapshot(_username, conv) if conv else {},
+        })
+        _s["messages"] = new_msgs
+        _s["turn_meta"] = new_meta
+        if conv and _username:
+            _chat_hist.rewrite_conversation(conv, _username, new_msgs, new_meta)
+            _tool_trace_mod.rekey(_username, conv, index_map)
+        _cstore["chat_history"] = list(new_msgs)
+        if _s.get("edit") is not None:
+            _s["edit"]["sel"] = set()
+        _render_all()
+        _edit_bar_view.refresh()
+        _update_context_progress()
+        _refresh_history_list()
+
+    def _edit_remove() -> None:
+        ed = _s.get("edit")
+        if not ed or not ed["sel"]:
+            return
+        new, meta, imap = chat_edit.remove(_s["messages"], _s["turn_meta"], set(ed["sel"]))
+        _edit_apply(new, meta, imap)
+        ui.notify(_("Removed. “Undo” brings it back until you leave the page."), type="info")
+
+    def _edit_undo() -> None:
+        if not _s.get("undo"):
+            return
+        snap = _s["undo"].pop()
+        conv = _s.get("conv_id")
+        _s["messages"] = snap["messages"]
+        _s["turn_meta"] = snap["meta"]
+        if conv and _username:
+            _chat_hist.rewrite_conversation(conv, _username, _s["messages"], _s["turn_meta"])
+            _tool_trace_mod.restore(_username, conv, snap["traces"])
+        _cstore["chat_history"] = list(_s["messages"])
+        if _s.get("edit") is not None:
+            _s["edit"]["sel"] = set()
+        _render_all()
+        _edit_bar_view.refresh()
+        _update_context_progress()
+
+    async def _note_dialog() -> None:
+        """A note: after the last ticked message in edit mode, else at the end.
+        Awaited by its button's handler — so it keeps the page's UI slot."""
+        if _s["running"]:
+            ui.notify(_("Wait until the answer is written."), type="info")
+            return
+        ed = _s.get("edit")
+        at = (max(ed["sel"]) + 1) if (ed and ed["sel"]) else len(_s["messages"])
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:440px; max-width:94vw;"):
+            ui.label(_("Add a note")).classes("text-sm font-semibold").style("color:var(--c-text)")
+            ui.label(_("Your own words for the conversation — context, not a question. "
+                       "The model reads it as a note and does not answer it.")).classes("text-xs").style(
+                "color:var(--c-text-muted)")
+            area = ui.textarea(placeholder=_("e.g. Ignore the 2023 contract, it was cancelled.")).props(
+                "outlined autogrow autofocus").classes("w-full")
+            with ui.row().classes("justify-end w-full gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("Add note"), on_click=lambda: dlg.submit((area.value or "").strip())).props(
+                    "unelevated no-caps color=primary")
+        text = await dlg
+        dlg.delete()
+        if not text:
+            return
+        _ensure_conv(text)
+        new, meta, imap = chat_edit.insert(_s["messages"], _s["turn_meta"], at, chat_edit.make_note(text))
+        _edit_apply(new, meta, imap)
+        _scroll_bottom_later()
+
+    async def _compact_chat(indices: set[int] | None = None) -> None:
+        """Replace the conversation by a summary of `indices` (all when None);
+        what is not selected is removed. Undo works as for any edit."""
         if not _s["messages"] or _s["running"]:
             ui.notify(_("No conversation to compress") if not _s["messages"] else _("Chat running"), type="warning")
             return
@@ -1982,31 +2242,24 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         if not backend:
             ui.notify(_("No model selected"), type="warning")
             return
+        picked = sorted(indices) if indices else list(range(len(_s["messages"])))
+        selected = [_s["messages"][i] for i in picked if 0 <= i < len(_s["messages"])]
+        if not selected:
+            return
+
+        from i18n import language_name
+
+        # English instructions; the summary in the conversation's own language.
+        lang = detect_language(" ".join(attachments.strip_for_title(m["content"]) for m in selected)[:4000],
+                               default=get_pref("language", DEFAULT_LANG))
+        system, request = chat_edit.compact_prompt(selected, language_name(lang))
 
         _s["running"] = True
         _s["stop_requested"] = False
         send_btn.props(add="icon=stop color=red")
 
-        history_text = "\n".join(
-            f"{'Nutzer' if m['role'] == 'user' else 'Assistent'}: {m['content']}"
-            for m in _s["messages"]
-        )
-        compact_request = (
-            "Fasse das folgende Gespräch sehr kompakt zusammen. "
-            "Behalte alle wichtigen Fakten, Dokument-IDs (#NNN), Daten und Ergebnisse. "
-            "Antworte NUR mit der Zusammenfassung, ohne Präambel:\n\n" + history_text
-        )
-
-        # Clear old messages and show a compacting-in-progress bubble
-        messages_container.clear()
-        _s["messages"] = []
-        _s["total_tokens"] = 0
-        _s["context_window"] = 0
-        _s["current_ctx_tokens"] = 0
-        _update_context_progress()
-
         with messages_container:
-            with ui.row().classes("justify-start w-full"):
+            with ui.row().classes("justify-start w-full") as spin_row:
                 with ui.element("div").classes("chat-bubble").style(
                     "background:var(--c-surface-3); border-radius:0 12px 12px 12px;"
                     "padding:10px 14px; max-width:85%;min-width:0; font-size:0.875rem; color:var(--c-text-2);"
@@ -2020,11 +2273,12 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     ).classes("chat-md")
         messages_scroll.scroll_to(percent=1.0)
 
+        summary = ""
         try:
             parts: list[str] = []
             async for ev in backend.run_turn(
-                system="Du bist ein präziser Zusammenfasser. Antworte nur mit der kompakten Zusammenfassung.",
-                messages=[{"role": "user", "content": compact_request}],
+                system=system,
+                messages=[{"role": "user", "content": request}],
                 tools=[],
                 temperature=0.2,
                 max_iterations=1,
@@ -2034,48 +2288,28 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 if isinstance(ev, TextTokenEvent):
                     parts.append(ev.text)
                     compact_md.set_content(escape_intraword_underscores("".join(parts)))
-
             summary = "".join(parts).strip()
-            if summary:
-                summary_content = _("**[Summary]**") + f"\n\n{summary}"
-                _s["messages"] = [{"role": "assistant", "content": summary_content}]
-                # Replace the spinner bubble with the final rendered result
-                messages_container.clear()
-                with messages_container:
-                    with ui.row().classes("justify-start w-full"):
-                        with ui.element("div").classes("chat-bubble").style(
-                            "background:var(--c-surface-3); border-radius:0 12px 12px 12px;"
-                            "padding:10px 14px; max-width:85%;min-width:0; font-size:0.875rem; color:var(--c-text-2);"
-                            "border-left:3px solid var(--c-accent);"
-                        ):
-                            ui.label(_("🗜 Compressed conversation")).classes(
-                                "text-xs pb-accent-text font-semibold mb-2"
-                            )
-                            ui.markdown(
-                                escape_intraword_underscores(summary),
-                                sanitize=False,
-                                extras=_MD_EXTRAS,
-                            ).classes("chat-md")
-                _update_context_progress()
-                _cstore["chat_history"] = list(_s["messages"])
-                if _s.get("conv_id") and _username:
-                    _chat_hist.replace_messages(_s["conv_id"], _username, _s["messages"])
-            else:
-                # Nothing generated — restore welcome
-                messages_container.clear()
-                with messages_container:
-                    _welcome_msg()
-                ui.notify(_("Compression produced no result"), type="warning")
         except Exception as e:
-            messages_container.clear()
-            with messages_container:
-                _welcome_msg()
             ui.notify(_("Error compressing: {err}").format(err=e), type="negative")
         finally:
             _s["running"] = False
             _s["stop_requested"] = False
             send_btn.props(add="icon=send color=primary")
-            messages_scroll.scroll_to(percent=1.0)
+            try:
+                spin_row.delete()
+            except Exception:  # noqa: BLE001 — already gone with a re-render
+                pass
+        if not summary:
+            if not _s["stop_requested"]:
+                ui.notify(_("Compression produced no result"), type="warning")
+            return
+        _s["total_tokens"] = 0
+        _s["context_window"] = 0
+        _s["current_ctx_tokens"] = 0
+        # Everything not selected goes; the summary is the conversation now.
+        _edit_apply([chat_edit.summary_message(summary, _("**[Summary]**"))], {},
+                    {})
+        _scroll_bottom_later()
 
     # ── Chat history left drawer ──────────────────────────────────────────────
     history_scrim = ui.element("div").classes("chat-history-scrim")
@@ -2356,6 +2590,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         with ui.button(icon="more_vert", color=None).props("flat dark dense").classes(
                                 "text-gray-400 chat-conv-menu").tooltip(_("Conversation")) as conv_menu_btn:
                             with ui.menu().props("auto-close"):
+                                _conv_item("edit_note", _("Edit conversation"), lambda: _edit_enter())
+                                _conv_item("sticky_note_2", _("Add a note"), lambda: _note_dialog())
+                                ui.separator()
                                 _conv_item("download", _("Download conversation as Markdown"),
                                            lambda: _dl_conversation())
                                 _conv_item("save", _("Save chat to Paperless"),
@@ -2368,7 +2605,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 _conv_item("tune", _("Configure tools"),
                                            lambda: _toggle_tools_panel(), "chat-menu-tool")
                                 _conv_item("compress", _("Compress chat"),
-                                           lambda: asyncio.ensure_future(_compact_chat()), "chat-menu-tool")
+                                           lambda: _compact_chat(), "chat-menu-tool")
                                 ui.separator()
                                 _conv_item("delete_sweep", _("Delete conversation"), lambda: _clear_chat())
                         if _embed:
@@ -2639,6 +2876,12 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
 
                     _render_attachments()
 
+                    # "Edit conversation": this bar takes the input row's place.
+                    edit_bar = ui.row().classes("chat-edit-bar w-full")
+                    edit_bar.set_visibility(False)
+                    with edit_bar:
+                        _edit_bar_view()
+
                     # Input row
                     with (
                         ui.row()
@@ -2647,7 +2890,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             "flex-shrink:0;"
                             "background:var(--c-bg-deep); border-top:1px solid var(--c-surface-2);"
                             "padding:10px 16px;"
-                        )
+                        ) as input_row
                     ):
                         with ui.element("div").style(
                             "max-width:860px; margin:0 auto; width:100%;"
@@ -2667,7 +2910,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 .classes("chat-input-tool")
                                 .tooltip(_("Compress chat"))
                             )
-                            compact_btn.on_click(lambda: asyncio.ensure_future(_compact_chat()))
+                            compact_btn.on_click(lambda: _compact_chat())
 
                             attach_upload = (
                                 ui.upload(
@@ -3664,6 +3907,8 @@ window.__openVaultNote = function(noteId) {{
                 if save is not None:
                     _item("create_new_folder", _("Save to dossier (select text first to save only that part)"),
                           save)
+                if content and not _embed:
+                    _item("forward_to_inbox", _("Continue in a new chat"), lambda c=content: _continue_new(c))
 
     def _on_insight_saved(topic: str) -> None:
         if _embed:
@@ -4468,7 +4713,9 @@ window.__openVaultNote = function(noteId) {{
                 pass  # vault sync failure must never block the chat turn
 
         # Inject pinned-doc context into LLM messages without polluting stored history
-        llm_messages = list(_s["messages"])
+        # Notes framed as notes, neighbours of one role joined (an edited
+        # conversation can have two questions in a row) — services/chat_edit.
+        llm_messages = chat_edit.for_model(_s["messages"])
         if _s.get("finding_ctx"):
             _fc = _s["finding_ctx"]
             llm_messages[-1] = {

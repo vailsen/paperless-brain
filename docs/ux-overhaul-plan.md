@@ -754,30 +754,24 @@ Done:
   (default) or by date, a section shows six until "Show all"; chats about a finding,
   dossier or the findings overview carry a small badge.
 
-### Proposal: a conversation editor (not built — decide first)
+### Conversation editor (built 2026-11-27, after the user decided)
 
-Why the drawer goes unused is mostly that a conversation cannot be *worked on*: once a
-side question or a bad answer is in it, it stays in the model's context and in the way.
-Three tools, one mode ("Edit conversation" in the "…" menu, checkboxes on every turn):
+`services/chat_edit.py` (pure), UI in `app_ui/pages/chat.py` ("Edit conversation" and "Add a
+note" in the conversation menu), storage `chat_history_service.rewrite_conversation`.
 
-1. **Remove turns.** Tick question/answer pairs, remove them. Always the pair — an answer
-   without its question confuses the model on the next turn. Stored messages are
-   rewritten; `chat_turn_meta` (provenance) and the kept traces (`tool_trace.keep`) are
-   keyed by message index, so they are re-keyed in the same write, not dropped.
-   Undo: the removed turns go to a "Removed" fold at the end until the page is left.
-2. **Add a note for context.** A user-written block between two turns ("Ignore the 2023
-   contract, it was cancelled"). Stored as a user message with a marker
-   (`<pb-note>…</pb-note>`, rendered as a note card, never as a question) so the model
-   reads it in order; it costs no model call.
-3. **Compact what you choose.** Tick turns → "Compact selected": only those are replaced
-   by one summary bubble in their place; everything not ticked stays word for word.
-   Today's compaction summarises everything (and its prompt is German-only — fix with
-   this). The summary keeps document ids and is marked as a summary, so citations in it
-   are not re-numbered as sources.
-
-Also worth having, small: **pin** a conversation (top of the drawer), **move** a
-conversation to another expert (only if the scope allows — it changes what the next turn
-may read), and **"Continue in new chat"** from an answer (carries that answer as context).
-
-Open questions for the user: pairs only, or single answers too? Should a note be visible
-to the model as the user's words or as a system hint? Is "undo until you leave" enough?
+- **Remove**: any single message, ticked in edit mode. Provenance (`chat_turn_meta`) and the
+  kept tool histories are re-keyed to the new positions, not dropped. **Undo** for every edit
+  until the page is left (in memory).
+- **Notes**: the user's own words, stored as a user message in `<pb-note>`; shown as a dashed
+  bar across the conversation, never a bubble; the model gets them with a line saying they are
+  a note, not a question. Added at the end, or after the last ticked message.
+- **Compact**: the ticked messages become one summary; everything else is removed (the user's
+  choice). The prompt is English and names the conversation's language for the summary
+  (`i18n.detect_language` → `language_name`) — it was German-only.
+- **What the model is sent** goes through `chat_edit.for_model`: notes framed, neighbours of
+  one role joined (removing one message can leave two questions in a row), and a leading
+  answer opened by a short user line.
+- **Pin** (drawer section on top, column `pinned`), **move to another expert** (plain chats
+  only; the dialog says earlier answers may mention documents outside the new focus — a scope
+  is focus, not security), **continue in a new chat** from an answer (same expert; the answer
+  is carried over as a note).

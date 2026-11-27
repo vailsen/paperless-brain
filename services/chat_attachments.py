@@ -95,6 +95,11 @@ def strip_for_title(content: str, keep_attachment_text: bool = False) -> str:
     """The user's words, with each file as "[file: name]" — for titles, the
     tool history heading, exports. `keep_attachment_text` keeps the blocks
     (a draft written from the conversation may need the file's content)."""
+    from services.chat_edit import note_text
+
+    note = note_text(content or "")
+    if note is not None:  # a note the user added (services/chat_edit)
+        return f"Note: {note}"
     if keep_attachment_text:
         return content or ""
     text, files = split(content)

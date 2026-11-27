@@ -159,6 +159,12 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 - **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`, `id` pinned to "/" — never change it,
   served by a route: names from `Accept-Language`, no memo shortcut without Whisper).
   Never a second manifest on the same origin — it would share scope and service worker.
+- **A conversation can be edited** (`services/chat_edit.py`, "Edit conversation"): single
+  messages removed, notes added (`<pb-note>`, a bar, never a bubble), a selection compacted
+  (the rest removed). Everything keyed by message position — `chat_turn_meta`, kept tool
+  histories — is re-keyed with the edit's `index_map`, never dropped; undo lives in memory
+  until the page is left. **The model always gets `chat_edit.for_model(messages)`**, never
+  the stored list as it is: notes framed as notes, same-role neighbours joined.
 - **`do_send` and anything it calls run without a UI slot** (`asyncio.ensure_future`): JS
   goes through an element's `client.run_javascript`, UI inside `with messages_container:` —
   a bare `ui.run_javascript` there ended every send before it began (2026-11-27).
@@ -556,7 +562,8 @@ page `app_ui/pages/experts.py`.
   renamed or deleted — not from the UI, not from an edited file; a deleted
   file is recreated.
 - **An expert is fixed per conversation** (`chat_conversations.expert_id`);
-  switching asks for a new conversation.
+  switching in the chat asks for a new conversation. Moving a whole conversation to
+  another expert is a deliberate drawer action ("Move to another expert"), plain chats only.
 - **"Use experts" is the Experts module hidden** (`experts.enabled()` reads
   `app_ui.modules.hidden()`; the old pref `experts_enabled` migrates into it): off, `_apply_expert` coerces every conversation to
   Universal and the picker and menu item are hidden. The findings dock never
