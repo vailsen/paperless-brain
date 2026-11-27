@@ -33,6 +33,14 @@ them into the Chroma metadata. **Nothing reads them back**: no search filters by
 no UI groups by them. Today they are decoration that Obsidian shows and we don't. This
 plan makes them useful (§4.6 `tag:` search, clickable chips) instead of hiding them.
 
+**Why the chat's Library takes 3–4 s (fix in Phase 3):** `DocLibrary.reload()` calls
+`list_documents()`, which fetches **full** documents — including `content`, the whole
+OCR text of every document — 100 per page, one page after the other. On top, the chat
+builds a fresh `PaperlessClient` per load, so the tag/correspondent/type/user maps
+(cached per client instance) are fetched again each time. The tree needs none of the
+text. So the fix has two halves: fetch only the fields the list needs, and keep the
+result on the server until the next sync (§3.1).
+
 **Bug found on the way (fix in Phase 3):** `pipelines/search.py` appends tag-name hits
 (`_tag_search`, "query word equals a tag name") to semantic results **without
 intersecting them with the filtered candidates**. A correspondent filter plus the query
@@ -69,19 +77,58 @@ so first make it one:
       logo and the "Dashboard" item keep meaning the dashboard.
       `take_login_target()` falls back to `/start` instead of `/`; a push link's target
       still wins.
-- [ ] "Last used module": each page writes its module key on load (cheap pref write);
-      `/start` sends there. A finding/dossier deep link counts as findings, nothing finer
-      — reopening a stale half-state is worse than the module's home.
-- [ ] `manifest.json`: `start_url: "/start"` and **`shortcuts`** — Chat, Note vault,
-      Dashboard, plus "New memo" (`/start?memo=1` → opens the memo dialog on the
-      landing page) when that is cheap. Long-press on the Android icon and the Windows
-      taskbar jump list show them; iOS has no manifest shortcuts, which is what the
-      start-page pref covers. Shortcut icons: 96 px monochrome, rendered by
-      `scripts/make_icons.py`, carrying `ICON_VERSION` in the name.
-- [ ] Note in the help text: an already installed PWA may keep its old `start_url`
-      (`/`) until Chrome refreshes the WebAPK, so the start-page pref only takes effect
-      there after a refresh or reinstall. A fresh login is not affected — it always goes
-      through `/start`.
+- [ ] "Last used module" (decided: offered, not the default). Each page writes its
+      module key on load (cheap pref write); `/start` sends there. It earns its place on
+      a phone, where Android kills a backgrounded PWA and a cold start would otherwise
+      always land on one fixed page. Module level only: a finding/dossier deep link
+      counts as "findings" — reopening a stale half-state is worse than the module's home.
+- [ ] `manifest.json`: `start_url: "/start"` and `shortcuts` (1.2a).
+
+### 1.2a App shortcuts on Android — one PWA, several home-screen icons
+
+**How Android does it.** The web app manifest's `shortcuts` list (Chrome on Android
+since M84) becomes the app's *launcher shortcuts*: long-press the PaperlessBrain icon and
+they appear as a list — the same mechanism native apps use. Each shortcut has a name, a
+URL inside the app and its own icon. And any of them can be **dragged out of that list
+onto the home screen**, where it becomes an icon of its own that opens the PWA directly at
+that URL. Most launchers (Pixel, Samsung One UI) draw the shortcut's icon with a small
+badge of the parent app. So "an icon for Chat, one for Notes" is exactly this — no second
+app needed. Windows shows the same list in the taskbar jump list; iOS has no manifest
+shortcuts (the start-page pref covers it there).
+
+**Several separate PWAs (own name, own icon, own start URL) — possible, not
+recommended.** It would take one manifest per entry point, each with its own `id`, linked
+from different pages (`/chat` links `manifest-chat.json` …), and the user installing each
+from the right page. But all of them would share one origin, one scope (`/`) and one
+service worker:
+
+- a link or push notification would open in whichever of them Android picks — tapping a
+  finding notification could land in the "Chat" app;
+- every module links to every other (the findings dock *is* `/chat`), so each "app" would
+  in practice contain the whole app under a different name;
+- each install is its own WebAPK, updated (and asking to confirm icon/name changes) on
+  its own.
+
+The scopes cannot be separated without splitting the URL space, which the embedded dock
+rules out. Shortcuts give the same result on the home screen without any of this.
+
+- [ ] Shortcuts (Android shows four comfortably; order = priority):
+      **Chat** (`/chat`), **New memo** (`/start?memo=1` → the landing page opens the memo
+      dialog), **Note vault** (`/brain`), **Dashboard** (`/`). The manifest moves from a
+      static file to a route, so New memo is left out when `WHISPER_URL` is empty. It
+      stays the same for every user: Chrome may fetch the manifest without a session,
+      so hidden modules cannot shape it — a shortcut to a hidden module still works,
+      with the banner from 1.4.
+- [ ] **Shortcut icons = the app mark with a corner badge**: the current icon, slightly
+      smaller, with a solid circle at the bottom right carrying a monochrome glyph (chat
+      bubble, note, microphone, grid). Same colours as the app icon — the badge is a
+      shape, not a new colour. Rendered by `scripts/make_icons.py` from the `brand.py`
+      path at 96 and 192 px, in an `any` and a `maskable` variant (safe zone respected so
+      round launchers don't cut the badge), named with `ICON_VERSION`.
+- [ ] Help text: installed apps pick up a changed manifest when Chrome next checks it
+      (on launch, roughly daily) — shortcuts and the new `start_url` appear then; a
+      reinstall is the fallback. A fresh login is not affected — it always goes through
+      `/start`.
 
 ### 1.3 The phone (and narrow desktop) shows which module you are in
 
@@ -165,18 +212,47 @@ Today: an AI search field, a Search button, "Advanced filters" collapsed behind 
 cards. Every change needs a button press, and filters are a form, not a view of the
 archive.
 
-### 3.1 Load the catalogue once, filter in memory
+### 3.1 A server-side catalogue, rebuilt by the sync
 
-The archive is hundreds to a few thousand documents. Their metadata (id, title,
-correspondent, type, tags, storage path, owner, created, added, page count) is a few
-hundred KB.
+The grouped tree already exists — the chat's right drawer → Library
+(`app_ui/doc_library.py`, also on the experts page). It is not rebuilt here; it gets a
+fast data source and the browser uses the same one. Why it is slow today: §0.
 
-- [ ] `services/doc_catalogue.py`: the documents the *user* can see, fetched with their
-      session token (`get_session_paperless`, never the superuser), per-user cache with
-      a short TTL and invalidation at the end of a sync. Same cap as `doc_library.MAX_DOCS`
-      (5 000); above it, fall back to today's server-side filtering.
-- [ ] All facet filtering, counting and sorting runs on that list in Python — no round
-      trip per click, which is what makes "live" possible.
+The archive is hundreds to a few thousand documents; their metadata (id, title,
+correspondent, type, tags, storage path, owner, created, added, modified, page count,
+notes count) is a few hundred KB.
+
+- [ ] **Lean fetch**: `PaperlessClient.list_catalogue()` asks `/api/documents/` with
+      `fields=` for exactly those keys (no `content`) and a large `page_size`; once the
+      first page gives the count, the remaining pages are fetched in parallel. Expected:
+      from 3–4 s to well under a second even uncached.
+- [ ] `services/doc_catalogue.py`: **one catalogue per user, held by the server** (in
+      memory, plus a copy in `data/catalogue/{user}.json` so a restart serves at once).
+      Every entry was fetched **with that user's own token** — the catalogue never
+      decides who may see what; Paperless did. (Rejected: one superuser list filtered by
+      our own reading of Paperless permissions — that is re-implementing Paperless's
+      permission model, and a mistake there shows titles to the wrong person.)
+- [ ] **When it changes — only through a sync**, as asked:
+      - at the end of every Paperless sync (`pipelines/paperless_db_sync.run_sync`,
+        whoever clicked it, and every other sync trigger), the catalogue is rebuilt **for
+        every user**: users with a background grant (`background_access.token_for`)
+        right away with their token; users without one are marked stale;
+      - a stale or missing catalogue is rebuilt **in the background on the user's next
+        page load** — any module, from `page_layout`, not when the Library opens — so by
+        the time they open the Library or the browser it is there;
+      - a 401 on a background rebuild → `mark_needs_reauth()`, as everywhere else.
+      Changes made directly in Paperless therefore show after the next sync. The Library
+      keeps its refresh button for "I just changed something in Paperless" — that rebuilds
+      only the user's own catalogue.
+- [ ] **Experts read the same catalogue**, narrowed in memory by `scope.allows(d)` —
+      the check `ScopedPaperlessClient.list_documents` already applies after fetching.
+      The scope stays enforced in code, the Library becomes instant for every expert.
+- [ ] Above `doc_library.MAX_DOCS` (5 000) the browser falls back to server-side
+      filtering; the catalogue itself has no cap.
+- [ ] All facet filtering, counting and sorting runs on the catalogue in Python — no
+      round trip per click, which is what makes "live" possible.
+- [ ] A document deleted in Paperless since the sync answers 404 on open — the dialog
+      says "No longer in Paperless" and the entry is dropped from the catalogue.
 
 ### 3.2 Facet panel
 
@@ -228,8 +304,9 @@ hundred KB.
       - **List** — one dense row: title, correspondent, created date, type, up to four
         tag chips (`tag_style.render_tag_chips`), action flag, pages. Sortable column
         headers on desktop; on a phone two lines (title / meta).
-      - **Grouped** — the `doc_library` tree (by correspondent, tag or type), reusing
-        `build_nodes`, over the *filtered* set.
+      - **Grouped** — the existing `DocLibrary` component (by correspondent, tag or
+        type) over the *filtered* set: one tree implementation for chat, experts and
+        browser.
 - [ ] Sort: created, added, title, correspondent, type; relevance only while an AI
       query is active (and then the default).
 
@@ -240,7 +317,11 @@ hundred KB.
       bookmarked or used as a start page, and the dashboard can link to "overdue" or a
       tag directly.
 
-**Acceptance:** with ~500 documents a facet click re-renders in under 150 ms;
+**Acceptance:** the chat's Library and the browser show the list instantly after a
+sync (cached) and in under a second cold; a sync started by user A refreshes user B's
+list (with a grant) or marks it for the background rebuild (without); an expert's Library
+never lists a document outside its scope (test); with ~500 documents a facet click
+re-renders in under 150 ms;
 filter + AI query never returns a document outside the filter (test); 390 px — no
 horizontal scroll in any view, facet sheet closes with the back gesture.
 
@@ -253,14 +334,19 @@ underneath without touching it.
 
 ### 4.1 Managed folders are read-only until unlocked
 
-The folders PaperlessBrain writes — `PaperlessBrain Memory`, `… Memos`, `… Research`,
+The folders PaperlessBrain writes — `PaperlessBrain Memory`, `… Research`,
 `… Experts`, `… Skills`, `… Findings` (names from `config/settings.py` and
 `proactive/paths.py`, never hard-coded) — hold state other parts of the app parse.
 A stray keystroke in a finding's frontmatter changes its status; one in an expert
 file changes the expert.
 
-- [ ] `vault/managed.py`: `managed_root(rel) -> str | None` — the single place that
-      knows which folders are managed.
+**`PaperlessBrain Memos` is the exception (decided):** memos are the user's own dictated
+notes, so they open and edit like any other note. Only the folder itself is protected —
+like every managed root, it cannot be renamed, moved or deleted (below).
+
+- [ ] `vault/managed.py`: `managed_root(rel) -> str | None` (all six roots, for the
+      folder protection) and `is_locked(rel) -> bool` (the roots above, without Memos,
+      for the note lock) — the single place that knows either.
 - [ ] Tree: managed folders show a small lock; notes in them open **read-only**
       (reading view, no editor cursor, no autosave tick, checkboxes disabled).
 - [ ] Title bar of such a note: "Managed by PaperlessBrain · read-only" and an
@@ -271,13 +357,14 @@ file changes the expert.
       - Findings → "Findings and dossiers are managed on the Findings page. Editing the
         file can change their state." + button "Open in Findings".
       - Experts / Skills → "Edit this in Experts" (primary) / "Edit the file anyway".
-      - Research / Memos → plain confirm.
+      - Research → plain confirm.
 - [ ] **Unlock scope: this note, until another note is opened** (not stored, not per
       folder). A locked badge returns on reopen.
-- [ ] Tree operations inside managed folders (new, rename, move, delete, drag in/out)
-      go through the same confirm. **The managed root folders themselves can never be
-      renamed, moved or deleted** — even unlocked: a renamed folder silently orphans
-      everything (see the warnings in `config/settings.py`).
+- [ ] Tree operations inside locked folders (new, rename, move, delete, drag in/out)
+      go through the same confirm; inside Memos they are free. **The six managed root
+      folders themselves can never be renamed, moved or deleted** — Memos included, even
+      unlocked: a renamed folder silently orphans everything (see the warnings in
+      `config/settings.py`). Their ⋯ menu simply has no such entries.
 - [ ] This is a UI guard against accidents, not security: agent writes
       (`brain_writer`, `memo_writer`, findings) are unaffected.
 
@@ -289,7 +376,8 @@ file changes the expert.
 - [ ] **"Edit properties"** button on the panel → today's widgets (switches, tag
       select, text fields, Add property, Edit YAML) + "Done". Closing the note or
       opening another leaves edit mode.
-- [ ] In managed folders the button appears only after "Unlock to edit".
+- [ ] In locked folders the button appears only after "Unlock to edit" (memos have it
+      like any note).
 - [ ] `pbrain_id` collapses into an "Identity" row with copy button — always read-only.
 - [ ] `common` (brain facts) stays a deliberate action: read-only badge "Shared with
       everyone", the switch only in edit mode.
@@ -330,8 +418,8 @@ Today the tree field filters node labels (`search.bind_value_to(tree, "filter")`
       cursor in the body.
 
 **Acceptance:** a note in `PaperlessBrain Findings/` cannot be changed by typing,
-tapping a checkbox or a property without passing the confirm; the managed root cannot be
-renamed; search for a word that appears only inside a note body finds it, `tag:steuer`
+tapping a checkbox or a property without passing the confirm; a memo edits without one;
+no managed root (Memos included) can be renamed, moved or deleted; search for a word that appears only inside a note body finds it, `tag:steuer`
 finds frontmatter and inline tags; tests for `managed_root`, the query parser and the
 scanner (hidden files, `resolve` escapes).
 
@@ -397,8 +485,19 @@ merge logic (`save_note` three-way merge) works on. Decorations never change the
       `#` after a space autocompletes known tags.
 - [ ] **Backlinks**: a "Linked mentions" section under the note (collapsed, with count),
       computed by `vault/links.py` from the same mtime-cached scan as 4.3.
-- [ ] Rename: offer "Update N links in other notes" (explicit, with the count; never
-      touches managed folders — it says how many it left there).
+- [ ] **Rename and move update links automatically** (decided), like Obsidian's
+      "Automatically update internal links": every `[[…]]` and relative Markdown link that
+      resolved to the old path is rewritten to the new one, then a toast says "Updated
+      links in N notes".
+      - Every rewrite goes through `vault.notes.save_note` under `get_user_lock` (hash
+        check, three-way merge), so a note open in Obsidian or being written by the
+        worker is merged, not overwritten.
+      - Links inside locked folders are updated too — a finding or dossier pointing at a
+        moved research note must not break. That is the one write into a locked file the
+        user did not unlock: code-made, link-only, through the same merge path.
+      - Only the link target changes; the label (`[[new|label]]`) and everything else in
+        the line stay byte-identical. A link that is ambiguous after the move gets the
+        full path, as Obsidian does.
 
 **Acceptance:** opening and closing any existing note without typing leaves its bytes
 untouched (test over the sample vault in `tests/`); ticking a checkbox changes one byte;
@@ -407,7 +506,103 @@ formatting bar does not cover the cursor line.
 
 ---
 
-## Phase 6 — Smaller things found during the review
+## Phase 6 — Dashboard: charts that answer a question
+
+Rule for this phase: a chart earns its place only if it answers a question the user
+actually has, from data the app *knows* — and tapping it leads somewhere (the browser,
+filtered; a document). Pretty-but-mute is out.
+
+All charts with NiceGUI's built-in `ui.echart` (no new dependency), neutral single-hue
+marks from the theme tokens, `--c-warn` only for "you must react", the accent only for a
+selected element — the colour invariant applies to charts too. Data comes from the
+catalogue (§3.1) and the sidecars, computed after each sync and cached per user (same
+rebuild path as the catalogue), never on page load.
+
+### 6.1 Layout: my day first, the archive second, the system last
+
+- [ ] Top, "Today": deadlines (the existing calendar + table), "Expected but missing"
+      (6.3), open findings count.
+- [ ] Middle, "Archive": 6.2, 6.4, 6.5.
+- [ ] Bottom, "System" — sync and its log, compute host and power, vault sync, dream —
+      one section that remembers being collapsed. Nothing is removed; operations just
+      stop pushing the user's own day below the fold.
+
+### 6.2 Documents over time
+
+- [ ] Bars per month (last 24 months, or all years as a year view), stacked by the five
+      largest document types + "other". Switch **created / added**: created shows the
+      user's life (when things happened), added shows scanning activity (a backlog
+      scanned in one weekend is a spike there, nothing in "created").
+- [ ] Tap a bar → browser filtered to that month (and type, if a segment was tapped).
+- [ ] Question it answers: "When did I get what, and is something thin?" — a month with
+      no bank statement stands out.
+
+### 6.3 Expected but missing — the most useful one
+
+Many correspondents send on a rhythm: monthly salary slips, quarterly statements, the
+yearly utility bill, the yearly tax notice, insurance renewals.
+
+- [ ] Per correspondent (+ document type) with at least three documents: the intervals
+      between their `created` dates; when they are regular (median ≈ 1, 3, 6 or 12
+      months, small spread) the next date is predicted. Past it by a tolerance → listed:
+      "Stadtwerke · Invoice — yearly, last 2025-02-14, expected around 2026-02".
+- [ ] Each row: a small dot timeline of the past documents (the evidence for the rhythm),
+      the prediction, and "Not coming any more" (hides this series for good — a contract
+      ends) / "Open last one".
+- [ ] Pure code, no model; the reason is always shown, so the user can judge it. No push
+      and no finding from this — dashboard only. (Could later feed the proactive system
+      as a finding type; not part of this plan.)
+
+### 6.4 Topics in the archive — semantic clusters, done usefully
+
+The semantic structure is real and worth showing, but **not as a 2D scatter "map"**: it
+looks impressive and rarely answers a question, its axes mean nothing, and it needs one
+colour per cluster to be readable — colour as identity, which the UI invariant forbids.
+What the clusters are good for is three concrete things:
+
+- [ ] **Topics**: document vectors (mean of each document's chunk embeddings from the
+      active index, via `ChromaClient`), clustered with plain k-means in numpy
+      (already a dependency; k picked by silhouette over a small range). Per user, over
+      the documents *they* can see — a cluster label built from someone else's
+      correspondents would leak them. Each topic is labelled **by code** from its most
+      common correspondents, types and tags ("Allianz, HUK · Insurance policy") — no
+      model, so no invented names. Shown as a neutral treemap (size = documents); tap →
+      browser with those documents.
+- [ ] **Possible duplicates**: pairs of documents whose vectors are nearly identical and
+      whose page counts match — double scans and the same letter uploaded twice. A list
+      with both titles and "Open both". Cheap and immediately useful.
+- [ ] **Tagging outliers**: documents whose type/correspondent/tags disagree with the
+      clear majority of their nearest neighbours ("typed *Contract*, but its ten nearest
+      neighbours are all *Invoice*"). A suggestion list with a link to the document in
+      Paperless — the app changes nothing itself.
+- [ ] Recomputed after each sync and when the active embedding model changes; stored with
+      the model id, so a model switch never shows clusters from the old index.
+
+### 6.5 Archive health (for whoever keeps Paperless tidy)
+
+- [ ] Counts with a link each: documents without correspondent / without type / without
+      tags; not indexed yet; outdated extraction (`sidecar_service.outdated_ids()`);
+      excluded from ingest. One row of figures, not a chart — a number is the honest form
+      of a single count.
+
+### Rejected
+
+- **Spending per month / per correspondent.** The extraction stores no structured
+  amounts (`config/extraction_rules/base.py`: page text, summaries, actions, tables) —
+  a spending chart would rest on numbers guessed from free text, a confident false
+  statement in chart form. Only with a dedicated, validated amount field in a future
+  `PROMPT_VERSION`.
+- **Usage statistics** (chats per week, tokens): interesting to the developer, not a
+  question the user has about their documents.
+
+**Acceptance:** every chart and list taps through to a filtered browser or a document;
+nothing on the dashboard is computed on page load (timing logged); topics, duplicates
+and outliers only ever contain documents the user can see (test with two users);
+greyscale screenshot still readable.
+
+---
+
+## Phase 7 — Smaller things found during the review
 
 - [ ] **Sentence case**: ten labels still use `uppercase tracking-wide(r)` —
       `app_ui/pages/browser.py:46` and `app_ui/pages/chat.py` (2235, 2251, 2271, 4296,
@@ -419,11 +614,6 @@ formatting bar does not cover the cursor line.
 - [ ] **Readable route aliases**: `/vault` → `/brain`, `/research` → `/werkbank`
       (old paths stay forever — they are in notes, links and push messages). The UI
       names and the URL then match.
-- [ ] **Dashboard: "my day" first, system second.** It mixes the user's day (deadlines,
-      calendar, pinned documents) with operations (sync log, compute host, power,
-      vault sync, dream). Proposal: the day on top; operations in a "System" section
-      that remembers being collapsed. No feature removed. Worth doing once Phase 1 makes
-      the dashboard one choice of start page instead of the only one.
 - [ ] **Browser multi-select**: select several documents → Pin all / Download / "Ask
       the chat about these" (pins feed every chat already, so this is mostly a bulk
       pin plus navigation).
@@ -439,32 +629,45 @@ formatting bar does not cover the cursor line.
 |---|---|---|---|
 | 1 | Module registry, header label, start page + shortcuts, hide modules | M | low |
 | 2 | Findings zone tabs at the top | S | low |
-| 3 | Browser: catalogue, facets, live, views, search fix | L | medium (perf, search) |
+| 3 | Catalogue (fixes the slow Library), browser facets, live, views, search fix | L | medium (perf, search) |
 | 4 | Vault A: locks, read-only properties, content search, tree | M | low |
 | 5 | Vault B: live-preview editor, checkboxes, links | L | medium (new JS bundle) |
-| 6 | Polish | S–M | low |
+| 6 | Dashboard: layout, over time, expected-but-missing, topics, health | M–L | medium (clustering) |
+| 7 | Polish | S–M | low |
 
-Vault A comes before B on purpose: locking and search are the safety and speed wins,
-and they don't depend on the new editor; B then replaces the editor under an unchanged
-save/merge model.
+The catalogue (3.1) is worth shipping on its own first: it fixes the Library's 3–4 s
+today and is what Phases 3 and 6 stand on. Vault A comes before B on purpose: locking and
+search are the safety and speed wins, and they don't depend on the new editor; B then
+replaces the editor under an unchanged save/merge model.
 
 ## Invariants to add to `CLAUDE.md` as phases ship
 
 - The module list lives in `app_ui/modules.py`; nav, menu, help, start page and the
   hide switches read `visible_modules()`. A hidden module's URL still works.
-- Managed vault folders come from `vault/managed.py` only; their root folders are never
-  renamed, moved or deleted from the UI; edits need an explicit per-note unlock.
+- One PWA. Extra home-screen entry points are manifest `shortcuts`, never a second
+  manifest/app on the same origin.
+- The document catalogue is per user, fetched with that user's token, rebuilt for
+  everyone by every sync (directly with a grant, else on their next page load) and
+  otherwise only by the user's own refresh. It never filters by permissions itself;
+  experts narrow it with `scope.allows`.
+- Managed vault folders come from `vault/managed.py` only; their root folders (Memos
+  included) are never renamed, moved or deleted from the UI; notes in them, except
+  memos, need an explicit per-note unlock to edit.
+- Renames and moves rewrite links automatically, through `save_note`, link targets only.
 - The vault editor never re-serializes Markdown — decorations only; an untouched save
   is byte-identical.
 - The browser filters before it searches semantically; nothing outside the candidate
   set may enter a result (tag-name hits included).
+- Dashboard figures are computed after a sync, per user over what they can see, never on
+  page load; topic labels come from code, never a model.
 
-## Open questions for the owner
+## Decisions (2026-11-27)
 
-1. **Memos locked?** They are your own dictated notes, unlike the other managed folders.
-   The plan locks them as requested; the alternative is to lock only their properties.
-2. **Start page "Last used module"** — wanted, or only fixed choices?
-3. **Live preview vs. full WYSIWYG** — the plan recommends Obsidian-style live preview
-   (markup reappears on the line you edit) for the byte-safety reasons in 5.1.
-4. **Link update on rename** — offer it (plan) or always do it silently like Obsidian's
-   setting "Automatically update internal links"?
+- Memos are **not** locked; only the Memos folder itself is protected (no rename, move,
+  delete) like every managed root.
+- Start page offers "Last used module" (not the default — the dashboard stays the
+  default).
+- The vault editor is Obsidian-style live preview.
+- Links are updated automatically on rename and move.
+- The Library/browser list is cached on the server and changes only with a sync (plus
+  the user's own refresh button).
