@@ -156,7 +156,7 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
   still opens (push links, citations) with a "Show it again" notice; nothing it does in
   the background stops. Hiding Experts *is* the old "Use experts" switch. `/start` is the
   installed app's entry point (start page pref, or the module used last).
-- **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`,
+- **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`, `id` pinned to "/" — never change it,
   served by a route: names from `Accept-Language`, no memo shortcut without Whisper).
   Never a second manifest on the same origin — it would share scope and service worker.
 - **Ctrl/Cmd+K is the app-wide quick switcher** (`app_ui/quick_switcher.py`); pages open a
