@@ -1073,7 +1073,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         ("receipt_long", _("Invoices"), _("Are there any open invoices or outstanding payments?")),
         ("edit_note", _("Write a letter"), lambda: _compose("letter")),
         ("outgoing_mail", _("Write an email"), lambda: _compose("email")),
-        ("save", _("Save chat to Paperless"), lambda: _save_chat_to_paperless()),
+        ("save", _("Save conversation"), lambda: _save_conversation()),
     ]
 
     open_document, _doc_dlg = create_document_dialog(
@@ -1782,7 +1782,10 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         )
 
     _hist_ui: dict = {"q": "", "hits": set(), "open": set()}  # search text, content hits, expanded sections
-    _HIST_PER_GROUP = 6
+    # The list fills the drawer before sections fold: rows that fit the
+    # window (`_s["view_h"]`, measured once the page is connected), each later
+    # section still a few rows and its "Show all".
+    _HIST_ROW_PX, _HIST_CHROME_PX, _HIST_MIN_PER_GROUP = 37, 230, 3
 
     def _refresh_history_list() -> None:
         """The drawer's list: searched, then grouped by expert or by date
@@ -1799,15 +1802,20 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         mode = get_pref("chat_hist_group", "expert")
         if mode not in _cg.MODES:
             mode = "expert"
-        experts = {e.expert_id: e for e in _experts_mod.list_experts(_username)} if (
-            _username and mode == "expert") else {}
+        experts = {e.expert_id: e for e in _experts_mod.list_experts(_username)} if _username else {}
         date_labels = {"today": _("Today"), "yesterday": _("Yesterday"), "week": _("Previous 7 days"),
                        "month": _("Previous 30 days"), "older": _("Older")}
         ctx_icons = {"finding": ("lightbulb", _("About a finding")),
                      "dossier": ("folder_open", _("About a dossier")),
                      "overview": ("dashboard", _("About the findings overview"))}
 
-        def _row(c: dict, in_folder: bool = False) -> None:
+        def _mi(icon: str, label: str, on_click) -> None:
+            with ui.menu_item(on_click=on_click):
+                with ui.row().classes("items-center gap-3 no-wrap"):
+                    ui.icon(icon, size="1.1rem").classes("text-gray-500")
+                    ui.label(label).classes("text-sm")
+
+        def _row(c: dict, in_folder: bool = False, show_expert: bool = True) -> None:
             is_active = c["id"] == _s.get("conv_id")
             with ui.element("div").classes("chat-history-item" + (" active" if is_active else "")
                                            + (" in-folder" if in_folder else "")):
@@ -1819,6 +1827,12 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         if kind:
                             ui.icon(ctx_icons[kind][0]).style(
                                 "font-size:12px; color:var(--c-text-muted); flex-shrink:0").tooltip(ctx_icons[kind][1])
+                        # The expert, unless it is Universal or the section
+                        # already says it (grouped by expert).
+                        ex = experts.get(c.get("expert_id") or "")
+                        if show_expert and ex and ex.expert_id != _experts_mod.UNIVERSAL_ID:
+                            ui.icon(ex.icon or "psychology").style(
+                                "font-size:12px; color:var(--c-text-muted); flex-shrink:0").tooltip(ex.name)
                         ui.label(c["title"]).classes("text-xs text-gray-300 w-full").style(
                             "overflow:hidden; text-overflow:ellipsis;"
                             "white-space:nowrap; line-height:1.4; min-width:0"
@@ -1832,22 +1846,22 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     with ui.button(icon="more_vert").props("flat dense round size=sm").classes(
                             "card-action-btn").tooltip(_("More")):
                         with ui.menu().props("auto-close"):
-                            ui.menu_item(_("Unpin") if c.get("pinned") else _("Pin to the top"),
-                                         on_click=lambda cid=c["id"], p=bool(c.get("pinned")): _toggle_pin(cid, not p))
-                            ui.menu_item(_("Move to a folder …"),
-                                         on_click=lambda cid=c["id"], f=c.get("pin_folder"): _file_conv(cid, f))
-                            ui.menu_item(_("Rename"),
-                                         on_click=lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t))
+                            _mi("push_pin", _("Unpin") if c.get("pinned") else _("Pin to the top"),
+                                lambda cid=c["id"], p=bool(c.get("pinned")): _toggle_pin(cid, not p))
+                            _mi("drive_file_move", _("Move to a folder …"),
+                                lambda cid=c["id"], f=c.get("pin_folder"): _file_conv(cid, f))
+                            _mi("edit", _("Rename"), lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t))
                             if not _cg.context_kind(c):
-                                ui.menu_item(_("Move to another expert …"),
-                                             on_click=lambda cid=c["id"]: _move_conv(cid))
+                                _mi("psychology", _("Move to another expert …"),
+                                    lambda cid=c["id"]: _move_conv(cid))
                             ui.separator()
-                            ui.menu_item(_("Delete"), on_click=lambda cid=c["id"]: _delete_conv(cid))
+                            _mi("delete_outline", _("Delete"), lambda cid=c["id"]: _delete_conv(cid))
 
         def _toggle_all(key: str) -> None:
             _hist_ui["open"].symmetric_difference_update({key})
             _refresh_history_list()
 
+        rows_left = max(10, ((_s.get("view_h") or 850) - _HIST_CHROME_PX) // _HIST_ROW_PX)
         with history_list_container:
             # Always show a placeholder for the current (possibly unsaved) session
             if not _s.get("conv_id") and not q:
@@ -1891,10 +1905,10 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             with ui.button(icon="more_vert").props("flat dense round size=sm").classes(
                                     "card-action-btn").tooltip(_("More")):
                                 with ui.menu().props("auto-close"):
-                                    ui.menu_item(_("Rename"),
-                                                 on_click=lambda fid=f["id"], n=f["name"]: _rename_pin_folder(fid, n))
-                                    ui.menu_item(_("Delete folder"),
-                                                 on_click=lambda fid=f["id"], n=f["name"]: _delete_pin_folder(fid, n))
+                                    _mi("edit", _("Rename"),
+                                        lambda fid=f["id"], n=f["name"]: _rename_pin_folder(fid, n))
+                                    _mi("folder_delete", _("Delete folder"),
+                                        lambda fid=f["id"], n=f["name"]: _delete_pin_folder(fid, n))
                     if is_open:
                         for c in inside:
                             _row(c, in_folder=True)
@@ -1902,6 +1916,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 for c in pinned:
                     if c.get("pin_folder") not in fids:
                         _row(c)
+                rows_left -= 1 + len(folders) + len(pinned)
             for g in _cg.group([c for c in convs if not c.get("pinned")], mode, _dt.now().astimezone()):
                 if mode == "expert":
                     e = experts.get(g.key)
@@ -1915,10 +1930,13 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     ui.label(label).classes("flex-1 min-w-0").style(
                         "overflow:hidden; text-overflow:ellipsis; white-space:nowrap")
                     ui.label(str(len(g.convs))).classes("chat-hist-count")
-                shown = g.convs if (q or g.key in _hist_ui["open"]) else g.convs[:_HIST_PER_GROUP]
+                rows_left -= 1
+                fits = max(min(_HIST_MIN_PER_GROUP, len(g.convs)), rows_left)
+                shown = g.convs if (q or g.key in _hist_ui["open"]) else g.convs[:fits]
+                rows_left -= len(shown)
                 for c in shown:
-                    _row(c)
-                if not q and len(g.convs) > _HIST_PER_GROUP:
+                    _row(c, show_expert=mode != "expert")
+                if not q and len(g.convs) > fits:
                     more = g.key in _hist_ui["open"]
                     ui.button(
                         _("Show fewer") if more else _("Show all {n}").format(n=len(g.convs)),
@@ -2760,8 +2778,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 ui.separator()
                                 _conv_item("download", _("Download conversation as Markdown"),
                                            lambda: _dl_conversation())
-                                _conv_item("save", _("Save chat to Paperless"),
-                                           lambda: _save_chat_to_paperless())
+                                _conv_item("save", _("Save conversation …"),
+                                           lambda: _save_conversation())
                                 # Stays when the Deep research module is hidden: hiding
                                 # takes a module out of the menus, not its features.
                                 _conv_item("travel_explore", _("Deep research from this chat"),
@@ -3928,55 +3946,99 @@ window.__openVaultNote = function(noteId) {{
         return None
 
     # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
-    def _memory_action(bubble_el, content: str):
-        async def _click() -> None:
-            # The selection was taken when the "…" button was pressed (as for a dossier).
-            try:
-                picked = await ui.run_javascript(
-                    "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
-                    "return (s&&s.id===" + json.dumps(bubble_el.html_id) + ")?s.text:'';})()",
-                    timeout=2.0)
-            except Exception:
-                picked = ""
-            from app_ui.memory_save import open_memory_dialog
+    async def _read_selection(bubble_el) -> str:
+        """The text selected in this answer when its "…" (or the dock's save)
+        button was pressed — the menu click itself collapses the selection."""
+        try:
+            picked = await ui.run_javascript(
+                "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
+                "return (s&&s.id===" + json.dumps(bubble_el.html_id) + ")?s.text:'';})()",
+                timeout=2.0)
+        except Exception:
+            picked = ""
+        return (picked or "").strip()
 
-            await open_memory_dialog(user=_username, answer=content, selection=(picked or "").strip())
+    async def _open_dossier_dialog(idx: int, picked: str = "", *, start_mode: str = "answer") -> None:
+        msgs = _s["messages"]
+        if not (0 <= idx < len(msgs)) or msgs[idx].get("role") != "assistant":
+            ui.notify(_("This answer is no longer in the conversation."), type="warning")
+            return
+        from app_ui.dossier_save import open_save_dialog
+        from services.dossier_merge import merge_provenance
 
-        return _click
+        prov = _s["turn_meta"].get(idx) or {}
+        conv = msgs[: idx + 1]
+        conv_prov = merge_provenance([_s["turn_meta"].get(i) or {} for i in range(idx + 1)
+                                      if msgs[i].get("role") == "assistant"])
+        await open_save_dialog(
+            user=_username, token=get_session_token() or "",
+            answer=msgs[idx]["content"], selection=picked,
+            provenance=prov, conv_id=_s.get("conv_id") or "", msg_index=idx,
+            preselect=(_s.get("dossier_ctx") or {}).get("topic") or "",
+            models=_reg_models, default_model=_s.get("chat_model_name", ""),
+            on_saved=_on_insight_saved, conversation=conv, conv_provenance=conv_prov,
+            start_mode=start_mode,
+        )
 
     def _save_action(idx: int, bubble_el):
+        """The dock's own "Save to dossier" button."""
         async def _click() -> None:
-            msgs = _s["messages"]
-            if not (0 <= idx < len(msgs)) or msgs[idx].get("role") != "assistant":
-                ui.notify(_("This answer is no longer in the conversation."), type="warning")
-                return
-            # The selection was taken when the "…" button was pressed — the menu
-            # click itself collapses it.
-            try:
-                picked = await ui.run_javascript(
-                    "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
-                    "return (s&&s.id===" + json.dumps(bubble_el.html_id) + ")?s.text:'';})()",
-                    timeout=2.0)
-            except Exception:
-                picked = ""
-            from app_ui.dossier_save import open_save_dialog
-
-            prov = _s["turn_meta"].get(idx) or {}
-            from services.dossier_merge import merge_provenance
-
-            conv = msgs[: idx + 1]
-            conv_prov = merge_provenance([_s["turn_meta"].get(i) or {} for i in range(idx + 1)
-                                          if msgs[i].get("role") == "assistant"])
-            await open_save_dialog(
-                user=_username, token=get_session_token() or "",
-                answer=msgs[idx]["content"], selection=(picked or "").strip(),
-                provenance=prov, conv_id=_s.get("conv_id") or "", msg_index=idx,
-                preselect=(_s.get("dossier_ctx") or {}).get("topic") or "",
-                models=_reg_models, default_model=_s.get("chat_model_name", ""),
-                on_saved=_on_insight_saved, conversation=conv, conv_provenance=conv_prov,
-            )
+            await _open_dossier_dialog(idx, await _read_selection(bubble_el))
 
         return _click
+
+    def _conv_title() -> str:
+        conv = _chat_hist.get_conversation(_s["conv_id"], _username) if _s.get("conv_id") and _username else None
+        return ((conv or {}).get("title") or "").strip()
+
+    def _answer_to_paperless(content: str, picked: str) -> None:
+        from services.dossier_merge import plain_refs
+        from services.web_citations import plain_web_refs
+
+        text = plain_refs(plain_web_refs((picked or content or "").strip()))
+        if not text:
+            ui.notify(_("Nothing to save yet."), type="info")
+            return
+        title = _conv_title() or " ".join(text.split())[:80]
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", title).strip("_")[:30] or "Chat"
+        _open_pdf_dialog(title, text + "\n", slug)
+
+    def _save_answer_action(idx: int, bubble_el, content: str):
+        """The answer's "Save…": the selected text if there is one, else the
+        answer — to memory, a dossier or Paperless (app_ui/save_chooser.py)."""
+        async def _click() -> None:
+            from app_ui import save_chooser
+
+            picked = await _read_selection(bubble_el)
+            where = await save_chooser.choose(
+                "selection" if picked else "answer",
+                dossiers_on=_dossiers_on and idx >= 0, memory_on=bool(_username))
+            if where == save_chooser.MEMORY:
+                from app_ui.memory_save import open_memory_dialog
+
+                await open_memory_dialog(user=_username, answer=content, selection=picked)
+            elif where == save_chooser.DOSSIER:
+                await _open_dossier_dialog(idx, picked)
+            elif where == save_chooser.PAPERLESS:
+                _answer_to_paperless(content, picked)
+
+        return _click
+
+    async def _save_conversation() -> None:
+        """The conversation's "Save…": the whole chat, to a dossier or Paperless."""
+        from app_ui import save_chooser
+
+        msgs = _s["messages"]
+        last = max((i for i, m in enumerate(msgs) if m.get("role") == "assistant"
+                    and isinstance(m.get("content"), str) and m["content"].strip()), default=-1)
+        if last < 0:
+            ui.notify(_("Nothing to save yet."), type="info")
+            return
+        where = await save_chooser.choose("conversation", dossiers_on=_dossiers_on, memory_on=False)
+        if where == save_chooser.DOSSIER:
+            await _open_dossier_dialog(last, start_mode="conversation")
+        elif where == save_chooser.PAPERLESS:
+            _save_chat_to_paperless()
 
     def _prompt_parts(system: str, te, exp, llm_messages: list[dict], tools: list[dict]) -> list[dict]:
         """What the model is given this turn, in parts, for the tool history:
@@ -4047,15 +4109,13 @@ window.__openVaultNote = function(noteId) {{
                 _("Select text first to save only that part"))
             sv.on("mousedown", js_handler=_sel_snapshot_js(bubble_el))
             sv.on_click(_save_action(idx, bubble_el))
-            _answer_menu_full(idx, bubble_el, content, with_save=False, inline=True)
+            _answer_menu_full(idx, bubble_el, content, inline=True)
 
-    def _answer_menu_full(idx: int, bubble_el, content: str, *, with_save: bool = True,
-                          inline: bool = False) -> None:
-        """One "…" button under an answer: Markdown, CSV per table, save to
-        dossier. Four buttons in a row did not line up and crowded a phone.
+    def _answer_menu_full(idx: int, bubble_el, content: str, *, inline: bool = False) -> None:
+        """One "…" button under an answer: Markdown, CSV per table, "Save…".
+        Four buttons in a row did not line up and crowded a phone.
         The tool history is its own icon beside it (live, from the turn's start)."""
         csvs = _extract_markdown_csvs(content) if content else []
-        save = _save_action(idx, bubble_el) if (with_save and content and _dossiers_on and idx >= 0) else None
         if not (content or csvs):
             return
 
@@ -4086,12 +4146,9 @@ window.__openVaultNote = function(noteId) {{
 
                     _item("table_view", _("Table {n} as CSV").format(n=ci + 1) if multi
                           else _("Download table as CSV"), _dl_csv)
-                if save is not None:
-                    _item("create_new_folder", _("Save to dossier (select text first to save only that part)"),
-                          save)
-                if content and _username:
-                    _item("psychology", _("Save as memory (select text first to save only that part)"),
-                          _memory_action(bubble_el, content))
+                if content and idx >= 0:
+                    # One "Save…": memory, dossier or Paperless (app_ui/save_chooser.py).
+                    _item("save", _("Save …"), _save_answer_action(idx, bubble_el, content))
                 if content and not _embed:
                     _item("forward_to_inbox", _("Continue in a new chat"), lambda c=content: _continue_new(c))
 
@@ -4524,7 +4581,7 @@ window.__openVaultNote = function(noteId) {{
             ui.notify(_("Nothing to save yet."), type="info")
             return
         head, _sep, rest = md.partition("\n")
-        title = head.removeprefix("# ").strip()
+        title = _conv_title() or head.removeprefix("# ").strip()
         slug = re.sub(r"[^A-Za-z0-9]+", "_", title).strip("_")[:30] or "Chat"
         _open_pdf_dialog(title, rest.lstrip("\n"), slug)
 
@@ -4765,6 +4822,44 @@ window.__openVaultNote = function(noteId) {{
                     _chat_hist.set_turn_meta(_s["conv_id"], _username, _mi, _meta)
                 except Exception:
                     _log.warning("could not store turn provenance", exc_info=True)
+        _maybe_retitle()
+
+    def _maybe_retitle() -> None:
+        """After the first and the third answer the conversation's model names
+        it (`services/chat_titles`) — one call without tools, in the
+        background; a title the user set by hand is never replaced."""
+        from services import chat_titles
+
+        conv, msgs = _s.get("conv_id"), list(_s["messages"])
+        if not (conv and _username and msgs) or msgs[-1].get("role") != "assistant":
+            return  # stopped or failed: no answer to name it by
+        if not chat_titles.due(chat_titles.answer_count(msgs)):
+            return
+        backend = _reg_backends.get(_s.get("chat_model_name", ""))
+        request = chat_titles.build_request(msgs)
+        if backend is None or not request:
+            return
+
+        async def _run() -> None:
+            parts: list[str] = []
+            try:
+                async for ev in backend.run_turn(
+                    system=chat_titles.SYSTEM, messages=[{"role": "user", "content": request}],
+                    tools=[], temperature=0.2, max_iterations=1,
+                ):
+                    if isinstance(ev, TextTokenEvent):
+                        parts.append(ev.text)
+            except Exception:  # noqa: BLE001 — a title is a nicety; the first message stays the name
+                _log.info("the model wrote no conversation title", exc_info=True)
+                return
+            title = chat_titles.clean("".join(parts))
+            if title and await asyncio.to_thread(_chat_hist.set_auto_title, conv, _username, title):
+                try:
+                    _refresh_history_list()
+                except Exception:  # noqa: BLE001 — the page is gone; the title is stored
+                    pass
+
+        asyncio.ensure_future(_run())
 
     async def do_send() -> None:
         live = _s.get("adopted")
@@ -5674,13 +5769,17 @@ window.__openVaultNote = function(noteId) {{
         await ui.context.client.connected()
         _screen = await ui.run_javascript(
             "[window.matchMedia('(min-width:768px)').matches,"
-            " window.matchMedia('(min-width:1024px)').matches]", timeout=3.0
+            " window.matchMedia('(min-width:1024px)').matches, window.innerHeight]", timeout=3.0
         )
         _is_desktop, _is_wide = (bool(_screen[0]), bool(_screen[1])) if isinstance(_screen, list) else (False, False)
+        if isinstance(_screen, list) and len(_screen) > 2 and isinstance(_screen[2], (int, float)):
+            _s["view_h"] = int(_screen[2])  # how many conversation rows the drawer holds
         if _is_desktop:
             _set_docs_visible(True)
         _s["hist_dock"] = _is_wide
         if _is_wide and not _embed and get_pref("chat_hist_open", False):
             _set_history_visible(True)
+        elif _s.get("history_visible"):
+            _refresh_history_list()
     except Exception:
         pass

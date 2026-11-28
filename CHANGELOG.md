@@ -26,6 +26,16 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Changed
 
+- **One "Save …" instead of three save items.** Under an answer and in the
+  chat menu, "Save …" asks where it goes — "Remember this", "Add to a
+  dossier" or "File in Paperless" — each with what it is for. Under an answer
+  it saves the selected text or the answer; in the chat menu the whole
+  conversation. An answer can now also be filed in Paperless on its own.
+- **The conversation list uses the drawer's height** instead of folding every
+  section after six rows; conversations with an expert other than Universal
+  show its icon, and the list's menus have icons.
+- "Save to dossier": the two ways are called **AI summary** and **Save
+  verbatim** (was "Fit into dossier").
 - **Duplicates on the dashboard are confirmed, not guessed.** The vectors
   still pick the candidates; each pair is then checked against Paperless —
   the same original file (its checksum) or the same text with the same
@@ -103,6 +113,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Conversations get a fitting title**: after the first and the third answer
+  the chat model names the conversation; a title you set with "Rename" stays.
+- **Keyword suggestions when saving a memory**: the field is now called
+  "Keywords" (they are the memory's own, not Paperless tags) and offers the
+  keywords your memories already use, those found in the text first.
 - **Folders for pinned conversations**: new, rename, delete, fold; "Move to a
   folder …" in a conversation's menu pins it into one.
 - **Switch the expert in "Edit conversation"**: the open conversation moves to

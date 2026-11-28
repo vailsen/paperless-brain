@@ -40,6 +40,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE chat_conversations ADD COLUMN context TEXT")
     if "pinned" not in cols:  # pinned to the top of the drawer
         conn.execute("ALTER TABLE chat_conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+    if "title_source" not in cols:  # "user" once renamed by hand — the model never retitles it
+        conn.execute("ALTER TABLE chat_conversations ADD COLUMN title_source TEXT")
     if "pin_folder" not in cols:  # a folder of the pinned section (chat_pin_folders.id), NULL = loose
         conn.execute("ALTER TABLE chat_conversations ADD COLUMN pin_folder TEXT")
     # Folders exist on their own (an empty one too), so they are rows, not
@@ -89,7 +91,8 @@ def create_conversation(
 def list_conversations(user_id: str) -> list[dict]:
     with _conn() as c:
         rows = c.execute(
-            "SELECT id, title, updated_at, expert_id, context, pinned, pin_folder FROM chat_conversations"
+            "SELECT id, title, updated_at, expert_id, context, pinned, pin_folder, title_source"
+            " FROM chat_conversations"
             " WHERE user_id=? ORDER BY updated_at DESC",
             (user_id,),
         ).fetchall()
@@ -117,7 +120,8 @@ def search_conversations(user_id: str, text: str, limit: int = 200) -> set[str]:
 def get_conversation(conv_id: str, user_id: str) -> dict | None:
     with _conn() as c:
         row = c.execute(
-            "SELECT id, title, updated_at, expert_id, context, pinned, pin_folder FROM chat_conversations"
+            "SELECT id, title, updated_at, expert_id, context, pinned, pin_folder, title_source"
+            " FROM chat_conversations"
             " WHERE id=? AND user_id=?",
             (conv_id, user_id),
         ).fetchone()
@@ -179,11 +183,25 @@ def append_messages(conv_id: str, user_id: str, messages: list[dict]) -> None:
 
 
 def rename_conversation(conv_id: str, user_id: str, title: str) -> None:
+    """The user's own title: from now on the model never retitles it."""
     with _conn() as c:
         c.execute(
-            "UPDATE chat_conversations SET title=?, updated_at=? WHERE id=? AND user_id=?",
+            "UPDATE chat_conversations SET title=?, title_source='user', updated_at=? WHERE id=? AND user_id=?",
             (title[:80], _now(), conv_id, user_id),
         )
+
+
+def set_auto_title(conv_id: str, user_id: str, title: str) -> bool:
+    """A title the model wrote (`services/chat_titles`) — written only while
+    the user has not renamed the conversation, checked in the same statement.
+    Leaves `updated_at` alone: a new name is no new activity. True if written."""
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE chat_conversations SET title=?, title_source='model'"
+            " WHERE id=? AND user_id=? AND COALESCE(title_source, '') != 'user'",
+            (title[:80], conv_id, user_id),
+        )
+        return cur.rowcount > 0
 
 
 def set_pinned(conv_id: str, user_id: str, pinned: bool) -> None:
