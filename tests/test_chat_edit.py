@@ -102,3 +102,46 @@ def test_rewrite_keeps_provenance_and_pinning(tmp_path, monkeypatch):
     assert row["pinned"] == 1 and row["expert_id"] == "tax"
     hist.set_pinned(c, "bob", False)  # someone else's id does nothing
     assert hist.get_conversation(c, "alice")["pinned"] == 1
+
+
+def test_pin_folders(tmp_path, monkeypatch):
+    import sqlite3
+
+    import services.chat_history_service as hist
+
+    db = tmp_path / "w.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        "CREATE TABLE chat_conversations (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, created_at TEXT,"
+        " updated_at TEXT);"
+        "CREATE TABLE chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id TEXT"
+        " REFERENCES chat_conversations(id) ON DELETE CASCADE, user_id TEXT, role TEXT, content TEXT,"
+        " created_at TEXT);")
+    conn.close()
+    monkeypatch.setattr(hist, "_DB_PATH", str(db))
+    monkeypatch.setattr(hist, "_migrated", False)
+    c = hist.create_conversation("alice", "x")
+    f = hist.create_pin_folder("alice", "  Taxes ")
+    hist.create_pin_folder("alice", "car")
+    assert [r["name"] for r in hist.list_pin_folders("alice")] == ["car", "Taxes"]
+    assert hist.list_pin_folders("bob") == []
+
+    hist.set_pin_folder(c, "alice", f)  # filing pins it
+    row = hist.get_conversation(c, "alice")
+    assert row["pinned"] == 1 and row["pin_folder"] == f
+    bobs = hist.create_pin_folder("bob", "mine")
+    hist.set_pin_folder(c, "alice", bobs)  # someone else's folder files nothing
+    assert hist.get_conversation(c, "alice")["pin_folder"] == f
+
+    hist.rename_pin_folder(f, "bob", "hijack")  # not bob's
+    hist.rename_pin_folder(f, "alice", "Tax 2026")
+    assert "Tax 2026" in [r["name"] for r in hist.list_pin_folders("alice")]
+
+    hist.delete_pin_folder(f, "alice")  # its conversation stays pinned, loose
+    row = hist.get_conversation(c, "alice")
+    assert row["pinned"] == 1 and row["pin_folder"] is None
+
+    hist.set_pin_folder(c, "alice", hist.list_pin_folders("alice")[0]["id"])
+    hist.set_pinned(c, "alice", False)  # unpinning leaves the folder
+    row = hist.get_conversation(c, "alice")
+    assert row["pinned"] == 0 and row["pin_folder"] is None

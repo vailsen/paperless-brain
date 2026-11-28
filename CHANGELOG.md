@@ -26,6 +26,17 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Changed
 
+- **Duplicates on the dashboard are confirmed, not guessed.** The vectors
+  still pick the candidates; each pair is then checked against Paperless —
+  the same original file (its checksum) or the same text with the same
+  numbers. Monthly invoices on one template no longer show up as duplicates,
+  and each pair says which kind it is.
+- **Hiding a module hides its page, nothing else.** With the Experts page
+  hidden, experts can still be picked in the chat; "Deep research from this
+  chat" stays when Deep research is hidden.
+- **The conversation drawer docks beside the chat on a wide screen** instead
+  of covering it, stays open while you switch conversations, and reopens as
+  you left it.
 - **Behind a wake-on-request proxy** the dashboard shows the host as asleep /
   waking / up, and the chat says "The model host is starting…" while it
   wakes (without a proxy: after about 5 s without a first token).
@@ -39,6 +50,9 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Fixed
 
+- "Continue in a new chat" carried the answer over as plain text: tables
+  showed as `| Parameter | Result |` lines. The carried-over note renders
+  Markdown and its reference numbers like the answer did.
 - **Reference numbers showed as raw text** (`^[435-p1]`) when the model
   wrote the caret outside the bracket, Pandoc-style. That form counts as a
   reference now, in stored answers too.
@@ -89,6 +103,10 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Folders for pinned conversations**: new, rename, delete, fold; "Move to a
+  folder …" in a conversation's menu pins it into one.
+- **Switch the expert in "Edit conversation"**: the open conversation moves to
+  another expert in place.
 - **Slow local model, explained**: the dashboard shows when a model in memory
   runs partly on the CPU, and the chat says so once in a turn. The log has a
   `[chat-timing]` line per request: prompt size, time to the first token,

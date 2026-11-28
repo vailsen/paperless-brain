@@ -56,3 +56,39 @@ def test_duplicates():
     chunks.append({"metadata": {"paperless_id": 37}, "embedding": chunks[0]["embedding"]})
     ids, mat = ax.doc_vectors(chunks, {d.id for d in docs})
     assert any({a, b} == {1, 37} for a, b, _s in ax.duplicates(docs, ids, mat, threshold=0.995))
+
+
+# ── Duplicates, second step: the same file or the same text ──────────────────
+
+_LETTER = ("Sehr geehrte Damen und Herren, für den Zeitraum vom {d} stellen wir Ihnen folgende "
+           "Leistungen in Rechnung. Rechnungsnummer {n}. Betrag {a} EUR. Bitte überweisen Sie den "
+           "Betrag innerhalb von 14 Tagen auf das unten genannte Konto. Mit freundlichen Grüßen "
+           "Stadtwerke Musterstadt GmbH, Kundennummer 4711-0815.")
+
+
+def test_monthly_invoices_on_one_template_are_not_duplicates():
+    march = _LETTER.format(d="01.03.2026", n="R-2026-0312", a="84,20")
+    april = _LETTER.format(d="01.04.2026", n="R-2026-0419", a="91,75")
+    assert not ax.same_text(march, april)
+
+
+def test_a_letter_scanned_twice_is_the_same_text():
+    a = _LETTER.format(d="01.03.2026", n="R-2026-0312", a="84,20")
+    # OCR of the second scan: a word split differently, one number misread.
+    b = a.replace("Leistungen in Rechnung", "Leistungen in  Rech nung").replace("84,20", "84,2O")
+    assert ax.same_text(a, b)
+
+
+def test_no_text_is_no_evidence():
+    assert not ax.same_text("", "")
+    assert not ax.same_text(_LETTER, "")
+
+
+def test_confirm_keeps_identical_files_and_same_text_drops_the_rest():
+    t1 = _LETTER.format(d="01.03.2026", n="R-1", a="84,20")
+    t2 = _LETTER.format(d="01.04.2026", n="R-2", a="91,75")
+    pairs = [(1, 2, 0.99), (3, 4, 0.99), (5, 6, 0.98), (7, 8, 0.995)]
+    sums = {1: "abc", 2: "abc", 3: "x", 4: "y", 7: "p"}
+    texts = {3: t1, 4: t2, 5: t1, 6: t1}
+    out = ax.confirm_duplicates(pairs, sums, texts)
+    assert [(a, b, k) for a, b, _s, k in out] == [(1, 2, "file"), (5, 6, "text")]

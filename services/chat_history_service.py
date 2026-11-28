@@ -40,6 +40,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE chat_conversations ADD COLUMN context TEXT")
     if "pinned" not in cols:  # pinned to the top of the drawer
         conn.execute("ALTER TABLE chat_conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+    if "pin_folder" not in cols:  # a folder of the pinned section (chat_pin_folders.id), NULL = loose
+        conn.execute("ALTER TABLE chat_conversations ADD COLUMN pin_folder TEXT")
+    # Folders exist on their own (an empty one too), so they are rows, not
+    # just names on conversations. Renaming one touches no conversation.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS chat_pin_folders ("
+        " id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT NOT NULL)"
+    )
     conn.execute(
         "CREATE TABLE IF NOT EXISTS chat_turn_meta ("
         " conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,"
@@ -81,7 +89,7 @@ def create_conversation(
 def list_conversations(user_id: str) -> list[dict]:
     with _conn() as c:
         rows = c.execute(
-            "SELECT id, title, updated_at, expert_id, context, pinned FROM chat_conversations"
+            "SELECT id, title, updated_at, expert_id, context, pinned, pin_folder FROM chat_conversations"
             " WHERE user_id=? ORDER BY updated_at DESC",
             (user_id,),
         ).fetchall()
@@ -109,7 +117,7 @@ def search_conversations(user_id: str, text: str, limit: int = 200) -> set[str]:
 def get_conversation(conv_id: str, user_id: str) -> dict | None:
     with _conn() as c:
         row = c.execute(
-            "SELECT id, title, updated_at, expert_id, context, pinned FROM chat_conversations"
+            "SELECT id, title, updated_at, expert_id, context, pinned, pin_folder FROM chat_conversations"
             " WHERE id=? AND user_id=?",
             (conv_id, user_id),
         ).fetchone()
@@ -179,10 +187,57 @@ def rename_conversation(conv_id: str, user_id: str, title: str) -> None:
 
 
 def set_pinned(conv_id: str, user_id: str, pinned: bool) -> None:
-    """Pinned conversations stay at the top of the drawer (not "updated")."""
+    """Pinned conversations stay at the top of the drawer (not "updated").
+    Unpinning takes a conversation out of its folder too."""
     with _conn() as c:
-        c.execute("UPDATE chat_conversations SET pinned=? WHERE id=? AND user_id=?",
-                  (1 if pinned else 0, conv_id, user_id))
+        if pinned:
+            c.execute("UPDATE chat_conversations SET pinned=1 WHERE id=? AND user_id=?", (conv_id, user_id))
+        else:
+            c.execute("UPDATE chat_conversations SET pinned=0, pin_folder=NULL WHERE id=? AND user_id=?",
+                      (conv_id, user_id))
+
+
+# ── Folders of the pinned section ────────────────────────────────────────────
+
+def list_pin_folders(user_id: str) -> list[dict]:
+    """The user's folders, by name (`id`, `name`)."""
+    with _conn() as c:
+        rows = c.execute("SELECT id, name FROM chat_pin_folders WHERE user_id=?", (user_id,)).fetchall()
+    return sorted((dict(r) for r in rows), key=lambda r: r["name"].casefold())
+
+
+def create_pin_folder(user_id: str, name: str) -> str:
+    fid = str(uuid.uuid4())
+    with _conn() as c:
+        c.execute("INSERT INTO chat_pin_folders (id, user_id, name, created_at) VALUES (?,?,?,?)",
+                  (fid, user_id, name.strip()[:60], _now()))
+    return fid
+
+
+def rename_pin_folder(folder_id: str, user_id: str, name: str) -> None:
+    with _conn() as c:
+        c.execute("UPDATE chat_pin_folders SET name=? WHERE id=? AND user_id=?",
+                  (name.strip()[:60], folder_id, user_id))
+
+
+def delete_pin_folder(folder_id: str, user_id: str) -> None:
+    """The folder goes; its conversations stay pinned, loose."""
+    with _conn() as c:
+        c.execute("UPDATE chat_conversations SET pin_folder=NULL WHERE pin_folder=? AND user_id=?",
+                  (folder_id, user_id))
+        c.execute("DELETE FROM chat_pin_folders WHERE id=? AND user_id=?", (folder_id, user_id))
+
+
+def set_pin_folder(conv_id: str, user_id: str, folder_id: str | None) -> None:
+    """File a conversation into one of the user's folders (it is pinned with
+    it), or take it out (None: stays pinned, loose). Someone else's folder id
+    files nothing."""
+    with _conn() as c:
+        if folder_id is not None and not c.execute(
+                "SELECT 1 FROM chat_pin_folders WHERE id=? AND user_id=?", (folder_id, user_id)).fetchone():
+            return
+        c.execute("UPDATE chat_conversations SET pinned=1, pin_folder=? WHERE id=? AND user_id=?",
+                  (folder_id, conv_id, user_id))
 
 
 def set_expert(conv_id: str, user_id: str, expert_id: str) -> None:

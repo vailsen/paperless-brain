@@ -115,6 +115,13 @@ class ScopedPaperlessClient(PaperlessClient):
         docs = await super().list_catalogue(*args, **kwargs)
         return docs if self.scope.unrestricted else [d for d in docs if self.scope.allows(d)]
 
+    async def readable_ids(self, ids: list[int], batch: int = 200) -> set[int]:
+        # The ids-only answer cannot tell what is in scope: fetch the documents
+        # through the scoped list instead (narrowed experts only).
+        if self.scope.unrestricted:
+            return await super().readable_ids(ids, batch)
+        return {d.id for d in await self.list_documents(ids=list(ids))}
+
     async def visible_ids(self) -> set[int]:
         if self.scope.unrestricted:
             return await super().visible_ids()

@@ -122,6 +122,11 @@ def _month_html(year: int, month: int, day_data: dict[int, list[dict]]) -> str:
     )
 
 
+#: The dashboard's last service answers, per user (the Ollama row is the user's
+#: own model host): shown at once on the next visit, then refreshed.
+_STATUS_CACHE: dict[str, dict] = {}
+
+
 def _load_actions() -> list[dict]:
     index_path = settings.app_path / settings.extraction_sidecar_path / "index.json"
     try:
@@ -648,13 +653,14 @@ async def dashboard():
         from pipelines.search import _drop_no_ingest
 
         ui.add_head_html(_da._CSS)
+        pl = get_session_paperless()
         try:
-            docs = _drop_no_ingest(await get_session_paperless().list_catalogue())
+            docs = _drop_no_ingest(await pl.list_catalogue())
         except Exception as exc:  # noqa: BLE001 — Paperless down: the rest of the page stays
             with archive_box:
                 ui.label(_("Could not load the document list: {err}").format(err=exc)).classes("text-xs")
             return
-        fill = _da.render_archive(archive_box, docs, _open_doc_id, _username)
+        fill = _da.render_archive(archive_box, docs, _open_doc_id, _username, pl)
         await fill()
 
     ui.timer(0.3, _load_archive, once=True)
@@ -1259,133 +1265,160 @@ window.__toggleHideAction = function(key) {{
         _sync_watch_timer = ui.timer(0.5, _watch_sync_done)
     _paint_log()  # draw whatever a still-running or finished sync already logged
 
-    # ── async data load ───────────────────────────────────────────────────────
-    from services import service_status as _svc
+    # ── async data load ──────────────────────────────────────────────────────
+    # The page goes out first, the numbers follow: the service probes (some wait
+    # up to 3–5 s for an answer) run in a timer of their own, beside the
+    # deadlines below — the dashboard used to stay blank until the slowest
+    # service had answered. Every label starts as "…".
+    async def _load_status() -> None:
+        from services import service_status as _svc
 
-    paperless_count, chroma_count, ollama_ver, paperless_st, searxng_st, whisper_st = await asyncio.gather(
-        _fetch_paperless_count(),
-        _safe_chroma_count(),
-        _ollama_status(_username, _token),
-        _svc.paperless(),
-        _svc.searxng(),
-        _svc.whisper(),
-    )
-    paperless_ok = paperless_st[0]
+        def _ollama_label(st: tuple[bool, str] | None) -> str:
+            if not st or not st[0]:
+                return _("Offline")
+            return {"asleep": _("Asleep — wakes on request"), "waking": _("Waking up…"),
+                    "shutting down": _("Shutting down…")}.get(st[1], st[1])
 
-    # sync ring
-    p = paperless_count or 0
-    c = chroma_count or 0
-    if paperless_count is not None:
-        pct = int(c / p * 100) if p > 0 else 0
-        sync_value.set_text(f"{c} / {p}")
-        sync_sub.set_text(_("{pct} % indexed in ChromaDB").format(pct=pct))
-    else:
-        sync_value.set_text(str(c))
-        sync_sub.set_text(_("Paperless not reachable"))
+        # The last answers (`_STATUS_CACHE`) are painted at once, then each row
+        # again as soon as its own probe answers — no row waits for another.
+        res: dict = dict(_STATUS_CACHE.get(_username) or {})
 
-    _refresh_outdated()
+        def paint() -> None:
+            if "paperless_count" in res and "chroma_count" in res:
+                paperless_count, chroma_count = res["paperless_count"], res["chroma_count"]
+                p = paperless_count or 0
+                c = chroma_count or 0
+                if paperless_count is not None:
+                    pct = int(c / p * 100) if p > 0 else 0
+                    sync_value.set_text(f"{c} / {p}")
+                    sync_sub.set_text(_("{pct} % indexed in ChromaDB").format(pct=pct))
+                else:
+                    sync_value.set_text(str(c))
+                    sync_sub.set_text(_("Paperless not reachable"))
+            worker_st = _svc.worker()
+            status_data: dict = {
+                "worker": (bool(worker_st and worker_st[0]),
+                           (_("Running") if worker_st and worker_st[0] else _("No sign of life"))),
+            }
+            if "paperless_st" in res:
+                pst = res["paperless_st"]
+                status_data["paperless"] = (pst[0], pst[1] if pst[0] else _("Offline"))
+            for k in ("searxng", "whisper"):
+                if k in res:
+                    st = res[k]
+                    status_data[k] = (bool(st and st[0]), _("Online") if st and st[0] else _("Offline"))
+            if "chroma_count" in res:
+                cc = res["chroma_count"]
+                status_data["chroma"] = (cc is not None, _("{n} docs").format(n=cc) if cc is not None else _("Error"))
+            if "ollama" in res:
+                ov = res["ollama"]
+                # A sleeping host does not answer now, so its dot is red like an
+                # offline one (the label says it wakes on request); waking is amber.
+                status_data["ollama"] = (bool(ov and ov[0]) and ov[1] not in ("asleep", "shutting down"),
+                                         _ollama_label(ov))
+            ollama_waking = bool(res.get("ollama") and res["ollama"][0] and res["ollama"][1] == "waking")
+            for dot_el, badge_el, key in _status_items:
+                if key not in status_data:
+                    continue
+                ok, detail = status_data[key]
+                colour = "#f59e0b" if key == "ollama" and ollama_waking else ("#22c55e" if ok else "#ef4444")
+                dot_el.style(
+                    f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
+                    f"background:{colour};"
+                )
+                badge_el.set_text(detail)
+            _opt_keys = [k for _l, k in _optional]
+            if _opt_keys and all(k in status_data for k in _opt_keys):
+                up = sum(1 for k in _opt_keys if status_data[k][0])
+                opt_badge.set_text(_("{up} of {n} online").format(up=up, n=len(_opt_keys)))
+                opt_dot.style(
+                    f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
+                    f"background:{'#22c55e' if up == len(_opt_keys) else '#ef4444'};"
+                )
+            elif not _opt_keys:
+                opt_badge.set_text("")
 
-    # status indicators
-    def _ollama_label(st: tuple[bool, str] | None) -> str:
-        if not st or not st[0]:
-            return _("Offline")
-        return {"asleep": _("Asleep — wakes on request"), "waking": _("Waking up…"),
-                "shutting down": _("Shutting down…")}.get(st[1], st[1])
+        if res:
+            paint()
 
-    worker_st = _svc.worker()
-    status_data = {
-        "paperless": (paperless_ok, paperless_st[1] if paperless_ok else _("Offline")),
-        "searxng": (bool(searxng_st and searxng_st[0]), _("Online") if searxng_st and searxng_st[0] else _("Offline")),
-        "whisper": (bool(whisper_st and whisper_st[0]), _("Online") if whisper_st and whisper_st[0] else _("Offline")),
-        "worker": (bool(worker_st and worker_st[0]),
-                   (_("Running") if worker_st and worker_st[0] else _("No sign of life"))),
-        "chroma": (
-            chroma_count is not None,
-            _("{n} docs").format(n=chroma_count) if chroma_count is not None else _("Error"),
-        ),
-        # A sleeping host does not answer now, so its dot is red like an
-        # offline one (the label says it wakes on request); waking is amber.
-        "ollama": (bool(ollama_ver and ollama_ver[0]) and ollama_ver[1] not in ("asleep", "shutting down"),
-                   _ollama_label(ollama_ver)),
-    }
-    _ollama_waking = bool(ollama_ver and ollama_ver[0] and ollama_ver[1] == "waking")
-    for dot_el, badge_el, key in _status_items:
-        if key not in status_data:
-            continue
-        ok, detail = status_data[key]
-        colour = "#f59e0b" if key == "ollama" and _ollama_waking else ("#22c55e" if ok else "#ef4444")
-        dot_el.style(
-            f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
-            f"background:{colour};"
+        async def _probe(key: str, coro) -> None:
+            try:
+                res[key] = await coro
+            except Exception:  # noqa: BLE001 — a probe failing is the same as no answer
+                res[key] = None if key != "paperless_st" else (False, "")
+            if not sync_value.is_deleted:
+                paint()
+
+        await asyncio.gather(
+            _probe("paperless_count", _fetch_paperless_count()),
+            _probe("chroma_count", _safe_chroma_count()),
+            _probe("ollama", _ollama_status(_username, _token)),
+            _probe("paperless_st", _svc.paperless()),
+            _probe("searxng", _svc.searxng()),
+            _probe("whisper", _svc.whisper()),
         )
-        badge_el.set_text(detail)
-    _opt_keys = [k for _l, k in _optional]
-    if _opt_keys:
-        up = sum(1 for k in _opt_keys if status_data[k][0])
-        opt_badge.set_text(_("{up} of {n} online").format(up=up, n=len(_opt_keys)))
-        opt_dot.style(
-            f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
-            f"background:{'#22c55e' if up == len(_opt_keys) else '#ef4444'};"
+        _STATUS_CACHE[_username] = dict(res)
+        _refresh_outdated()
+
+        # Compute line under Ollama: our own request log (both processes) + /api/ps.
+        _ollama_srv = _resolve_ollama_server(_username, _token)
+
+        async def _refresh_compute() -> None:
+            from app_ui.inference_status import lines
+            from services import inference_activity
+
+            if not _ollama_srv or compute_box.is_deleted:
+                return
+            models = await inference_activity.loaded_models(_ollama_srv)
+            snap = inference_activity.snapshot(inference_activity.host_of(_ollama_srv))
+            rows = lines(_, models, snap, time.time()) if models is not None else []
+            if rows != compute_rows["rows"]:
+                compute_rows["rows"] = rows
+                compute_view.refresh()
+            compute_box.set_visibility(bool(rows))
+
+        if _ollama_srv:
+            await _refresh_compute()
+            ui.timer(5.0, _refresh_compute)
+
+        # E-Mail / Calendar config status (no live test — just check if configured)
+        _creds = load_credentials(_username, _token) if _username and _token else {}
+
+        _imap_cfg = _creds.get("imap", {})
+        _imap_ok = bool(
+            _imap_cfg.get("host")
+            and _imap_cfg.get("username")
+            and _imap_cfg.get("password")
         )
-    else:
-        opt_badge.set_text("")
+        imap_dot.style(
+            f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
+            f"background:{'#22c55e' if _imap_ok else 'var(--c-border)'};"
+        )
+        imap_badge.set_text(
+            _imap_cfg.get("host", _("Not configured"))
+            if _imap_ok
+            else _("Not configured")
+        )
 
-    # Compute line under Ollama: our own request log (both processes) + /api/ps.
-    _ollama_srv = _resolve_ollama_server(_username, _token)
+        _cal_cfg = _creds.get("calendar", {})
+        _ical_urls = _cal_cfg.get("ical_urls") or (
+            [_cal_cfg["ical_url"]] if _cal_cfg.get("ical_url") else []
+        )
+        if _ical_urls:
+            _cal_ok = True
+            _cal_detail = _("iCal ({n} calendars)").format(n=len(_ical_urls))
+        elif _cal_cfg.get("url") and _cal_cfg.get("username"):
+            _cal_ok, _cal_detail = True, "CalDAV"
+        else:
+            _cal_ok, _cal_detail = False, _("Not configured")
+        cal_dot.style(
+            f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
+            f"background:{'#22c55e' if _cal_ok else 'var(--c-border)'};"
+        )
+        cal_badge.set_text(_cal_detail)
 
-    async def _refresh_compute() -> None:
-        from app_ui.inference_status import lines
-        from services import inference_activity
-
-        if not _ollama_srv or compute_box.is_deleted:
-            return
-        models = await inference_activity.loaded_models(_ollama_srv)
-        snap = inference_activity.snapshot(inference_activity.host_of(_ollama_srv))
-        rows = lines(_, models, snap, time.time()) if models is not None else []
-        if rows != compute_rows["rows"]:
-            compute_rows["rows"] = rows
-            compute_view.refresh()
-        compute_box.set_visibility(bool(rows))
-
-    if _ollama_srv:
-        await _refresh_compute()
-        ui.timer(5.0, _refresh_compute)
-
-    # E-Mail / Calendar config status (no live test — just check if configured)
-    _creds = load_credentials(_username, _token) if _username and _token else {}
-
-    _imap_cfg = _creds.get("imap", {})
-    _imap_ok = bool(
-        _imap_cfg.get("host")
-        and _imap_cfg.get("username")
-        and _imap_cfg.get("password")
-    )
-    imap_dot.style(
-        f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
-        f"background:{'#22c55e' if _imap_ok else 'var(--c-border)'};"
-    )
-    imap_badge.set_text(
-        _imap_cfg.get("host", _("Not configured"))
-        if _imap_ok
-        else _("Not configured")
-    )
-
-    _cal_cfg = _creds.get("calendar", {})
-    _ical_urls = _cal_cfg.get("ical_urls") or (
-        [_cal_cfg["ical_url"]] if _cal_cfg.get("ical_url") else []
-    )
-    if _ical_urls:
-        _cal_ok = True
-        _cal_detail = _("iCal ({n} calendars)").format(n=len(_ical_urls))
-    elif _cal_cfg.get("url") and _cal_cfg.get("username"):
-        _cal_ok, _cal_detail = True, "CalDAV"
-    else:
-        _cal_ok, _cal_detail = False, _("Not configured")
-    cal_dot.style(
-        f"width:8px;height:8px;border-radius:50%;flex-shrink:0;"
-        f"background:{'#22c55e' if _cal_ok else 'var(--c-border)'};"
-    )
-    cal_badge.set_text(_cal_detail)
+    ui.timer(0.05, _load_status, once=True)
+    await ui.context.client.connected()
 
     # deadlines — filtered to docs accessible by the current user. index.json is
     # built by the superuser sync and holds every owner's actions, so this filter

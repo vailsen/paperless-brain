@@ -9,6 +9,10 @@ invariant).
 Loaded after the page is on screen, with the user's own token; the duplicate
 pairs are cached per user while the catalogue and the active index are
 unchanged. A pair the user dismissed (pref `dup_dismissed`) stays away.
+
+Duplicates in two steps: the vectors pick candidates (close in meaning, same
+page count), then each candidate is checked against Paperless — the checksum
+of the original file, else the text itself (`archive_stats.confirm_duplicates`).
 """
 
 from __future__ import annotations
@@ -60,7 +64,25 @@ async def _vectors(docs: list) -> tuple[list[int], object]:
     return await asyncio.to_thread(ax.doc_vectors, rows, allowed)
 
 
-async def compute(user: str, docs: list) -> dict:
+async def _confirm(paperless, pairs: list) -> list:
+    """The candidates that are the same file or the same text, asked of
+    Paperless with the user's own token."""
+    ids = sorted({i for a, b, _s in pairs for i in (a, b)})
+    if not ids:
+        return []
+    sums_task = asyncio.create_task(paperless.original_checksums(ids))
+    texts: dict[int, str] = {}
+    for k in range(0, len(ids), 50):
+        try:
+            for d in await paperless.list_documents(ids=ids[k:k + 50], page_size=50):
+                texts[d.id] = d.content or ""
+        except Exception:  # noqa: BLE001 — no text: only the checksum can confirm
+            pass
+    sums = await sums_task
+    return await asyncio.to_thread(ax.confirm_duplicates, pairs, sums, texts)
+
+
+async def compute(user: str, docs: list, paperless) -> dict:
     """Duplicate pairs — cached while nothing changed."""
     from services.embedding_registry import active_id
 
@@ -75,12 +97,13 @@ async def compute(user: str, docs: list) -> dict:
         return hit[2]
     ids, mat = await _vectors(docs)
 
-    out = {"dups": await asyncio.to_thread(ax.duplicates, docs, ids, mat)}
+    candidates = await asyncio.to_thread(ax.duplicates, docs, ids, mat)
+    out = {"dups": await _confirm(paperless, candidates)}
     _CACHE[user] = (time.time(), fp, out)
     return out
 
 
-def render_archive(box, docs: list, open_doc: Callable[[int], Awaitable[None]], user: str) -> None:
+def render_archive(box, docs: list, open_doc: Callable[[int], Awaitable[None]], user: str, paperless) -> None:
     _ = get_translator()
     pal = _palette()
     st = {"field": "created", "type": ""}
@@ -148,7 +171,7 @@ def render_archive(box, docs: list, open_doc: Callable[[int], Awaitable[None]], 
 
     async def fill() -> None:
         try:
-            res = await compute(user, docs)
+            res = await compute(user, docs, paperless)
         except Exception:  # noqa: BLE001 — no index, no model: nothing to show, never break the page
             return
         _render_dups(vec_box, docs, res.get("dups") or [], open_doc)
@@ -179,17 +202,20 @@ def _render_dups(box, docs: list, dups: list, open_doc) -> None:
     def draw() -> None:
         box.clear()
         gone = set(get_pref("dup_dismissed") or [])
-        pairs = [(a, b) for a, b, _s in dups if _dup_key(a, b) not in gone]
+        pairs = [(a, b, kind) for a, b, _s, kind in dups if _dup_key(a, b) not in gone]
         if not pairs:
             return
+        why = {"file": _("Identical file"), "text": _("Same text, another file")}
         with box, ui.element("div").classes("dash-card w-full"):
-            ui.label(_("Possible duplicates")).classes("dash-sec")
-            ui.label(_("Nearly the same text and page count. Tap a title to open the document.")).classes(
+            ui.label(_("Duplicates")).classes("dash-sec")
+            ui.label(_("The same file twice, or the same text in two files (scanned twice). "
+                       "Tap a title to open the document.")).classes(
                 "text-xs").style("color:var(--c-text-muted); margin:-6px 0 4px")
-            for a, b in pairs[:8]:
+            for a, b, kind in pairs[:8]:
                 key = _dup_key(a, b)
                 with ui.element("div").classes("dash-row").style("align-items:center"):
                     with ui.column().classes("gap-0 flex-1 min-w-0"):
+                        ui.label(why.get(kind, "")).classes("m")
                         for i in (a, b):
                             link = ui.label(title(i)).classes("dash-link w-full").props('role="link"')
                             link.on("click", lambda _e, i=i: open_doc(i))

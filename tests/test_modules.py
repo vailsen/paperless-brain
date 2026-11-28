@@ -34,11 +34,22 @@ def test_chat_and_dashboard_cannot_be_hidden(prefs):
 def test_old_experts_switch_means_experts_hidden(prefs):
     prefs["experts_enabled"] = False
     assert modules.hidden() == {"experts"}
+    modules.set_hidden(set())
+    assert modules.hidden() == set() and prefs["experts_enabled"] is True
+
+
+def test_hidden_experts_module_keeps_the_default_expert(prefs, monkeypatch):
+    """Hiding the Experts page is module hiding only: the default expert
+    still applies to new chats."""
     from services import experts
 
-    assert experts.enabled() is False
-    modules.set_hidden(set())
-    assert experts.enabled() is True and prefs["experts_enabled"] is True
+    class _E:
+        expert_id = "tax"
+
+    monkeypatch.setattr(experts, "list_experts", lambda user: [_E()])
+    prefs["default_expert_id"] = "tax"
+    modules.set_hidden({"experts"})
+    assert experts.default_id("u") == "tax"
 
 
 def test_visible_modules_drop_hidden_ones(prefs, monkeypatch):

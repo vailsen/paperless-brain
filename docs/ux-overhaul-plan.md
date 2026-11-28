@@ -237,6 +237,8 @@ on every screen. The switcher button gives the same "where am I" for zero height
       (`experts.enabled()`, `_apply_expert` coerces to Universal). Migrate
       `experts_enabled=false` into `hidden_modules` once and remove the separate switch
       from Settings > AI; `experts.enabled()` reads the new pref.
+      *Superseded 2026-11-28:* hiding is module hiding only — experts stay pickable in the
+      chat with the Experts page hidden; `experts.enabled()` is removed.
 - [ ] Settings backup/export (`data` group) includes both new prefs.
 
 **Acceptance:** at 390 px inside every module the header names the module; Findings
@@ -739,7 +741,11 @@ Done:
   the finger).
 - **Dashboard**: system status on top as before; "Expected but missing", topics and
   "possibly mis-filed" removed with their code; duplicates are links with a dismiss per
-  pair (pref `dup_dismissed`); the over-time controls wrap inside the card; a sleeping
+  pair (pref `dup_dismissed`) — since 2026-11-28 confirmed against Paperless after the
+  vector pre-selection: the same original file (`original_checksum` from the metadata
+  endpoint) or the same text (word shingles alike *and* the numbers alike — a monthly
+  invoice on one template differs in its date, number and amounts;
+  `archive_stats.confirm_duplicates`); the over-time controls wrap inside the card; a sleeping
   model host is a red dot (amber while waking); no "sync vault" button (it syncs on its
   own); the dream button says "Tidy up memory".
 - **Browser**: no pill per active filter; "Clear all" stays.
@@ -771,7 +777,9 @@ note" in the conversation menu), storage `chat_history_service.rewrite_conversat
 - **What the model is sent** goes through `chat_edit.for_model`: notes framed, neighbours of
   one role joined (removing one message can leave two questions in a row), and a leading
   answer opened by a short user line.
-- **Pin** (drawer section on top, column `pinned`), **move to another expert** (plain chats
-  only; the dialog says earlier answers may mention documents outside the new focus — a scope
-  is focus, not security), **continue in a new chat** from an answer (same expert; the answer
-  is carried over as a note).
+- **Pin** (drawer section on top, column `pinned`; folders inside it since 2026-11-28,
+  table `chat_pin_folders`), **move to another expert** (plain chats only from the drawer,
+  and the open conversation from "Edit conversation"; the dialog says earlier answers may
+  mention documents outside the new focus — a scope is focus, not security), **continue in a
+  new chat** from an answer (same expert; the answer is carried over as a note, rendered as
+  Markdown like the answer it came from).

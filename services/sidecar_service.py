@@ -93,6 +93,13 @@ async def filter_visible_actions(actions: list[dict], paperless_client) -> list[
         return list(actions)
 
     visible: set[int] = set()
+    reader = getattr(paperless_client, "readable_ids", None)
+    if reader is not None:  # ids only, batches in parallel (PaperlessClient.readable_ids)
+        try:
+            visible = await reader(ids, _ID_BATCH)
+        except Exception:
+            visible = set()
+        return [a for a in actions if a.get("paperless_id") in visible]
     for start in range(0, len(ids), _ID_BATCH):
         batch = ids[start : start + _ID_BATCH]
         try:

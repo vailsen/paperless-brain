@@ -154,8 +154,19 @@ Module-level singletons created at import time — one `PaperlessClient`, one `C
 - **One module registry** (`app_ui/modules.py`): header, menu, help, start page and the
   Settings > General > Modules switches read `visible_modules()`. A hidden module's URL
   still opens (push links, citations) with a "Show it again" notice; nothing it does in
-  the background stops. Hiding Experts *is* the old "Use experts" switch. `/start` is the
-  installed app's entry point (start page pref, or the module used last).
+  the background stops. **Hiding is about the module's page only** (2026-11-28): what it
+  offers inside other pages stays — experts in the chat's picker, "Deep research from this
+  chat". The old "Use experts" pref only migrates into hiding the Experts page. `/start` is
+  the installed app's entry point (start page pref, or the module used last).
+- **The chat's history drawer docks on a wide screen** (≥ 1024 px): open, it is a column
+  beside the chat (`body:has(.chat-history-drawer.open) .chat-main-col { left: --hist-w }`),
+  not an overlay; picking a conversation keeps it open (`_close_history_overlay`), and the
+  user's open/closed choice is remembered (pref `chat_hist_open`, applied on wide screens
+  only). Its width is `--hist-w` on `:root`, dragged and kept per device (`localStorage`).
+  Narrower, it stays the overlay with a scrim that closes after a pick.
+- **Pinned conversations can live in folders** (`chat_pin_folders`, column `pin_folder`):
+  filing a conversation pins it, unpinning takes it out, deleting a folder leaves its
+  conversations pinned and loose. Folded folders are a pref (`chat_pin_folders_closed`).
 - **One PWA; extra home-screen icons are manifest `shortcuts`** (`app_ui/pwa_manifest.py`, `id` pinned to "/" — never change it; the 192 px shortcut icons are inline data URIs, since a WebAPK cannot fetch them from a private server; they are one large glyph with the bottom-right corner free, where Android paints the app badge (`SHORTCUT_ICON_VERSION`),
   served by a route: names from `Accept-Language`, no memo shortcut without Whisper).
   Never a second manifest on the same origin — it would share scope and service worker.
@@ -193,6 +204,11 @@ reported to `/api/pb-client-log` and logged as `[revive]`; the connect timeout i
 reload (`layout.DRAFT_JS`, per address, cleared on send).
 
 ### What needs no model is a button, not a tool
+
+**"Save as memory"** in an answer's "…" menu (`app_ui/memory_save.py`) writes the selection
+(else the plain answer) as a memory through `vault_brain_writer.create_memory`, the path the
+`remember_fact` tool takes: the user edits it first, a near-duplicate is shown with "Save
+anyway", and a single cited document becomes the fact's source.
 
 Saving the chat to Paperless and starting a deep-research run (2026-11-14), and writing a
 letter or an email (2026-11-15) are items in the conversation "…" menu and quick chips
@@ -461,6 +477,10 @@ The proactive gate (`proactive/gate.py`) decides by `/proxy/status`: with `may_w
 ### Compute status
 
 `services/inference_activity.py`, shown by `app_ui/inference_status.py` on the dashboard.
+The dashboard never waits for its slowest service: the last answers (`dashboard._STATUS_CACHE`)
+are painted at once and each row again as its own probe answers; the deadline access check
+asks Paperless for ids only (`PaperlessClient.readable_ids`, never a cache — deadline text is
+document content).
 Ollama's `/api/ps` says what is loaded, never whether it generates — so every model
 request of the app *and* the worker is bracketed with `inference_activity.track(base_url,
 model)` (shared file `data/inference_activity.json`, `flock`, written at start and end
@@ -564,9 +584,10 @@ page `app_ui/pages/experts.py`.
 - **An expert is fixed per conversation** (`chat_conversations.expert_id`);
   switching in the chat asks for a new conversation. Moving a whole conversation to
   another expert is a deliberate drawer action ("Move to another expert"), plain chats only.
-- **"Use experts" is the Experts module hidden** (`experts.enabled()` reads
-  `app_ui.modules.hidden()`; the old pref `experts_enabled` migrates into it): off, `_apply_expert` coerces every conversation to
-  Universal and the picker and menu item are hidden. The findings dock never
+- **Hiding the Experts module hides its page, nothing else** (2026-11-28): the chat's
+  picker, the default expert and "Move to another expert" stay (`experts.enabled()` is
+  gone). "Edit conversation" switches the open conversation's expert in place — the
+  picker in the chat header still asks for a new conversation. The findings dock never
   inherits `/chat`'s last expert — dossier default (`expert`), else the user's
   default expert; picking one in a dossier's dock sets that dossier's default.
 - **One default expert per user** (pref `default_expert_id`, read only through

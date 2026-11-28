@@ -8,8 +8,11 @@ correspondents would show them.
 
 - `over_time`: documents per month (created or added).
 - `health`: what keeps the archive tidy (no correspondent, no type, no tags).
-- `duplicates`: near-identical pairs, from the mean vector of each document's
-  chunks.
+- `duplicates`: candidate pairs, from the mean vector of each document's
+  chunks; `confirm_duplicates` keeps only those that are the same file (the
+  checksum Paperless stores of the original) or the same text (a letter
+  scanned twice) — the vectors alone also paired every monthly invoice of the
+  same template with the next one.
 
 Removed after a look at a real archive (2026-11-27): "expected but missing"
 (rhythm detection), topics (k-means clusters named after correspondents mixed
@@ -18,6 +21,7 @@ unrelated ones) and "possibly mis-filed".
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from datetime import date, datetime
 
@@ -91,9 +95,10 @@ def doc_vectors(chunks: list[dict], allowed: set[int]) -> tuple[list[int], np.nd
     return ids, mat / np.where(norms == 0, 1, norms)
 
 
-def duplicates(docs: list, ids: list[int], mat: np.ndarray, threshold: float = 0.985) -> list[tuple[int, int, float]]:
-    """Pairs that are nearly the same text and have the same page count —
-    double scans, a letter uploaded twice."""
+def duplicates(docs: list, ids: list[int], mat: np.ndarray, threshold: float = 0.975,
+               limit: int = 100) -> list[tuple[int, int, float]]:
+    """Candidate pairs: close in meaning and the same page count. A
+    pre-selection only — `confirm_duplicates` decides."""
     if len(ids) < 2:
         return []
     by_id = {d.id: d for d in docs}
@@ -106,4 +111,61 @@ def duplicates(docs: list, ids: list[int], mat: np.ndarray, threshold: float = 0
             if a and b and (a.page_count or 0) == (b.page_count or 0):
                 out.append((ids[i], ids[j], float(sim[i, j])))
     out.sort(key=lambda p: -p[2])
-    return out[:50]
+    return out[:limit]
+
+
+# A number as written: "15.03.2026", "1.240,00", "DE89 3704" stays two, "4F60" none.
+_NUM_RE = re.compile(r"\d(?:[\d.,/:-]*\d)?")
+_WORD_RE = re.compile(r"[^\W\d_]{2,}")
+
+#: Share of the word shingles two texts must share.
+TEXT_MIN = 0.8
+#: Numbers present in only one of the two texts: at most this many (OCR misreads
+#: a digit now and then — one misread number is one missing plus one extra) …
+NUM_DIFF_ABS = 2
+#: … or this share of all numbers, whichever is larger.
+NUM_DIFF_REL = 0.03
+
+
+def _shingles(text: str, n: int = 3) -> set[tuple[str, ...]]:
+    w = _WORD_RE.findall(text.lower())
+    if len(w) < n:
+        return {tuple(w)} if w else set()
+    return {tuple(w[i:i + n]) for i in range(len(w) - n + 1)}
+
+
+def same_text(a: str, b: str) -> bool:
+    """The same document's text, read twice — not two letters on one template.
+
+    Words decide whether it is the same kind of text; the numbers decide
+    whether it is the same letter: a monthly invoice repeats every word of the
+    last one and differs in its date, number and amounts."""
+    a, b = a or "", b or ""
+    sa, sb = _shingles(a), _shingles(b)
+    if not sa or not sb:
+        return False
+    if len(sa & sb) / len(sa | sb) < TEXT_MIN:
+        return False
+    na, nb = Counter(m.rstrip(".,:-/") for m in _NUM_RE.findall(a)), Counter(
+        m.rstrip(".,:-/") for m in _NUM_RE.findall(b))
+    union = sum((na | nb).values())
+    diff = sum((na - nb).values()) + sum((nb - na).values())
+    return diff <= max(NUM_DIFF_ABS, NUM_DIFF_REL * union)
+
+
+def confirm_duplicates(pairs: list[tuple[int, int, float]], checksums: dict[int, str],
+                       texts: dict[int, str], limit: int = 50) -> list[tuple[int, int, float, str]]:
+    """The candidate pairs that really are duplicates, with why:
+    "file" — the same original file (Paperless' checksum of it);
+    "text" — another file with the same text (scanned or exported twice).
+    A pair with nothing to compare (no checksum, no text) is dropped: a
+    duplicate shown on similarity alone was the near miss this step removes."""
+    out = []
+    for a, b, score in pairs:
+        ca, cb = checksums.get(a), checksums.get(b)
+        if ca and ca == cb:
+            out.append((a, b, score, "file"))
+        elif same_text(texts.get(a, ""), texts.get(b, "")):
+            out.append((a, b, score, "text"))
+    out.sort(key=lambda p: (p[3] != "file", -p[2]))
+    return out[:limit]

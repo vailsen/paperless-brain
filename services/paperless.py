@@ -328,6 +328,29 @@ class PaperlessClient:
             docs.append(self._parse_document(raw, tag_map, corr_map, dt_map, user_map))
         return docs
 
+    async def readable_ids(self, ids: list[int], batch: int = 200) -> set[int]:
+        """Which of ``ids`` this token may read — asked of Paperless now, never
+        from a cache, but for the ids only (``fields=id``), all batches at once.
+
+        The dashboard's deadline check used to load every referenced document
+        in full, OCR text included, one batch after the other. A batch that
+        fails is left out (fail closed), and only ids that were asked for count:
+        Paperless answers an unknown filter as if unfiltered."""
+        wanted = sorted({int(i) for i in ids})
+        chunks = [wanted[k:k + batch] for k in range(0, len(wanted), batch)]
+        if not chunks:
+            return set()
+        async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
+            async def one(chunk: list[int]) -> set[int]:
+                r = await client.get(f"{self.base_url}/api/documents/", params=[
+                    ("id__in", ",".join(str(i) for i in chunk)), ("fields", "id"),
+                    ("page_size", len(chunk))])
+                r.raise_for_status()
+                return {int(d["id"]) for d in r.json().get("results", [])} & set(chunk)
+
+            results = await asyncio.gather(*(one(c) for c in chunks), return_exceptions=True)
+        return set().union(*(r for r in results if isinstance(r, set)))
+
     async def visible_ids(self) -> set[int]:
         """Ids of every document this token can read.
 
@@ -406,6 +429,28 @@ class PaperlessClient:
             results = [r for r in results if tag_set.issubset(r["tags"])]
 
         return results
+
+    async def original_checksums(self, ids: list[int], parallel: int = 8) -> dict[int, str]:
+        """The checksum Paperless stores of each document's original file
+        (`/api/documents/{id}/metadata/`, `original_checksum`) — the same file
+        uploaded twice has the same one, without downloading either. Documents
+        the token cannot read, or a failed request, are left out."""
+        sem = asyncio.Semaphore(parallel)
+        out: dict[int, str] = {}
+        async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
+            async def one(doc_id: int) -> None:
+                async with sem:
+                    try:
+                        r = await client.get(f"{self.base_url}/api/documents/{doc_id}/metadata/")
+                        if r.status_code == 200:
+                            c = (r.json() or {}).get("original_checksum")
+                            if c:
+                                out[doc_id] = str(c)
+                    except (httpx.HTTPError, ValueError):
+                        pass
+
+            await asyncio.gather(*(one(i) for i in ids))
+        return out
 
     async def get_document(self, doc_id: int) -> PaperlessDocument:
         """Get a specific document from paperless by id"""
