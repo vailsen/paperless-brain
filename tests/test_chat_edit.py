@@ -145,3 +145,30 @@ def test_pin_folders(tmp_path, monkeypatch):
     hist.set_pinned(c, "alice", False)  # unpinning leaves the folder
     row = hist.get_conversation(c, "alice")
     assert row["pinned"] == 0 and row["pin_folder"] is None
+
+
+def test_auto_title_never_replaces_the_users_own(tmp_path, monkeypatch):
+    import sqlite3
+
+    import services.chat_history_service as hist
+
+    db = tmp_path / "w.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        "CREATE TABLE chat_conversations (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, created_at TEXT,"
+        " updated_at TEXT);"
+        "CREATE TABLE chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id TEXT"
+        " REFERENCES chat_conversations(id) ON DELETE CASCADE, user_id TEXT, role TEXT, content TEXT,"
+        " created_at TEXT);")
+    conn.close()
+    monkeypatch.setattr(hist, "_DB_PATH", str(db))
+    monkeypatch.setattr(hist, "_migrated", False)
+    c = hist.create_conversation("alice", "and the other one?")
+    before = hist.get_conversation(c, "alice")["updated_at"]
+    assert hist.set_auto_title(c, "alice", "Car insurance renewal")
+    row = hist.get_conversation(c, "alice")
+    assert row["title"] == "Car insurance renewal" and row["updated_at"] == before
+    assert not hist.set_auto_title(c, "bob", "hijack")
+    hist.rename_conversation(c, "alice", "My car")
+    assert not hist.set_auto_title(c, "alice", "Something else")
+    assert hist.get_conversation(c, "alice")["title"] == "My car"

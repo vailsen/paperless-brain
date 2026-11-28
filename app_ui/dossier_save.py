@@ -2,7 +2,9 @@
 
 Pick a dossier (or make one) → the merge round fits the excerpt into it →
 a preview the user can edit, with what the checks found → save. Nothing is
-written before the user presses Save. "Save verbatim" skips the model.
+written before the user presses Save. The two ways are named for what the user
+gets: "AI summary" (the model writes the insight against the dossier) and
+"Save verbatim" (the excerpt as it is, no model).
 
 Provenance is the turn's, computed by code (`services/dossier_merge.provenance`)
 and passed in; the dialog shows it and never lets the model touch it.
@@ -82,10 +84,10 @@ async def open_save_dialog(
                       on_change=lambda e: _mode(e.value)).props("dense no-caps unelevated").classes("self-start")
         src_host = ui.column().classes("w-full gap-2")
 
-        note = ui.input(_("Your note for the merge (optional)")).props("outlined dense").classes("w-full")
+        note = ui.input(_("Your note for the AI summary (optional)")).props("outlined dense").classes("w-full")
         with ui.row().classes("w-full items-center gap-2 no-wrap"):
             msel = model_select(models, model0 if any(m["name"] == model0 for m in models) else default_model,
-                                label=_("Model for fitting it in")).props("outlined dense").classes("flex-1")
+                                label=_("Model for the AI summary")).props("outlined dense").classes("flex-1")
         with ui.row().classes("w-full items-center gap-2 no-wrap"):
             spin = ui.spinner(size="sm").props("color=primary").classes("flex-shrink-0")
             spin.set_visibility(False)
@@ -95,7 +97,7 @@ async def open_save_dialog(
 
         with ui.row().classes("w-full justify-end gap-2"):
             verbatim_btn = ui.button(_("Save verbatim"), icon="content_paste").props("flat no-caps dense")
-            merge_btn = ui.button(_("Fit into dossier"), icon="auto_awesome").props(
+            merge_btn = ui.button(_("AI summary"), icon="auto_awesome").props(
                 "unelevated no-caps dense").classes("bg-primary text-white")
             again_btn = ui.button(_("Start over"), icon="undo").props("flat no-caps dense")
             again_btn.set_visibility(False)
@@ -201,7 +203,7 @@ async def open_save_dialog(
         set_pref("dossier_merge_model", model)
         state["busy"] = True
         _lock(True)
-        status.set_text(_("Fitting it into the dossier — this can take a minute. Please wait: the preview "
+        status.set_text(_("Writing the AI summary — this can take a minute. Please wait: the preview "
                           "opens here when the model is done, and nothing is saved before you press Save."))
         try:
             fake = d or dossiers.Dossier(topic="", label=(new_name.value or "").strip(),

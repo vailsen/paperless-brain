@@ -46,6 +46,49 @@ def parse_tags(raw: str) -> list[str]:
     return [t.strip().lstrip("#") for t in (raw or "").replace(";", ",").split(",") if t.strip().lstrip("#")]
 
 
+def clean_keywords(values) -> list[str]:
+    """The picked keywords: trimmed, no "#", each once (case-insensitive)."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for v in values or []:
+        for t in parse_tags(str(v)):
+            if t.casefold() not in seen:
+                seen.add(t.casefold())
+                out.append(t)
+    return out
+
+
+def known_keywords(tag_lists: list[list[str]]) -> list[str]:
+    """Every keyword the user's memories carry, most used first — spelled as
+    most often written ("Insurance" and "insurance" are one keyword)."""
+    from collections import Counter
+
+    count: Counter = Counter()
+    spelling: dict[str, Counter] = {}
+    for tags in tag_lists:
+        for t in clean_keywords(tags):
+            k = t.casefold()
+            count[k] += 1
+            spelling.setdefault(k, Counter())[t] += 1
+    return [spelling[k].most_common(1)[0][0] for k, _n in sorted(count.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
+def suggest_keywords(known: list[str], text: str, limit: int = 8) -> list[str]:
+    """Keywords to offer as one tap: those whose words occur in the memory's
+    text first, then the most used ones."""
+    import re
+
+    words = {w.casefold() for w in re.findall(r"\w{3,}", text or "")}
+
+    def _in_text(k: str) -> bool:
+        parts = [w.casefold() for w in re.findall(r"\w{3,}", k)]
+        return bool(parts) and all(any(w.startswith(p[:5]) for w in words) for p in parts)
+
+    hits = [k for k in known if _in_text(k)]
+    rest = [k for k in known if k not in hits]
+    return (hits + rest)[:limit]
+
+
 async def open_memory_dialog(*, user: str, answer: str, selection: str = "") -> None:
     _ = get_translator()
     if not user:
@@ -60,7 +103,38 @@ async def open_memory_dialog(*, user: str, answer: str, selection: str = "") -> 
             "text-xs").style("color:var(--c-text-muted)")
         area = ui.textarea(value=memory_text(answer, selection)).props(
             "outlined autogrow autofocus").classes("w-full").style("max-height:50vh; overflow:auto")
-        tags = ui.input(_("Tags (optional, comma-separated)")).props("outlined dense").classes("w-full")
+        # Keywords of this memory (its `tags:` property) — not Paperless tags.
+        # Picked from the ones the user's memories already carry, or typed new.
+        from services.clients import brain
+
+        try:
+            known = known_keywords([f.tags for f in await brain.get_all(user) if f.user == user])
+        except Exception:  # noqa: BLE001 — no index: no suggestions, typing still works
+            known = []
+        tags = ui.select(known, multiple=True, with_input=True, new_value_mode="add-unique",
+                         label=_("Keywords (optional)")).props(
+            "outlined dense use-chips hide-dropdown-icon input-debounce=0").classes("w-full")
+        tags.tooltip(_("Type a keyword and press Enter, or pick one you used before"))
+        sugg_row = ui.row().classes("w-full items-center gap-1").style("margin-top:-4px")
+
+        def _suggest() -> None:
+            sugg_row.clear()
+            picked = {t.casefold() for t in clean_keywords(tags.value)}
+            offer = [k for k in suggest_keywords(known, area.value or "", limit=12) if k.casefold() not in picked][:8]
+            if not offer:
+                return
+            with sugg_row:
+                ui.label(_("Suggested:")).classes("text-xs").style("color:var(--c-text-muted)")
+                for k in offer:
+                    ui.chip(k, icon="add", on_click=lambda k=k: _add(k)).props("dense outline clickable").classes(
+                        "text-xs")
+
+        def _add(k: str) -> None:
+            tags.set_value(clean_keywords([*(tags.value or []), k]))
+
+        tags.on_value_change(lambda _e: _suggest())
+        area.on("blur", lambda _e: _suggest())
+        _suggest()
         if src_doc:
             ui.label(_("Source: document #{id}").format(id=src_doc)
                      + (" · " + _("page {n}").format(n=src_page) if src_page else "")).classes(
@@ -97,7 +171,7 @@ async def open_memory_dialog(*, user: str, answer: str, selection: str = "") -> 
                     save_btn.set_text(_("Save anyway"))
                     return
             await vault_brain_writer.create_memory(
-                text=text, tags=parse_tags(tags.value), user=user,
+                text=text, tags=clean_keywords(tags.value), user=user,
                 source_doc_id=src_doc, source_page=src_page,
             )
         except Exception as exc:  # noqa: BLE001 — say why; nothing was half-written by the UI

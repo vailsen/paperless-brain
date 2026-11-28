@@ -1782,7 +1782,10 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         )
 
     _hist_ui: dict = {"q": "", "hits": set(), "open": set()}  # search text, content hits, expanded sections
-    _HIST_PER_GROUP = 6
+    # The list fills the drawer before sections fold: rows that fit the
+    # window (`_s["view_h"]`, measured once the page is connected), each later
+    # section still a few rows and its "Show all".
+    _HIST_ROW_PX, _HIST_CHROME_PX, _HIST_MIN_PER_GROUP = 37, 230, 3
 
     def _refresh_history_list() -> None:
         """The drawer's list: searched, then grouped by expert or by date
@@ -1799,15 +1802,20 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         mode = get_pref("chat_hist_group", "expert")
         if mode not in _cg.MODES:
             mode = "expert"
-        experts = {e.expert_id: e for e in _experts_mod.list_experts(_username)} if (
-            _username and mode == "expert") else {}
+        experts = {e.expert_id: e for e in _experts_mod.list_experts(_username)} if _username else {}
         date_labels = {"today": _("Today"), "yesterday": _("Yesterday"), "week": _("Previous 7 days"),
                        "month": _("Previous 30 days"), "older": _("Older")}
         ctx_icons = {"finding": ("lightbulb", _("About a finding")),
                      "dossier": ("folder_open", _("About a dossier")),
                      "overview": ("dashboard", _("About the findings overview"))}
 
-        def _row(c: dict, in_folder: bool = False) -> None:
+        def _mi(icon: str, label: str, on_click) -> None:
+            with ui.menu_item(on_click=on_click):
+                with ui.row().classes("items-center gap-3 no-wrap"):
+                    ui.icon(icon, size="1.1rem").classes("text-gray-500")
+                    ui.label(label).classes("text-sm")
+
+        def _row(c: dict, in_folder: bool = False, show_expert: bool = True) -> None:
             is_active = c["id"] == _s.get("conv_id")
             with ui.element("div").classes("chat-history-item" + (" active" if is_active else "")
                                            + (" in-folder" if in_folder else "")):
@@ -1819,6 +1827,12 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         if kind:
                             ui.icon(ctx_icons[kind][0]).style(
                                 "font-size:12px; color:var(--c-text-muted); flex-shrink:0").tooltip(ctx_icons[kind][1])
+                        # The expert, unless it is Universal or the section
+                        # already says it (grouped by expert).
+                        ex = experts.get(c.get("expert_id") or "")
+                        if show_expert and ex and ex.expert_id != _experts_mod.UNIVERSAL_ID:
+                            ui.icon(ex.icon or "psychology").style(
+                                "font-size:12px; color:var(--c-text-muted); flex-shrink:0").tooltip(ex.name)
                         ui.label(c["title"]).classes("text-xs text-gray-300 w-full").style(
                             "overflow:hidden; text-overflow:ellipsis;"
                             "white-space:nowrap; line-height:1.4; min-width:0"
@@ -1832,22 +1846,22 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     with ui.button(icon="more_vert").props("flat dense round size=sm").classes(
                             "card-action-btn").tooltip(_("More")):
                         with ui.menu().props("auto-close"):
-                            ui.menu_item(_("Unpin") if c.get("pinned") else _("Pin to the top"),
-                                         on_click=lambda cid=c["id"], p=bool(c.get("pinned")): _toggle_pin(cid, not p))
-                            ui.menu_item(_("Move to a folder …"),
-                                         on_click=lambda cid=c["id"], f=c.get("pin_folder"): _file_conv(cid, f))
-                            ui.menu_item(_("Rename"),
-                                         on_click=lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t))
+                            _mi("push_pin", _("Unpin") if c.get("pinned") else _("Pin to the top"),
+                                lambda cid=c["id"], p=bool(c.get("pinned")): _toggle_pin(cid, not p))
+                            _mi("drive_file_move", _("Move to a folder …"),
+                                lambda cid=c["id"], f=c.get("pin_folder"): _file_conv(cid, f))
+                            _mi("edit", _("Rename"), lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t))
                             if not _cg.context_kind(c):
-                                ui.menu_item(_("Move to another expert …"),
-                                             on_click=lambda cid=c["id"]: _move_conv(cid))
+                                _mi("psychology", _("Move to another expert …"),
+                                    lambda cid=c["id"]: _move_conv(cid))
                             ui.separator()
-                            ui.menu_item(_("Delete"), on_click=lambda cid=c["id"]: _delete_conv(cid))
+                            _mi("delete_outline", _("Delete"), lambda cid=c["id"]: _delete_conv(cid))
 
         def _toggle_all(key: str) -> None:
             _hist_ui["open"].symmetric_difference_update({key})
             _refresh_history_list()
 
+        rows_left = max(10, ((_s.get("view_h") or 850) - _HIST_CHROME_PX) // _HIST_ROW_PX)
         with history_list_container:
             # Always show a placeholder for the current (possibly unsaved) session
             if not _s.get("conv_id") and not q:
@@ -1891,10 +1905,10 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             with ui.button(icon="more_vert").props("flat dense round size=sm").classes(
                                     "card-action-btn").tooltip(_("More")):
                                 with ui.menu().props("auto-close"):
-                                    ui.menu_item(_("Rename"),
-                                                 on_click=lambda fid=f["id"], n=f["name"]: _rename_pin_folder(fid, n))
-                                    ui.menu_item(_("Delete folder"),
-                                                 on_click=lambda fid=f["id"], n=f["name"]: _delete_pin_folder(fid, n))
+                                    _mi("edit", _("Rename"),
+                                        lambda fid=f["id"], n=f["name"]: _rename_pin_folder(fid, n))
+                                    _mi("folder_delete", _("Delete folder"),
+                                        lambda fid=f["id"], n=f["name"]: _delete_pin_folder(fid, n))
                     if is_open:
                         for c in inside:
                             _row(c, in_folder=True)
@@ -1902,6 +1916,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 for c in pinned:
                     if c.get("pin_folder") not in fids:
                         _row(c)
+                rows_left -= 1 + len(folders) + len(pinned)
             for g in _cg.group([c for c in convs if not c.get("pinned")], mode, _dt.now().astimezone()):
                 if mode == "expert":
                     e = experts.get(g.key)
@@ -1915,10 +1930,13 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     ui.label(label).classes("flex-1 min-w-0").style(
                         "overflow:hidden; text-overflow:ellipsis; white-space:nowrap")
                     ui.label(str(len(g.convs))).classes("chat-hist-count")
-                shown = g.convs if (q or g.key in _hist_ui["open"]) else g.convs[:_HIST_PER_GROUP]
+                rows_left -= 1
+                fits = max(min(_HIST_MIN_PER_GROUP, len(g.convs)), rows_left)
+                shown = g.convs if (q or g.key in _hist_ui["open"]) else g.convs[:fits]
+                rows_left -= len(shown)
                 for c in shown:
-                    _row(c)
-                if not q and len(g.convs) > _HIST_PER_GROUP:
+                    _row(c, show_expert=mode != "expert")
+                if not q and len(g.convs) > fits:
                     more = g.key in _hist_ui["open"]
                     ui.button(
                         _("Show fewer") if more else _("Show all {n}").format(n=len(g.convs)),
@@ -4765,6 +4783,44 @@ window.__openVaultNote = function(noteId) {{
                     _chat_hist.set_turn_meta(_s["conv_id"], _username, _mi, _meta)
                 except Exception:
                     _log.warning("could not store turn provenance", exc_info=True)
+        _maybe_retitle()
+
+    def _maybe_retitle() -> None:
+        """After the first and the third answer the conversation's model names
+        it (`services/chat_titles`) — one call without tools, in the
+        background; a title the user set by hand is never replaced."""
+        from services import chat_titles
+
+        conv, msgs = _s.get("conv_id"), list(_s["messages"])
+        if not (conv and _username and msgs) or msgs[-1].get("role") != "assistant":
+            return  # stopped or failed: no answer to name it by
+        if not chat_titles.due(chat_titles.answer_count(msgs)):
+            return
+        backend = _reg_backends.get(_s.get("chat_model_name", ""))
+        request = chat_titles.build_request(msgs)
+        if backend is None or not request:
+            return
+
+        async def _run() -> None:
+            parts: list[str] = []
+            try:
+                async for ev in backend.run_turn(
+                    system=chat_titles.SYSTEM, messages=[{"role": "user", "content": request}],
+                    tools=[], temperature=0.2, max_iterations=1,
+                ):
+                    if isinstance(ev, TextTokenEvent):
+                        parts.append(ev.text)
+            except Exception:  # noqa: BLE001 — a title is a nicety; the first message stays the name
+                _log.info("the model wrote no conversation title", exc_info=True)
+                return
+            title = chat_titles.clean("".join(parts))
+            if title and await asyncio.to_thread(_chat_hist.set_auto_title, conv, _username, title):
+                try:
+                    _refresh_history_list()
+                except Exception:  # noqa: BLE001 — the page is gone; the title is stored
+                    pass
+
+        asyncio.ensure_future(_run())
 
     async def do_send() -> None:
         live = _s.get("adopted")
@@ -5674,13 +5730,17 @@ window.__openVaultNote = function(noteId) {{
         await ui.context.client.connected()
         _screen = await ui.run_javascript(
             "[window.matchMedia('(min-width:768px)').matches,"
-            " window.matchMedia('(min-width:1024px)').matches]", timeout=3.0
+            " window.matchMedia('(min-width:1024px)').matches, window.innerHeight]", timeout=3.0
         )
         _is_desktop, _is_wide = (bool(_screen[0]), bool(_screen[1])) if isinstance(_screen, list) else (False, False)
+        if isinstance(_screen, list) and len(_screen) > 2 and isinstance(_screen[2], (int, float)):
+            _s["view_h"] = int(_screen[2])  # how many conversation rows the drawer holds
         if _is_desktop:
             _set_docs_visible(True)
         _s["hist_dock"] = _is_wide
         if _is_wide and not _embed and get_pref("chat_hist_open", False):
             _set_history_visible(True)
+        elif _s.get("history_visible"):
+            _refresh_history_list()
     except Exception:
         pass
