@@ -17,7 +17,6 @@ from app_ui.chat_images import with_images
 from app_ui.cluster_dialog import create_cluster_dialog
 from app_ui.document_dialog import create_document_dialog
 from app_ui.similar_dialog import create_similar_dialog
-from app_ui import modules as _modules
 from app_ui.layout import page_layout, require_auth
 from app_ui.model_picker import model_select
 from app_ui.pages.browser import _render_card
@@ -506,9 +505,10 @@ html, body { overflow: hidden !important; }
     border: 1px solid var(--c-border); background: var(--c-bg); cursor: zoom-in;
 }
 .chat-md .chat-img-cap { display: block; font-size: 0.72rem; color: var(--c-text-muted); margin-bottom: 0.4rem; }
-/* Chat history left drawer — always available (desktop + mobile) */
+/* Chat history left drawer — always available (desktop + mobile). Its width
+   lives on :root, so the chat column can make room for it (docked, below). */
+:root { --hist-w: 252px; }
 .chat-history-drawer {
-    --hist-w: 252px;
     position: fixed !important;
     top: var(--q-header-height, 52px);
     left: calc(-1 * var(--hist-w) - 4px); bottom: 0;
@@ -519,6 +519,18 @@ html, body { overflow: hidden !important; }
     display: flex; flex-direction: column; overflow: hidden;
 }
 .chat-history-drawer.open { left: 0 !important; }
+/* A wide screen: the open drawer is a column beside the chat, not an overlay
+   over it — no scrim, no shadow, the chat column starts after it. */
+.chat-main-col { transition: left .3s cubic-bezier(.4,0,.2,1); }
+body.pb-hist-dragging .chat-main-col { transition: none; }
+@media (min-width: 1024px) {
+    /* `width: auto`: the column carries `w-full`, and width: 100% beat
+       left + right — shifted, it ran past the right edge. */
+    body:not(.pb-compact):has(.chat-history-drawer.open) .chat-main-col {
+        left: var(--hist-w) !important; width: auto !important; }
+    .chat-history-drawer { box-shadow: none !important; }
+    .chat-history-scrim.open { display: none !important; }
+}
 .chat-hist-resize {
     position: absolute; right: 0; top: 0; bottom: 0;
     width: 5px; cursor: col-resize; z-index: 2;
@@ -547,7 +559,11 @@ html, body { overflow: hidden !important; }
     text-align: center; color: var(--c-text-2); font-size: .82rem; }
 .pb-note-head { justify-content: center; font-size: .68rem; font-weight: 600; color: var(--c-text-muted);
     margin-bottom: 2px; }
-.pb-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.pb-note-text { overflow-wrap: anywhere; }
+/* A one-line note stays centred; anything with structure (a carried-over
+   answer: paragraphs, lists, tables) reads from the left. */
+.pb-note-text > p:only-child { margin: 0; }
+.pb-note-text:has(> :nth-child(2)), .pb-note-text:has(table, ul, ol, pre) { text-align: left; }
 /* Edit mode: a tick box per message, the ticked ones tinted. */
 body.pb-editing .chat-quick-strip { display: none !important; }
 .pb-edit-item { gap: 4px; padding: 2px 4px; border-radius: 10px; min-width: 0; }
@@ -567,6 +583,13 @@ body.pb-editing .chat-quick-strip { display: none !important; }
 .chat-hist-count { font-weight: 500; color: var(--c-text-muted); font-size: .7rem; font-variant-numeric: tabular-nums; }
 .chat-hist-more { align-self: flex-start; margin-left: 4px; font-size: .7rem !important;
     color: var(--c-text-muted) !important; }
+/* Folders of the pinned section: a row that folds its conversations. */
+.chat-pin-folder { display: flex; align-items: center; gap: 5px; padding: 4px 4px 4px 8px; border-radius: 6px;
+    cursor: pointer; font-size: .75rem; font-weight: 600; color: var(--c-text-2); min-width: 0; }
+.chat-pin-folder:hover { background: var(--c-surface-2); }
+.chat-pin-folder:hover .chat-hist-actions { opacity: 1; }
+.chat-pin-folder .q-icon { color: var(--c-text-muted); flex-shrink: 0; }
+.chat-history-item.in-folder { margin-left: 14px; }
 @media (max-width: 767px) {
     .chat-hist-actions { opacity: 1 !important; }
 }
@@ -1330,15 +1353,14 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             _log.warning("could not create the Universal expert", exc_info=True)
     _experts_list = _experts_mod.list_experts(_username) if _username else []
     _known_experts = {e.expert_id for e in _experts_list}
-    # "Use experts" off: every chat is the Universal expert. The dock never
-    # takes the expert last picked in /chat — that put one particular expert
-    # on every dossier: the dossier's own default (?expert=) or Universal.
-    _experts_on = _experts_mod.enabled()
+    # Hiding the Experts module (Settings > Modules) takes only its page out
+    # of the menus — the experts stay pickable here. The dock never takes the
+    # expert last picked in /chat — that put one particular expert on every
+    # dossier: the dossier's own default (?expert=) or the user's default.
     # A new chat starts with the user's default expert ("Use as default
     # expert"), the dock with the dossier's own (?expert=) or that default.
     _initial_expert_id = (
-        _experts_mod.UNIVERSAL_ID if not _experts_on
-        else expert if expert in _known_experts
+        expert if expert in _known_experts
         else _experts_mod.default_id(_username)
     )
 
@@ -1583,7 +1605,13 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 with ui.row().classes("items-center gap-1 no-wrap pb-note-head"):
                     ui.icon("sticky_note_2").style("font-size:14px")
                     ui.label(_("Note"))
-                ui.label(text).classes("pb-note-text")
+                # Markdown like an answer: "Continue in a new chat" carries an
+                # answer over as a note, tables and citations included.
+                ui.markdown(
+                    _inject_doc_links(text, None, _rs.get("doc_titles")),
+                    sanitize=False,
+                    extras=_MD_EXTRAS,
+                ).classes("chat-md pb-note-text")
 
     def _render_stored_msg(msg: dict, idx: int = -1) -> None:
         """Render a single stored message dict into messages_container.
@@ -1643,7 +1671,9 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             ui.run_javascript(f"window.__pbFillCiteTitles({json.dumps(known)})")
 
     def _fill_titles_later(messages: list[dict]) -> None:
-        texts = [m["content"] for m in messages if m.get("role") == "assistant"]
+        # Notes too: a carried-over answer keeps its reference numbers.
+        texts = [m["content"] for m in messages
+                 if m.get("role") == "assistant" or chat_edit.is_note(m)]
         if any(citations.CITE_RE.search(t or "") for t in texts):
             ui.timer(0.05, lambda: _fill_cite_titles(texts), once=True)
 
@@ -1721,6 +1751,22 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         except Exception:
             return ""
 
+    def _toggle_history(visible: bool) -> None:
+        """The user opened or closed the drawer. Docked (a wide screen), that
+        choice is remembered for the next visit (pref `chat_hist_open`)."""
+        _set_history_visible(visible)
+        if _s.get("hist_dock") and not _embed:
+            set_pref("chat_hist_open", visible)
+
+    def _close_history_overlay() -> None:
+        """After picking a conversation: an overlay drawer gets out of the
+        way, a docked one stays where the user put it — redrawn, so the
+        conversation now open is the one marked."""
+        if not _s.get("hist_dock"):
+            _set_history_visible(False)
+        elif _s.get("history_visible"):
+            _refresh_history_list()
+
     def _set_history_visible(visible: bool) -> None:
         _s["history_visible"] = visible
         if visible:
@@ -1750,20 +1796,21 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         convs = _chat_hist.list_conversations(_username) if _username else []
         q = _hist_ui["q"]
         convs = [c for c in convs if _cg.matches(c, q, _hist_ui["hits"])]
-        mode = get_pref("chat_hist_group", "expert") if _experts_on else "date"
+        mode = get_pref("chat_hist_group", "expert")
         if mode not in _cg.MODES:
             mode = "expert"
         experts = {e.expert_id: e for e in _experts_mod.list_experts(_username)} if (
-            _experts_on and _username and mode == "expert") else {}
+            _username and mode == "expert") else {}
         date_labels = {"today": _("Today"), "yesterday": _("Yesterday"), "week": _("Previous 7 days"),
                        "month": _("Previous 30 days"), "older": _("Older")}
         ctx_icons = {"finding": ("lightbulb", _("About a finding")),
                      "dossier": ("folder_open", _("About a dossier")),
                      "overview": ("dashboard", _("About the findings overview"))}
 
-        def _row(c: dict) -> None:
+        def _row(c: dict, in_folder: bool = False) -> None:
             is_active = c["id"] == _s.get("conv_id")
-            with ui.element("div").classes("chat-history-item" + (" active" if is_active else "")):
+            with ui.element("div").classes("chat-history-item" + (" active" if is_active else "")
+                                           + (" in-folder" if in_folder else "")):
                 with ui.column().style(
                     "min-width:0; flex:1; overflow:hidden; gap:1px; cursor:pointer;"
                 ).on("click", lambda cid=c["id"]: _load_conv(cid)):
@@ -1779,7 +1826,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     ui.label(_fmt_conv_time(c["updated_at"])).style(
                         "font-size:0.6rem; color:var(--c-border-strong); line-height:1;"
                     )
-                if c.get("pinned"):
+                if c.get("pinned") and not in_folder:
                     ui.icon("push_pin").style("font-size:12px; color:var(--c-text-muted); flex-shrink:0")
                 with ui.row().classes("chat-hist-actions").style("gap:0; flex-shrink:0;"):
                     with ui.button(icon="more_vert").props("flat dense round size=sm").classes(
@@ -1787,9 +1834,11 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                         with ui.menu().props("auto-close"):
                             ui.menu_item(_("Unpin") if c.get("pinned") else _("Pin to the top"),
                                          on_click=lambda cid=c["id"], p=bool(c.get("pinned")): _toggle_pin(cid, not p))
+                            ui.menu_item(_("Move to a folder …"),
+                                         on_click=lambda cid=c["id"], f=c.get("pin_folder"): _file_conv(cid, f))
                             ui.menu_item(_("Rename"),
                                          on_click=lambda cid=c["id"], t=c["title"]: _rename_conv(cid, t))
-                            if _experts_on and not _cg.context_kind(c):
+                            if not _cg.context_kind(c):
                                 ui.menu_item(_("Move to another expert …"),
                                              on_click=lambda cid=c["id"]: _move_conv(cid))
                             ui.separator()
@@ -1817,13 +1866,42 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 ui.label(_("No conversation mentions this.")).classes("text-xs px-2 py-3").style(
                     "color:var(--c-text-muted)")
             pinned = [c for c in convs if c.get("pinned")]
-            if pinned:
+            folders = _chat_hist.list_pin_folders(_username) if _username else []
+            if pinned or (folders and not q):
                 with ui.row().classes("chat-hist-group items-center no-wrap w-full"):
                     ui.icon("push_pin").style("font-size:13px")
                     ui.label(_("Pinned")).classes("flex-1 min-w-0")
                     ui.label(str(len(pinned))).classes("chat-hist-count")
+                    ui.button(icon="create_new_folder", on_click=lambda: _new_pin_folder()).props(
+                        "flat dense round size=xs").classes("card-action-btn").tooltip(_("New folder"))
+                closed = set(get_pref("chat_pin_folders_closed", []) or [])
+                for f in folders:
+                    inside = [c for c in pinned if c.get("pin_folder") == f["id"]]
+                    if q and not inside:
+                        continue
+                    is_open = bool(q) or f["id"] not in closed
+                    with ui.element("div").classes("chat-pin-folder"):
+                        with ui.row().classes("items-center no-wrap flex-1 min-w-0").style("gap:5px").on(
+                                "click", lambda fid=f["id"]: _toggle_pin_folder(fid)):
+                            ui.icon("folder_open" if is_open else "folder").style("font-size:15px")
+                            ui.label(f["name"]).classes("flex-1 min-w-0").style(
+                                "overflow:hidden; text-overflow:ellipsis; white-space:nowrap")
+                            ui.label(str(len(inside))).classes("chat-hist-count")
+                        with ui.row().classes("chat-hist-actions").style("gap:0; flex-shrink:0;"):
+                            with ui.button(icon="more_vert").props("flat dense round size=sm").classes(
+                                    "card-action-btn").tooltip(_("More")):
+                                with ui.menu().props("auto-close"):
+                                    ui.menu_item(_("Rename"),
+                                                 on_click=lambda fid=f["id"], n=f["name"]: _rename_pin_folder(fid, n))
+                                    ui.menu_item(_("Delete folder"),
+                                                 on_click=lambda fid=f["id"], n=f["name"]: _delete_pin_folder(fid, n))
+                    if is_open:
+                        for c in inside:
+                            _row(c, in_folder=True)
+                fids = {f["id"] for f in folders}
                 for c in pinned:
-                    _row(c)
+                    if c.get("pin_folder") not in fids:
+                        _row(c)
             for g in _cg.group([c for c in convs if not c.get("pinned")], mode, _dt.now().astimezone()):
                 if mode == "expert":
                     e = experts.get(g.key)
@@ -1925,7 +2003,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         _edit_reset()
         _render_all()
         _update_context_progress()
-        _set_history_visible(False)
+        _close_history_overlay()
         _scroll_bottom_later()
 
     def _scroll_bottom_later() -> None:
@@ -2010,7 +2088,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         _update_context_progress()
         for _cb, _grp in _tool_cbs:
             _cb.set_value(_TOOL_GROUP_DEFAULTS.get(_grp, True))
-        _set_history_visible(False)
+        _close_history_overlay()
         # A new conversation starts with the default expert (a dossier's dock
         # with the dossier's own); picking another one follows this.
         _apply_expert(_s.get("dock_expert") or _experts_mod.default_id(_username))
@@ -2038,11 +2116,87 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         _chat_hist.set_pinned(conv_id, _username, pinned)
         _refresh_history_list()
 
-    async def _move_conv(conv_id: str) -> None:
-        """Another expert for a conversation. Its scope is focus, not security:
-        earlier answers may mention documents outside the new expert's focus."""
-        conv = _chat_hist.get_conversation(conv_id, _username) or {}
-        current = conv.get("expert_id") or _experts_mod.UNIVERSAL_ID
+    # ── Folders of the pinned section (chat_history_service.*pin_folder*) ──
+    def _toggle_pin_folder(folder_id: str) -> None:
+        """Fold or unfold a folder — remembered per user."""
+        closed = set(get_pref("chat_pin_folders_closed", []) or [])
+        closed.symmetric_difference_update({folder_id})
+        set_pref("chat_pin_folders_closed", sorted(closed))
+        _refresh_history_list()
+
+    async def _folder_name_dialog(title: str, value: str = "") -> str | None:
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:340px; max-width:94vw;"):
+            ui.label(title).classes("text-sm font-semibold").style("color:var(--c-text)")
+            name = ui.input(_("Folder name"), value=value).props("outlined dense autofocus").classes("w-full")
+            name.on("keydown.enter", lambda: dlg.submit(name.value))
+            with ui.row().classes("justify-end w-full gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("Save"), on_click=lambda: dlg.submit(name.value)).props("unelevated no-caps color=primary")
+        res = await dlg
+        dlg.delete()
+        return (res or "").strip() or None
+
+    async def _new_pin_folder() -> str | None:
+        name = await _folder_name_dialog(_("New folder"))
+        if not name or not _username:
+            return None
+        fid = _chat_hist.create_pin_folder(_username, name)
+        _refresh_history_list()
+        return fid
+
+    async def _rename_pin_folder(folder_id: str, current: str) -> None:
+        name = await _folder_name_dialog(_("Rename folder"), current)
+        if name and name != current:
+            _chat_hist.rename_pin_folder(folder_id, _username, name)
+            _refresh_history_list()
+
+    async def _delete_pin_folder(folder_id: str, name: str) -> None:
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:340px; max-width:94vw;"):
+            ui.label(_("Delete the folder “{name}”?").format(name=name)).classes("text-sm font-semibold").style(
+                "color:var(--c-text)")
+            ui.label(_("Its conversations stay pinned, outside any folder.")).classes("text-xs").style(
+                "color:var(--c-text-muted)")
+            with ui.row().classes("justify-end w-full gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("Delete folder"), on_click=lambda: dlg.submit(True)).props(
+                    "unelevated no-caps color=negative")
+        ok = await dlg
+        dlg.delete()
+        if ok:
+            _chat_hist.delete_pin_folder(folder_id, _username)
+            _refresh_history_list()
+
+    async def _file_conv(conv_id: str, current: str | None) -> None:
+        """Put a conversation into a folder (pinning it), or take it out."""
+        NEW = "__new__"
+        folders = _chat_hist.list_pin_folders(_username) if _username else []
+        options = {"": _("No folder")} | {f["id"]: f["name"] for f in folders} | {NEW: _("New folder …")}
+        with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:340px; max-width:94vw;"):
+            ui.label(_("Move to a folder")).classes("text-sm font-semibold").style("color:var(--c-text)")
+            ui.label(_("A conversation in a folder is pinned.")).classes("text-xs").style("color:var(--c-text-muted)")
+            pick = ui.radio(options, value=current if current in options else "").props("dense")
+            with ui.row().classes("justify-end w-full gap-2"):
+                ui.button(_("Cancel"), on_click=dlg.close).props("flat no-caps")
+                ui.button(_("Move"), on_click=lambda: dlg.submit(pick.value)).props("unelevated no-caps color=primary")
+        res = await dlg
+        dlg.delete()
+        if res is None:
+            return
+        if res == NEW:
+            res = await _new_pin_folder()
+            if not res:
+                return
+        if (res or None) == current:
+            return
+        _chat_hist.set_pin_folder(conv_id, _username, res or None)
+        _refresh_history_list()
+
+    async def _move_conv(conv_id: str | None) -> None:
+        """Another expert for a conversation (None: the open one, not stored
+        yet). Its scope is focus, not security: earlier answers may mention
+        documents outside the new expert's focus."""
+        conv = (_chat_hist.get_conversation(conv_id, _username) or {}) if conv_id else {}
+        current = (conv.get("expert_id") if conv_id else _s.get("expert_id")) or _experts_mod.UNIVERSAL_ID
         options = {e.expert_id: e.name for e in _experts_mod.list_experts(_username)}
         with ui.dialog() as dlg, ui.card().style("background:var(--c-surface); width:380px; max-width:94vw;"):
             ui.label(_("Move to another expert")).classes("text-sm font-semibold").style("color:var(--c-text)")
@@ -2057,9 +2211,11 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         dlg.delete()
         if not eid or eid == current:
             return
-        _chat_hist.set_expert(conv_id, _username, eid)
+        if conv_id:
+            _chat_hist.set_expert(conv_id, _username, eid)
         if conv_id == _s.get("conv_id"):
             _apply_expert(eid)
+            _edit_bar_view.refresh()
         _refresh_history_list()
         ui.notify(_("Moved to {name}.").format(name=options.get(eid, eid)), type="positive")
 
@@ -2106,13 +2262,19 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             ui.label(_("{n} selected").format(n=n) if n else _("Tick messages to remove or compact them.")) \
                 .classes("chat-edit-count")
             with ui.row().classes("items-center no-wrap gap-1"):
-                def _b(label: str, icon: str, fn, enabled: bool = True) -> None:
+                def _b(label: str, icon: str, fn, enabled: bool = True) -> ui.button:
                     b = ui.button(label, icon=icon, on_click=fn).props("flat dense no-caps size=sm")
                     if not enabled:
                         b.disable()
+                    return b
                 _b(_("Remove"), "delete_outline", _edit_remove, n > 0)
                 _b(_("Compact"), "compress", lambda: _compact_chat(set(ed["sel"])), n > 0)
                 _b(_("Note"), "sticky_note_2", lambda: _note_dialog())
+                # The conversation's expert, switched in place — the chat's own
+                # picker starts a new conversation instead.
+                _ex_now = next((e for e in _experts_list if e.expert_id == _s.get("expert_id")), None)
+                _b(_ex_now.name if _ex_now else _("Expert"), (_ex_now.icon if _ex_now else "") or "psychology",
+                   lambda: _move_conv(_s.get("conv_id"))).tooltip(_("Switch this conversation to another expert"))
                 if _s.get("undo"):
                     _b(_("Undo"), "undo", _edit_undo)
                 ui.button(_("Done"), icon="check", on_click=lambda: _edit_exit()).props(
@@ -2331,7 +2493,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
             ui.label(_("Conversations")).classes("text-sm text-gray-300 font-semibold flex-1")
             ui.button(
                 icon="close",
-                on_click=lambda: _set_history_visible(False),
+                on_click=lambda: _toggle_history(False),
             ).props("flat dark dense").classes("text-gray-600")
         # "Neuer Chat" button
         with ui.element("div").style(
@@ -2354,12 +2516,11 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                 ui.icon("search", size="xs")
             _hist_search.on("update:model-value",
                             lambda e: _search_history(e.args if isinstance(e.args, str) else ""))
-            if _experts_on:
-                with ui.button(icon="sort").props("flat dense round size=sm").classes(
-                        "text-gray-500").tooltip(_("Group conversations")):
-                    with ui.menu().props("auto-close"):
-                        ui.menu_item(_("By expert"), on_click=lambda: _set_hist_group("expert"))
-                        ui.menu_item(_("By date"), on_click=lambda: _set_hist_group("date"))
+            with ui.button(icon="sort").props("flat dense round size=sm").classes(
+                    "text-gray-500").tooltip(_("Group conversations")):
+                with ui.menu().props("auto-close"):
+                    ui.menu_item(_("By expert"), on_click=lambda: _set_hist_group("expert"))
+                    ui.menu_item(_("By date"), on_click=lambda: _set_hist_group("date"))
         # Conversation list (scrollable)
         history_list_container = ui.element("div").style(
             "flex:1; overflow-y:auto; padding:4px 6px 8px 6px;"
@@ -2490,7 +2651,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             .tooltip(_("Conversation history"))
                         )
                         history_toggle_btn.on_click(
-                            lambda: _set_history_visible(not _s["history_visible"])
+                            lambda: _toggle_history(not _s["history_visible"])
                         )
                         # The title is the first thing to go on a phone: the
                         # pickers and the delete button need the width.
@@ -2552,7 +2713,6 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                             lambda e: _ex_icon.props(f"name={_ex_icon_of.get(e.value, 'psychology')}"))
                         # A lambda: the handler is defined below the layout.
                         _expert_sel.on_value_change(lambda e: _on_expert_pick(e))
-                        _expert_sel.set_visibility(_experts_on)
                         if _reg_models:
                             _chat_model_sel = (
                                 model_select(_reg_models, _initial_model_name)
@@ -2602,9 +2762,10 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                            lambda: _dl_conversation())
                                 _conv_item("save", _("Save chat to Paperless"),
                                            lambda: _save_chat_to_paperless())
-                                if not _modules.is_hidden("research"):  # Settings > Modules
-                                    _conv_item("travel_explore", _("Deep research from this chat"),
-                                               lambda: _research_from_chat())
+                                # Stays when the Deep research module is hidden: hiding
+                                # takes a module out of the menus, not its features.
+                                _conv_item("travel_explore", _("Deep research from this chat"),
+                                           lambda: _research_from_chat())
                                 _conv_item("mail", _("Write a letter"), lambda: _compose("letter"))
                                 _conv_item("alternate_email", _("Write an email"), lambda: _compose("email"))
                                 _conv_item("tune", _("Configure tools"),
@@ -3944,7 +4105,7 @@ window.__openVaultNote = function(noteId) {{
     # ── Expert switching ──────────────────────────────────────────────────────
     def _apply_expert(eid: str) -> None:
         """Set the active expert without asking (load / new conversation)."""
-        if not _experts_on or eid not in {e.expert_id for e in _experts_mod.list_experts(_username)}:
+        if eid not in {e.expert_id for e in _experts_mod.list_experts(_username)}:
             eid = _experts_mod.UNIVERSAL_ID
         _s["expert_id"] = eid
         if _expert_sel is not None and _expert_sel.value != eid:
@@ -5311,8 +5472,6 @@ window.__openVaultNote = function(noteId) {{
         # was changed since) stays in the history; a fresh one starts.
         _ctx_key = f"dossier:{dossier}"
         _want_expert = expert if expert in _known_experts else _experts_mod.default_id(_username)
-        if not _experts_on:
-            _want_expert = _experts_mod.UNIVERSAL_ID
         _s["dock_expert"] = _want_expert
         _dconv = next((c for c in _chat_hist.list_conversations(_username)
                        if c.get("context") == _ctx_key), None) if _username else None
@@ -5330,7 +5489,7 @@ window.__openVaultNote = function(noteId) {{
     if _embed and overview and not dossier and not finding:
         # The dock on the findings overview: the latest overview conversation
         # (with the user's default expert), else a new one.
-        _want_expert = _experts_mod.default_id(_username) if _experts_on else _experts_mod.UNIVERSAL_ID
+        _want_expert = _experts_mod.default_id(_username)
         _s["dock_expert"] = _want_expert
         _oconv = next((c for c in _chat_hist.list_conversations(_username)
                        if c.get("context") == OVERVIEW_CTX), None) if _username else None
@@ -5426,8 +5585,6 @@ window.__openVaultNote = function(noteId) {{
             # behind. The finding's text (with its document references) is the
             # context.
             _want = _s.get("dock_expert") or _experts_mod.default_id(_username)
-            if not _experts_on:
-                _want = _experts_mod.UNIVERSAL_ID
             _fconv = next((c for c in _chat_hist.list_conversations(_username)
                            if c.get("context") == f"finding:{finding}"), None) if _username else None
             if _fconv and (_fconv.get("expert_id") or _experts_mod.UNIVERSAL_ID) == _want:
@@ -5469,13 +5626,20 @@ window.__openVaultNote = function(noteId) {{
         var drawer = document.querySelector('.chat-history-drawer');
         if (!handle || !drawer) { setTimeout(setup, 600); return; }
         var dragging = false;
+        var root = document.documentElement;
         function setW(x) {
             var w = Math.max(180, Math.min(420, x));
-            drawer.style.setProperty('--hist-w', w + 'px');
+            root.style.setProperty('--hist-w', w + 'px');
+            return w;
+        }
+        try { var saved = parseInt(localStorage.getItem('pb_hist_w') || '', 10); if (saved) setW(saved); } catch (e) {}
+        function keep() {
+            try { localStorage.setItem('pb_hist_w', String(parseInt(getComputedStyle(root).getPropertyValue('--hist-w'), 10))); } catch (e) {}
         }
         handle.addEventListener('mousedown', function(e) {
             dragging = true;
             handle.classList.add('dragging');
+            document.body.classList.add('pb-hist-dragging');
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
             e.preventDefault();
@@ -5487,26 +5651,36 @@ window.__openVaultNote = function(noteId) {{
             if (dragging) {
                 dragging = false;
                 handle.classList.remove('dragging');
+                document.body.classList.remove('pb-hist-dragging');
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
+                keep();
             }
         });
         handle.addEventListener('touchmove', function(e) {
             setW(e.touches[0].clientX);
             e.preventDefault();
         }, {passive: false});
+        handle.addEventListener('touchend', keep);
     }
     setTimeout(setup, 400);
 })();
 </script>""")
 
-    # ── Desktop: Suchergebnisse-Panel initial öffnen (Mobile bleibt zu) ───────
+    # ── Desktop: results panel open (a phone keeps it closed); a wide screen
+    # docks the history drawer beside the chat and reopens it if the user
+    # left it open (pref `chat_hist_open`). ─────────────────────────────────
     try:
         await ui.context.client.connected()
-        _is_desktop = await ui.run_javascript(
-            "window.matchMedia('(min-width:768px)').matches", timeout=3.0
+        _screen = await ui.run_javascript(
+            "[window.matchMedia('(min-width:768px)').matches,"
+            " window.matchMedia('(min-width:1024px)').matches]", timeout=3.0
         )
+        _is_desktop, _is_wide = (bool(_screen[0]), bool(_screen[1])) if isinstance(_screen, list) else (False, False)
         if _is_desktop:
             _set_docs_visible(True)
+        _s["hist_dock"] = _is_wide
+        if _is_wide and not _embed and get_pref("chat_hist_open", False):
+            _set_history_visible(True)
     except Exception:
         pass

@@ -653,13 +653,14 @@ async def dashboard():
         from pipelines.search import _drop_no_ingest
 
         ui.add_head_html(_da._CSS)
+        pl = get_session_paperless()
         try:
-            docs = _drop_no_ingest(await get_session_paperless().list_catalogue())
+            docs = _drop_no_ingest(await pl.list_catalogue())
         except Exception as exc:  # noqa: BLE001 — Paperless down: the rest of the page stays
             with archive_box:
                 ui.label(_("Could not load the document list: {err}").format(err=exc)).classes("text-xs")
             return
-        fill = _da.render_archive(archive_box, docs, _open_doc_id, _username)
+        fill = _da.render_archive(archive_box, docs, _open_doc_id, _username, pl)
         await fill()
 
     ui.timer(0.3, _load_archive, once=True)

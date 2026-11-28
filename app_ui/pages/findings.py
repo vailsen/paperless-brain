@@ -1790,10 +1790,7 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
                             ui.menu_item(_("Rename"), on_click=lambda: _rename_dossier(d))
                             ui.menu_item(_("Move to folder"), on_click=lambda: _move_dossier(d))
                             ui.menu_item(_("Merge into another dossier …"), on_click=lambda: _merge_dossier(d))
-                            from services import experts as _ex
-
-                            if _ex.enabled():
-                                ui.menu_item(_("Default expert for its chat"), on_click=lambda: _dossier_expert(d))
+                            ui.menu_item(_("Default expert for its chat"), on_click=lambda: _dossier_expert(d))
                             ui.separator()
                             ui.menu_item(_("Archive — close the matter"), on_click=lambda: _archive_dossier(d))
                             ui.menu_item(_("Reset — delete and read its documents again"),

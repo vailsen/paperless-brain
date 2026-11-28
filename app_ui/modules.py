@@ -6,8 +6,9 @@ hides is out of the way, not off: it leaves every menu, but its address still
 opens (push links, citations, bookmarks) with a banner offering to show it
 again, and nothing it does in the background stops.
 
-Chat and dashboard cannot be hidden. "Experts" hidden is what the old "Use
-experts" switch did (`services.experts.enabled()` reads this list).
+Hiding is about the module's page only: what the module offers inside other
+pages stays (experts in the chat's picker, "Deep research from this chat").
+Chat and dashboard cannot be hidden.
 """
 
 from __future__ import annotations
@@ -55,7 +56,8 @@ def hidden() -> set[str]:
     """The modules this user hid. Needs a page context.
 
     Before this list existed, Experts had a switch of its own
-    (`experts_enabled`); a user who had turned it off has Experts hidden."""
+    (`experts_enabled`); a user who had turned it off has the Experts page
+    hidden."""
     from services.user_prefs import get_pref
 
     raw = get_pref("hidden_modules", None)
@@ -69,7 +71,7 @@ def set_hidden(keys) -> None:
 
     clean = sorted(k for k in set(keys) if k in OPTIONAL)
     set_pref("hidden_modules", clean)
-    # Kept in step for anything still reading the old switch.
+    # Kept in step so the migration in `hidden()` never reads a stale value.
     set_pref("experts_enabled", "experts" not in clean)
 
 

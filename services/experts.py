@@ -89,15 +89,6 @@ class Expert:
         return out
 
 
-def enabled() -> bool:
-    """Experts not hidden (Settings > General > Modules — the old "Use experts"
-    switch is that list now, `app_ui/modules.py`). Hidden, every chat is the
-    Universal expert and no picker is offered. Needs a page context."""
-    from app_ui.modules import hidden
-
-    return "experts" not in hidden()
-
-
 def default_id(user: str) -> str:
     """The expert new chats start with ("Use as default expert" on the
     experts page, pref `default_expert_id`) — Universal when none is set or
@@ -105,7 +96,7 @@ def default_id(user: str) -> str:
     from services.user_prefs import get_pref
 
     eid = str(get_pref("default_expert_id", "") or "")
-    if not eid or not enabled():
+    if not eid:
         return UNIVERSAL_ID
     return eid if any(e.expert_id == eid for e in list_experts(user)) else UNIVERSAL_ID
 

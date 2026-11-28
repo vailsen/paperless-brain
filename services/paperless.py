@@ -430,6 +430,28 @@ class PaperlessClient:
 
         return results
 
+    async def original_checksums(self, ids: list[int], parallel: int = 8) -> dict[int, str]:
+        """The checksum Paperless stores of each document's original file
+        (`/api/documents/{id}/metadata/`, `original_checksum`) — the same file
+        uploaded twice has the same one, without downloading either. Documents
+        the token cannot read, or a failed request, are left out."""
+        sem = asyncio.Semaphore(parallel)
+        out: dict[int, str] = {}
+        async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
+            async def one(doc_id: int) -> None:
+                async with sem:
+                    try:
+                        r = await client.get(f"{self.base_url}/api/documents/{doc_id}/metadata/")
+                        if r.status_code == 200:
+                            c = (r.json() or {}).get("original_checksum")
+                            if c:
+                                out[doc_id] = str(c)
+                    except (httpx.HTTPError, ValueError):
+                        pass
+
+            await asyncio.gather(*(one(i) for i in ids))
+        return out
+
     async def get_document(self, doc_id: int) -> PaperlessDocument:
         """Get a specific document from paperless by id"""
         return (await self.list_documents(ids=[doc_id]))[0]
