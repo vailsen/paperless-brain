@@ -328,6 +328,29 @@ class PaperlessClient:
             docs.append(self._parse_document(raw, tag_map, corr_map, dt_map, user_map))
         return docs
 
+    async def readable_ids(self, ids: list[int], batch: int = 200) -> set[int]:
+        """Which of ``ids`` this token may read — asked of Paperless now, never
+        from a cache, but for the ids only (``fields=id``), all batches at once.
+
+        The dashboard's deadline check used to load every referenced document
+        in full, OCR text included, one batch after the other. A batch that
+        fails is left out (fail closed), and only ids that were asked for count:
+        Paperless answers an unknown filter as if unfiltered."""
+        wanted = sorted({int(i) for i in ids})
+        chunks = [wanted[k:k + batch] for k in range(0, len(wanted), batch)]
+        if not chunks:
+            return set()
+        async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
+            async def one(chunk: list[int]) -> set[int]:
+                r = await client.get(f"{self.base_url}/api/documents/", params=[
+                    ("id__in", ",".join(str(i) for i in chunk)), ("fields", "id"),
+                    ("page_size", len(chunk))])
+                r.raise_for_status()
+                return {int(d["id"]) for d in r.json().get("results", [])} & set(chunk)
+
+            results = await asyncio.gather(*(one(c) for c in chunks), return_exceptions=True)
+        return set().union(*(r for r in results if isinstance(r, set)))
+
     async def visible_ids(self) -> set[int]:
         """Ids of every document this token can read.
 

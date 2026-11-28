@@ -123,3 +123,76 @@ def test_execute_tool_reports_missing_session_instead_of_raising():
         _current_token.reset(token)
     assert "sign in" in text.lower()
     assert docs == [] and extras == []
+
+
+class _FastPaperless(_FakePaperless):
+    """A client with the ids-only check (`PaperlessClient.readable_ids`)."""
+
+    def __init__(self, visible, extra=()):
+        super().__init__(visible)
+        self.extra = set(extra)
+        self.asked: list[list[int]] = []
+
+    async def readable_ids(self, ids, batch=200):
+        self.asked.append(sorted(ids))
+        return {i for i in ids if i in self.visible}
+
+
+def test_ids_only_check_is_used_when_the_client_has_it():
+    pl = _FastPaperless(visible={1, 3})
+    kept = asyncio.run(filter_visible_actions(_actions(1, 2, 3), pl))
+    assert [a["paperless_id"] for a in kept] == [1, 3]
+    assert pl.batches == []  # no full documents fetched
+
+
+def test_ids_only_check_fails_closed():
+    class Broken(_FastPaperless):
+        async def readable_ids(self, ids, batch=200):
+            raise RuntimeError("paperless unreachable")
+
+    assert asyncio.run(filter_visible_actions(_actions(1, 2), Broken(visible={1, 2}))) == []
+
+
+def test_readable_ids_keeps_only_asked_ids_and_skips_failed_batches(monkeypatch):
+    import httpx
+
+    from services.paperless import PaperlessClient
+
+    calls = []
+
+    class _Resp:
+        def __init__(self, ids, ok=True):
+            self._ids, self._ok = ids, ok
+
+        def raise_for_status(self):
+            if not self._ok:
+                raise httpx.HTTPStatusError("boom", request=None, response=None)
+
+        def json(self):
+            return {"results": [{"id": i} for i in self._ids]}
+
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url, params=None):
+            p = dict(params)
+            calls.append(p)
+            asked = [int(x) for x in p["id__in"].split(",")]
+            assert p["fields"] == "id"
+            if 5 in asked:
+                return _Resp([], ok=False)  # this batch fails
+            # Paperless ignoring the filter would answer with other ids too.
+            return _Resp([i for i in asked if i % 2] + [999])
+
+    monkeypatch.setattr(httpx, "AsyncClient", _Client)
+    pl = PaperlessClient("http://p", "t")
+    got = asyncio.run(pl.readable_ids([1, 2, 3, 5, 7], batch=3))
+    assert got == {1, 3}  # 5 and 7 were in the failed batch; 999 was never asked
+    assert len(calls) == 2
