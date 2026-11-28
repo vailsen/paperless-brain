@@ -3767,6 +3767,22 @@ window.__openVaultNote = function(noteId) {{
         return None
 
     # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
+    def _memory_action(bubble_el, content: str):
+        async def _click() -> None:
+            # The selection was taken when the "…" button was pressed (as for a dossier).
+            try:
+                picked = await ui.run_javascript(
+                    "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
+                    "return (s&&s.id===" + json.dumps(bubble_el.html_id) + ")?s.text:'';})()",
+                    timeout=2.0)
+            except Exception:
+                picked = ""
+            from app_ui.memory_save import open_memory_dialog
+
+            await open_memory_dialog(user=_username, answer=content, selection=(picked or "").strip())
+
+        return _click
+
     def _save_action(idx: int, bubble_el):
         async def _click() -> None:
             msgs = _s["messages"]
@@ -3912,6 +3928,9 @@ window.__openVaultNote = function(noteId) {{
                 if save is not None:
                     _item("create_new_folder", _("Save to dossier (select text first to save only that part)"),
                           save)
+                if content and _username:
+                    _item("psychology", _("Save as memory (select text first to save only that part)"),
+                          _memory_action(bubble_el, content))
                 if content and not _embed:
                     _item("forward_to_inbox", _("Continue in a new chat"), lambda c=content: _continue_new(c))
 

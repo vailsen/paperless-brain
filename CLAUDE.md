@@ -194,6 +194,11 @@ reload (`layout.DRAFT_JS`, per address, cleared on send).
 
 ### What needs no model is a button, not a tool
 
+**"Save as memory"** in an answer's "…" menu (`app_ui/memory_save.py`) writes the selection
+(else the plain answer) as a memory through `vault_brain_writer.create_memory`, the path the
+`remember_fact` tool takes: the user edits it first, a near-duplicate is shown with "Save
+anyway", and a single cited document becomes the fact's source.
+
 Saving the chat to Paperless and starting a deep-research run (2026-11-14), and writing a
 letter or an email (2026-11-15) are items in the conversation "…" menu and quick chips
 (`_save_chat_to_paperless`, `_research_from_chat`, `_compose`); downloading a document is the
@@ -461,6 +466,10 @@ The proactive gate (`proactive/gate.py`) decides by `/proxy/status`: with `may_w
 ### Compute status
 
 `services/inference_activity.py`, shown by `app_ui/inference_status.py` on the dashboard.
+The dashboard never waits for its slowest service: the last answers (`dashboard._STATUS_CACHE`)
+are painted at once and each row again as its own probe answers; the deadline access check
+asks Paperless for ids only (`PaperlessClient.readable_ids`, never a cache — deadline text is
+document content).
 Ollama's `/api/ps` says what is loaded, never whether it generates — so every model
 request of the app *and* the worker is bracketed with `inference_activity.track(base_url,
 model)` (shared file `data/inference_activity.json`, `flock`, written at start and end
