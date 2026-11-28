@@ -49,6 +49,9 @@ THEME_CSS = """
      action flag); never spent on identity or category. */
   --c-warn:          #fbbf24;
   --c-warn-bg:       rgba(251,191,36,0.12);
+  /* A fact checked against its source (chat answers, services/fact_check). */
+  --c-ok:            #4ade80;
+  --c-ok-soft:       rgba(74,222,128,0.16);
   /* The one accent (steel). Solid for actions and the active state, -text for
      links and accent words, -soft/-border for the user's own messages and the
      reference pills. --c-logo-2 is the leaf's lighter half. */
@@ -92,6 +95,8 @@ body.body--light {
   --c-text-muted:    #687080;
   --c-warn:          #b45309;
   --c-warn-bg:       rgba(180,83,9,0.10);
+  --c-ok:            #15803d;
+  --c-ok-soft:       rgba(21,128,61,0.12);
   --c-accent:        #3563d9;
   --c-accent-text:   #2a55c4;
   --c-accent-soft:   rgba(53,99,217,0.10);

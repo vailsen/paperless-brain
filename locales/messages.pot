@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-28 12:18+0000\n"
+"POT-Creation-Date: 2026-11-28 15:03+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,21 +105,21 @@ msgstr ""
 #: app_ui/pages/brain.py:395 app_ui/pages/brain.py:868
 #: app_ui/pages/brain.py:1121 app_ui/pages/brain.py:1173
 #: app_ui/pages/brain.py:1299 app_ui/pages/brain.py:1480
-#: app_ui/pages/chat.py:2060 app_ui/pages/chat.py:2151
-#: app_ui/pages/chat.py:2178 app_ui/pages/chat.py:2197
-#: app_ui/pages/chat.py:2226 app_ui/pages/chat.py:2407
-#: app_ui/pages/chat.py:4196 app_ui/pages/chat.py:4564
-#: app_ui/pages/chat.py:4670 app_ui/pages/dashboard.py:1034
+#: app_ui/pages/chat.py:2129 app_ui/pages/chat.py:2220
+#: app_ui/pages/chat.py:2247 app_ui/pages/chat.py:2266
+#: app_ui/pages/chat.py:2295 app_ui/pages/chat.py:2476
+#: app_ui/pages/chat.py:4314 app_ui/pages/chat.py:4712
+#: app_ui/pages/chat.py:4818 app_ui/pages/dashboard.py:1034
 #: app_ui/pages/dashboard.py:1239 app_ui/pages/experts.py:877
 #: app_ui/pages/experts.py:897 app_ui/pages/experts.py:918
-#: app_ui/pages/findings.py:1636 app_ui/pages/findings.py:1686
-#: app_ui/pages/findings.py:1914 app_ui/pages/findings.py:1952
-#: app_ui/pages/findings.py:2135 app_ui/pages/findings.py:2264
-#: app_ui/pages/findings.py:2307 app_ui/pages/findings.py:2523
-#: app_ui/pages/findings.py:2601 app_ui/pages/settings.py:1260
+#: app_ui/pages/findings.py:1640 app_ui/pages/findings.py:1690
+#: app_ui/pages/findings.py:1918 app_ui/pages/findings.py:1956
+#: app_ui/pages/findings.py:2139 app_ui/pages/findings.py:2268
+#: app_ui/pages/findings.py:2311 app_ui/pages/findings.py:2527
+#: app_ui/pages/findings.py:2605 app_ui/pages/settings.py:1260
 #: app_ui/save_chooser.py:68 app_ui/title_rename_settings.py:79
 #: app_ui/title_rename_settings.py:186 app_ui/title_rename_settings.py:245
-#: werkbank/v2/ui/brief_dialog.py:158 werkbank/v2/ui/page.py:522
+#: werkbank/v2/ui/brief_dialog.py:158 werkbank/v2/ui/page.py:546
 msgid "Cancel"
 msgstr ""
 
@@ -127,10 +127,10 @@ msgstr ""
 #: app_ui/dossier_save.py:107 app_ui/memo_dialog.py:340
 #: app_ui/memory_save.py:145 app_ui/pages/admin.py:507
 #: app_ui/pages/admin.py:565 app_ui/pages/admin.py:589
-#: app_ui/pages/chat.py:2067 app_ui/pages/chat.py:2152
+#: app_ui/pages/chat.py:2136 app_ui/pages/chat.py:2221
 #: app_ui/pages/experts.py:375 app_ui/pages/experts.py:516
 #: app_ui/pages/experts.py:578 app_ui/pages/experts.py:821
-#: app_ui/pages/findings.py:1637 app_ui/pages/settings.py:272
+#: app_ui/pages/findings.py:1641 app_ui/pages/settings.py:272
 #: app_ui/pages/settings.py:711 app_ui/pages/settings.py:764
 #: app_ui/pages/settings.py:841 app_ui/pages/settings.py:946
 #: app_ui/pages/settings.py:997 app_ui/pages/settings.py:1042
@@ -291,9 +291,9 @@ msgstr ""
 #: app_ui/ai_models_settings.py:379 app_ui/ai_models_settings.py:459
 #: app_ui/ai_models_settings.py:500 app_ui/pages/admin.py:438
 #: app_ui/pages/brain.py:396 app_ui/pages/brain.py:1354
-#: app_ui/pages/brain.py:1749 app_ui/pages/chat.py:1858
+#: app_ui/pages/brain.py:1749 app_ui/pages/chat.py:1927
 #: app_ui/pages/experts.py:819 app_ui/pages/experts.py:898
-#: app_ui/pages/findings.py:2450 werkbank/v2/ui/page.py:264
+#: app_ui/pages/findings.py:2454 werkbank/v2/ui/page.py:283
 msgid "Delete"
 msgstr ""
 
@@ -379,7 +379,7 @@ msgstr ""
 msgid "↓ Newest"
 msgstr ""
 
-#: app_ui/cluster_dialog.py:171 app_ui/pages/findings.py:1326
+#: app_ui/cluster_dialog.py:171 app_ui/pages/findings.py:1327
 #: app_ui/skill_wizard_dialog.py:42
 msgid "Back"
 msgstr ""
@@ -388,7 +388,7 @@ msgstr ""
 msgid "Cards"
 msgstr ""
 
-#: app_ui/cluster_dialog.py:201 app_ui/pages/findings.py:1801
+#: app_ui/cluster_dialog.py:201 app_ui/pages/findings.py:1805
 #: proactive/dossiers.py:242
 msgid "Timeline"
 msgstr ""
@@ -441,8 +441,8 @@ msgstr ""
 msgid "The model returned no usable draft — fill in the fields."
 msgstr ""
 
-#: app_ui/compose_dialogs.py:241 app_ui/pages/chat.py:1074
-#: app_ui/pages/chat.py:2787
+#: app_ui/compose_dialogs.py:241 app_ui/pages/chat.py:1108
+#: app_ui/pages/chat.py:2858
 msgid "Write a letter"
 msgstr ""
 
@@ -455,8 +455,8 @@ msgstr ""
 #: app_ui/pages/brain.py:1182 app_ui/pages/brain.py:1200
 #: app_ui/pages/brain.py:1246 app_ui/pages/experts.py:305
 #: app_ui/pages/experts.py:770 app_ui/pages/experts.py:861
-#: app_ui/pages/experts.py:904 app_ui/pages/findings.py:1303
-#: app_ui/pages/findings.py:2532 app_ui/pages/findings.py:2553
+#: app_ui/pages/experts.py:904 app_ui/pages/findings.py:1304
+#: app_ui/pages/findings.py:2536 app_ui/pages/findings.py:2557
 #: app_ui/skill_wizard_dialog.py:92 werkbank/ui/archetype_dialog.py:118
 msgid "Name"
 msgstr ""
@@ -483,7 +483,7 @@ msgstr ""
 msgid "Phone"
 msgstr ""
 
-#: app_ui/compose_dialogs.py:270 app_ui/pages/chat.py:1052
+#: app_ui/compose_dialogs.py:270 app_ui/pages/chat.py:1086
 #: app_ui/pages/experts.py:127 app_ui/proactive_settings.py:217
 #: app_ui/proactive_settings.py:270
 msgid "Email"
@@ -493,7 +493,7 @@ msgstr ""
 msgid "Recipient"
 msgstr ""
 
-#: app_ui/compose_dialogs.py:279 app_ui/pages/chat.py:4466
+#: app_ui/compose_dialogs.py:279 app_ui/pages/chat.py:4614
 msgid "Content"
 msgstr ""
 
@@ -521,9 +521,9 @@ msgstr ""
 msgid "Closing"
 msgstr ""
 
-#: app_ui/compose_dialogs.py:309 app_ui/pages/chat.py:1029
-#: app_ui/pages/chat.py:1148 app_ui/pages/chat.py:4557
-#: app_ui/pages/chat.py:4666 app_ui/pages/dashboard.py:1234
+#: app_ui/compose_dialogs.py:309 app_ui/pages/chat.py:1063
+#: app_ui/pages/chat.py:1182 app_ui/pages/chat.py:4705
+#: app_ui/pages/chat.py:4814 app_ui/pages/dashboard.py:1234
 #: app_ui/pages/settings.py:320 app_ui/similar_dialog.py:123
 #, python-brace-format
 msgid "Error: {err}"
@@ -533,8 +533,8 @@ msgstr ""
 msgid "Download letter"
 msgstr ""
 
-#: app_ui/compose_dialogs.py:355 app_ui/pages/chat.py:1075
-#: app_ui/pages/chat.py:2788
+#: app_ui/compose_dialogs.py:355 app_ui/pages/chat.py:1109
+#: app_ui/pages/chat.py:2859
 msgid "Write an email"
 msgstr ""
 
@@ -544,8 +544,8 @@ msgid ""
 "came from. I'll ask if something is missing."
 msgstr ""
 
-#: app_ui/compose_dialogs.py:369 app_ui/pages/chat.py:2428
-#: app_ui/pages/chat.py:4746
+#: app_ui/compose_dialogs.py:369 app_ui/pages/chat.py:2497
+#: app_ui/pages/chat.py:4894
 msgid "No model selected"
 msgstr ""
 
@@ -692,13 +692,13 @@ msgstr ""
 
 #: app_ui/doc_library.py:140 app_ui/pages/browser.py:316
 #: app_ui/pages/browser.py:447 app_ui/pages/experts.py:190
-#: app_ui/pages/findings.py:1777 app_ui/pages/findings.py:2190
-#: app_ui/pages/findings.py:2374
+#: app_ui/pages/findings.py:1781 app_ui/pages/findings.py:2194
+#: app_ui/pages/findings.py:2378
 #, python-brace-format
 msgid "{n} documents"
 msgstr ""
 
-#: app_ui/document_dialog.py:165 app_ui/pages/findings.py:853
+#: app_ui/document_dialog.py:165 app_ui/pages/findings.py:854
 #, python-brace-format
 msgid "#{id} not found"
 msgstr ""
@@ -743,16 +743,16 @@ msgstr ""
 msgid "Metadata"
 msgstr ""
 
-#: app_ui/document_dialog.py:497 app_ui/pages/chat.py:1598
+#: app_ui/document_dialog.py:497 app_ui/pages/chat.py:1632
 msgid "1 page"
 msgstr ""
 
-#: app_ui/document_dialog.py:498 app_ui/pages/chat.py:1598
+#: app_ui/document_dialog.py:498 app_ui/pages/chat.py:1632
 #, python-brace-format
 msgid "{n} pages"
 msgstr ""
 
-#: app_ui/document_dialog.py:541 app_ui/pages/chat.py:4283
+#: app_ui/document_dialog.py:541 app_ui/pages/chat.py:4401
 #: app_ui/pwa_manifest.py:35 app_ui/quick_switcher.py:121
 #: app_ui/quick_switcher.py:143
 msgid "Notes"
@@ -906,16 +906,16 @@ msgstr ""
 msgid "Re-ingest (extraction + embedding)"
 msgstr ""
 
-#: app_ui/dossier_save.py:29 app_ui/pages/findings.py:2064
+#: app_ui/dossier_save.py:29 app_ui/pages/findings.py:2068
 #: proactive/dossiers.py:224
 msgid "documents"
 msgstr ""
 
-#: app_ui/dossier_save.py:29 app_ui/pages/findings.py:2064
+#: app_ui/dossier_save.py:29 app_ui/pages/findings.py:2068
 msgid "web"
 msgstr ""
 
-#: app_ui/dossier_save.py:29 app_ui/pages/findings.py:2064
+#: app_ui/dossier_save.py:29 app_ui/pages/findings.py:2068
 msgid "documents + web"
 msgstr ""
 
@@ -923,21 +923,21 @@ msgstr ""
 msgid "reasoning only — no tool evidence"
 msgstr ""
 
-#: app_ui/dossier_save.py:64 app_ui/pages/findings.py:1923
+#: app_ui/dossier_save.py:64 app_ui/pages/findings.py:1927
 msgid "New dossier …"
 msgstr ""
 
-#: app_ui/dossier_save.py:75 app_ui/pages/chat.py:4107
+#: app_ui/dossier_save.py:75 app_ui/pages/chat.py:4223
 msgid "Save to dossier"
 msgstr ""
 
-#: app_ui/dossier_save.py:78 app_ui/pages/findings.py:963
-#: app_ui/pages/findings.py:1928 app_ui/pages/findings.py:2249
-#: app_ui/pages/findings.py:2293
+#: app_ui/dossier_save.py:78 app_ui/pages/findings.py:964
+#: app_ui/pages/findings.py:1932 app_ui/pages/findings.py:2253
+#: app_ui/pages/findings.py:2297
 msgid "Dossier"
 msgstr ""
 
-#: app_ui/dossier_save.py:79 app_ui/pages/findings.py:1930
+#: app_ui/dossier_save.py:79 app_ui/pages/findings.py:1934
 msgid "Name of the new dossier"
 msgstr ""
 
@@ -1005,8 +1005,8 @@ msgid "Preview — title and text are yours to edit before saving"
 msgstr ""
 
 #: app_ui/dossier_save.py:164 app_ui/pages/browser.py:365
-#: app_ui/pages/browser.py:577 app_ui/pages/chat.py:4455
-#: app_ui/pages/chat.py:4610
+#: app_ui/pages/browser.py:577 app_ui/pages/chat.py:4603
+#: app_ui/pages/chat.py:4758
 msgid "Title"
 msgstr ""
 
@@ -1075,9 +1075,9 @@ msgstr ""
 msgid "Give the dossier a name."
 msgstr ""
 
-#: app_ui/dossier_save.py:282 app_ui/pages/findings.py:1943
-#: app_ui/pages/findings.py:2256 app_ui/pages/findings.py:2300
-#: app_ui/pages/findings.py:2516
+#: app_ui/dossier_save.py:282 app_ui/pages/findings.py:1947
+#: app_ui/pages/findings.py:2260 app_ui/pages/findings.py:2304
+#: app_ui/pages/findings.py:2520
 msgid "Could not save."
 msgstr ""
 
@@ -1090,26 +1090,26 @@ msgstr ""
 msgid "Saved to dossier."
 msgstr ""
 
-#: app_ui/findings_view.py:28 app_ui/pages/findings.py:1092
-#: app_ui/pages/findings.py:1405
+#: app_ui/findings_view.py:28 app_ui/pages/findings.py:1093
+#: app_ui/pages/findings.py:1406
 msgid "Inbox"
 msgstr ""
 
-#: app_ui/findings_view.py:29 app_ui/pages/findings.py:1094
-#: app_ui/pages/findings.py:1345 app_ui/pages/findings.py:1405
+#: app_ui/findings_view.py:29 app_ui/pages/findings.py:1095
+#: app_ui/pages/findings.py:1346 app_ui/pages/findings.py:1406
 #: proactive/notify/__init__.py:33
 msgid "Relevant"
 msgstr ""
 
 #: app_ui/findings_view.py:30 app_ui/multi_pick.py:155
 #: app_ui/pages/brain.py:977 app_ui/pages/browser.py:317
-#: app_ui/pages/chat.py:2298 app_ui/pages/findings.py:1097
-#: app_ui/pages/findings.py:1406 proactive/notify/__init__.py:36
+#: app_ui/pages/chat.py:2367 app_ui/pages/findings.py:1098
+#: app_ui/pages/findings.py:1407 proactive/notify/__init__.py:36
 msgid "Done"
 msgstr ""
 
-#: app_ui/findings_view.py:31 app_ui/pages/findings.py:1098
-#: app_ui/pages/findings.py:1406
+#: app_ui/findings_view.py:31 app_ui/pages/findings.py:1099
+#: app_ui/pages/findings.py:1407
 msgid "Dismissed"
 msgstr ""
 
@@ -1209,8 +1209,8 @@ msgid ""
 msgstr ""
 
 #: app_ui/help_dialog.py:25 app_ui/inference_status.py:12 app_ui/modules.py:32
-#: app_ui/pages/chat.py:2677 app_ui/pages/experts.py:261
-#: app_ui/pages/findings.py:977 app_ui/pages/settings.py:509
+#: app_ui/pages/chat.py:2746 app_ui/pages/experts.py:261
+#: app_ui/pages/findings.py:978 app_ui/pages/settings.py:509
 #: app_ui/pwa_manifest.py:34
 msgid "Chat"
 msgstr ""
@@ -1224,8 +1224,8 @@ msgid ""
 "switches and quick actions are below the input."
 msgstr ""
 
-#: app_ui/help_dialog.py:31 app_ui/modules.py:33 app_ui/pages/findings.py:1062
-#: app_ui/pages/findings.py:1341 app_ui/pages/findings.py:1802
+#: app_ui/help_dialog.py:31 app_ui/modules.py:33 app_ui/pages/findings.py:1063
+#: app_ui/pages/findings.py:1342 app_ui/pages/findings.py:1806
 #: app_ui/quick_switcher.py:124 app_ui/quick_switcher.py:143
 msgid "Findings"
 msgstr ""
@@ -1342,7 +1342,7 @@ msgstr ""
 msgid "No model in memory"
 msgstr ""
 
-#: app_ui/inference_status.py:58 app_ui/pages/chat.py:1743
+#: app_ui/inference_status.py:58 app_ui/pages/chat.py:1812
 msgid "just now"
 msgstr ""
 
@@ -1408,8 +1408,8 @@ msgstr ""
 msgid "Memo"
 msgstr ""
 
-#: app_ui/memo_dialog.py:240 app_ui/pages/chat.py:2121
-#: app_ui/pages/chat.py:2774
+#: app_ui/memo_dialog.py:240 app_ui/pages/chat.py:2190
+#: app_ui/pages/chat.py:2843
 msgid "Conversation"
 msgstr ""
 
@@ -1440,7 +1440,7 @@ msgstr ""
 msgid "Upload audio file"
 msgstr ""
 
-#: app_ui/memo_dialog.py:307 app_ui/pages/chat.py:3105
+#: app_ui/memo_dialog.py:307 app_ui/pages/chat.py:3176
 #, python-brace-format
 msgid "The file exceeds {n} MB."
 msgstr ""
@@ -1460,7 +1460,7 @@ msgid ""
 msgstr ""
 
 #: app_ui/memo_dialog.py:409 app_ui/memo_dialog.py:542
-#: app_ui/note_voice_dialog.py:298 app_ui/pages/chat.py:3236
+#: app_ui/note_voice_dialog.py:298 app_ui/pages/chat.py:3307
 msgid "Transcribing …"
 msgstr ""
 
@@ -1469,7 +1469,7 @@ msgid "AI is tidying it up …"
 msgstr ""
 
 #: app_ui/memo_dialog.py:438 app_ui/memo_dialog.py:549
-#: app_ui/pages/chat.py:3237
+#: app_ui/pages/chat.py:3308
 msgid "Transcription failed."
 msgstr ""
 
@@ -1505,7 +1505,7 @@ msgid "Recording locked — tap to stop"
 msgstr ""
 
 #: app_ui/memo_dialog.py:544 app_ui/note_voice_dialog.py:300
-#: app_ui/pages/chat.py:3238
+#: app_ui/pages/chat.py:3309
 msgid "Microphone access was denied."
 msgstr ""
 
@@ -1622,8 +1622,8 @@ msgstr ""
 msgid "Say what should change, or simply dictate what to add."
 msgstr ""
 
-#: app_ui/note_voice_dialog.py:177 app_ui/pages/chat.py:1093
-#: app_ui/pages/chat.py:1607 app_ui/pages/chat.py:2290
+#: app_ui/note_voice_dialog.py:177 app_ui/pages/chat.py:1127
+#: app_ui/pages/chat.py:1641 app_ui/pages/chat.py:2359
 msgid "Note"
 msgstr ""
 
@@ -1723,11 +1723,11 @@ msgstr ""
 msgid "Needs background access."
 msgstr ""
 
-#: app_ui/pages/admin.py:100 app_ui/pages/chat.py:4628
+#: app_ui/pages/admin.py:100 app_ui/pages/chat.py:4776
 #: app_ui/pages/experts.py:629 app_ui/proactive_settings.py:131
 #: app_ui/proactive_settings.py:133 app_ui/skill_wizard_dialog.py:46
-#: app_ui/skill_wizard_dialog.py:60 werkbank/v2/ui/page.py:517
-#: werkbank/v2/ui/page.py:519
+#: app_ui/skill_wizard_dialog.py:60 werkbank/v2/ui/page.py:541
+#: werkbank/v2/ui/page.py:543
 msgid "Model"
 msgstr ""
 
@@ -1826,7 +1826,7 @@ msgstr ""
 msgid "Email address confirmed."
 msgstr ""
 
-#: app_ui/pages/findings.py:1545 app_ui/proactive_settings.py:261
+#: app_ui/pages/findings.py:1549 app_ui/proactive_settings.py:261
 msgid "Confirm"
 msgstr ""
 
@@ -1895,8 +1895,8 @@ msgstr ""
 msgid "Unknown device"
 msgstr ""
 
-#: app_ui/pages/chat.py:2288 app_ui/pages/chat.py:3059
-#: app_ui/pages/findings.py:2136 app_ui/pages/findings.py:2497
+#: app_ui/pages/chat.py:2357 app_ui/pages/chat.py:3130
+#: app_ui/pages/findings.py:2140 app_ui/pages/findings.py:2501
 #: app_ui/proactive_settings.py:363
 msgid "Remove"
 msgstr ""
@@ -2031,9 +2031,9 @@ msgstr ""
 msgid "Modules"
 msgstr ""
 
-#: app_ui/pages/chat.py:1051 app_ui/pages/chat.py:4281
+#: app_ui/pages/chat.py:1085 app_ui/pages/chat.py:4399
 #: app_ui/pages/dashboard.py:415 app_ui/pages/experts.py:127
-#: app_ui/pages/findings.py:1074 app_ui/pages/findings.py:1803
+#: app_ui/pages/findings.py:1075 app_ui/pages/findings.py:1807
 #: app_ui/pages/settings.py:453 app_ui/quick_switcher.py:109
 #: app_ui/quick_switcher.py:115 app_ui/quick_switcher.py:132
 #: app_ui/quick_switcher.py:143
@@ -2045,13 +2045,13 @@ msgstr ""
 msgid "Document #{id}"
 msgstr ""
 
-#: app_ui/pages/findings.py:1058 app_ui/pages/findings.py:1111
-#: app_ui/pages/findings.py:1346 app_ui/quick_switcher.py:126
+#: app_ui/pages/findings.py:1059 app_ui/pages/findings.py:1112
+#: app_ui/pages/findings.py:1347 app_ui/quick_switcher.py:126
 #: app_ui/quick_switcher.py:143
 msgid "Dossiers"
 msgstr ""
 
-#: app_ui/pages/chat.py:2511 app_ui/quick_switcher.py:130
+#: app_ui/pages/chat.py:2580 app_ui/quick_switcher.py:130
 #: app_ui/quick_switcher.py:144
 msgid "Conversations"
 msgstr ""
@@ -2088,18 +2088,18 @@ msgstr ""
 msgid "Go to … documents, notes, findings, settings"
 msgstr ""
 
-#: app_ui/pages/findings.py:1045 app_ui/pages/findings.py:1893
+#: app_ui/pages/findings.py:1046 app_ui/pages/findings.py:1897
 #: app_ui/quick_switcher.py:187
 msgid "Nothing found."
 msgstr ""
 
-#: app_ui/pages/findings.py:198 app_ui/research_routes.py:71
+#: app_ui/pages/findings.py:199 app_ui/research_routes.py:81
 #: proactive/notify/__init__.py:105
 #, python-brace-format
 msgid "Urgency: {urgency}"
 msgstr ""
 
-#: app_ui/pages/findings.py:963 app_ui/research_routes.py:82
+#: app_ui/pages/findings.py:964 app_ui/research_routes.py:88
 msgid "Finding"
 msgstr ""
 
@@ -2273,7 +2273,7 @@ msgid ""
 "compare. Read-only tools only: a trial changes nothing."
 msgstr ""
 
-#: app_ui/pages/chat.py:2294 app_ui/pages/chat.py:2714
+#: app_ui/pages/chat.py:2363 app_ui/pages/chat.py:2783
 #: app_ui/pages/experts.py:259 app_ui/skill_wizard_dialog.py:126
 msgid "Expert"
 msgstr ""
@@ -2436,7 +2436,7 @@ msgid "Start dry run"
 msgstr ""
 
 #: app_ui/pages/dashboard.py:1103 app_ui/pages/dashboard.py:1130
-#: app_ui/pages/findings.py:370 app_ui/title_rename_settings.py:231
+#: app_ui/pages/findings.py:371 app_ui/title_rename_settings.py:231
 #: app_ui/title_rename_settings.py:266 app_ui/title_rename_settings.py:268
 #: werkbank/v2/ui/board.py:139
 msgid "Close"
@@ -2506,8 +2506,8 @@ msgstr ""
 msgid "raw-conversation.md"
 msgstr ""
 
-#: app_ui/pages/chat.py:1646 app_ui/pages/chat.py:5133
-#: app_ui/pages/chat.py:5530 app_ui/tool_trace.py:388
+#: app_ui/pages/chat.py:1715 app_ui/pages/chat.py:5281
+#: app_ui/pages/chat.py:5684 app_ui/tool_trace.py:388
 msgid "Behind the answer"
 msgstr ""
 
@@ -2534,7 +2534,7 @@ msgstr ""
 msgid "Prompt"
 msgstr ""
 
-#: app_ui/pages/chat.py:5150 app_ui/tool_trace.py:490
+#: app_ui/pages/chat.py:5298 app_ui/tool_trace.py:490
 #, python-brace-format
 msgid "Round {n}"
 msgstr ""
@@ -2629,7 +2629,8 @@ msgid ""
 "then thinking and writing its tool calls. The tools ran after it."
 msgstr ""
 
-#: app_ui/pages/findings.py:2016 app_ui/tool_trace.py:601
+#: app_ui/pages/chat.py:4258 app_ui/pages/findings.py:2020
+#: app_ui/tool_trace.py:601
 msgid "Answer"
 msgstr ""
 
@@ -2814,8 +2815,8 @@ msgstr ""
 msgid "in RAM"
 msgstr ""
 
-#: app_ui/pages/admin.py:249 app_ui/pages/chat.py:4470
-#: app_ui/pages/chat.py:4512
+#: app_ui/pages/admin.py:249 app_ui/pages/chat.py:4618
+#: app_ui/pages/chat.py:4660
 msgid "Edit"
 msgstr ""
 
@@ -3156,8 +3157,8 @@ msgstr ""
 msgid "only here"
 msgstr ""
 
-#: app_ui/pages/brain.py:382 app_ui/pages/findings.py:2524
-#: app_ui/pages/findings.py:2602
+#: app_ui/pages/brain.py:382 app_ui/pages/findings.py:2528
+#: app_ui/pages/findings.py:2606
 msgid "OK"
 msgstr ""
 
@@ -3409,8 +3410,8 @@ msgid "New note"
 msgstr ""
 
 #: app_ui/pages/brain.py:1200 app_ui/pages/brain.py:1665
-#: app_ui/pages/chat.py:1890 app_ui/pages/chat.py:2158
-#: app_ui/pages/findings.py:1113 app_ui/pages/findings.py:2543
+#: app_ui/pages/chat.py:1959 app_ui/pages/chat.py:2227
+#: app_ui/pages/findings.py:1114 app_ui/pages/findings.py:2547
 msgid "New folder"
 msgstr ""
 
@@ -3432,8 +3433,8 @@ msgstr ""
 
 #: app_ui/pages/brain.py:1246 app_ui/pages/brain.py:1352
 #: app_ui/pages/brain.py:1726 app_ui/pages/brain.py:1747
-#: app_ui/pages/chat.py:1853 app_ui/pages/chat.py:1908
-#: app_ui/pages/findings.py:1790
+#: app_ui/pages/chat.py:1922 app_ui/pages/chat.py:1977
+#: app_ui/pages/findings.py:1794
 msgid "Rename"
 msgstr ""
 
@@ -3446,8 +3447,8 @@ msgstr ""
 msgid "Move “{name}” to …"
 msgstr ""
 
-#: app_ui/pages/brain.py:1300 app_ui/pages/chat.py:2198
-#: app_ui/pages/chat.py:2227 app_ui/pages/findings.py:2265
+#: app_ui/pages/brain.py:1300 app_ui/pages/chat.py:2267
+#: app_ui/pages/chat.py:2296 app_ui/pages/findings.py:2269
 msgid "Move"
 msgstr ""
 
@@ -3473,7 +3474,7 @@ msgid "Open"
 msgstr ""
 
 #: app_ui/pages/brain.py:1353 app_ui/pages/brain.py:1748
-#: app_ui/pages/findings.py:2178
+#: app_ui/pages/findings.py:2182
 msgid "Move to …"
 msgstr ""
 
@@ -3525,7 +3526,7 @@ msgstr ""
 msgid "Open a note …"
 msgstr ""
 
-#: app_ui/pages/brain.py:1654 app_ui/pages/chat.py:1058
+#: app_ui/pages/brain.py:1654 app_ui/pages/chat.py:1092
 #: app_ui/pages/experts.py:128
 msgid "Vault"
 msgstr ""
@@ -3573,7 +3574,7 @@ msgid "Italic"
 msgstr ""
 
 #: app_ui/pages/brain.py:1764 app_ui/pages/browser.py:584
-#: app_ui/pages/findings.py:964
+#: app_ui/pages/findings.py:965
 msgid "List"
 msgstr ""
 
@@ -3585,7 +3586,7 @@ msgstr ""
 msgid "Link to a note"
 msgstr ""
 
-#: app_ui/pages/brain.py:1767 app_ui/pages/chat.py:2297
+#: app_ui/pages/brain.py:1767 app_ui/pages/chat.py:2366
 msgid "Undo"
 msgstr ""
 
@@ -3620,13 +3621,13 @@ msgid "Show notes"
 msgstr ""
 
 #: app_ui/pages/browser.py:232 app_ui/pages/dashboard.py:330
-#: app_ui/pages/findings.py:835
+#: app_ui/pages/findings.py:836
 #, python-brace-format
 msgid "#{id} unpinned"
 msgstr ""
 
 #: app_ui/pages/browser.py:236 app_ui/pages/dashboard.py:333
-#: app_ui/pages/findings.py:839
+#: app_ui/pages/findings.py:840
 #, python-brace-format
 msgid "#{id} pinned"
 msgstr ""
@@ -3636,7 +3637,7 @@ msgstr ""
 msgid "Action required"
 msgstr ""
 
-#: app_ui/pages/browser.py:287 app_ui/pages/chat.py:1887
+#: app_ui/pages/browser.py:287 app_ui/pages/chat.py:1956
 msgid "Pinned"
 msgstr ""
 
@@ -3700,7 +3701,7 @@ msgstr ""
 msgid "No matches — adjust search term or filters."
 msgstr ""
 
-#: app_ui/pages/browser.py:426 app_ui/pages/chat.py:297
+#: app_ui/pages/browser.py:426 app_ui/pages/chat.py:325
 #, python-brace-format
 msgid "Show {n} more"
 msgstr ""
@@ -3778,886 +3779,904 @@ msgstr ""
 msgid "Download PDF"
 msgstr ""
 
-#: app_ui/pages/chat.py:245
+#: app_ui/pages/chat.py:152
+msgid "Fact verified against source"
+msgstr ""
+
+#: app_ui/pages/chat.py:273
 #, python-brace-format
 msgid "p. {n}"
 msgstr ""
 
-#: app_ui/pages/chat.py:246
+#: app_ui/pages/chat.py:274
 msgid "Download original file"
 msgstr ""
 
-#: app_ui/pages/chat.py:292 proactive/findings.py:474 proactive/findings.py:877
+#: app_ui/pages/chat.py:320 proactive/findings.py:474 proactive/findings.py:877
 #: werkbank/v2/ui/board.py:105
 msgid "Sources"
 msgstr ""
 
-#: app_ui/pages/chat.py:298
+#: app_ui/pages/chat.py:326
 msgid "Show less"
 msgstr ""
 
-#: app_ui/pages/chat.py:419
+#: app_ui/pages/chat.py:447
 #, python-brace-format
 msgid ": Doc #{id}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1025
+#: app_ui/pages/chat.py:1059
 #, python-brace-format
 msgid "Cannot reach the model host {host}. Is it switched on?"
 msgstr ""
 
-#: app_ui/pages/chat.py:1027
+#: app_ui/pages/chat.py:1061
 msgid "The model stopped answering — no response for several minutes."
 msgstr ""
 
-#: app_ui/pages/chat.py:1053 app_ui/pages/dashboard.py:568
+#: app_ui/pages/chat.py:1087 app_ui/pages/dashboard.py:568
 #: app_ui/pages/experts.py:127 app_ui/pages/settings.py:849
 msgid "Calendar"
 msgstr ""
 
-#: app_ui/pages/chat.py:1054 app_ui/pages/chat.py:2908
+#: app_ui/pages/chat.py:1088 app_ui/pages/chat.py:2979
 #: app_ui/pages/experts.py:127
 msgid "Web"
 msgstr ""
 
-#: app_ui/pages/chat.py:1055 app_ui/pages/experts.py:128
+#: app_ui/pages/chat.py:1089 app_ui/pages/experts.py:128
 msgid "Calc"
 msgstr ""
 
-#: app_ui/pages/chat.py:1056 app_ui/pages/experts.py:128
+#: app_ui/pages/chat.py:1090 app_ui/pages/experts.py:128
 msgid "Visual"
 msgstr ""
 
-#: app_ui/pages/chat.py:1057 app_ui/pages/chat.py:1203
-#: app_ui/pages/chat.py:4282 app_ui/pages/experts.py:128
+#: app_ui/pages/chat.py:1091 app_ui/pages/chat.py:1237
+#: app_ui/pages/chat.py:4400 app_ui/pages/experts.py:128
 msgid "Memory"
 msgstr ""
 
-#: app_ui/pages/chat.py:1061 app_ui/pages/experts.py:129
+#: app_ui/pages/chat.py:1095 app_ui/pages/experts.py:129
 msgid "Document notes"
 msgstr ""
 
-#: app_ui/pages/chat.py:1068
+#: app_ui/pages/chat.py:1102
 msgid "What can you do?"
 msgstr ""
 
-#: app_ui/pages/chat.py:1068
+#: app_ui/pages/chat.py:1102
 msgid "Show me what you can do! List all your capabilities and tools."
 msgstr ""
 
-#: app_ui/pages/chat.py:1069
+#: app_ui/pages/chat.py:1103
 msgid "Open deadlines"
 msgstr ""
 
-#: app_ui/pages/chat.py:1069
+#: app_ui/pages/chat.py:1103
 msgid "What open deadlines do I have?"
 msgstr ""
 
-#: app_ui/pages/chat.py:1070
+#: app_ui/pages/chat.py:1104
 msgid "Next month"
 msgstr ""
 
-#: app_ui/pages/chat.py:1070
+#: app_ui/pages/chat.py:1104
 msgid "What's in my calendar next month?"
 msgstr ""
 
-#: app_ui/pages/chat.py:1071
+#: app_ui/pages/chat.py:1105
 msgid "New documents"
 msgstr ""
 
-#: app_ui/pages/chat.py:1071
+#: app_ui/pages/chat.py:1105
 msgid "Show me my latest documents from the last 30 days."
 msgstr ""
 
-#: app_ui/pages/chat.py:1072
+#: app_ui/pages/chat.py:1106
 msgid "New emails"
 msgstr ""
 
-#: app_ui/pages/chat.py:1072
+#: app_ui/pages/chat.py:1106
 msgid "What are my latest emails?"
 msgstr ""
 
-#: app_ui/pages/chat.py:1073
+#: app_ui/pages/chat.py:1107
 msgid "Invoices"
 msgstr ""
 
-#: app_ui/pages/chat.py:1073
+#: app_ui/pages/chat.py:1107
 msgid "Are there any open invoices or outstanding payments?"
 msgstr ""
 
-#: app_ui/pages/chat.py:1076
+#: app_ui/pages/chat.py:1110
 msgid "Save conversation"
 msgstr ""
 
-#: app_ui/pages/chat.py:1114
+#: app_ui/pages/chat.py:1148
 msgid "Note not found."
 msgstr ""
 
-#: app_ui/pages/chat.py:1128
+#: app_ui/pages/chat.py:1162
 msgid "_Empty_"
 msgstr ""
 
-#: app_ui/pages/chat.py:1132
+#: app_ui/pages/chat.py:1166
 msgid "_No content_"
 msgstr ""
 
-#: app_ui/pages/chat.py:1136
+#: app_ui/pages/chat.py:1170
 #, python-brace-format
 msgid "**Memory fact** (ID: `{id}…`)"
 msgstr ""
 
-#: app_ui/pages/chat.py:1138
+#: app_ui/pages/chat.py:1172
 #, python-brace-format
 msgid "Tags: {tags}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1140
+#: app_ui/pages/chat.py:1174
 #, python-brace-format
 msgid "Confidence: {conf}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1141
+#: app_ui/pages/chat.py:1175
 msgid "🧠 Memory fact"
 msgstr ""
 
-#: app_ui/pages/chat.py:1179 app_ui/pages/chat.py:1228
+#: app_ui/pages/chat.py:1213 app_ui/pages/chat.py:1262
 #, python-brace-format
 msgid "Dist: {dist}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1482
+#: app_ui/pages/chat.py:1516
 msgid "Search results appear here"
 msgstr ""
 
-#: app_ui/pages/chat.py:1517
+#: app_ui/pages/chat.py:1551
 #, python-brace-format
 msgid "Expert {name}: all documents"
 msgstr ""
 
-#: app_ui/pages/chat.py:1518
+#: app_ui/pages/chat.py:1552
 #, python-brace-format
 msgid "Expert {name}: {scope}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1531
+#: app_ui/pages/chat.py:1565
 msgid "Results"
 msgstr ""
 
-#: app_ui/pages/chat.py:1532
+#: app_ui/pages/chat.py:1566
 msgid "Source"
 msgstr ""
 
-#: app_ui/pages/chat.py:1533
+#: app_ui/pages/chat.py:1567
 msgid "Library"
 msgstr ""
 
-#: app_ui/pages/chat.py:1571
+#: app_ui/pages/chat.py:1605
 msgid ""
 "Hello! I am your document assistant. I can search and read documents and "
 "answer general questions. What would you like to know?"
 msgstr ""
 
-#: app_ui/pages/chat.py:1745
+#: app_ui/pages/chat.py:1814
 #, python-brace-format
 msgid "{n}m ago"
 msgstr ""
 
-#: app_ui/pages/chat.py:1749
+#: app_ui/pages/chat.py:1818
 msgid "Mon"
 msgstr ""
 
-#: app_ui/pages/chat.py:1749
+#: app_ui/pages/chat.py:1818
 msgid "Tue"
 msgstr ""
 
-#: app_ui/pages/chat.py:1749
+#: app_ui/pages/chat.py:1818
 msgid "Wed"
 msgstr ""
 
-#: app_ui/pages/chat.py:1749
+#: app_ui/pages/chat.py:1818
 msgid "Thu"
 msgstr ""
 
-#: app_ui/pages/chat.py:1749
+#: app_ui/pages/chat.py:1818
 msgid "Fri"
 msgstr ""
 
-#: app_ui/pages/chat.py:1749
+#: app_ui/pages/chat.py:1818
 msgid "Sat"
 msgstr ""
 
-#: app_ui/pages/chat.py:1749
+#: app_ui/pages/chat.py:1818
 msgid "Sun"
 msgstr ""
 
-#: app_ui/pages/chat.py:1806
+#: app_ui/pages/chat.py:1875
 msgid "Today"
 msgstr ""
 
-#: app_ui/pages/chat.py:1806
+#: app_ui/pages/chat.py:1875
 msgid "Yesterday"
 msgstr ""
 
-#: app_ui/pages/chat.py:1806
+#: app_ui/pages/chat.py:1875
 msgid "Previous 7 days"
 msgstr ""
 
-#: app_ui/pages/chat.py:1807
+#: app_ui/pages/chat.py:1876
 msgid "Previous 30 days"
 msgstr ""
 
-#: app_ui/pages/chat.py:1807
+#: app_ui/pages/chat.py:1876
 msgid "Older"
 msgstr ""
 
-#: app_ui/pages/chat.py:1808
+#: app_ui/pages/chat.py:1877
 msgid "About a finding"
 msgstr ""
 
-#: app_ui/pages/chat.py:1809
+#: app_ui/pages/chat.py:1878
 msgid "About a dossier"
 msgstr ""
 
-#: app_ui/pages/chat.py:1810
+#: app_ui/pages/chat.py:1879
 msgid "About the findings overview"
 msgstr ""
 
-#: app_ui/pages/chat.py:1847 app_ui/pages/chat.py:1906
-#: app_ui/pages/chat.py:4136
+#: app_ui/pages/chat.py:1916 app_ui/pages/chat.py:1975
+#: app_ui/pages/chat.py:4252
 msgid "More"
 msgstr ""
 
-#: app_ui/pages/chat.py:1849
+#: app_ui/pages/chat.py:1918
 msgid "Unpin"
 msgstr ""
 
-#: app_ui/pages/chat.py:1849
+#: app_ui/pages/chat.py:1918
 msgid "Pin to the top"
 msgstr ""
 
-#: app_ui/pages/chat.py:1851
+#: app_ui/pages/chat.py:1920
 msgid "Move to a folder …"
 msgstr ""
 
-#: app_ui/pages/chat.py:1855
+#: app_ui/pages/chat.py:1924
 msgid "Move to another expert …"
 msgstr ""
 
-#: app_ui/pages/chat.py:1872
+#: app_ui/pages/chat.py:1941
 msgid "Current chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:1880
+#: app_ui/pages/chat.py:1949
 msgid "No conversation mentions this."
 msgstr ""
 
-#: app_ui/pages/chat.py:1910 app_ui/pages/chat.py:2179
-#: app_ui/pages/findings.py:1197 app_ui/pages/findings.py:1295
+#: app_ui/pages/chat.py:1979 app_ui/pages/chat.py:2248
+#: app_ui/pages/findings.py:1198 app_ui/pages/findings.py:1296
 msgid "Delete folder"
 msgstr ""
 
-#: app_ui/pages/chat.py:1923
+#: app_ui/pages/chat.py:1992
 msgid "Universal"
 msgstr ""
 
-#: app_ui/pages/chat.py:1923
+#: app_ui/pages/chat.py:1992
 msgid "Removed expert"
 msgstr ""
 
-#: app_ui/pages/chat.py:1942 app_ui/pages/findings.py:313
+#: app_ui/pages/chat.py:2011 app_ui/pages/findings.py:314
 msgid "Show fewer"
 msgstr ""
 
-#: app_ui/pages/chat.py:1942
+#: app_ui/pages/chat.py:2011
 #, python-brace-format
 msgid "Show all {n}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1970
+#: app_ui/pages/chat.py:2039
 #, python-brace-format
 msgid "Context: {ct} / {cw}"
 msgstr ""
 
-#: app_ui/pages/chat.py:1988 app_ui/pages/chat.py:2703
+#: app_ui/pages/chat.py:2057 app_ui/pages/chat.py:2772
 msgid "Context: –"
 msgstr ""
 
-#: app_ui/pages/chat.py:2057
+#: app_ui/pages/chat.py:2126
 msgid "Rename conversation"
 msgstr ""
 
-#: app_ui/pages/chat.py:2118 app_ui/pages/chat.py:2303
-#: app_ui/pages/chat.py:2395
+#: app_ui/pages/chat.py:2187 app_ui/pages/chat.py:2372
+#: app_ui/pages/chat.py:2464
 msgid "Wait until the answer is written."
 msgstr ""
 
-#: app_ui/pages/chat.py:2126
+#: app_ui/pages/chat.py:2195
 #, python-brace-format
 msgid "{title} (continued)"
 msgstr ""
 
-#: app_ui/pages/chat.py:2127
+#: app_ui/pages/chat.py:2196
 #, python-brace-format
 msgid "From the conversation “{title}”:"
 msgstr ""
 
-#: app_ui/pages/chat.py:2148
+#: app_ui/pages/chat.py:2217
 msgid "Folder name"
 msgstr ""
 
-#: app_ui/pages/chat.py:2166 app_ui/pages/findings.py:1195
-#: app_ui/pages/findings.py:1303
+#: app_ui/pages/chat.py:2235 app_ui/pages/findings.py:1196
+#: app_ui/pages/findings.py:1304
 msgid "Rename folder"
 msgstr ""
 
-#: app_ui/pages/chat.py:2173
+#: app_ui/pages/chat.py:2242
 #, python-brace-format
 msgid "Delete the folder “{name}”?"
 msgstr ""
 
-#: app_ui/pages/chat.py:2175
+#: app_ui/pages/chat.py:2244
 msgid "Its conversations stay pinned, outside any folder."
 msgstr ""
 
-#: app_ui/pages/chat.py:2191
+#: app_ui/pages/chat.py:2260
 msgid "No folder"
 msgstr ""
 
-#: app_ui/pages/chat.py:2191
+#: app_ui/pages/chat.py:2260
 msgid "New folder …"
 msgstr ""
 
-#: app_ui/pages/chat.py:2193
+#: app_ui/pages/chat.py:2262
 msgid "Move to a folder"
 msgstr ""
 
-#: app_ui/pages/chat.py:2194
+#: app_ui/pages/chat.py:2263
 msgid "A conversation in a folder is pinned."
 msgstr ""
 
-#: app_ui/pages/chat.py:2220
+#: app_ui/pages/chat.py:2289
 msgid "Move to another expert"
 msgstr ""
 
-#: app_ui/pages/chat.py:2221
+#: app_ui/pages/chat.py:2290
 msgid ""
 "The next answer uses the new expert's focus and skills. Earlier answers "
 "stay as they are and may mention documents outside that focus."
 msgstr ""
 
-#: app_ui/pages/chat.py:2238
+#: app_ui/pages/chat.py:2307
 #, python-brace-format
 msgid "Moved to {name}."
 msgstr ""
 
-#: app_ui/pages/chat.py:2280 app_ui/pages/findings.py:2189
+#: app_ui/pages/chat.py:2349 app_ui/pages/findings.py:2193
 #, python-brace-format
 msgid "{n} selected"
 msgstr ""
 
-#: app_ui/pages/chat.py:2280
+#: app_ui/pages/chat.py:2349
 msgid "Tick messages to remove or compact them."
 msgstr ""
 
-#: app_ui/pages/chat.py:2289
+#: app_ui/pages/chat.py:2358
 msgid "Compact"
 msgstr ""
 
-#: app_ui/pages/chat.py:2295
+#: app_ui/pages/chat.py:2364
 msgid "Switch this conversation to another expert"
 msgstr ""
 
-#: app_ui/pages/chat.py:2306
+#: app_ui/pages/chat.py:2375
 msgid "Nothing to edit yet."
 msgstr ""
 
-#: app_ui/pages/chat.py:2342 app_ui/pages/chat.py:4197
-#: app_ui/pages/chat.py:4806 app_ui/pages/settings.py:62
+#: app_ui/pages/chat.py:2411 app_ui/pages/chat.py:4315
+#: app_ui/pages/chat.py:4954 app_ui/pages/settings.py:62
 msgid "New conversation"
 msgstr ""
 
-#: app_ui/pages/chat.py:2372
+#: app_ui/pages/chat.py:2441
 msgid "Removed. “Undo” brings it back until you leave the page."
 msgstr ""
 
-#: app_ui/pages/chat.py:2400 app_ui/pages/chat.py:2777
-#: app_ui/pages/findings.py:1562
+#: app_ui/pages/chat.py:2469 app_ui/pages/chat.py:2846
+#: app_ui/pages/findings.py:1566
 msgid "Add a note"
 msgstr ""
 
-#: app_ui/pages/chat.py:2401
+#: app_ui/pages/chat.py:2470
 msgid ""
 "Your own words for the conversation — context, not a question. The model "
 "reads it as a note and does not answer it."
 msgstr ""
 
-#: app_ui/pages/chat.py:2404
+#: app_ui/pages/chat.py:2473
 msgid "e.g. Ignore the 2023 contract, it was cancelled."
 msgstr ""
 
-#: app_ui/pages/chat.py:2408
+#: app_ui/pages/chat.py:2477
 msgid "Add note"
 msgstr ""
 
-#: app_ui/pages/chat.py:2423
+#: app_ui/pages/chat.py:2492
 msgid "No conversation to compress"
 msgstr ""
 
-#: app_ui/pages/chat.py:2423
+#: app_ui/pages/chat.py:2492
 msgid "Chat running"
 msgstr ""
 
-#: app_ui/pages/chat.py:2455
+#: app_ui/pages/chat.py:2524
 msgid "Compressing…"
 msgstr ""
 
-#: app_ui/pages/chat.py:2478
+#: app_ui/pages/chat.py:2547
 #, python-brace-format
 msgid "Error compressing: {err}"
 msgstr ""
 
-#: app_ui/pages/chat.py:2489
+#: app_ui/pages/chat.py:2558
 msgid "Compression produced no result"
 msgstr ""
 
-#: app_ui/pages/chat.py:2495
+#: app_ui/pages/chat.py:2564
 msgid "**[Summary]**"
 msgstr ""
 
-#: app_ui/pages/chat.py:2522
+#: app_ui/pages/chat.py:2591
 msgid "New chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:2531
+#: app_ui/pages/chat.py:2600
 msgid "Search conversations …"
 msgstr ""
 
-#: app_ui/pages/chat.py:2538
+#: app_ui/pages/chat.py:2607
 msgid "Group conversations"
 msgstr ""
 
-#: app_ui/pages/chat.py:2540
+#: app_ui/pages/chat.py:2609
 msgid "By expert"
 msgstr ""
 
-#: app_ui/pages/chat.py:2541
+#: app_ui/pages/chat.py:2610
 msgid "By date"
 msgstr ""
 
-#: app_ui/pages/chat.py:2570
+#: app_ui/pages/chat.py:2639
 msgid "Show/hide search results"
 msgstr ""
 
-#: app_ui/pages/chat.py:2669
+#: app_ui/pages/chat.py:2738
 msgid "Conversation history"
 msgstr ""
 
-#: app_ui/pages/chat.py:2756
+#: app_ui/pages/chat.py:2825
 msgid "No models configured"
 msgstr ""
 
-#: app_ui/pages/chat.py:2776
+#: app_ui/pages/chat.py:2845
 msgid "Edit conversation"
 msgstr ""
 
-#: app_ui/pages/chat.py:2779
+#: app_ui/pages/chat.py:2848
 msgid "Download conversation as Markdown"
 msgstr ""
 
-#: app_ui/pages/chat.py:2781
+#: app_ui/pages/chat.py:2850
+msgid "Download conversation as Word"
+msgstr ""
+
+#: app_ui/pages/chat.py:2852
 msgid "Save conversation …"
 msgstr ""
 
-#: app_ui/pages/chat.py:2785
+#: app_ui/pages/chat.py:2856
 msgid "Deep research from this chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:2789 app_ui/pages/chat.py:3087
+#: app_ui/pages/chat.py:2860 app_ui/pages/chat.py:3158
 msgid "Configure tools"
 msgstr ""
 
-#: app_ui/pages/chat.py:2791 app_ui/pages/chat.py:3095
+#: app_ui/pages/chat.py:2862 app_ui/pages/chat.py:3166
 msgid "Compress chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:2794
+#: app_ui/pages/chat.py:2865
 msgid "Delete conversation"
 msgstr ""
 
-#: app_ui/pages/chat.py:2800
+#: app_ui/pages/chat.py:2871
 msgid "Maximize the chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:2801
+#: app_ui/pages/chat.py:2872
 msgid "Back to the item"
 msgstr ""
 
-#: app_ui/pages/chat.py:2851
+#: app_ui/pages/chat.py:2922
 msgid "Sync running — chat is locked"
 msgstr ""
 
-#: app_ui/pages/chat.py:2869
+#: app_ui/pages/chat.py:2940
 msgid "No chat model configured"
 msgstr ""
 
-#: app_ui/pages/chat.py:2873
+#: app_ui/pages/chat.py:2944
 msgid "Set one up"
 msgstr ""
 
-#: app_ui/pages/chat.py:2892 app_ui/pages/experts.py:269
+#: app_ui/pages/chat.py:2963 app_ui/pages/experts.py:269
 msgid "Tools"
 msgstr ""
 
-#: app_ui/pages/chat.py:2913
+#: app_ui/pages/chat.py:2984
 msgid "Hybrid"
 msgstr ""
 
-#: app_ui/pages/chat.py:2913
+#: app_ui/pages/chat.py:2984
 msgid "Crawl4AI (thorough)"
 msgstr ""
 
-#: app_ui/pages/chat.py:2928
+#: app_ui/pages/chat.py:2999
 msgid "Other"
 msgstr ""
 
-#: app_ui/pages/chat.py:2936
+#: app_ui/pages/chat.py:3007
 msgid "Max. model rounds"
 msgstr ""
 
-#: app_ui/pages/chat.py:2955
+#: app_ui/pages/chat.py:3026
 msgid "Quick actions bar"
 msgstr ""
 
-#: app_ui/pages/chat.py:3116
+#: app_ui/pages/chat.py:3187
 msgid "Attach a PDF or picture (not saved to Paperless)"
 msgstr ""
 
-#: app_ui/pages/chat.py:3123 app_ui/pages/chat.py:3128
+#: app_ui/pages/chat.py:3194 app_ui/pages/chat.py:3199
 msgid "Message …"
 msgstr ""
 
-#: app_ui/pages/chat.py:3127
+#: app_ui/pages/chat.py:3198
 msgid "Message … (Shift+Enter for a new line)"
 msgstr ""
 
-#: app_ui/pages/chat.py:3197
+#: app_ui/pages/chat.py:3268
 msgid "Back to the chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:3235
+#: app_ui/pages/chat.py:3306
 msgid "Recording — press again to stop"
 msgstr ""
 
-#: app_ui/pages/chat.py:3447 app_ui/pages/chat.py:3576
-#: app_ui/pages/experts.py:138
+#: app_ui/pages/chat.py:3518 app_ui/pages/chat.py:3647
+#: app_ui/pages/chat.py:3673 app_ui/pages/experts.py:138
 #, python-brace-format
 msgid "Document #{id} not found or no access."
 msgstr ""
 
-#: app_ui/pages/chat.py:3462
+#: app_ui/pages/chat.py:3533
 #, python-brace-format
 msgid "Document #{id} cannot be displayed: {err}"
 msgstr ""
 
-#: app_ui/pages/chat.py:3489
+#: app_ui/pages/chat.py:3560
 msgid "Click a reference number in an answer to see its source here."
 msgstr ""
 
-#: app_ui/pages/chat.py:3510 app_ui/pages/chat.py:3512
+#: app_ui/pages/chat.py:3581 app_ui/pages/chat.py:3583
 #, python-brace-format
 msgid "Page {n} of {total}"
 msgstr ""
 
-#: app_ui/pages/chat.py:3520
+#: app_ui/pages/chat.py:3591
 msgid "Open document"
 msgstr ""
 
-#: app_ui/pages/chat.py:3527
+#: app_ui/pages/chat.py:3598
 msgid "The passage could not be located on the page image."
 msgstr ""
 
-#: app_ui/pages/chat.py:3615
+#: app_ui/pages/chat.py:3714
 msgid "Note could not be opened."
 msgstr ""
 
-#: app_ui/pages/chat.py:3883 app_ui/pages/chat.py:3898
+#: app_ui/pages/chat.py:3999 app_ui/pages/chat.py:4014
 #, python-brace-format
 msgid "About: {name}"
 msgstr ""
 
-#: app_ui/pages/chat.py:3888
+#: app_ui/pages/chat.py:4004
 msgid "Back to finding"
 msgstr ""
 
-#: app_ui/pages/chat.py:3894
+#: app_ui/pages/chat.py:4010
 msgid "Remove finding from the chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:3903
+#: app_ui/pages/chat.py:4019
 msgid "Remove dossier from the chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:3907
+#: app_ui/pages/chat.py:4023
 msgid "About: the findings overview"
 msgstr ""
 
-#: app_ui/pages/chat.py:3912
+#: app_ui/pages/chat.py:4028
 msgid "Remove the overview from the chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:3964
+#: app_ui/pages/chat.py:4080
 msgid "This answer is no longer in the conversation."
 msgstr ""
 
-#: app_ui/pages/chat.py:4000 app_ui/pages/chat.py:4035
-#: app_ui/pages/chat.py:4581
+#: app_ui/pages/chat.py:4116 app_ui/pages/chat.py:4151
+#: app_ui/pages/chat.py:4729
 msgid "Nothing to save yet."
 msgstr ""
 
-#: app_ui/pages/chat.py:4049
+#: app_ui/pages/chat.py:4165
 msgid "Expert scope"
 msgstr ""
 
-#: app_ui/pages/chat.py:4049
+#: app_ui/pages/chat.py:4165
 msgid "Expert briefing"
 msgstr ""
 
-#: app_ui/pages/chat.py:4049 app_ui/pages/experts.py:684
+#: app_ui/pages/chat.py:4165 app_ui/pages/experts.py:684
 #: services/briefings.py:380
 msgid "Archive map"
 msgstr ""
 
-#: app_ui/pages/chat.py:4050 app_ui/pages/experts.py:168
+#: app_ui/pages/chat.py:4166 app_ui/pages/experts.py:168
 #: app_ui/pages/experts.py:267 app_ui/pages/experts.py:753
 msgid "Skills"
 msgstr ""
 
-#: app_ui/pages/chat.py:4057
+#: app_ui/pages/chat.py:4173
 msgid "Expert block"
 msgstr ""
 
-#: app_ui/pages/chat.py:4059
+#: app_ui/pages/chat.py:4175
 msgid "Personality"
 msgstr ""
 
-#: app_ui/pages/chat.py:4065
+#: app_ui/pages/chat.py:4181
 msgid "System prompt"
 msgstr ""
 
-#: app_ui/pages/chat.py:4066
+#: app_ui/pages/chat.py:4182
 #, python-brace-format
 msgid ""
 "The blocks below are part of it, shown on their own: they depend on you "
 "and the expert{name}."
 msgstr ""
 
-#: app_ui/pages/chat.py:4073
+#: app_ui/pages/chat.py:4189
 msgid "Context of this question"
 msgstr ""
 
-#: app_ui/pages/chat.py:4075
+#: app_ui/pages/chat.py:4191
 msgid ""
 "Put in front of the question: an opened finding or dossier, pinned "
 "documents."
 msgstr ""
 
-#: app_ui/pages/chat.py:4078
+#: app_ui/pages/chat.py:4194
 #, python-brace-format
 msgid "Earlier messages ({n})"
 msgstr ""
 
-#: app_ui/pages/chat.py:4080
+#: app_ui/pages/chat.py:4196
 msgid ""
 "Only questions and answers: the tool results of earlier turns are not "
 "sent again."
 msgstr ""
 
-#: app_ui/pages/chat.py:4082
+#: app_ui/pages/chat.py:4198
 #, python-brace-format
 msgid "Tool definitions ({n})"
 msgstr ""
 
-#: app_ui/pages/chat.py:4109
+#: app_ui/pages/chat.py:4225
 msgid "Select text first to save only that part"
 msgstr ""
 
-#: app_ui/pages/chat.py:4123
+#: app_ui/pages/chat.py:4239
 msgid "answer.md"
 msgstr ""
 
-#: app_ui/pages/chat.py:4140
+#: app_ui/pages/chat.py:4256
 msgid "Download answer as Markdown"
 msgstr ""
 
-#: app_ui/pages/chat.py:4147
+#: app_ui/pages/chat.py:4257
+msgid "Download answer as Word"
+msgstr ""
+
+#: app_ui/pages/chat.py:4265
 #, python-brace-format
 msgid "Table {n} as CSV"
 msgstr ""
 
-#: app_ui/pages/chat.py:4148
+#: app_ui/pages/chat.py:4266
 msgid "Download table as CSV"
 msgstr ""
 
-#: app_ui/pages/chat.py:4151
+#: app_ui/pages/chat.py:4269
 msgid "Save …"
 msgstr ""
 
-#: app_ui/pages/chat.py:4153
+#: app_ui/pages/chat.py:4271
 msgid "Continue in a new chat"
 msgstr ""
 
-#: app_ui/pages/chat.py:4183
+#: app_ui/pages/chat.py:4301
 msgid "Start a new conversation with this expert?"
 msgstr ""
 
-#: app_ui/pages/chat.py:4184
+#: app_ui/pages/chat.py:4302
 msgid ""
 "An expert is fixed per conversation, so earlier answers cannot leak into "
 "a narrower scope."
 msgstr ""
 
-#: app_ui/pages/chat.py:4284
+#: app_ui/pages/chat.py:4402
 msgid "Web search"
 msgstr ""
 
-#: app_ui/pages/chat.py:4426 app_ui/pages/chat.py:4579
+#: app_ui/pages/chat.py:4544 app_ui/pages/chat.py:4571
+#: app_ui/pages/chat.py:4727
 msgid "You"
 msgstr ""
 
-#: app_ui/pages/chat.py:4428
+#: app_ui/pages/chat.py:4546 app_ui/pages/chat.py:4573
 msgid "Nothing to download yet."
 msgstr ""
 
-#: app_ui/pages/chat.py:4430
+#: app_ui/pages/chat.py:4548
 msgid "conversation.md"
 msgstr ""
 
-#: app_ui/pages/chat.py:4447
+#: app_ui/pages/chat.py:4563 werkbank/v2/ui/page.py:239
+#, python-brace-format
+msgid "Could not create the Word document: {err}"
+msgstr ""
+
+#: app_ui/pages/chat.py:4595
 msgid "Save document to Paperless"
 msgstr ""
 
-#: app_ui/pages/chat.py:4502
+#: app_ui/pages/chat.py:4650
 msgid "Preview"
 msgstr ""
 
-#: app_ui/pages/chat.py:4520
+#: app_ui/pages/chat.py:4668
 msgid "Creating PDF…"
 msgstr ""
 
-#: app_ui/pages/chat.py:4536
+#: app_ui/pages/chat.py:4684
 msgid "Uploading…"
 msgstr ""
 
-#: app_ui/pages/chat.py:4550
+#: app_ui/pages/chat.py:4698
 #, python-brace-format
 msgid "Saved as: {filename}"
 msgstr ""
 
-#: app_ui/pages/chat.py:4568
+#: app_ui/pages/chat.py:4716
 msgid "Save to Paperless"
 msgstr ""
 
-#: app_ui/pages/chat.py:4602
+#: app_ui/pages/chat.py:4750
 msgid "Start deep research"
 msgstr ""
 
-#: app_ui/pages/chat.py:4606
+#: app_ui/pages/chat.py:4754
 msgid "Review and adjust the task, then choose the model."
 msgstr ""
 
-#: app_ui/pages/chat.py:4614
+#: app_ui/pages/chat.py:4762
 msgid "Task"
 msgstr ""
 
-#: app_ui/pages/chat.py:4637
+#: app_ui/pages/chat.py:4785
 msgid "Formulating the assignment…"
 msgstr ""
 
-#: app_ui/pages/chat.py:4661
+#: app_ui/pages/chat.py:4809
 msgid "Run started — open it under AI deep research."
 msgstr ""
 
-#: app_ui/pages/chat.py:4674
+#: app_ui/pages/chat.py:4822
 msgid "Start task"
 msgstr ""
 
-#: app_ui/pages/chat.py:4696
+#: app_ui/pages/chat.py:4844
 #, python-brace-format
 msgid "At most {n} files per message."
 msgstr ""
 
-#: app_ui/pages/chat.py:4699
+#: app_ui/pages/chat.py:4847
 msgid "reading …"
 msgstr ""
 
-#: app_ui/pages/chat.py:4704
+#: app_ui/pages/chat.py:4852
 #, python-brace-format
 msgid "vision model, page {d} of {t} …"
 msgstr ""
 
-#: app_ui/pages/chat.py:4718
+#: app_ui/pages/chat.py:4866
 msgid "could not be read"
 msgstr ""
 
-#: app_ui/pages/chat.py:4722
+#: app_ui/pages/chat.py:4870
 msgid "shortened"
 msgstr ""
 
-#: app_ui/pages/chat.py:4867
+#: app_ui/pages/chat.py:5015
 msgid "The previous answer is still being written."
 msgstr ""
 
-#: app_ui/pages/chat.py:4892
+#: app_ui/pages/chat.py:5040
 msgid "The attached file is still being read."
 msgstr ""
 
-#: app_ui/pages/chat.py:4899
+#: app_ui/pages/chat.py:5047
 msgid "No chat model configured — add one in Settings > AI Models."
 msgstr ""
 
-#: app_ui/pages/chat.py:4904
+#: app_ui/pages/chat.py:5052
 msgid "Sync is currently running — please wait"
 msgstr ""
 
-#: app_ui/pages/chat.py:4928
+#: app_ui/pages/chat.py:5076
 msgid "What is in this document?"
 msgstr ""
 
-#: app_ui/pages/chat.py:4983
+#: app_ui/pages/chat.py:5131
 msgid "📓 Synchronizing vault …"
 msgstr ""
 
-#: app_ui/pages/chat.py:5108
+#: app_ui/pages/chat.py:5256
 #, python-brace-format
 msgid "{n} calls"
 msgstr ""
 
-#: app_ui/pages/chat.py:5185
+#: app_ui/pages/chat.py:5333
 msgid "No model configured — please set one up in Settings > AI Models."
 msgstr ""
 
-#: app_ui/pages/chat.py:5249
+#: app_ui/pages/chat.py:5397
 #, python-brace-format
 msgid "The model host is starting… {s} s"
 msgstr ""
 
-#: app_ui/pages/chat.py:5269
+#: app_ui/pages/chat.py:5417
 #, python-brace-format
 msgid ""
 "The model host {host} does not answer. Switch it on, or pick another "
 "model for this chat."
 msgstr ""
 
-#: app_ui/pages/chat.py:5309 app_ui/pages/chat.py:5310
-#: app_ui/pages/chat.py:5355
+#: app_ui/pages/chat.py:5457 app_ui/pages/chat.py:5458
+#: app_ui/pages/chat.py:5503
 msgid "💭 Thinking …"
 msgstr ""
 
-#: app_ui/pages/chat.py:5316
+#: app_ui/pages/chat.py:5464
 msgid "✍️ Writing the answer …"
 msgstr ""
 
-#: app_ui/pages/chat.py:5404
+#: app_ui/pages/chat.py:5552
 #, python-brace-format
 msgid ""
 "{model} runs partly on the CPU of its host ({pct} %), which makes it "
@@ -4665,11 +4684,11 @@ msgid ""
 "room."
 msgstr ""
 
-#: app_ui/pages/chat.py:5453
+#: app_ui/pages/chat.py:5601
 msgid "The model ended without an answer. Please send your message again."
 msgstr ""
 
-#: app_ui/pages/chat.py:5521
+#: app_ui/pages/chat.py:5675
 msgid "The answer is still being written …"
 msgstr ""
 
@@ -5022,7 +5041,7 @@ msgstr ""
 msgid "Overdue only"
 msgstr ""
 
-#: app_ui/pages/dashboard.py:1585 app_ui/pages/findings.py:2094
+#: app_ui/pages/dashboard.py:1585 app_ui/pages/findings.py:2098
 msgid "Show all"
 msgstr ""
 
@@ -5197,8 +5216,8 @@ msgstr ""
 msgid "Saved, but only the first {max} characters are used."
 msgstr ""
 
-#: app_ui/pages/experts.py:386 app_ui/pages/findings.py:1889
-#: app_ui/pages/findings.py:2173
+#: app_ui/pages/experts.py:386 app_ui/pages/findings.py:1893
+#: app_ui/pages/findings.py:2177
 msgid "Paperless is not reachable."
 msgstr ""
 
@@ -5511,757 +5530,761 @@ msgstr ""
 msgid "{label} (deleted)"
 msgstr ""
 
-#: app_ui/pages/findings.py:200 app_ui/pages/findings.py:1065
+#: app_ui/pages/findings.py:201 app_ui/pages/findings.py:1066
 #, python-brace-format
 msgid "Due {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:202 app_ui/pages/findings.py:1707
+#: app_ui/pages/findings.py:203 app_ui/pages/findings.py:1711
 #, python-brace-format
 msgid "Reminder on {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:259
+#: app_ui/pages/findings.py:260
 msgid "All statuses"
 msgstr ""
 
-#: app_ui/pages/findings.py:263
+#: app_ui/pages/findings.py:264
 msgid "Status"
 msgstr ""
 
-#: app_ui/pages/findings.py:295
+#: app_ui/pages/findings.py:296
 msgid "open"
 msgstr ""
 
-#: app_ui/pages/findings.py:296
+#: app_ui/pages/findings.py:297
 msgid "due"
 msgstr ""
 
-#: app_ui/pages/findings.py:307 app_ui/pages/findings.py:384
-#: app_ui/pages/findings.py:1431
+#: app_ui/pages/findings.py:308 app_ui/pages/findings.py:385
+#: app_ui/pages/findings.py:1432
 msgid "No topic"
 msgstr ""
 
-#: app_ui/pages/findings.py:309
+#: app_ui/pages/findings.py:310
 #, python-brace-format
 msgid "{n} urgent"
 msgstr ""
 
-#: app_ui/pages/findings.py:313
+#: app_ui/pages/findings.py:314
 #, python-brace-format
 msgid "Show all {n} topics"
 msgstr ""
 
-#: app_ui/pages/findings.py:319
+#: app_ui/pages/findings.py:320
 msgid "Topics"
 msgstr ""
 
-#: app_ui/pages/findings.py:341 app_ui/pages/findings.py:1429
+#: app_ui/pages/findings.py:342 app_ui/pages/findings.py:1430
 msgid "Topic colours"
 msgstr ""
 
-#: app_ui/pages/findings.py:342
+#: app_ui/pages/findings.py:343
 msgid "A colour outlines the cards of a topic. No colour is the default."
 msgstr ""
 
-#: app_ui/pages/findings.py:345
+#: app_ui/pages/findings.py:346
 msgid "No topics yet."
 msgstr ""
 
-#: app_ui/pages/findings.py:360
+#: app_ui/pages/findings.py:361
 msgid "No colour"
 msgstr ""
 
-#: app_ui/pages/findings.py:424 app_ui/pages/findings.py:1467
-#: app_ui/pages/findings.py:1925
+#: app_ui/pages/findings.py:425 app_ui/pages/findings.py:1471
+#: app_ui/pages/findings.py:1929
 msgid "File in a dossier"
 msgstr ""
 
-#: app_ui/pages/findings.py:963 app_ui/pages/findings.py:2562
+#: app_ui/pages/findings.py:964 app_ui/pages/findings.py:2566
 msgid "Folder"
 msgstr ""
 
-#: app_ui/pages/findings.py:964 app_ui/pages/findings.py:1091
-#: app_ui/pages/findings.py:1325 app_ui/pages/findings.py:1801
+#: app_ui/pages/findings.py:965 app_ui/pages/findings.py:1092
+#: app_ui/pages/findings.py:1326 app_ui/pages/findings.py:1805
 msgid "Overview"
 msgstr ""
 
-#: app_ui/pages/findings.py:976
+#: app_ui/pages/findings.py:977
 msgid "Browse"
 msgstr ""
 
-#: app_ui/pages/findings.py:994
+#: app_ui/pages/findings.py:995
 msgid "Search findings & dossiers"
 msgstr ""
 
-#: app_ui/pages/findings.py:1043
+#: app_ui/pages/findings.py:1044
 msgid "Searching …"
 msgstr ""
 
-#: app_ui/pages/findings.py:1069 app_ui/pages/findings.py:1802
+#: app_ui/pages/findings.py:1070 app_ui/pages/findings.py:1806
 #: proactive/dossiers.py:251
 msgid "Insights"
 msgstr ""
 
-#: app_ui/pages/findings.py:1093 app_ui/pages/findings.py:1344
-#: app_ui/pages/findings.py:1405
+#: app_ui/pages/findings.py:1094 app_ui/pages/findings.py:1345
+#: app_ui/pages/findings.py:1406
 msgid "Urgent"
 msgstr ""
 
-#: app_ui/pages/findings.py:1095 app_ui/pages/findings.py:1406
+#: app_ui/pages/findings.py:1096 app_ui/pages/findings.py:1407
 msgid "Not in a dossier"
 msgstr ""
 
-#: app_ui/pages/findings.py:1115 app_ui/pages/findings.py:2532
+#: app_ui/pages/findings.py:1116 app_ui/pages/findings.py:2536
 msgid "New dossier"
 msgstr ""
 
-#: app_ui/pages/findings.py:1131
+#: app_ui/pages/findings.py:1132
 msgid ""
 "No dossiers yet. They appear when the system follows a matter — or make "
 "one yourself."
 msgstr ""
 
-#: app_ui/pages/findings.py:1148 app_ui/pages/findings.py:2325
+#: app_ui/pages/findings.py:1149 app_ui/pages/findings.py:2329
 msgid "Rescan pending"
 msgstr ""
 
-#: app_ui/pages/findings.py:1149 app_ui/pages/findings.py:2357
-#: app_ui/pages/findings.py:2436
+#: app_ui/pages/findings.py:1150 app_ui/pages/findings.py:2361
+#: app_ui/pages/findings.py:2440
 msgid "Archive"
 msgstr ""
 
-#: app_ui/pages/findings.py:1150 app_ui/pages/findings.py:2357
+#: app_ui/pages/findings.py:1151 app_ui/pages/findings.py:2361
 msgid "Deleted dossiers"
 msgstr ""
 
-#: app_ui/pages/findings.py:1175
+#: app_ui/pages/findings.py:1176
 msgid "This folder no longer exists."
 msgstr ""
 
-#: app_ui/pages/findings.py:1186
+#: app_ui/pages/findings.py:1187
 #, python-brace-format
 msgid "{n} dossiers"
 msgstr ""
 
-#: app_ui/pages/findings.py:1188
+#: app_ui/pages/findings.py:1189
 #, python-brace-format
 msgid "{n} folders"
 msgstr ""
 
-#: app_ui/pages/findings.py:1194
+#: app_ui/pages/findings.py:1195
 msgid "New dossier here"
 msgstr ""
 
-#: app_ui/pages/findings.py:1203
+#: app_ui/pages/findings.py:1204
 msgid "Empty. Move dossiers here, or make a new one."
 msgstr ""
 
-#: app_ui/pages/findings.py:1247
+#: app_ui/pages/findings.py:1248
 msgid ""
 "Overview queued — the model writes it from the dossiers' current state; "
 "it gives way while you chat."
 msgstr ""
 
-#: app_ui/pages/findings.py:1252
+#: app_ui/pages/findings.py:1253
 msgid "No overview yet. It is written in the night, or now."
 msgstr ""
 
-#: app_ui/pages/findings.py:1254
+#: app_ui/pages/findings.py:1255
 #, python-brace-format
 msgid ""
 "The dossiers inside changed since the overview of {date} — it is "
 "rewritten in the night, or now."
 msgstr ""
 
-#: app_ui/pages/findings.py:1257
+#: app_ui/pages/findings.py:1258
 #, python-brace-format
 msgid ""
 "Overview of {date}, from the dossiers' state. Their own pages are the "
 "source."
 msgstr ""
 
-#: app_ui/pages/findings.py:1261
+#: app_ui/pages/findings.py:1262
 msgid "Write now"
 msgstr ""
 
-#: app_ui/pages/findings.py:1261
+#: app_ui/pages/findings.py:1262
 msgid "Rewrite now"
 msgstr ""
 
-#: app_ui/pages/findings.py:1272
+#: app_ui/pages/findings.py:1273
 msgid ""
 "Allow background access first (Settings > Proactive) — the overview is "
 "written in the background, as you."
 msgstr ""
 
-#: app_ui/pages/findings.py:1277
+#: app_ui/pages/findings.py:1278
 msgid "Overview queued."
 msgstr ""
 
-#: app_ui/pages/findings.py:1285
+#: app_ui/pages/findings.py:1286
 msgid ""
 "The folder holds notes that are not dossiers — it stays. Remove them in "
 "your vault first."
 msgstr ""
 
-#: app_ui/pages/findings.py:1286 app_ui/pages/findings.py:2516
+#: app_ui/pages/findings.py:1287 app_ui/pages/findings.py:2520
 msgid "Not a valid folder."
 msgstr ""
 
-#: app_ui/pages/findings.py:1289
+#: app_ui/pages/findings.py:1290
 msgid "Folder deleted."
 msgstr ""
 
-#: app_ui/pages/findings.py:1289
+#: app_ui/pages/findings.py:1290
 #, python-brace-format
 msgid "{n} dossiers moved up."
 msgstr ""
 
-#: app_ui/pages/findings.py:1294
+#: app_ui/pages/findings.py:1295
 #, python-brace-format
 msgid ""
 "Delete the folder “{name}”? Its dossiers move one level up; nothing else "
 "changes."
 msgstr ""
 
-#: app_ui/pages/findings.py:1304
+#: app_ui/pages/findings.py:1305
 msgid "Only the folder's name changes; the dossiers in it stay as they are."
 msgstr ""
 
-#: app_ui/pages/findings.py:1325
+#: app_ui/pages/findings.py:1326
 msgid "Back to the list"
 msgstr ""
 
-#: app_ui/pages/findings.py:1325
+#: app_ui/pages/findings.py:1326
 msgid "Back to the dossier"
 msgstr ""
 
-#: app_ui/pages/findings.py:1343
+#: app_ui/pages/findings.py:1344
 msgid "In the inbox"
 msgstr ""
 
-#: app_ui/pages/findings.py:1353
+#: app_ui/pages/findings.py:1354
 #, python-brace-format
 msgid "{n} being researched — it gives way while you chat."
 msgstr ""
 
-#: app_ui/pages/findings.py:1361
+#: app_ui/pages/findings.py:1362
 msgid "Due in the next 60 days"
 msgstr ""
 
-#: app_ui/pages/findings.py:1363
+#: app_ui/pages/findings.py:1364
 msgid "Nothing due."
 msgstr ""
 
-#: app_ui/pages/findings.py:1375
+#: app_ui/pages/findings.py:1376
 msgid "Latest insights"
 msgstr ""
 
-#: app_ui/pages/findings.py:1407
+#: app_ui/pages/findings.py:1408
 msgid "Open and relevant"
 msgstr ""
 
-#: app_ui/pages/findings.py:1420
+#: app_ui/pages/findings.py:1421
 msgid "Group"
 msgstr ""
 
-#: app_ui/pages/findings.py:1423
+#: app_ui/pages/findings.py:1424
 msgid "Sort"
 msgstr ""
 
-#: app_ui/pages/findings.py:1432
+#: app_ui/pages/findings.py:1433
 #, python-brace-format
 msgid "Topic: {t}"
 msgstr ""
 
-#: app_ui/pages/findings.py:1434
+#: app_ui/pages/findings.py:1435
 msgid ""
 "Open findings whose topic has no dossier. File one into a dossier with "
 "the folder icon; its documents join that dossier."
 msgstr ""
 
-#: app_ui/pages/findings.py:1439 app_ui/pages/findings.py:2364
+#: app_ui/pages/findings.py:1440 app_ui/pages/findings.py:2368
 msgid "Nothing here."
 msgstr ""
 
-#: app_ui/pages/findings.py:1464
+#: app_ui/pages/findings.py:1465
 msgid "Finding as PDF"
 msgstr ""
 
-#: app_ui/pages/findings.py:1467
+#: app_ui/pages/findings.py:1468
+msgid "Finding as Word document"
+msgstr ""
+
+#: app_ui/pages/findings.py:1471
 msgid "Move to another dossier"
 msgstr ""
 
-#: app_ui/pages/findings.py:1471 proactive/reactions.py:56
+#: app_ui/pages/findings.py:1475 proactive/reactions.py:56
 msgid "This item no longer exists."
 msgstr ""
 
-#: app_ui/pages/findings.py:1480
+#: app_ui/pages/findings.py:1484
 #, python-brace-format
 msgid "Dossier: {name}"
 msgstr ""
 
-#: app_ui/pages/findings.py:1487
+#: app_ui/pages/findings.py:1491
 msgid "Researched — the newest result is at the top, the report is in your vault."
 msgstr ""
 
-#: app_ui/pages/findings.py:1500
+#: app_ui/pages/findings.py:1504
 msgid "Research running — it gives way while you chat."
 msgstr ""
 
-#: app_ui/pages/findings.py:1503 app_ui/pages/findings.py:1523
+#: app_ui/pages/findings.py:1507 app_ui/pages/findings.py:1527
 msgid "Research queued — it starts as soon as the model is free."
 msgstr ""
 
-#: app_ui/pages/findings.py:1506
+#: app_ui/pages/findings.py:1510
 msgid "No research is running for this item."
 msgstr ""
 
-#: app_ui/pages/findings.py:1511
+#: app_ui/pages/findings.py:1515
 msgid "The research failed."
 msgstr ""
 
-#: app_ui/pages/findings.py:1515 app_ui/pages/findings.py:1553
+#: app_ui/pages/findings.py:1519 app_ui/pages/findings.py:1557
 msgid "Research again"
 msgstr ""
 
-#: app_ui/pages/findings.py:1543
+#: app_ui/pages/findings.py:1547
 #, python-brace-format
 msgid "Apply “{action}” to this item?"
 msgstr ""
 
-#: app_ui/pages/findings.py:1547 proactive/reactions.py:55
+#: app_ui/pages/findings.py:1551 proactive/reactions.py:55
 msgid "Already handled."
 msgstr ""
 
-#: app_ui/pages/findings.py:1554
+#: app_ui/pages/findings.py:1558
 msgid "Start research"
 msgstr ""
 
-#: app_ui/pages/findings.py:1563
+#: app_ui/pages/findings.py:1567
 msgid "e.g. The operation took place in April 2024."
 msgstr ""
 
-#: app_ui/pages/findings.py:1570
+#: app_ui/pages/findings.py:1574
 msgid "Note added."
 msgstr ""
 
-#: app_ui/pages/findings.py:1574
+#: app_ui/pages/findings.py:1578
 msgid "Save note"
 msgstr ""
 
-#: app_ui/pages/findings.py:1607
+#: app_ui/pages/findings.py:1611
 msgid "Edit or delete note"
 msgstr ""
 
-#: app_ui/pages/findings.py:1623
+#: app_ui/pages/findings.py:1627
 msgid "The note changed meanwhile — reload and try again."
 msgstr ""
 
-#: app_ui/pages/findings.py:1625
+#: app_ui/pages/findings.py:1629
 msgid "Note saved."
 msgstr ""
 
-#: app_ui/pages/findings.py:1625
+#: app_ui/pages/findings.py:1629
 msgid "Note deleted."
 msgstr ""
 
-#: app_ui/pages/findings.py:1633
+#: app_ui/pages/findings.py:1637
 msgid "Delete note"
 msgstr ""
 
-#: app_ui/pages/findings.py:1650
+#: app_ui/pages/findings.py:1654
 msgid "Marked as urgent."
 msgstr ""
 
-#: app_ui/pages/findings.py:1650
+#: app_ui/pages/findings.py:1654
 msgid "No longer marked as urgent."
 msgstr ""
 
-#: app_ui/pages/findings.py:1657
+#: app_ui/pages/findings.py:1661
 msgid "Reminder removed."
 msgstr ""
 
-#: app_ui/pages/findings.py:1659
+#: app_ui/pages/findings.py:1663
 msgid "A reminder has to fall on or before the deadline."
 msgstr ""
 
-#: app_ui/pages/findings.py:1662
+#: app_ui/pages/findings.py:1666
 #, python-brace-format
 msgid "Reminder set for {date}."
 msgstr ""
 
-#: app_ui/pages/findings.py:1668
+#: app_ui/pages/findings.py:1672
 msgid "Remind me again in …"
 msgstr ""
 
-#: app_ui/pages/findings.py:1669
+#: app_ui/pages/findings.py:1673
 msgid "Days"
 msgstr ""
 
-#: app_ui/pages/findings.py:1671
+#: app_ui/pages/findings.py:1675
 #, python-brace-format
 msgid "At most {n} days — the deadline is {date}."
 msgstr ""
 
-#: app_ui/pages/findings.py:1680
+#: app_ui/pages/findings.py:1684
 #, python-brace-format
 msgid "Enter a number from 1 to {n}."
 msgstr ""
 
-#: app_ui/pages/findings.py:1687
+#: app_ui/pages/findings.py:1691
 msgid "Set reminder"
 msgstr ""
 
-#: app_ui/pages/findings.py:1692
+#: app_ui/pages/findings.py:1696
 msgid "Not urgent"
 msgstr ""
 
-#: app_ui/pages/findings.py:1695
+#: app_ui/pages/findings.py:1699
 msgid "Mark as urgent"
 msgstr ""
 
-#: app_ui/pages/findings.py:1710
+#: app_ui/pages/findings.py:1714
 msgid "Remove reminder"
 msgstr ""
 
-#: app_ui/pages/findings.py:1711
+#: app_ui/pages/findings.py:1715
 msgid "Remind me in …"
 msgstr ""
 
-#: app_ui/pages/findings.py:1711
+#: app_ui/pages/findings.py:1715
 msgid "Change reminder"
 msgstr ""
 
-#: app_ui/pages/findings.py:1716
+#: app_ui/pages/findings.py:1720
 #, python-brace-format
 msgid "{n} days"
 msgstr ""
 
-#: app_ui/pages/findings.py:1716
+#: app_ui/pages/findings.py:1720
 msgid "1 day"
 msgstr ""
 
-#: app_ui/pages/findings.py:1718
+#: app_ui/pages/findings.py:1722
 msgid "Other …"
 msgstr ""
 
-#: app_ui/pages/findings.py:1768 app_ui/pages/findings.py:2409
-#: app_ui/pages/findings.py:2429 app_ui/pages/findings.py:2443
-#: app_ui/pages/findings.py:2473
+#: app_ui/pages/findings.py:1772 app_ui/pages/findings.py:2413
+#: app_ui/pages/findings.py:2433 app_ui/pages/findings.py:2447
+#: app_ui/pages/findings.py:2477
 msgid "This dossier no longer exists."
 msgstr ""
 
-#: app_ui/pages/findings.py:1778
+#: app_ui/pages/findings.py:1782
 #, python-brace-format
 msgid "{n} findings"
 msgstr ""
 
-#: app_ui/pages/findings.py:1779 app_ui/pages/findings.py:2378
+#: app_ui/pages/findings.py:1783 app_ui/pages/findings.py:2382
 #, python-brace-format
 msgid "{n} insights"
 msgstr ""
 
-#: app_ui/pages/findings.py:1781
+#: app_ui/pages/findings.py:1785
 #, python-brace-format
 msgid "revisit {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:1783
+#: app_ui/pages/findings.py:1787
 msgid "made by you"
 msgstr ""
 
-#: app_ui/pages/findings.py:1787
+#: app_ui/pages/findings.py:1791
 msgid "Rescan — rewrite it from all its documents"
 msgstr ""
 
-#: app_ui/pages/findings.py:1788 app_ui/pages/findings.py:2166
-#: app_ui/pages/findings.py:2184
+#: app_ui/pages/findings.py:1792 app_ui/pages/findings.py:2170
+#: app_ui/pages/findings.py:2188
 msgid "Add documents"
 msgstr ""
 
-#: app_ui/pages/findings.py:1791 app_ui/pages/findings.py:2562
+#: app_ui/pages/findings.py:1795 app_ui/pages/findings.py:2566
 msgid "Move to folder"
 msgstr ""
 
-#: app_ui/pages/findings.py:1792
+#: app_ui/pages/findings.py:1796
 msgid "Merge into another dossier …"
 msgstr ""
 
-#: app_ui/pages/findings.py:1793
+#: app_ui/pages/findings.py:1797
 msgid "Default expert for its chat"
 msgstr ""
 
-#: app_ui/pages/findings.py:1795
+#: app_ui/pages/findings.py:1799
 msgid "Archive — close the matter"
 msgstr ""
 
-#: app_ui/pages/findings.py:1796
+#: app_ui/pages/findings.py:1800
 msgid "Reset — delete and read its documents again"
 msgstr ""
 
-#: app_ui/pages/findings.py:1798 app_ui/pages/findings.py:2396
+#: app_ui/pages/findings.py:1802 app_ui/pages/findings.py:2400
 msgid "Delete dossier"
 msgstr ""
 
-#: app_ui/pages/findings.py:1803 proactive/dossiers.py:254
+#: app_ui/pages/findings.py:1807 proactive/dossiers.py:254
 msgid "Research"
 msgstr ""
 
-#: app_ui/pages/findings.py:1832
+#: app_ui/pages/findings.py:1836
 msgid ""
 "Rescan queued — the model rewrites this dossier from all documents of the"
 " matter; it gives way while you chat."
 msgstr ""
 
-#: app_ui/pages/findings.py:1836
+#: app_ui/pages/findings.py:1840
 #, python-brace-format
 msgid ""
 "{n} documents of this matter are not in the dossier yet (added by you or "
 "from its findings)."
 msgstr ""
 
-#: app_ui/pages/findings.py:1838
+#: app_ui/pages/findings.py:1842
 msgid ""
 "Changed by hand — the state is out of date. Rescan now, or it is "
 "rescanned in the night."
 msgstr ""
 
-#: app_ui/pages/findings.py:1840
+#: app_ui/pages/findings.py:1844
 msgid "Rescan"
 msgstr ""
 
-#: app_ui/pages/findings.py:1849
+#: app_ui/pages/findings.py:1853
 msgid ""
 "Allow background access first (Settings > Proactive) — the rescan runs in"
 " the background, as you."
 msgstr ""
 
-#: app_ui/pages/findings.py:1853
+#: app_ui/pages/findings.py:1857
 msgid "This dossier has no documents yet. Add some, or file a finding into it."
 msgstr ""
 
-#: app_ui/pages/findings.py:1859
+#: app_ui/pages/findings.py:1863
 msgid ""
 "Rescan queued. State, timeline and open questions are rewritten; your "
 "insights, research and added documents stay."
 msgstr ""
 
-#: app_ui/pages/findings.py:1867
+#: app_ui/pages/findings.py:1871
 #, python-brace-format
 msgid "Add documents to “{name}”"
 msgstr ""
 
-#: app_ui/pages/findings.py:1869
+#: app_ui/pages/findings.py:1873
 msgid ""
 "Search your documents by title or content, or type #123. Added documents "
 "are read on the next rescan and never dropped by a rebuild."
 msgstr ""
 
-#: app_ui/pages/findings.py:1871
+#: app_ui/pages/findings.py:1875
 msgid "Search documents"
 msgstr ""
 
-#: app_ui/pages/findings.py:1897
+#: app_ui/pages/findings.py:1901
 msgid "already in it"
 msgstr ""
 
-#: app_ui/pages/findings.py:1909
+#: app_ui/pages/findings.py:1913
 msgid "Added. Press Rescan to have the model read them."
 msgstr ""
 
-#: app_ui/pages/findings.py:1915 werkbank/v2/ui/brief_dialog.py:76
+#: app_ui/pages/findings.py:1919 werkbank/v2/ui/brief_dialog.py:76
 msgid "Add"
 msgstr ""
 
-#: app_ui/pages/findings.py:1926
+#: app_ui/pages/findings.py:1930
 msgid ""
 "The finding moves to the dossier's topic; its documents join the dossier "
 "and are read on the next rescan."
 msgstr ""
 
-#: app_ui/pages/findings.py:1942 app_ui/pages/findings.py:2515
+#: app_ui/pages/findings.py:1946 app_ui/pages/findings.py:2519
 msgid "That name is taken."
 msgstr ""
 
-#: app_ui/pages/findings.py:1942 app_ui/pages/findings.py:2515
+#: app_ui/pages/findings.py:1946 app_ui/pages/findings.py:2519
 msgid "Enter a name."
 msgstr ""
 
-#: app_ui/pages/findings.py:1947
+#: app_ui/pages/findings.py:1951
 #, python-brace-format
 msgid "Filed in “{name}”."
 msgstr ""
 
-#: app_ui/pages/findings.py:1953
+#: app_ui/pages/findings.py:1957
 msgid "File"
 msgstr ""
 
-#: app_ui/pages/findings.py:1969 proactive/dossiers.py:241
+#: app_ui/pages/findings.py:1973 proactive/dossiers.py:241
 msgid "Current state"
 msgstr ""
 
-#: app_ui/pages/findings.py:1973
+#: app_ui/pages/findings.py:1977
 msgid "Not written yet — it is built from the documents of this matter."
 msgstr ""
 
-#: app_ui/pages/findings.py:1974
+#: app_ui/pages/findings.py:1978
 msgid "Save insights from the chat to fill this dossier."
 msgstr ""
 
-#: app_ui/pages/findings.py:1981
+#: app_ui/pages/findings.py:1985
 msgid "Latest insight"
 msgstr ""
 
-#: app_ui/pages/findings.py:1983
+#: app_ui/pages/findings.py:1987
 #, python-brace-format
 msgid "All {n}"
 msgstr ""
 
-#: app_ui/pages/findings.py:1987 proactive/dossiers.py:245
+#: app_ui/pages/findings.py:1991 proactive/dossiers.py:245
 msgid "Open questions"
 msgstr ""
 
-#: app_ui/pages/findings.py:1988
+#: app_ui/pages/findings.py:1992
 msgid ""
 "Tick one off when it is answered, ask the chat about it, or remove it. A "
 "rescan never brings back what you ticked or removed."
 msgstr ""
 
-#: app_ui/pages/findings.py:1996
+#: app_ui/pages/findings.py:2000
 msgid "None."
 msgstr ""
 
-#: app_ui/pages/findings.py:2001
+#: app_ui/pages/findings.py:2005
 msgid "Answered"
 msgstr ""
 
-#: app_ui/pages/findings.py:2005
+#: app_ui/pages/findings.py:2009
 msgid "Ask the chat"
 msgstr ""
 
-#: app_ui/pages/findings.py:2008
+#: app_ui/pages/findings.py:2012
 msgid "Not a question here — remove"
 msgstr ""
 
-#: app_ui/pages/findings.py:2013
+#: app_ui/pages/findings.py:2017
 msgid "Open again"
 msgstr ""
 
-#: app_ui/pages/findings.py:2018
+#: app_ui/pages/findings.py:2022
 msgid "Add a question of your own"
 msgstr ""
 
-#: app_ui/pages/findings.py:2032
+#: app_ui/pages/findings.py:2036
 msgid "Open findings"
 msgstr ""
 
-#: app_ui/pages/findings.py:2041
+#: app_ui/pages/findings.py:2045
 msgid "No timeline yet."
 msgstr ""
 
-#: app_ui/pages/findings.py:2057
+#: app_ui/pages/findings.py:2061
 msgid "No findings on this matter."
 msgstr ""
 
-#: app_ui/pages/findings.py:2065
+#: app_ui/pages/findings.py:2069
 msgid "reasoning only"
 msgstr ""
 
-#: app_ui/pages/findings.py:2077
+#: app_ui/pages/findings.py:2081
 msgid "Open the conversation"
 msgstr ""
 
-#: app_ui/pages/findings.py:2082
+#: app_ui/pages/findings.py:2086
 msgid "Insight removed."
 msgstr ""
 
-#: app_ui/pages/findings.py:2087
+#: app_ui/pages/findings.py:2091
 msgid "Remove this insight from the dossier? The chat conversation stays."
 msgstr ""
 
-#: app_ui/pages/findings.py:2088
+#: app_ui/pages/findings.py:2092
 msgid "Remove insight"
 msgstr ""
 
-#: app_ui/pages/findings.py:2115 proactive/dossiers.py:231
+#: app_ui/pages/findings.py:2119 proactive/dossiers.py:231
 #, python-brace-format
 msgid "unconfirmed numbers: {n}"
 msgstr ""
 
-#: app_ui/pages/findings.py:2141
+#: app_ui/pages/findings.py:2145
 msgid ""
 "Saved from chat answers with “Save to dossier”. Sources come from the "
 "answer's own tool calls — the model cannot add any."
 msgstr ""
 
-#: app_ui/pages/findings.py:2144
+#: app_ui/pages/findings.py:2148
 msgid "Ask about this dossier"
 msgstr ""
 
-#: app_ui/pages/findings.py:2165
+#: app_ui/pages/findings.py:2169
 msgid "No documents linked yet."
 msgstr ""
 
-#: app_ui/pages/findings.py:2181 app_ui/pages/findings.py:2279
+#: app_ui/pages/findings.py:2185 app_ui/pages/findings.py:2283
 msgid "Take out"
 msgstr ""
 
-#: app_ui/pages/findings.py:2212
+#: app_ui/pages/findings.py:2216
 msgid "added by you"
 msgstr ""
 
-#: app_ui/pages/findings.py:2213
+#: app_ui/pages/findings.py:2217
 msgid "not read yet"
 msgstr ""
 
-#: app_ui/pages/findings.py:2241
+#: app_ui/pages/findings.py:2245
 msgid "There is no other dossier yet — make one first."
 msgstr ""
 
-#: app_ui/pages/findings.py:2244
+#: app_ui/pages/findings.py:2248
 #, python-brace-format
 msgid "Move {n} documents"
 msgstr ""
 
-#: app_ui/pages/findings.py:2246
+#: app_ui/pages/findings.py:2250
 #, python-brace-format
 msgid ""
 "They leave “{name}” for good — a rescan does not bring them back — and "
 "join the dossier you pick. A finding whose documents all move goes along."
 msgstr ""
 
-#: app_ui/pages/findings.py:2259
+#: app_ui/pages/findings.py:2263
 #, python-brace-format
 msgid "Moved. {n} findings went along."
 msgstr ""
 
-#: app_ui/pages/findings.py:2259
+#: app_ui/pages/findings.py:2263
 msgid "Moved."
 msgstr ""
 
-#: app_ui/pages/findings.py:2274
+#: app_ui/pages/findings.py:2278
 msgid "Taken out of the dossier."
 msgstr ""
 
-#: app_ui/pages/findings.py:2277
+#: app_ui/pages/findings.py:2281
 #, python-brace-format
 msgid ""
 "Take {n} documents out of “{name}”? A rescan does not bring them back; "
 "their findings stay where they are."
 msgstr ""
 
-#: app_ui/pages/findings.py:2284
+#: app_ui/pages/findings.py:2288
 msgid "There is no other dossier to merge with."
 msgstr ""
 
-#: app_ui/pages/findings.py:2287
+#: app_ui/pages/findings.py:2291
 #, python-brace-format
 msgid "Merge “{name}” into …"
 msgstr ""
 
-#: app_ui/pages/findings.py:2289
+#: app_ui/pages/findings.py:2293
 #, python-brace-format
 msgid ""
 "The dossier you pick takes over its findings, documents, insights, "
@@ -6270,24 +6293,24 @@ msgid ""
 "as a record under “Deleted dossiers”."
 msgstr ""
 
-#: app_ui/pages/findings.py:2303
+#: app_ui/pages/findings.py:2307
 #, python-brace-format
 msgid "Merged into “{name}”."
 msgstr ""
 
-#: app_ui/pages/findings.py:2308
+#: app_ui/pages/findings.py:2312
 msgid "Merge"
 msgstr ""
 
-#: app_ui/pages/findings.py:2314
+#: app_ui/pages/findings.py:2318
 msgid "No research on this matter yet. “Start research” on one of its findings."
 msgstr ""
 
-#: app_ui/pages/findings.py:2327
+#: app_ui/pages/findings.py:2331
 msgid "Rescan all"
 msgstr ""
 
-#: app_ui/pages/findings.py:2329
+#: app_ui/pages/findings.py:2333
 msgid ""
 "Dossiers whose state is out of date: changed by hand — documents added, "
 "moved or taken out, merged — or with documents they do not cover yet. "
@@ -6295,91 +6318,91 @@ msgid ""
 "the night."
 msgstr ""
 
-#: app_ui/pages/findings.py:2333
+#: app_ui/pages/findings.py:2337
 msgid "Nothing pending."
 msgstr ""
 
-#: app_ui/pages/findings.py:2339
+#: app_ui/pages/findings.py:2343
 #, python-brace-format
 msgid "{n} new"
 msgstr ""
 
-#: app_ui/pages/findings.py:2340
+#: app_ui/pages/findings.py:2344
 msgid "rescan queued"
 msgstr ""
 
-#: app_ui/pages/findings.py:2345
+#: app_ui/pages/findings.py:2349
 #, python-brace-format
 msgid ""
 "{n} rescans queued — they run one after another as soon as the model is "
 "free."
 msgstr ""
 
-#: app_ui/pages/findings.py:2359
+#: app_ui/pages/findings.py:2363
 msgid ""
 "Closed matters. Their findings are done, nothing is sent for them; a new "
 "document of the matter is only noted. Unarchive brings everything back."
 msgstr ""
 
-#: app_ui/pages/findings.py:2361
+#: app_ui/pages/findings.py:2365
 msgid ""
 "What was deleted, kept as a record: restore it, or reset it — the worker "
 "then reads its documents again as if new."
 msgstr ""
 
-#: app_ui/pages/findings.py:2371
+#: app_ui/pages/findings.py:2375
 #, python-brace-format
 msgid "archived {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:2372
+#: app_ui/pages/findings.py:2376
 #, python-brace-format
 msgid "reset {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:2373
+#: app_ui/pages/findings.py:2377
 #, python-brace-format
 msgid "deleted {date}"
 msgstr ""
 
-#: app_ui/pages/findings.py:2376
+#: app_ui/pages/findings.py:2380
 #, python-brace-format
 msgid "{n} new since"
 msgstr ""
 
-#: app_ui/pages/findings.py:2382
+#: app_ui/pages/findings.py:2386
 msgid "Unarchive"
 msgstr ""
 
-#: app_ui/pages/findings.py:2384 app_ui/pages/findings.py:2389
+#: app_ui/pages/findings.py:2388 app_ui/pages/findings.py:2393
 msgid "Back in your dossiers."
 msgstr ""
 
-#: app_ui/pages/findings.py:2387 proactive/notify/__init__.py:38
+#: app_ui/pages/findings.py:2391 proactive/notify/__init__.py:38
 msgid "Restore"
 msgstr ""
 
-#: app_ui/pages/findings.py:2393
+#: app_ui/pages/findings.py:2397
 msgid "Reset — read its documents again"
 msgstr ""
 
-#: app_ui/pages/findings.py:2398
+#: app_ui/pages/findings.py:2402
 msgid "Remove the record for good"
 msgstr ""
 
-#: app_ui/pages/findings.py:2401
+#: app_ui/pages/findings.py:2405
 msgid "Last state"
 msgstr ""
 
-#: app_ui/pages/findings.py:2408 app_ui/pages/findings.py:2472
+#: app_ui/pages/findings.py:2412 app_ui/pages/findings.py:2476
 msgid "A dossier of that matter exists already — delete or archive it first."
 msgstr ""
 
-#: app_ui/pages/findings.py:2431
+#: app_ui/pages/findings.py:2435
 msgid "Archived. Its findings are done; you find it under Archive."
 msgstr ""
 
-#: app_ui/pages/findings.py:2434
+#: app_ui/pages/findings.py:2438
 #, python-brace-format
 msgid ""
 "Archive “{name}”? Its open findings and deadlines are closed and nothing "
@@ -6387,11 +6410,11 @@ msgid ""
 "You can unarchive it at any time."
 msgstr ""
 
-#: app_ui/pages/findings.py:2445
+#: app_ui/pages/findings.py:2449
 msgid "Deleted. A record is kept under “Deleted dossiers”."
 msgstr ""
 
-#: app_ui/pages/findings.py:2448
+#: app_ui/pages/findings.py:2452
 #, python-brace-format
 msgid ""
 "Delete “{name}”? Its findings stay (they show as not in a dossier), and "
@@ -6399,20 +6422,20 @@ msgid ""
 "under “Deleted dossiers”, so you can restore or reset it later."
 msgstr ""
 
-#: app_ui/pages/findings.py:2456
+#: app_ui/pages/findings.py:2460
 msgid ""
 "Allow background access first (Settings > Proactive) — the worker reads "
 "the documents in the background, as you."
 msgstr ""
 
-#: app_ui/pages/findings.py:2479
+#: app_ui/pages/findings.py:2483
 #, python-brace-format
 msgid ""
 "Reset. {n} documents are queued; the worker reads them as soon as the "
 "model is free, and writes findings — and a dossier — again."
 msgstr ""
 
-#: app_ui/pages/findings.py:2484
+#: app_ui/pages/findings.py:2488
 #, python-brace-format
 msgid ""
 "Reset “{name}”? The dossier and its {n} findings are deleted — notes and "
@@ -6421,20 +6444,20 @@ msgid ""
 " dossiers”."
 msgstr ""
 
-#: app_ui/pages/findings.py:2487
+#: app_ui/pages/findings.py:2491
 msgid "Reset"
 msgstr ""
 
-#: app_ui/pages/findings.py:2492
+#: app_ui/pages/findings.py:2496
 msgid "Record removed."
 msgstr ""
 
-#: app_ui/pages/findings.py:2496
+#: app_ui/pages/findings.py:2500
 #, python-brace-format
 msgid "Remove the record of “{name}” for good? This cannot be undone."
 msgstr ""
 
-#: app_ui/pages/findings.py:2533
+#: app_ui/pages/findings.py:2537
 msgid ""
 "A dossier is a binder for one matter. It starts empty: add documents to "
 "it, file findings into it, or save chat answers to it — then “Rescan” has"
@@ -6443,41 +6466,41 @@ msgid ""
 "themselves."
 msgstr ""
 
-#: app_ui/pages/findings.py:2543
+#: app_ui/pages/findings.py:2547
 msgid "Folder (use / for subfolders)"
 msgstr ""
 
-#: app_ui/pages/findings.py:2544
+#: app_ui/pages/findings.py:2548
 msgid ""
 "Folders only sort your dossiers, like folders in Obsidian (they are "
 "folders in your vault). Nothing reads them, and moving a dossier changes "
 "nothing about what lands in it."
 msgstr ""
 
-#: app_ui/pages/findings.py:2553
+#: app_ui/pages/findings.py:2557
 msgid "Rename dossier"
 msgstr ""
 
-#: app_ui/pages/findings.py:2554
+#: app_ui/pages/findings.py:2558
 msgid ""
 "Only the name changes. The dossier keeps its topic, so new findings and "
 "documents of this matter still land in it."
 msgstr ""
 
-#: app_ui/pages/findings.py:2561
+#: app_ui/pages/findings.py:2565
 msgid "(top level)"
 msgstr ""
 
-#: app_ui/pages/findings.py:2570
+#: app_ui/pages/findings.py:2574
 #, python-brace-format
 msgid "Your default expert ({name})"
 msgstr ""
 
-#: app_ui/pages/findings.py:2575
+#: app_ui/pages/findings.py:2579
 msgid "Default expert for this dossier's chat"
 msgstr ""
 
-#: app_ui/pages/findings.py:2695
+#: app_ui/pages/findings.py:2699
 msgid "Talk about the selection"
 msgstr ""
 
@@ -7045,7 +7068,7 @@ msgid ""
 "every chat is then the Universal expert, and your experts stay saved."
 msgstr ""
 
-#: app_ui/pages/settings.py:1076 werkbank/v2/ui/page.py:545
+#: app_ui/pages/settings.py:1076 werkbank/v2/ui/page.py:569
 msgid "AI deep research"
 msgstr ""
 
@@ -7813,7 +7836,7 @@ msgstr ""
 msgid "Could not create the brief: {err}"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:148 werkbank/v2/ui/page.py:287
+#: werkbank/v2/ui/page.py:148 werkbank/v2/ui/page.py:306
 msgid "Run not found."
 msgstr ""
 
@@ -7837,7 +7860,7 @@ msgstr ""
 msgid "Preparing the PDF…"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:210
+#: werkbank/v2/ui/page.py:210 werkbank/v2/ui/page.py:231
 msgid "Research report"
 msgstr ""
 
@@ -7846,94 +7869,94 @@ msgstr ""
 msgid "Could not create the PDF: {err}"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:243
+#: werkbank/v2/ui/page.py:262
 msgid "Run deleted."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:249
+#: werkbank/v2/ui/page.py:268
 msgid "Delete this run?"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:254
+#: werkbank/v2/ui/page.py:273
 msgid "It is still running — it will be stopped."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:257
+#: werkbank/v2/ui/page.py:276
 #, python-brace-format
 msgid ""
 "The board and every fact behind it are gone for good. The report stays in"
 " your vault, in {folder}."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:261
+#: werkbank/v2/ui/page.py:280
 msgid "Keep"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:320
+#: werkbank/v2/ui/page.py:339
 msgid "Markdown"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:326
+#: werkbank/v2/ui/page.py:345
 msgid "PDF"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:336
+#: werkbank/v2/ui/page.py:360
 msgid "Assignment"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:348
+#: werkbank/v2/ui/page.py:372
 #, python-brace-format
 msgid "The report is a note in your vault: {folder}"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:355
+#: werkbank/v2/ui/page.py:379
 msgid "The report appears when the run has finished."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:419
+#: werkbank/v2/ui/page.py:443
 msgid "No runs yet."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:459
+#: werkbank/v2/ui/page.py:483
 #, python-brace-format
 msgid "{done}/{total} subtasks"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:466
+#: werkbank/v2/ui/page.py:490
 msgid "Review"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:484
+#: werkbank/v2/ui/page.py:508
 msgid "Start / resume"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:506
+#: werkbank/v2/ui/page.py:530
 msgid "New research assignment"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:509
+#: werkbank/v2/ui/page.py:533
 msgid "What should be researched?"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:510
+#: werkbank/v2/ui/page.py:534
 msgid ""
 "e.g. Which notice periods apply to my contracts, and which of them are "
 "statutory?"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:533
+#: werkbank/v2/ui/page.py:557
 msgid "Formulating the assignment — you can leave this page."
 msgstr ""
 
-#: werkbank/v2/ui/page.py:536
+#: werkbank/v2/ui/page.py:560
 msgid "Continue"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:554
+#: werkbank/v2/ui/page.py:578
 msgid "Agents"
 msgstr ""
 
-#: werkbank/v2/ui/page.py:556
+#: werkbank/v2/ui/page.py:580
 msgid "New run"
 msgstr ""
 

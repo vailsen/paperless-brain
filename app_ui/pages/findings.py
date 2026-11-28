@@ -134,9 +134,9 @@ def _dead_run_links(body: str, user: str) -> str:
 
 
 def _wikilinks(body: str, user: str = "") -> str:
-    """Obsidian links: one to a research note opens its PDF; any other is
-    shown as its text — the page has nowhere to open a note."""
-    from app_ui.research_routes import pdf_url
+    """Obsidian links: one to a research note opens its PDF, with a Word copy
+    beside it; any other is shown as its text — the page has nowhere to open a note."""
+    from app_ui.research_routes import docx_url, pdf_url
     from vault.research import research_rel, wikilink_target
 
     root = research_rel().strip("/") + "/"
@@ -146,7 +146,8 @@ def _wikilinks(body: str, user: str = "") -> str:
         if target.startswith(root):
             if user and not _note_exists(user, wikilink_target(target)):
                 return _deleted(label)
-            return f"[{label}]({pdf_url(wikilink_target(target))})"
+            rel = wikilink_target(target)
+            return f"[{label}]({pdf_url(rel)}) ([Word]({docx_url(rel)}))"
         return label
 
     return _WIKILINK.sub(repl, body)
@@ -1457,11 +1458,14 @@ async def _workspace(*, dossier: str, finding: str, tab: str, view: str, action:
             with ui.row().classes("w-full items-center justify-between gap-2"):
                 _back_btn()
                 with ui.row().classes("items-center gap-1 no-wrap"):
-                    from app_ui.research_routes import finding_pdf_url
+                    from app_ui.research_routes import finding_docx_url, finding_pdf_url
 
                     ui.button(icon="picture_as_pdf",
                               on_click=lambda: ui.navigate.to(finding_pdf_url(fid), new_tab=True)).props(
                         "flat dense round").classes("card-action-btn").tooltip(_("Finding as PDF"))
+                    ui.button(icon="description",
+                              on_click=lambda: ui.navigate.to(finding_docx_url(fid))).props(
+                        "flat dense round").classes("card-action-btn").tooltip(_("Finding as Word document"))
                     if f is not None:
                         d = next((x for x in dmod.list_dossiers(user) if x.topic == f.topic), None) if f.topic else None
                         ui.button(_("File in a dossier") if d is None else _("Move to another dossier"),

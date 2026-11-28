@@ -69,6 +69,15 @@ def provenance(answer: str, trace: list[dict], *, model: str = "", expert: str =
     }
 
 
+def returned_ids(trace: list[dict]) -> list[int]:
+    """Every document a tool returned this turn (its whole output, not the
+    capped one) — documents the user's own token was shown, so checking an
+    answer's facts against them reveals nothing new (`services/fact_check`)."""
+    ids = {int(a or b) for t in trace
+           for a, b in _REF_RE.findall(str(t.get("output_full") or t.get("output") or ""))}
+    return sorted(ids)
+
+
 def plain_refs(text: str) -> str:
     """Chat citation markers (`[^241-p3]`) mean nothing outside the chat
     bubble; in a dossier they become readable references (`[#241 p3]`)."""
