@@ -36,7 +36,10 @@ async def open_save_dialog(
     msg_index: int, preselect: str, models: list[dict], default_model: str,
     on_saved: Callable[[str], None] | None = None,
     conversation: list[dict] | None = None, conv_provenance: dict | None = None,
+    start_mode: str = "answer",
 ) -> None:
+    """`start_mode="conversation"` opens on the whole conversation (the chat
+    menu's "Save…"); an answer's "Save…" opens on the answer or selection."""
     from app_ui.model_picker import model_select
     from proactive import dossiers
     from services import dossier_merge
@@ -49,7 +52,7 @@ async def open_save_dialog(
         t = dossier_merge.transcript(conversation)
         if t and sum(1 for m in conversation if m.get("role") == "assistant") > 1:
             whole = {"excerpt": t, "prov": conv_provenance or {}}
-    cur = {"mode": "answer"}
+    cur = {"mode": "conversation" if start_mode == "conversation" and whole else "answer"}
 
     def _excerpt() -> str:
         return (whole if cur["mode"] == "conversation" and whole else one)["excerpt"]
@@ -80,7 +83,7 @@ async def open_save_dialog(
         mode_toggle = None
         if whole:
             mode_toggle = ui.toggle({"answer": _("This answer") if not selection else _("The selected text"),
-                       "conversation": _("The whole conversation")}, value="answer",
+                       "conversation": _("The whole conversation")}, value=cur["mode"],
                       on_change=lambda e: _mode(e.value)).props("dense no-caps unelevated").classes("self-start")
         src_host = ui.column().classes("w-full gap-2")
 
@@ -289,6 +292,7 @@ async def open_save_dialog(
             on_saved(topic)
 
     _render_src()
+    verbatim_btn.set_visibility(cur["mode"] == "answer")
     again_btn.on_click(_reset)
     merge_btn.on_click(_merge)
     verbatim_btn.on_click(_verbatim)

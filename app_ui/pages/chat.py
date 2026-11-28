@@ -1073,7 +1073,7 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
         ("receipt_long", _("Invoices"), _("Are there any open invoices or outstanding payments?")),
         ("edit_note", _("Write a letter"), lambda: _compose("letter")),
         ("outgoing_mail", _("Write an email"), lambda: _compose("email")),
-        ("save", _("Save chat to Paperless"), lambda: _save_chat_to_paperless()),
+        ("save", _("Save conversation"), lambda: _save_conversation()),
     ]
 
     open_document, _doc_dlg = create_document_dialog(
@@ -2778,8 +2778,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 ui.separator()
                                 _conv_item("download", _("Download conversation as Markdown"),
                                            lambda: _dl_conversation())
-                                _conv_item("save", _("Save chat to Paperless"),
-                                           lambda: _save_chat_to_paperless())
+                                _conv_item("save", _("Save conversation …"),
+                                           lambda: _save_conversation())
                                 # Stays when the Deep research module is hidden: hiding
                                 # takes a module out of the menus, not its features.
                                 _conv_item("travel_explore", _("Deep research from this chat"),
@@ -3946,55 +3946,99 @@ window.__openVaultNote = function(noteId) {{
         return None
 
     # ── Save to dossier (app_ui/dossier_save.py) ──────────────────────────────
-    def _memory_action(bubble_el, content: str):
-        async def _click() -> None:
-            # The selection was taken when the "…" button was pressed (as for a dossier).
-            try:
-                picked = await ui.run_javascript(
-                    "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
-                    "return (s&&s.id===" + json.dumps(bubble_el.html_id) + ")?s.text:'';})()",
-                    timeout=2.0)
-            except Exception:
-                picked = ""
-            from app_ui.memory_save import open_memory_dialog
+    async def _read_selection(bubble_el) -> str:
+        """The text selected in this answer when its "…" (or the dock's save)
+        button was pressed — the menu click itself collapses the selection."""
+        try:
+            picked = await ui.run_javascript(
+                "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
+                "return (s&&s.id===" + json.dumps(bubble_el.html_id) + ")?s.text:'';})()",
+                timeout=2.0)
+        except Exception:
+            picked = ""
+        return (picked or "").strip()
 
-            await open_memory_dialog(user=_username, answer=content, selection=(picked or "").strip())
+    async def _open_dossier_dialog(idx: int, picked: str = "", *, start_mode: str = "answer") -> None:
+        msgs = _s["messages"]
+        if not (0 <= idx < len(msgs)) or msgs[idx].get("role") != "assistant":
+            ui.notify(_("This answer is no longer in the conversation."), type="warning")
+            return
+        from app_ui.dossier_save import open_save_dialog
+        from services.dossier_merge import merge_provenance
 
-        return _click
+        prov = _s["turn_meta"].get(idx) or {}
+        conv = msgs[: idx + 1]
+        conv_prov = merge_provenance([_s["turn_meta"].get(i) or {} for i in range(idx + 1)
+                                      if msgs[i].get("role") == "assistant"])
+        await open_save_dialog(
+            user=_username, token=get_session_token() or "",
+            answer=msgs[idx]["content"], selection=picked,
+            provenance=prov, conv_id=_s.get("conv_id") or "", msg_index=idx,
+            preselect=(_s.get("dossier_ctx") or {}).get("topic") or "",
+            models=_reg_models, default_model=_s.get("chat_model_name", ""),
+            on_saved=_on_insight_saved, conversation=conv, conv_provenance=conv_prov,
+            start_mode=start_mode,
+        )
 
     def _save_action(idx: int, bubble_el):
+        """The dock's own "Save to dossier" button."""
         async def _click() -> None:
-            msgs = _s["messages"]
-            if not (0 <= idx < len(msgs)) or msgs[idx].get("role") != "assistant":
-                ui.notify(_("This answer is no longer in the conversation."), type="warning")
-                return
-            # The selection was taken when the "…" button was pressed — the menu
-            # click itself collapses it.
-            try:
-                picked = await ui.run_javascript(
-                    "(function(){var s=window.__pbSelSnap;window.__pbSelSnap=null;"
-                    "return (s&&s.id===" + json.dumps(bubble_el.html_id) + ")?s.text:'';})()",
-                    timeout=2.0)
-            except Exception:
-                picked = ""
-            from app_ui.dossier_save import open_save_dialog
-
-            prov = _s["turn_meta"].get(idx) or {}
-            from services.dossier_merge import merge_provenance
-
-            conv = msgs[: idx + 1]
-            conv_prov = merge_provenance([_s["turn_meta"].get(i) or {} for i in range(idx + 1)
-                                          if msgs[i].get("role") == "assistant"])
-            await open_save_dialog(
-                user=_username, token=get_session_token() or "",
-                answer=msgs[idx]["content"], selection=(picked or "").strip(),
-                provenance=prov, conv_id=_s.get("conv_id") or "", msg_index=idx,
-                preselect=(_s.get("dossier_ctx") or {}).get("topic") or "",
-                models=_reg_models, default_model=_s.get("chat_model_name", ""),
-                on_saved=_on_insight_saved, conversation=conv, conv_provenance=conv_prov,
-            )
+            await _open_dossier_dialog(idx, await _read_selection(bubble_el))
 
         return _click
+
+    def _conv_title() -> str:
+        conv = _chat_hist.get_conversation(_s["conv_id"], _username) if _s.get("conv_id") and _username else None
+        return ((conv or {}).get("title") or "").strip()
+
+    def _answer_to_paperless(content: str, picked: str) -> None:
+        from services.dossier_merge import plain_refs
+        from services.web_citations import plain_web_refs
+
+        text = plain_refs(plain_web_refs((picked or content or "").strip()))
+        if not text:
+            ui.notify(_("Nothing to save yet."), type="info")
+            return
+        title = _conv_title() or " ".join(text.split())[:80]
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", title).strip("_")[:30] or "Chat"
+        _open_pdf_dialog(title, text + "\n", slug)
+
+    def _save_answer_action(idx: int, bubble_el, content: str):
+        """The answer's "Save…": the selected text if there is one, else the
+        answer — to memory, a dossier or Paperless (app_ui/save_chooser.py)."""
+        async def _click() -> None:
+            from app_ui import save_chooser
+
+            picked = await _read_selection(bubble_el)
+            where = await save_chooser.choose(
+                "selection" if picked else "answer",
+                dossiers_on=_dossiers_on and idx >= 0, memory_on=bool(_username))
+            if where == save_chooser.MEMORY:
+                from app_ui.memory_save import open_memory_dialog
+
+                await open_memory_dialog(user=_username, answer=content, selection=picked)
+            elif where == save_chooser.DOSSIER:
+                await _open_dossier_dialog(idx, picked)
+            elif where == save_chooser.PAPERLESS:
+                _answer_to_paperless(content, picked)
+
+        return _click
+
+    async def _save_conversation() -> None:
+        """The conversation's "Save…": the whole chat, to a dossier or Paperless."""
+        from app_ui import save_chooser
+
+        msgs = _s["messages"]
+        last = max((i for i, m in enumerate(msgs) if m.get("role") == "assistant"
+                    and isinstance(m.get("content"), str) and m["content"].strip()), default=-1)
+        if last < 0:
+            ui.notify(_("Nothing to save yet."), type="info")
+            return
+        where = await save_chooser.choose("conversation", dossiers_on=_dossiers_on, memory_on=False)
+        if where == save_chooser.DOSSIER:
+            await _open_dossier_dialog(last, start_mode="conversation")
+        elif where == save_chooser.PAPERLESS:
+            _save_chat_to_paperless()
 
     def _prompt_parts(system: str, te, exp, llm_messages: list[dict], tools: list[dict]) -> list[dict]:
         """What the model is given this turn, in parts, for the tool history:
@@ -4065,15 +4109,13 @@ window.__openVaultNote = function(noteId) {{
                 _("Select text first to save only that part"))
             sv.on("mousedown", js_handler=_sel_snapshot_js(bubble_el))
             sv.on_click(_save_action(idx, bubble_el))
-            _answer_menu_full(idx, bubble_el, content, with_save=False, inline=True)
+            _answer_menu_full(idx, bubble_el, content, inline=True)
 
-    def _answer_menu_full(idx: int, bubble_el, content: str, *, with_save: bool = True,
-                          inline: bool = False) -> None:
-        """One "…" button under an answer: Markdown, CSV per table, save to
-        dossier. Four buttons in a row did not line up and crowded a phone.
+    def _answer_menu_full(idx: int, bubble_el, content: str, *, inline: bool = False) -> None:
+        """One "…" button under an answer: Markdown, CSV per table, "Save…".
+        Four buttons in a row did not line up and crowded a phone.
         The tool history is its own icon beside it (live, from the turn's start)."""
         csvs = _extract_markdown_csvs(content) if content else []
-        save = _save_action(idx, bubble_el) if (with_save and content and _dossiers_on and idx >= 0) else None
         if not (content or csvs):
             return
 
@@ -4104,12 +4146,9 @@ window.__openVaultNote = function(noteId) {{
 
                     _item("table_view", _("Table {n} as CSV").format(n=ci + 1) if multi
                           else _("Download table as CSV"), _dl_csv)
-                if save is not None:
-                    _item("create_new_folder", _("Save to dossier (select text first to save only that part)"),
-                          save)
-                if content and _username:
-                    _item("psychology", _("Save as memory (select text first to save only that part)"),
-                          _memory_action(bubble_el, content))
+                if content and idx >= 0:
+                    # One "Save…": memory, dossier or Paperless (app_ui/save_chooser.py).
+                    _item("save", _("Save …"), _save_answer_action(idx, bubble_el, content))
                 if content and not _embed:
                     _item("forward_to_inbox", _("Continue in a new chat"), lambda c=content: _continue_new(c))
 
@@ -4542,7 +4581,7 @@ window.__openVaultNote = function(noteId) {{
             ui.notify(_("Nothing to save yet."), type="info")
             return
         head, _sep, rest = md.partition("\n")
-        title = head.removeprefix("# ").strip()
+        title = _conv_title() or head.removeprefix("# ").strip()
         slug = re.sub(r"[^A-Za-z0-9]+", "_", title).strip("_")[:30] or "Chat"
         _open_pdf_dialog(title, rest.lstrip("\n"), slug)
 

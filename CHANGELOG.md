@@ -26,6 +26,11 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Changed
 
+- **One "Save …" instead of three save items.** Under an answer and in the
+  chat menu, "Save …" asks where it goes — "Remember this", "Add to a
+  dossier" or "File in Paperless" — each with what it is for. Under an answer
+  it saves the selected text or the answer; in the chat menu the whole
+  conversation. An answer can now also be filed in Paperless on its own.
 - **The conversation list uses the drawer's height** instead of folding every
   section after six rows; conversations with an expert other than Universal
   show its icon, and the list's menus have icons.

@@ -213,7 +213,15 @@ reload (`layout.DRAFT_JS`, per address, cleared on send).
 
 ### What needs no model is a button, not a tool
 
-**"Save as memory"** in an answer's "…" menu (`app_ui/memory_save.py`) writes the selection
+**One "Save…"** (`app_ui/save_chooser.py`, 2026-11-28) in an answer's "…" menu and in the
+conversation menu replaces the three save items of two menus: a chooser names the
+destinations by purpose — "Remember this" (memory; never for a whole conversation),
+"Add to a dossier" (only with Findings on), "File in Paperless" — and opens the dialog each
+always had. What is saved comes from where it was opened: the selected text, the answer, or
+the whole conversation (the dossier dialog then starts in conversation mode). The findings
+dock keeps its own "Save to dossier" button.
+
+**"Save as memory"** (`app_ui/memory_save.py`) writes the selection
 (else the plain answer) as a memory through `vault_brain_writer.create_memory`, the path the
 `remember_fact` tool takes: the user edits it first, a near-duplicate is shown with "Save
 anyway", and a single cited document becomes the fact's source. Its **keywords** are the
@@ -221,9 +229,9 @@ memory note's `tags:` property — never Paperless tags, so the field says "Keyw
 suggested from the user's own memories (words found in the text first, then the most used).
 "Save to dossier" offers **AI summary** (the merge round) or **Save verbatim**.
 
-Saving the chat to Paperless and starting a deep-research run (2026-11-14), and writing a
+Saving the chat (through "Save…") and starting a deep-research run (2026-11-14), and writing a
 letter or an email (2026-11-15) are items in the conversation "…" menu and quick chips
-(`_save_chat_to_paperless`, `_research_from_chat`, `_compose`); downloading a document is the
+(`_save_conversation`, `_research_from_chat`, `_compose`); downloading a document is the
 icon on its row in an answer's source box (`/api/doc-download/{id}`, the user's own access
 check). The tools `generate_chat_pdf`, `create_kanban_task`, `download_document`,
 `trigger_docx_generation` and `create_email` are gone — each was a tool schema the model read
