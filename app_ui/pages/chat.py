@@ -136,9 +136,35 @@ def _extract_markdown_csvs(text: str) -> list[bytes]:
     return results
 
 
+_CHECK_SVG = ('<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" '
+              'd="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>')
+
+
+def _fact_key(k: int) -> str:
+    # Letters only: digits in a placeholder would meet the number and #id passes.
+    return "\x02" + "".join(chr(97 + int(d)) for d in str(k)) + "\x02"
+
+
+def _fact_mark(v) -> str:
+    """The check mark behind a hard fact found in its source (`services/fact_check`):
+    a tap opens the page with the fact marked."""
+    _ = get_translator()
+    label = _html.escape(_("Fact verified against source"), quote=True)
+    return (f'<span class="pb-fact" role="button" tabindex="0" title="{label}" aria-label="{label}" '
+            f'data-fact="{v.doc}-{v.page}" data-fact-q="{_html.escape(v.text, quote=True)}">{_CHECK_SVG}</span>')
+
+
 def _inject_doc_links(
-    text: str, vault_index: dict | None = None, titles: dict[int, str] | None = None
+    text: str, vault_index: dict | None = None, titles: dict[int, str] | None = None,
+    facts: list | None = None,
 ) -> str:
+    # The verified facts' marks go in first, while the positions are the raw
+    # text's; placeholders now, the mark itself at the end.
+    fact_marks: dict[str, str] = {}
+    for k, v in sorted(enumerate(facts or []), key=lambda kv: -kv[1].end):
+        key = _fact_key(k)
+        fact_marks[key] = _fact_mark(v)
+        text = text[:v.end] + key + text[v.end:]
     # Before any link injection: a document filename is full of underscores and
     # markdown2 would eat them as emphasis markers.
     text = escape_intraword_underscores(text)
@@ -226,6 +252,8 @@ def _inject_doc_links(
         ),
         text,
     )
+    for key, mark in fact_marks.items():
+        text = text.replace(key, mark)
     if not sources and not web:
         return text
     text = re.sub("\x00(\\d+)\x00", lambda m: sups[int(m.group(1))], text)
@@ -778,6 +806,12 @@ body.pb-editing .chat-quick-strip { display: none !important; }
    Its colour class is layered !important, so set the SVG stroke instead. */
 .chat-ctx-ring .q-circular-progress__track { stroke: var(--c-border-strong) !important; }
 .pb-cite.is-active { background: var(--c-accent); color: #fff; }
+/* A hard fact found in its source (services/fact_check): a small green check
+   right behind it; a tap opens the page with the fact marked. */
+.pb-fact { display: inline-flex; vertical-align: -0.12em; margin-left: 1px; color: var(--c-ok);
+    cursor: pointer; border-radius: 3px; touch-action: manipulation; }
+.pb-fact svg { width: .85em; height: .85em; }
+.pb-fact:hover, .pb-fact.is-active { background: var(--c-ok-soft); }
 .pb-cite-list {
     display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 8px 10px;
     border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface-2);
@@ -1613,6 +1647,40 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     extras=_MD_EXTRAS,
                 ).classes("chat-md pb-note-text")
 
+    _fact_pages: dict[int, list[tuple[int, str]]] = {}  # doc → its pages' text, for this page's life
+
+    def _fact_docs(extra: dict | None = None) -> set[int]:
+        """Documents a tool returned to this user in this conversation — the
+        only ones an answer's facts are checked against (`services/fact_check`)."""
+        out: set[int] = set()
+        for meta in [*(_s.get("turn_meta") or {}).values(), extra or {}]:
+            for d in meta.get("docs") or []:
+                try:
+                    out.add(int(d["id"] if isinstance(d, dict) else d))
+                except (KeyError, TypeError, ValueError):
+                    pass
+            for d in meta.get("read") or []:
+                try:
+                    out.add(int(d))
+                except (TypeError, ValueError):
+                    pass
+        return out
+
+    def _facts_for(text: str, extra_meta: dict | None = None) -> list:
+        """The answer's hard facts found in its sources — each gets a check mark."""
+        from services import fact_check
+
+        def _pages(doc: int) -> list[tuple[int, str]]:
+            if doc not in _fact_pages:
+                _fact_pages[doc] = citations._sidecar_pages(doc)
+            return _fact_pages[doc]
+
+        try:
+            return fact_check.verify(text or "", _fact_docs(extra_meta), _pages)
+        except Exception:  # noqa: BLE001 — a check mark is a nicety; the answer renders without
+            _log.warning("fact check failed", exc_info=True)
+            return []
+
     def _render_stored_msg(msg: dict, idx: int = -1) -> None:
         """Render a single stored message dict into messages_container.
         `idx` = its position in the conversation, for "Save to dossier"."""
@@ -1628,7 +1696,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                     "padding:10px 14px;max-width:85%;min-width:0;font-size:0.875rem;color:var(--c-text-2);"
                 ) as _sb:
                     ui.markdown(
-                        _inject_doc_links(msg["content"], None, _rs.get("doc_titles")),
+                        _inject_doc_links(msg["content"], None, _rs.get("doc_titles"),
+                                          facts=_facts_for(msg["content"])),
                         sanitize=False,
                         extras=_MD_EXTRAS,
                     ).classes("chat-md")
@@ -2778,6 +2847,8 @@ async def chat(finding: str = "", expert: str = "", dossier: str = "", embed: in
                                 ui.separator()
                                 _conv_item("download", _("Download conversation as Markdown"),
                                            lambda: _dl_conversation())
+                                _conv_item("description", _("Download conversation as Word"),
+                                           lambda: _dl_conversation_word())
                                 _conv_item("save", _("Save conversation …"),
                                            lambda: _save_conversation())
                                 # Stays when the Deep research module is hidden: hiding
@@ -3582,6 +3653,31 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
             f"window.__pbScrollToHighlight && window.__pbScrollToHighlight({target.page})"
         )
 
+    async def _open_fact(doc_id: int, page: int, fact: str) -> None:
+        """A verified fact's check mark: the page it was found on, the fact marked."""
+        _rs["preview"] = {"loading": True}
+        _render_preview()
+        _show_drawer_tab("preview")
+        if _src_overlay is not None:
+            _src_overlay.classes(add="open")
+        if not _s["docs_visible"]:
+            _set_docs_visible(True)
+        try:
+            target = await citations.locate_fact(doc_id, page, fact, get_session_token())
+        except Exception as exc:
+            _log.warning("fact #%s p%s failed: %s", doc_id, page, exc)
+            target = None
+        if target is None:
+            _rs["preview"] = None
+            _render_preview()
+            ui.notify(_("Document #{id} not found or no access.").format(id=doc_id), type="warning")
+            return
+        _rs["preview"] = {"target": target}
+        _render_preview()
+        ui.run_javascript(
+            f"window.__pbScrollToHighlight && window.__pbScrollToHighlight({target.page})"
+        )
+
     _render_preview()  # the empty state, until a reference is clicked
 
     _cite_handler = ui.element("div").style("display:none;")
@@ -3593,6 +3689,9 @@ window.__pbMicLang = {json.dumps(_speech_lang())};
                 args = args[0] if args else None
             data = json.loads(args) if isinstance(args, str) else (args or {})
             doc_s, _sep, page_s = str(data.get("c", "")).partition("-")
+            if data.get("fact"):
+                await _open_fact(int(doc_s), int(page_s or 0), str(data["fact"])[:120])
+                return
             others = [str(c)[:500] for c in (data.get("others") or [])[:8]]
             await _open_citation(
                 int(doc_s), int(page_s or 0), str(data.get("claim", ""))[:500], others
@@ -3627,6 +3726,8 @@ document.addEventListener('click', function(e) {{
         window.__openVaultNote(v.getAttribute('data-vault-id'));
         return;
     }}
+    var fct = e.target.closest('[data-fact]');
+    if (fct) {{ e.preventDefault(); e.stopPropagation(); window.__openFact(fct); return; }}
     var c = e.target.closest('[data-cite]');
     if (c) {{ e.preventDefault(); window.__openCite(c); return; }}
     var d = e.target.closest('[data-doc-id]');
@@ -3688,6 +3789,21 @@ window.addEventListener('message', function(e) {{
     if (e.origin !== window.location.origin || !e.data || e.data.type !== 'pb-open-cite') return;
     window.__pbOpenCiteData(String(e.data.c || ''), String(e.data.claim || ''));
 }});
+// A verified fact's check mark: its page, the fact marked (services/fact_check).
+window.__openFact = function(el) {{
+    if (!window.socket || !window.did_handshake) {{
+        setTimeout(function() {{ window.__openFact(el); }}, 100);
+        return;
+    }}
+    document.querySelectorAll('.pb-cite.is-active,.pb-cite-item.is-active,.pb-fact.is-active').forEach(function(x) {{
+        x.classList.remove('is-active');
+    }});
+    el.classList.add('is-active');
+    window.socket.emit('event', {{
+        id: {_cite_handler.id}, client_id: window.clientId, listener_id: '{_cite_listener_id}',
+        args: [JSON.stringify({{c: el.getAttribute('data-fact'), fact: el.getAttribute('data-fact-q') || ''}})]
+    }});
+}};
 window.__openCite = function(el) {{
     if (!window.socket || !window.did_handshake) {{
         setTimeout(function() {{ window.__openCite(el); }}, 100);
@@ -4138,6 +4254,8 @@ window.__openVaultNote = function(noteId) {{
             with btn, ui.menu().props("auto-close"):
                 if content:
                     _item("download", _("Download answer as Markdown"), _dl_md)
+                    _item("description", _("Download answer as Word"),
+                          lambda c=content: _dl_word(c, _conv_title() or _("Answer")))
                 for ci, csv_bytes in enumerate(csvs):
                     multi = len(csvs) > 1
 
@@ -4428,6 +4546,36 @@ window.__openVaultNote = function(noteId) {{
             ui.notify(_("Nothing to download yet."), type="info")
             return
         ui.download(md.encode("utf-8"), _("conversation.md"), media_type="text/markdown")
+
+    async def _dl_word(markdown: str, title: str) -> None:
+        """A Word copy of an answer or the conversation (services/docx_export)."""
+        from datetime import datetime
+
+        from services.docx_export import DOCX_MEDIA_TYPE, filename, markdown_to_docx
+        from werkbank.settings_store import get_archive_language
+
+        try:
+            data = await asyncio.to_thread(
+                markdown_to_docx, markdown, title, username=_username,
+                model_name=_s.get("chat_model_name", ""), dt=datetime.now(), lang=get_archive_language())
+        except Exception as exc:  # noqa: BLE001 — say why
+            _log.warning("Word export failed", exc_info=True)
+            ui.notify(_("Could not create the Word document: {err}").format(err=exc), type="negative")
+            return
+        ui.download(data, filename(title), media_type=DOCX_MEDIA_TYPE)
+
+    async def _dl_conversation_word() -> None:
+        from app_ui.chat_export import conversation_markdown
+
+        md = conversation_markdown(
+            _s["messages"], you=_("You"), assistant=_expert().name or "PaperlessBrain")
+        if not md:
+            ui.notify(_("Nothing to download yet."), type="info")
+            return
+        head, _sep, rest = md.partition("\n")
+        # The export's date line: the Word document's own meta line has it.
+        rest = re.sub(r"^\s*\*[^*\n]+\*\s*\n", "", rest, count=1)
+        await _dl_word(rest.lstrip("\n"), _conv_title() or head.removeprefix("# ").strip())
 
     def _open_pdf_dialog(title: str, content: str, slug: str) -> None:
         """Review and save to Paperless — opened from the conversation menu
@@ -5456,14 +5604,6 @@ window.__openVaultNote = function(noteId) {{
                 await _resolve_vault_wiki_links(
                     accumulated[0], _rs.setdefault("vault_index", {}), _username
                 )
-                streaming_label[0].set_content(
-                    _inject_doc_links(
-                        accumulated[0],
-                        _rs.get("vault_index"),
-                        await _resolve_cite_titles([accumulated[0]]),
-                    )
-                )
-                _s["messages"].append({"role": "assistant", "content": accumulated[0]})
                 # What the answer rests on, from this turn's tool log — kept so
                 # "Save to dossier" names real sources, after a reload too.
                 try:
@@ -5474,9 +5614,23 @@ window.__openVaultNote = function(noteId) {{
                 except Exception:
                     _log.warning("provenance failed", exc_info=True)
                     _prov = {}
+                # Every document a tool returned — what the answer's facts may
+                # be checked against (services/fact_check).
+                _read = _dossier_merge.returned_ids(_tool_trace)
+                if _read:
+                    _prov["read"] = _read
                 _loaded_now = _skills_mod.loaded_names(_tool_trace)
                 if _loaded_now:
                     _prov["skills"] = _loaded_now
+                streaming_label[0].set_content(
+                    _inject_doc_links(
+                        accumulated[0],
+                        _rs.get("vault_index"),
+                        await _resolve_cite_titles([accumulated[0]]),
+                        facts=await asyncio.to_thread(_facts_for, accumulated[0], _prov),
+                    )
+                )
+                _s["messages"].append({"role": "assistant", "content": accumulated[0]})
                 if _prov:
                     _prov["_unsaved"] = True
                     _s["turn_meta"][len(_s["messages"]) - 1] = _prov

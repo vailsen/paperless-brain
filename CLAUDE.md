@@ -229,6 +229,12 @@ memory note's `tags:` property — never Paperless tags, so the field says "Keyw
 suggested from the user's own memories (words found in the text first, then the most used).
 "Save to dossier" offers **AI summary** (the merge round) or **Save verbatim**.
 
+**Word next to every PDF of generated text** (`services/docx_export.py`): the deep research
+report, a research note (`/api/research/docx`, linked beside each note's PDF), a finding
+(`/api/findings/docx`), and the chat's answer and conversation downloads. It takes the
+PDF's own preparation (`plain_citations`), then markdown2 → Word's built-in styles (headings,
+lists, tables, quotes, real hyperlinks, inline pictures), so a user can restyle it.
+
 Saving the chat (through "Save…") and starting a deep-research run (2026-11-14), and writing a
 letter or an email (2026-11-15) are items in the conversation "…" menu and quick chips
 (`_save_conversation`, `_research_from_chat`, `_compose`); downloading a document is the
@@ -432,6 +438,17 @@ rendering), `services/doc_image_service.py` (access gate + cache), `app_ui/doc_i
   (`repair_pages`): no support on the cited page, clear support on another page of the same
   document → the marker names that page and gets its own number. A supported marker is never
   touched; `claim_before` applies the browser's claim rule.
+- **Hard facts get a green check when code finds them in a cited source**
+  (`services/fact_check.py`, 2026-11-28 — no model). Amounts, full dates and ids
+  (IBAN, invoice/file numbers) in an answer are looked up on the pages of the documents it
+  cites — the sentence's own citation first, then its line (a table row), then every cited
+  document — forgiving spaces, separators, case, OCR's O/0 and l/1, number formats (compared
+  by value; "1.240" by both readings) and date formats; never a piece of a longer number or
+  id. Checked at render time against sidecar text, and **only documents a tool returned to
+  this user in this conversation** (`turn_meta` `docs` + `read`, `dossier_merge.returned_ids`):
+  a mark must reveal nothing about a document they cannot open. A tap opens the page with
+  the fact boxed on the PDF's text layer (`citations.locate_fact`, same access check). No mark
+  is not an accusation; nothing marks a fact as unverified.
 - **A web source is a link, resolved from the tool log** (`services/web_citations.py`). A
   model verifying on the web writes `[^Cleveland Clinic]`; before the answer is stored, each
   such marker becomes `([Cleveland Clinic](url))` — matched by site or title against pages a

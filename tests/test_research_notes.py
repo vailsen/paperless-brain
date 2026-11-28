@@ -164,6 +164,7 @@ def test_wikilinks_for_the_pdf_and_for_the_findings_page():
     assert research.strip_wikilinks(link + " and [[Notes/Todo]]") == "Full report and Todo"
     html = _wikilinks(link + " and [[Notes/Todo]]")
     assert html == ("[Full report](/api/research/pdf?path=PaperlessBrain%20Research%2F26-10-28%20Riester.md)"
+                    " ([Word](/api/research/docx?path=PaperlessBrain%20Research%2F26-10-28%20Riester.md))"
                     " and Todo")
 
 

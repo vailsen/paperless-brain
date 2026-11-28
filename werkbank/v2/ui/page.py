@@ -220,6 +220,25 @@ async def _download_pdf(state, report: str, run_id: str, user_id: str) -> None:
         ui.notify(_("Could not create the PDF: {err}").format(err=exc), type="negative")
 
 
+async def _download_docx(state, report: str, run_id: str, user_id: str) -> None:
+    """The report as a Word document — the same content as the PDF, editable."""
+    _ = get_translator()
+    try:
+        from config.settings import local_tz
+        from services.docx_export import DOCX_MEDIA_TYPE, markdown_to_docx
+        from werkbank.settings_store import get_archive_language
+
+        title = (state.brief.goal if state.brief else _("Research report"))[:120]
+        data = await asyncio.to_thread(
+            markdown_to_docx, report, title, username=user_id, model_name=state.model or "",
+            dt=datetime.now(tz=local_tz()), lang=get_archive_language(),
+        )
+        ui.download(data, _report_filename(state, run_id, "docx"), media_type=DOCX_MEDIA_TYPE)
+    except Exception as exc:                                # noqa: BLE001
+        _log.exception("werkbank v2: DOCX export failed")
+        ui.notify(_("Could not create the Word document: {err}").format(err=exc), type="negative")
+
+
 def _delete_run(run_id: str, user_id: str, refresh, host=None) -> None:
     """Ask, then stop it, then delete it.
 
@@ -325,6 +344,11 @@ def _open_run(run_id: str, user_id: str, model: str, refresh, host) -> None:
                     ui.button(
                         _("PDF"), icon="picture_as_pdf", color=None,
                         on_click=lambda r=run, t=report: _download_pdf(
+                            r, t, run_id, user_id),
+                    ).props("flat dense").style("color:var(--c-text-2)")
+                    ui.button(
+                        "Word", icon="description", color=None,
+                        on_click=lambda r=run, t=report: _download_docx(
                             r, t, run_id, user_id),
                     ).props("flat dense").style("color:var(--c-text-2)")
                 ui.button(icon="close", color=None, on_click=_close).props(

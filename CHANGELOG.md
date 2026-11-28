@@ -113,6 +113,12 @@ Versioning is [semantic](https://semver.org/) from `v0.2.0` onward.
 
 ### Added
 
+- **Checked facts in chat answers**: an amount, date or id (IBAN, invoice
+  number …) that appears in a document the answer cites gets a small green
+  check — however it is written there (spaces, dots or commas, case, date
+  format). A tap opens the page with the fact marked. No model involved.
+- **Word documents** next to every PDF: deep research reports, research notes,
+  findings, and the chat's answer and conversation downloads.
 - **Conversations get a fitting title**: after the first and the third answer
   the chat model names the conversation; a title you set with "Rename" stays.
 - **Keyword suggestions when saving a memory**: the field is now called

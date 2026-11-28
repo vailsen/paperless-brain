@@ -729,6 +729,38 @@ async def locate(
     return target
 
 
+async def locate_fact(doc_id: int, page: int, fact: str, token: str) -> CiteTarget | None:
+    """A verified hard fact (`services/fact_check`): its page, with the words
+    that hold it marked — found on the PDF's text layer the same forgiving way
+    it was found in the document's text. None without access; a page without a
+    text layer (a scan) opens without a mark."""
+    import asyncio
+
+    from services import doc_image_service, fact_check
+
+    src = await doc_image_service.fetch_source(doc_id, token)
+    if src is None:
+        return None
+    doc, pdf_bytes = src
+    pages = _sidecar_pages(doc_id)
+    page_count = doc.page_count or len(pages) or 1
+    if not 1 <= page <= page_count:
+        page = 1
+    target = CiteTarget(doc_id, doc.title or f"#{doc_id}", page, page_count, fact)
+    if pdf_bytes:
+        def _read() -> tuple[list[Box], list[float]]:
+            with doc_image_service.pdfium_lock:
+                words = pdf_words(pdf_bytes, page)
+                idx = fact_check.word_spans(fact, [w.text for w in words])
+                return [words[i].box for i in idx], page_ratios(pdf_bytes)
+
+        try:
+            target.boxes, target.ratios = await asyncio.to_thread(_read)
+        except Exception as exc:
+            _log.warning("fact: text layer of #%s p%s unreadable: %s", doc_id, page, exc)
+    return target
+
+
 # ── Wrong page in a marker ───────────────────────────────────────────────────
 
 _BLOCK_END_RE = re.compile(r"\n")
